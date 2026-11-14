@@ -4,6 +4,8 @@
 //! window. The same schema serves the human and the oracle, so the two can be
 //! compared row by row.
 
+// port-parity: PORT-001
+
 use serde::{Deserialize, Serialize};
 
 use crate::window::Window;

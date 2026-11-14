@@ -8,6 +8,8 @@
 //! Passing is a screen. It is not a baseline, not an edge, and not evidence that
 //! survives out-of-sample validation by itself.
 
+// port-parity: PORT-001
+
 use serde::{Deserialize, Serialize};
 
 /// The pre-registered thresholds.
@@ -183,10 +185,13 @@ impl std::error::Error for CheckError {}
 
 fn mean(values: &[f64]) -> f64 {
     if values.is_empty() {
-        0.0
-    } else {
-        values.iter().sum::<f64>() / values.len() as f64
+        return 0.0;
     }
+    // Sum in value order, not input order. A caller may hand the same set in a
+    // different order; the mean must not change because of it.
+    let mut ordered = values.to_vec();
+    ordered.sort_by(f64::total_cmp);
+    ordered.iter().sum::<f64>() / ordered.len() as f64
 }
 
 fn win_rate(values: &[f64]) -> f64 {
@@ -279,6 +284,40 @@ mod tests {
         )
         .expect("check");
         assert!(result.failures.contains(&Failure::Unstable));
+    }
+
+    #[test]
+    fn reordering_the_values_does_not_change_the_result() {
+        let events = [1.0, 0.25, 0.5, 0.125];
+        let control = [0.1, -0.1, 0.05, -0.05];
+        let first = check(&events, &control, &half_years(4), Criteria::default()).expect("first");
+        let mut reversed_events = events;
+        reversed_events.reverse();
+        let mut reversed_control = control;
+        reversed_control.reverse();
+        let second = check(
+            &reversed_events,
+            &reversed_control,
+            &half_years(4),
+            Criteria::default(),
+        )
+        .expect("second");
+        assert_eq!(first, second);
+    }
+
+    #[test]
+    fn an_unmarked_check_set_reports_too_few_events() {
+        let criteria = Criteria {
+            half_years: 0,
+            ..Criteria::default()
+        };
+        let result = check(&[], &[0.1], &[], criteria).expect("check");
+        assert_eq!(result.events, 0);
+        assert_eq!(result.mean_net, 0.0);
+        assert_eq!(result.hit_rate, 0.0);
+        assert_eq!(result.control, 1);
+        assert!(result.failures.contains(&Failure::TooFewEvents));
+        assert!(!result.passed);
     }
 
     #[test]

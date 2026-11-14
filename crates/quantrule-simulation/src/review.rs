@@ -7,6 +7,8 @@
 //! A disagreement is a finding, not a defect to hide: the rule under test comes
 //! from what the marks share, not from what either side alone prefers.
 
+// port-parity: PORT-001
+
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
@@ -239,6 +241,14 @@ mod tests {
         assert_eq!(review.human.neutral, 1);
         assert_eq!(review.human.long, 2);
         assert_eq!(review.human.short, 1);
+    }
+
+    #[test]
+    fn empty_sets_have_zero_counts() {
+        let review = review(&[], &[]);
+        assert_eq!(review.human, Counts::default());
+        assert_eq!(review.oracle, Counts::default());
+        assert!(review.disagreements.is_empty());
     }
 
     #[test]

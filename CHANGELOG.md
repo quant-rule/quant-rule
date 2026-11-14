@@ -27,6 +27,13 @@ are not treated as releases.
   global `--profile`, and a `--json` machine view. Every command makes one
   gateway operation; printed output is stable and covered by fixture-server
   tests.
+- The simulation research plane gains its meta-label stage: a human entry is
+  labelled by its forward path, grouped by EMA stack and ATR bucket, and the
+  best cell with enough marks is checked on an unmarked window. `PORT-001`
+  registers the first port-parity fixture, captured from the Python harness at
+  `b63b9015` on the checked-in mini bundle; the fixture covers the meta stage in
+  full and the window, marks, oracle, review, check, and exit reductions, with
+  each omitted comparison named in the case notes.
 - The desktop shell (`apps/desktop-shell`) is a Tauri 2 window over the gateway
   URL. It remembers the gateway, leaves the active profile to the web client,
   checks GitHub Releases for a newer shell, and shows the bundled client only as
