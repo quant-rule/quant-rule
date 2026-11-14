@@ -152,6 +152,9 @@ are not treated as releases.
 
 ### Changed
 
+- Run artifacts publish atomically: bytes live at `artifacts/{sha256}` and one
+  `runs/{run_id}/manifest.json` is the publish point. A worker stopped mid-write
+  leaves blobs but no manifest, no recorded artifact, and no succeeded run.
 - The v4 strategy example uses a 1m execution fill to match the strategy. The
   worker exposed that the app requires the strategy execution timeframe and the
   execution fill timeframe to agree; the v4 contract now states it.

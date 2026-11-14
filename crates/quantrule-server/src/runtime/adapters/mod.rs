@@ -138,6 +138,12 @@ pub trait ObjectStore: Send + Sync {
     fn backend(&self) -> Backend;
 
     /// Write bytes under a key.
+    ///
+    /// A successful write is atomic: a reader sees the previous object or the
+    /// complete new one, never a partial body. S3 provides this; a filesystem
+    /// implementation must write a temporary file and rename it. The run
+    /// manifest is published this way, so a killed writer cannot expose a
+    /// partial artifact set.
     fn put(&self, key: &str, bytes: Vec<u8>) -> BoxFuture<Result<(), StoreError>>;
 
     /// Read the bytes under a key.

@@ -36,6 +36,18 @@ impl MemoryObjects {
     pub fn remove(&self, key: &str) {
         self.inner.lock().expect("the object lock").remove(key);
     }
+
+    /// Every key currently stored; the worker's partial-publish test needs to
+    /// prove that no run prefix exists.
+    #[allow(dead_code)]
+    pub fn keys(&self) -> Vec<String> {
+        self.inner
+            .lock()
+            .expect("the object lock")
+            .keys()
+            .cloned()
+            .collect()
+    }
 }
 
 impl ObjectStore for MemoryObjects {

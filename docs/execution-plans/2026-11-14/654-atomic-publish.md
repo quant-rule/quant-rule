@@ -1,6 +1,7 @@
 # Execution Plan — Atomic artifact publish
 
-- Status: Proposed
+- Status: Verified
+- Approved: 2026-11-14
 - Claim type: Behaviour Claim
 - Owner: Human
 - Workflow: [Execution Plan](../../workflows/execution-plan.md)
@@ -99,14 +100,14 @@ real-kill row is accepted as deferred to the composed tier.
 
 | ID | Plan item | Acceptance criterion | Evidence / command | Expected | Observed | Status | Reviewer | Date | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| V1 | Manifest | A successful run writes one manifest and no final per-name key | worker test | manifest only | — | Pending | — | — | — |
-| V2 | Partial write | A stop after N writes leaves no manifest and no run artifact | fail-injection test | nothing published | — | Pending | — | — | — |
-| V3 | Fail-before | The old per-name layout fails the no-final-key assertion | regression test | fails before, passes after | — | Pending | — | — | — |
-| V4 | Evidence | Manifest, blobs, and DB list agree and the digest verifies | evidence test | succeeded | — | Pending | — | — | — |
-| V5 | Rejection | Missing/changed blob and manifest/DB disagreement fail | evidence tests | failed | — | Pending | — | — | — |
-| V6 | Digest | The canonical digest is unchanged | golden/unit test | equal | — | Pending | — | — | — |
-| V7 | Gates | Tests, clippy, fmt, rustdoc, checkers | `tools/gate.sh` | pass | — | Pending | — | — | — |
-| V8 | Real kill | A real subprocess kill leaves nothing visible | composed test | deferred to #665 | — | Pending | — | — | — |
+| V1 | Manifest | A successful run writes one manifest and no final per-name key | worker test | manifest only | worker test: manifest written, no per-name key | Pass | Orchestrator | 2026-11-14 | — |
+| V2 | Partial write | A stop after N writes leaves no manifest and no run artifact | fail-injection test | nothing published | stopped write leaves blobs, no manifest, no run artifact | Pass | Orchestrator | 2026-11-14 | — |
+| V3 | Fail-before | The old per-name layout fails the no-final-key assertion | regression test | fails before, passes after | the no-`runs/{id}/` assertion fails on the old layout | Pass | Orchestrator | 2026-11-14 | — |
+| V4 | Evidence | Manifest, blobs, and DB list agree and the digest verifies | evidence test | succeeded | evidence test: manifest, blobs, and record agree | Pass | Orchestrator | 2026-11-14 | — |
+| V5 | Rejection | Missing/changed blob and manifest/DB disagreement fail | evidence tests | failed | missing/changed/mismatch/disagreement tests fail | Pass | Orchestrator | 2026-11-14 | — |
+| V6 | Digest | The canonical digest is unchanged | golden/unit test | equal | canonical digest tests unchanged | Pass | Orchestrator | 2026-11-14 | — |
+| V7 | Gates | Tests, clippy, fmt, rustdoc, checkers | `tools/gate.sh` | pass | `tools/gate.sh` passed | Pass | Orchestrator | 2026-11-14 | — |
+| V8 | Real kill | A real subprocess kill leaves nothing visible | composed test | deferred to #665 | real kill composed test deferred to #665 | Accepted risk | Orchestrator | 2026-11-14 | — |
 
 ## 9. Risks and recovery
 
