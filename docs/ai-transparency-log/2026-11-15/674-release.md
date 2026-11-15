@@ -98,7 +98,10 @@ worker's coupled-baseline digest is unchanged (`sha256:c23925d4…`), and
   The proof runs after merge: `gh workflow run release.yml --ref main -f
   publish_snapshot=true`. No digest was invented for it.
 - **Windows NSIS installer.** It is built on `windows-latest` by the tag run; a
-  Linux host cannot produce it. The release note says so.
+  Linux host cannot produce it. The release note says so. The desktop matrix
+  last ran green in the 2026-11-14 dispatch (run `43609148763`, both desktop
+  jobs), but that run built `0.3.0` with the previous workflow; the `1.0.0`
+  artifact and the new version assertion are the tag run's evidence.
 - **Tag run.** Not created; the Orchestrator tags after the snapshot proof and
   the merge.
 - **Cross-machine determinism.** Reviewer-executed; this log claims only the two
