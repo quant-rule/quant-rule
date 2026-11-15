@@ -149,6 +149,23 @@ The merged tree was re-verified:
 No queue code changed in either merge; the PR remains #814 and keeps
 `Closes #694` because the filesystem CAS and the durable queue are complete.
 
+## Main merge 3 (2026-11-15, after #817)
+
+`origin/main` then moved to `dee568a7` (#817 simulation SQLite). The merge into
+`feat/694-queue` was automatic: `CHANGELOG.md` kept the evidence, simulation,
+gateway, filesystem, queue, desktop-package, and data entries, and `Cargo.lock`
+and the code merged without a conflict. Merge commit `dc520c6d`.
+
+The merged tree was re-verified:
+
+| Command | Observed |
+|---|---|
+| `cargo fmt --all -- --check` | passed |
+| `cargo test --workspace` | passed; 2122 passed, 0 failed, 14 ignored |
+| `tools/gate.sh` | passed; 2122 tests passed, every checker reported ok, and the script printed `workspace gate passed`. It ran with `CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0` under build load; the same tree passed `cargo test --workspace` without that setting |
+
+No queue code changed in any merge; the PR remains #814 and keeps `Closes #694`.
+
 ## Learning and rejected alternatives
 
 - A queue-level retry policy was rejected: the approved plan and the #653
