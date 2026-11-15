@@ -15,6 +15,15 @@ are not treated as releases.
 
 ### Added
 
+- The gateway can start on the embedded SQLite profile. `QR_PROFILE=desktop`
+  with `QR_DATA_DIR` opens `quantrule.sqlite`, applies the gateway's SQLite
+  baseline to one shared `schema_migrations` ledger with a `ledger` column,
+  serves `/profiles` through the existing `ProfileStore` trait, and reports
+  `sqlite` at `/health`. `quantrule-runtime` maps `schema.table` to
+  `schema__table`, stores JSON as `TEXT`, timestamps as RFC 3339 `TEXT`, and
+  runs repository calls on the blocking pool through the workspace's existing
+  `rusqlite` 0.42. The data, evidence, and simulation repositories remain on
+  Postgres until their P1b-P1d changes.
 - `FilesystemStore`, the object-store adapter for the desktop profile
   (DIST-202, #694 P2a). A publish is a temporary file in the destination
   directory, an fsync, and an atomic rename; a key whose last segment is a bare

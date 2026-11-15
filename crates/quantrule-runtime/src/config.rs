@@ -21,6 +21,31 @@ pub const DEFAULT_QUEUE_URL: &str = "amqp://quantrule:quantrule@rabbitmq:5672/%2
 /// The default upload limit: 512 MiB.
 pub const DEFAULT_UPLOAD_LIMIT: u64 = 512 * 1024 * 1024;
 
+/// The deployment profile.
+///
+/// The server profile is the released stack: Postgres, S3, and RabbitMQ. The
+/// desktop profile is the embedded stack: SQLite, a filesystem store, and an
+/// in-process queue under `QR_DATA_DIR`. A service branches once in `main.rs`;
+/// no route, use case, or engine reads the profile.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum DeploymentProfile {
+    /// Postgres, S3, and RabbitMQ.
+    Server,
+    /// SQLite, a filesystem store, and an in-process queue.
+    Desktop,
+}
+
+impl DeploymentProfile {
+    /// The wire name, used in logs.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Server => "server",
+            Self::Desktop => "desktop",
+        }
+    }
+}
+
 /// Why a configuration value was rejected.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConfigError {
@@ -60,6 +85,10 @@ impl std::error::Error for ConfigError {}
 pub struct Config {
     /// Where the HTTP server listens.
     pub bind: String,
+    /// Which deployment profile this process runs.
+    pub profile: DeploymentProfile,
+    /// The desktop data directory; required when the profile is desktop.
+    pub data_dir: Option<PathBuf>,
     /// Postgres connection string.
     pub database_url: String,
     /// S3-compatible endpoint.
@@ -88,6 +117,8 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             bind: DEFAULT_BIND.to_owned(),
+            profile: DeploymentProfile::Server,
+            data_dir: None,
             database_url: DEFAULT_DATABASE_URL.to_owned(),
             object_store_url: DEFAULT_OBJECT_STORE_URL.to_owned(),
             object_store_bucket: DEFAULT_OBJECT_BUCKET.to_owned(),
@@ -133,6 +164,25 @@ impl Config {
                 });
             }
             config.bind.clone_from(value);
+        }
+        if let Some(value) = values.get("QR_PROFILE") {
+            config.profile = match value.as_str() {
+                "server" => DeploymentProfile::Server,
+                "desktop" => DeploymentProfile::Desktop,
+                _ => {
+                    return Err(ConfigError::Invalid {
+                        name: "QR_PROFILE",
+                        value: value.clone(),
+                        reason: "must be server or desktop",
+                    });
+                }
+            };
+        }
+        if let Some(value) = values
+            .get("QR_DATA_DIR")
+            .filter(|value| !value.trim().is_empty())
+        {
+            config.data_dir = Some(PathBuf::from(value));
         }
         if let Some(value) = values.get("QR_DATABASE_URL") {
             config.database_url.clone_from(value);
@@ -203,6 +253,11 @@ impl Config {
                 reason: "must be a sha256 digest",
             })?);
         }
+        if config.profile == DeploymentProfile::Desktop && config.data_dir.is_none() {
+            return Err(ConfigError::Missing {
+                name: "QR_DATA_DIR",
+            });
+        }
         Ok(config)
     }
 }
@@ -222,11 +277,61 @@ mod tests {
     fn defaults_are_startable_without_any_variable() {
         let config = Config::from_map(&BTreeMap::new()).expect("defaults");
         assert_eq!(config.bind, DEFAULT_BIND);
+        assert_eq!(config.profile, DeploymentProfile::Server);
+        assert!(config.data_dir.is_none());
         assert_eq!(config.upload_limit_bytes, DEFAULT_UPLOAD_LIMIT);
         assert_eq!(config.backtest_concurrency, 1);
         assert!(config.bearer_token.is_none());
         assert!(config.static_dir.is_none());
         assert_eq!(config.config_root, PathBuf::from("config"));
+    }
+
+    #[test]
+    fn the_desktop_profile_needs_a_data_directory() {
+        let error = Config::from_map(&map(&[("QR_PROFILE", "desktop")])).expect_err("reject");
+        assert_eq!(
+            error,
+            ConfigError::Missing {
+                name: "QR_DATA_DIR"
+            }
+        );
+    }
+
+    #[test]
+    fn the_desktop_profile_reads_the_data_directory() {
+        let config = Config::from_map(&map(&[
+            ("QR_PROFILE", "desktop"),
+            ("QR_DATA_DIR", "/srv/quantrule"),
+        ]))
+        .expect("desktop");
+        assert_eq!(config.profile, DeploymentProfile::Desktop);
+        assert_eq!(config.data_dir, Some(PathBuf::from("/srv/quantrule")));
+        assert_eq!(config.profile.as_str(), "desktop");
+    }
+
+    #[test]
+    fn an_unknown_profile_is_rejected() {
+        let error = Config::from_map(&map(&[("QR_PROFILE", "tablet")])).expect_err("reject");
+        assert_eq!(
+            error,
+            ConfigError::Invalid {
+                name: "QR_PROFILE",
+                value: "tablet".to_owned(),
+                reason: "must be server or desktop",
+            }
+        );
+    }
+
+    #[test]
+    fn an_empty_data_directory_is_absent() {
+        let error = Config::from_map(&map(&[("QR_PROFILE", "desktop"), ("QR_DATA_DIR", "  ")]))
+            .expect_err("empty");
+        assert_eq!(
+            error,
+            ConfigError::Missing {
+                name: "QR_DATA_DIR"
+            }
+        );
     }
 
     #[test]

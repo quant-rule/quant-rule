@@ -1,0 +1,19 @@
+{
+  "contract": "quantrule.gateway-parity/v1",
+  "note": "One gateway profile in the SQLite storage shape and in the Postgres wire shape. The fast-tier harness normalizes both and compares them with `normalized`. The Postgres method conformance suite is the opt-in `the_postgres_store_conforms` test.",
+  "sqlite": {
+    "profile_id": "conformance-profile",
+    "name": "Conformance",
+    "created_at": "2026-11-15T00:00:00Z"
+  },
+  "postgres": {
+    "profile_id": "conformance-profile",
+    "name": "Conformance",
+    "created_at": "2026-11-15 00:00:00+00"
+  },
+  "normalized": {
+    "profile_id": "conformance-profile",
+    "name": "Conformance",
+    "created_at": "2026-11-15T00:00:00Z"
+  }
+}
