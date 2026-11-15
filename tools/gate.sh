@@ -34,6 +34,7 @@ for checker in \
   check_verification_matrix \
   check_event_emitters \
   check_file_size \
+  check_schema_prefixes \
   check_python \
   check_port_parity \
   check_claims \
