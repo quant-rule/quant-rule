@@ -109,6 +109,27 @@ empty-key case; WAL and the busy timeout; and an empty routing key refusal.
   delivered twice. The default is deliberately long, but a slow consumer is a
   residual risk; P2c may tune the lease or add a renewal.
 
+## Main merge (2026-11-15, after PR review)
+
+`origin/main` moved to `2e964f5b` (#816 evidence SQLite, #813 desktop package).
+Merging it into `feat/694-queue` produced one conflict, in `CHANGELOG.md`: main
+still carried the P2a sentence saying the durable queue was gated on #693, while
+this branch had added the queue entry. The resolution keeps the evidence SQLite,
+filesystem CAS, `InProcessQueue`, and desktop-package entries, and drops the
+stale gating sentence. `Cargo.lock` and the code merged without a conflict.
+
+The merged tree was re-verified:
+
+| Command | Observed |
+|---|---|
+| `cargo fmt --all -- --check` | passed |
+| `cargo test -p quantrule-runtime` | passed; 73 library, 5 inventory, 1 boundary, 18 queue, and 13 SQLite tests; the Postgres lock test ignored as designed |
+| `cargo test --workspace` | passed; 2082 passed, 0 failed, 12 ignored |
+| `tools/gate.sh` | passed; 2082 tests passed, every checker reported ok, and the script printed `workspace gate passed`. It ran with `CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0` under build load; the same tree passed `cargo test --workspace` without that setting |
+
+No queue code changed in the merge; the branch is up to date with the current
+main and the PR is #814.
+
 ## Learning and rejected alternatives
 
 - A queue-level retry policy was rejected: the approved plan and the #653
