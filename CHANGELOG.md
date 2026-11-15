@@ -130,6 +130,15 @@ are not treated as releases.
   the configured gateway, and does not persist a fallback address. A development
   shell with no supervisor beside it still opens the configured gateway.
 
+### Fixed
+
+- The desktop filesystem content-addressed store maps each logical key segment
+  to a portable filename. `:` and `%` are percent-encoded, a trailing dot or
+  space is escaped, and a Windows device name has its first character encoded,
+  so `runs/sha256:<digest>/manifest.json` no longer fails with a Windows
+  filename error. The logical key, the byte-address check, immutable publish,
+  and idempotent republish are unchanged.
+
 ## [1.0.0] - 2026-11-15
 
 The first distributed release. One image digest carries six service binaries and
