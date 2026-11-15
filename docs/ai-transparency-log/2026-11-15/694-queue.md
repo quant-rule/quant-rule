@@ -130,6 +130,25 @@ The merged tree was re-verified:
 No queue code changed in the merge; the branch is up to date with the current
 main and the PR is #814.
 
+## Main merge 2 (2026-11-15, after #815)
+
+`origin/main` then moved to `e9b46e51` (#815 data SQLite). The merge into
+`feat/694-queue` was automatic: `CHANGELOG.md` kept the evidence, gateway,
+filesystem, queue, desktop-package, and new data entries, and `Cargo.lock` and
+the code merged without a conflict. Merge commit `c3dd679b`.
+
+The merged tree was re-verified:
+
+| Command | Observed |
+|---|---|
+| `cargo fmt --all -- --check` | passed |
+| `cargo test -p quantrule-runtime` | passed; 73 library, 5 inventory, 1 boundary, 18 queue, and 13 SQLite tests; the Postgres lock test ignored as designed |
+| `cargo test --workspace` | passed; 2102 passed, 0 failed, 13 ignored |
+| `tools/gate.sh` | passed; 2102 tests passed, every checker reported ok, and the script printed `workspace gate passed`. It ran with `CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0` under build load; the same tree passed `cargo test --workspace` without that setting |
+
+No queue code changed in either merge; the PR remains #814 and keeps
+`Closes #694` because the filesystem CAS and the durable queue are complete.
+
 ## Learning and rejected alternatives
 
 - A queue-level retry policy was rejected: the approved plan and the #653
