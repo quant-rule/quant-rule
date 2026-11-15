@@ -1,7 +1,7 @@
 # Tutorial — Remote Compute
 
 - Date: 2026-11-12
-- Status: Target v1.0.0
+- Status: Current; released v1.0.0 on 2026-11-15
 - Audience: operator
 - Related: [`deployment.md`](../../architecture/deployment.md), [`security.md`](../../architecture/security.md)
 

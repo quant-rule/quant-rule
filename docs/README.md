@@ -36,7 +36,7 @@ repeating a status.
 | Area | Status |
 |---|---|
 | Pipeline | Every stage is implemented: data, model, strategy, execution, portfolio, backtest, qualification, analytics. |
-| Surfaces | Target v1.0.0 is a distributed platform with two clients: a Svelte browser client and a command shell, both on `quantrule.api/v1`. The command shell is now a thin gateway client with no engine dependency; the browser client and the remaining services are in progress. The issues are in [architecture/README.md](architecture/README.md) and [dist-000](execution-plans/2026-11-12/dist-000-distributed-platform.md). |
+| Surfaces | Released v1.0.0 is a distributed platform with two clients: a Svelte browser client and a command shell, both on `quantrule.api/v1`, plus the Tauri desktop shell over the gateway URL. The command shell is a thin gateway client with no engine dependency; the six services are packaged in one image and nine-container stack. |
 | Command surface | 27 implemented commands on the v1.0.0 gateway-client surface in [command-surface.md](architecture/command-surface.md). The discovery gate passes for the implemented set. |
 | Model | `M1.3` current; 49 indicators, 150 active events, 199 validation claims; accepted compression baselines; `M2.x` no edge; `M3.x` underpowered; `M4.x` no edge; `MR5.x` no edge; `MR6.x` no edge; `MR7.x` no edge. |
 | Strategy | No accepted strategy baseline; the tier is gated by an accepted model baseline. |
@@ -45,7 +45,7 @@ repeating a status.
 | Improvement workflow | Current; the S3 surface is implemented; the SR1/SR2 strategy runs, the SR3 feature programme, the SR4 multi-instrument fade, the SR5 absorption count gate, the SR6 VWAP rejection run, the SR7 BTC+ETH H3 cross-section, the SR8 2023 buffer test, the SR8-A 2023 archive data rejection, the SR9 15m structure campaign, and the Binance BTCUSDT cross-venue check are recorded; no baseline accepted; human acceptance pending. |
 | Run contract | Current; `quantrule.improvement-run/v2` is current, v1 is historical. |
 | Research swarm | Current contract; no active campaign. |
-| Release tags | `v1.0.0` is prepared and authorized; the annotated tag is created from `main` after the release PR merges. `v0.9.0` is the latest published release. Historical tags are retained. |
+| Release tags | `v1.0.0` is the latest published release (2026-11-15); the annotated tag and the GitHub release record image digest `sha256:1250438f…` and both desktop assets. `v0.9.0` is the previous release. Historical tags are retained. |
 | Changelog | Grouped release history; `1.0.0` is the current release section. |
 | Tooling | The shell is the agent command path; it makes one gateway call per command. `tools/improvement/run_current.py` remains the research path. `tools/gate.sh` runs the workspace gate. The distributed stack adds `make` targets and six services, specified in [deployment.md](architecture/deployment.md). The `simulation` service and the browser client own chart-first research; the Python simulation, chart, oracle, and trade tools are retired by DIST-105. Python is confined to repository governance; the product image carries none ([ADR-10](adr/2026-11-12/10-python-boundary.md)). |
 
@@ -109,7 +109,7 @@ repeating a status.
 |---|---|---|
 | Run v3 and portfolio constraints | Current; `run v3`, data schema 3, model schema 4, `execution v2`, `portfolio v2` | `docs/config/2026-11-11/run-v3-and-portfolio-constraints.md` |
 | Local research memory | Historical; local SQLite removed in v1.0.0; memory moves to the evidence service (#661) | `docs/config/2026-11-11/research-memory-v1.md` |
-| Client surfaces | Target v1.0.0: Svelte browser client, command shell, and a Tauri shell over the gateway URL | `docs/architecture/client.md` |
+| Client surfaces | Released v1.0.0: Svelte browser client, command shell, and a Tauri shell over the gateway URL | `docs/architecture/client.md` |
 | Distribution | Current; container image and GitHub Release assets. The static page was retired | `ADR-2026-11-12-08` |
 | Policy blueprint | Historical; superseded by run v3 | `docs/config/2026-10-30/policy-and-strategy.md` |
 | Config tree | Current; current, evidence, and historical directories | `config/README.md` |

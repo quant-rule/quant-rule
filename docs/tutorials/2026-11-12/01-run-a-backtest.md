@@ -1,7 +1,7 @@
 # Tutorial — Run a Backtest on the Distributed Stack
 
 - Date: 2026-11-12
-- Status: Target v1.0.0
+- Status: Current; released v1.0.0 on 2026-11-15
 - Audience: operator, reviewer
 - Related: [`deployment.md`](../../architecture/deployment.md), [`user-journey.md`](../../architecture/user-journey.md)
 

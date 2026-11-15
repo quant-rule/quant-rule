@@ -1,6 +1,6 @@
 # Web Client
 
-- Status: Target v1.0.0; approved 2026-11-12
+- Status: Current; released v1.0.0 on 2026-11-15; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Decision: [`ADR-2026-11-12-05`](../adr/2026-11-12/05-svelte-only-web-client.md)
 - Claim type: Behaviour Claim

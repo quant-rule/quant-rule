@@ -38,16 +38,16 @@ agent interface. Both speak `quantrule.api/v1`.
 |---|---|---|
 | [`kata.md`](kata.md) | Current | Why the product exists |
 | [`characteristics.md`](characteristics.md) | Current | Which qualities are measurable and how |
-| [`services.md`](services.md) | Target v1.0.0 | Who does what, and what each service owns |
-| [`data-plane.md`](data-plane.md) | Target v1.0.0 | How one run stays deterministic |
-| [`control-plane.md`](control-plane.md) | Target v1.0.0 | How a run is submitted, retried, and cancelled |
-| [`http-api.md`](http-api.md) | Target v1.0.0 | The client contract |
-| [`deployment.md`](deployment.md) | Target v1.0.0 | How to run it with one command |
-| [`client.md`](client.md) | Target v1.0.0 | The browser client |
-| [`user-journey.md`](user-journey.md) | Target v1.0.0 | How it is used and what it returns |
-| [`security.md`](security.md) | Target v1.0.0 | The trust boundary |
-| [`operations.md`](operations.md) | Target v1.0.0 | Running, backing up, recovering |
-| [`module-map.md`](module-map.md) | Target v1.0.0 | Where code lives |
+| [`services.md`](services.md) | Current; released v1.0.0 | Who does what, and what each service owns |
+| [`data-plane.md`](data-plane.md) | Current; released v1.0.0 | How one run stays deterministic |
+| [`control-plane.md`](control-plane.md) | Current; released v1.0.0 | How a run is submitted, retried, and cancelled |
+| [`http-api.md`](http-api.md) | Current; released v1.0.0 | The client contract |
+| [`deployment.md`](deployment.md) | Current; released v1.0.0 | How to run it with one command |
+| [`client.md`](client.md) | Current; released v1.0.0 | The browser client |
+| [`user-journey.md`](user-journey.md) | Current; released v1.0.0 | How it is used and what it returns |
+| [`security.md`](security.md) | Current; released v1.0.0 | The trust boundary |
+| [`operations.md`](operations.md) | Current; released v1.0.0 | Running, backing up, recovering |
+| [`module-map.md`](module-map.md) | Current; released v1.0.0 | Where code lives |
 | [`command-surface.md`](command-surface.md) | Current | Implemented and planned commands |
 
 `Target` means the decision is accepted and the document is the implementation
