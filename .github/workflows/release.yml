@@ -143,6 +143,11 @@ jobs:
             docker build --platform linux/amd64 --tag "$IMAGE" .
           fi
 
+      - name: Assert the image carries no Python
+        env:
+          IMAGE: ${{ steps.reference.outputs.image }}
+        run: docker run --rm "$IMAGE" /usr/local/bin/check-no-python
+
       - name: Check the image contract
         env:
           IMAGE: ${{ steps.reference.outputs.image }}

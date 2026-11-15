@@ -40,6 +40,11 @@ jobs:
       - name: File size
         run: python3 tools/check_file_size.py
 
+      - name: Python gate
+        run: |
+          python3 -m unittest discover -s tools -p 'test_check_python.py'
+          python3 tools/check_python.py
+
       - name: Port parity
         run: |
           python3 -m unittest discover -s tools -p 'test_check_port_parity.py'
