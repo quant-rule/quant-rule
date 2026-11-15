@@ -107,13 +107,13 @@ Full journey: [`docs/architecture/user-journey.md`](docs/architecture/user-journ
 
 A Tauri package is published from GitHub Releases. v1.0.0 shipped the shell;
 the v1.1 package adds a supervisor that starts the six bundled services on
-loopback. There is still no Docker requirement, no engine in the shell, and no
-local data file read by the shell. The server remains the same stack and the
-same HTTP contract. The embedded desktop backends are landing in v1.1
-(#693/#694): the gateway SQLite profile and the filesystem store are merged,
-while the remaining repositories and the durable queue are in flight. Until they
-land, the packaged supervisor is exercised with stub sidecars and the server
-digest is not claimed.
+loopback with the embedded SQLite, filesystem CAS, and durable in-process queue.
+There is no Docker requirement, no engine in the shell, and no local data read
+by the shell; the server remains the same stack and the same HTTP contract. The
+packaged desktop profile and the server profile both reproduce canonical digest
+`sha256:453c90b4442dd049074e126bb46b400b6f61baa986443c97fa27c3edd41c1daa` for
+the verification fixture. The `v1.0.0` tag remains the latest release; v1.1 is
+implemented and verified, not yet tagged.
 Details: [`apps/desktop-shell/README.md`](apps/desktop-shell/README.md) and
 [ADR-12](docs/adr/2026-11-12/12-desktop-distribution.md).
 

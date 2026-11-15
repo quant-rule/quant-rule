@@ -111,6 +111,7 @@ repeating a status.
 | Local research memory | Historical; local SQLite removed in v1.0.0; memory moves to the evidence service (#661) | `docs/config/2026-11-11/research-memory-v1.md` |
 | Client surfaces | Released v1.0.0: Svelte browser client, command shell, and a Tauri shell over the gateway URL | `docs/architecture/client.md` |
 | Distribution | Current; container image and GitHub Release assets. The static page was retired | `ADR-2026-11-12-08` |
+| Desktop profile | Current; v1.1 embedded SQLite/filesystem/durable-queue profile, supervisor, desktop installers, and server↔desktop parity verified. `v1.0.0` is the latest release tag; v1.1 is not tagged. | [`apps/desktop-shell/README.md`](../apps/desktop-shell/README.md) |
 | Policy blueprint | Historical; superseded by run v3 | `docs/config/2026-10-30/policy-and-strategy.md` |
 | Config tree | Current; current, evidence, and historical directories | `config/README.md` |
 | Available timeframes | `quantrule.data/v3` | `docs/config/2026-10-30/data-v3.md` |
