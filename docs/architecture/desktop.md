@@ -117,18 +117,18 @@ gateway that is already running.
 
 - SQLite is current for `gateway`, `data`, `evidence`, and `simulation`; the
   server profile is unchanged and still the default.
-- `FilesystemStore` is implemented and tested with atomic publish, hash on read,
-  and traversal refusal. The service routes still build the S3 store, so the
-  embedded object store is not yet the run-time backend.
-- `InProcessQueue` is implemented with publish, claim, lease, retry, and
-  dead-letter over `queue__messages` and `queue__dead_letter`. The service
-  binaries do not select it yet, so the desktop control plane is not wired end
-  to end.
+- `FilesystemStore`, `InProcessQueue`, and the desktop selection are wired in
+  every service that uses them. `quantrule-runtime::backends` selects the
+  object store and the queue from `QR_PROFILE`; the data, model, evidence,
+  simulation, and backtest binaries call it once. The queue is the one on the
+  shared SQLite file, so evidence's publish is a row the backtest worker claims
+  from another process.
 - The installers and the supervisor are implemented; artifacts are unsigned.
-- Parity is the release gate: `tools/parity_desktop.sh` (#695) runs the same
-  fixture, configuration, and image digest on both profiles and compares the
-  canonical digest, every artifact, the manifest set, and the run projection. The
-  harness is not in the tree yet, so no desktop/server digest parity is claimed.
+- Parity is the release gate: `tools/parity_desktop.sh` runs the same fixture,
+  configuration, and image digest on both profiles and compares the canonical
+  digest, every artifact, the manifest set, and the run projection. The desktop
+  fixture and the server comparison agreed on 2026-11-15; the harness is
+  release-tier because the server oracle needs Docker or a running gateway.
 
 There is no data migration between profiles. A desktop start uses a fresh
 `QR_DATA_DIR`; the server volume is never read by it.
