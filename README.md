@@ -110,8 +110,10 @@ the v1.1 package adds a supervisor that starts the six bundled services on
 loopback. There is still no Docker requirement, no engine in the shell, and no
 local data file read by the shell. The server remains the same stack and the
 same HTTP contract. The embedded desktop backends are landing in v1.1
-(#693/#694); until they merge, the packaged supervisor is exercised with stub
-sidecars and the server digest is not claimed.
+(#693/#694): the gateway SQLite profile and the filesystem store are merged,
+while the remaining repositories and the durable queue are in flight. Until they
+land, the packaged supervisor is exercised with stub sidecars and the server
+digest is not claimed.
 Details: [`apps/desktop-shell/README.md`](apps/desktop-shell/README.md) and
 [ADR-12](docs/adr/2026-11-12/12-desktop-distribution.md).
 

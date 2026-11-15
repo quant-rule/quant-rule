@@ -98,16 +98,25 @@
 | Shell clippy | `cargo clippy --all-targets -- -D warnings` | clean |
 | Changelog | `python3 tools/check_changelog.py` | 6 releases, 111 entries |
 | Doc length | `python3 tools/check_doc_length.py` | 34 files within cap |
-| Links | `python3 tools/check_links.py` | 956 Markdown files, no broken links |
+| Links | `python3 tools/check_links.py` | 958 Markdown files, no broken links |
 | Terms | `python3 tools/check_terms.py` | 594 files, no banned terms |
-| Interpreter gate | `python3 tools/check_python.py` | 741 product files, no interpreter reference |
+| Interpreter gate | `python3 tools/check_python.py` | 750 product files, no interpreter reference |
 | Workflow YAML | `python3 -c "import yaml; yaml.safe_load(...)"` | parsed |
-| Linux AppImage | `bunx @tauri-apps/cli@2 build --bundles appimage` | built `QuantRule_1.0.0_amd64.AppImage`, 160.86 MiB |
+| Linux AppImage | `bunx @tauri-apps/cli@2 build --bundles appimage` | built `QuantRule_1.0.0_amd64.AppImage`, 162.00 MiB after the merge |
 | Package contents | `bash tests/check-package.sh <AppImage>` | pass: shell, supervisor, six sidecars, client, no interpreter |
 | Packaged supervisor smoke | `bash tests/smoke-package-linux.sh <AppImage>` | pass: the packaged `qr-desktop` started six stub sidecars, reached ready, and stopped them |
 | Packaged data-directory diagnostic | extract the AppImage; run `qr-desktop --profile desktop --data-dir ""` | refused with the message naming `--data-dir` and `QR_DATA_DIR`; exit 2 |
 | Packaged shell spawn (manual) | extract the AppImage, replace the six services with the stub, run `AppRun` under Xvfb | the shell spawned the packaged supervisor, six guards started, `/health` answered on 8080, and killing the shell left no survivor |
 | Workspace gate | `tools/gate.sh` | pass: every workspace test and checker completed with `CARGO_TARGET_DIR=target/gate` |
+
+## Merge note (2026-11-15)
+
+`origin/main` moved to `3772ecdf` (#693 P1a gateway SQLite and #694 P2a
+filesystem store). The branch merged it, kept every changelog entry, and re-ran
+the supervisor tests, `bun test`, the boundary, the AppImage package check and
+smoke, and `tools/gate.sh`. The data, evidence, simulation, and durable-queue
+phases are still open, so a full desktop run and the parity digest remain
+blocked.
 
 ## Learning and limits
 

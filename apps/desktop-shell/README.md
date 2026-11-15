@@ -287,11 +287,12 @@ rest.
 
 ## 10. Remaining gate
 
-- **Embedded backends.** #693 (SQLite) and #694 (filesystem CAS and durable
-  queue) are in flight. Until they merge, the six real services still start
-  against the server defaults, so the supervisor's health wait fails honestly
-  instead of claiming a desktop profile. The `embedded-profile` feature is the
-  switch; the embedded tests use stub sidecars and prove the lifecycle now.
+- **Embedded backends.** #693 P1a (the gateway SQLite profile) and #694 P2a
+  (the filesystem store) are merged. The data, evidence, and simulation
+  repositories and the durable queue are still in flight, so a full desktop run
+  is not possible yet; the supervisor's health wait fails honestly instead of
+  claiming a desktop profile. The `embedded-profile` feature is the switch; the
+  tests use stub sidecars and prove the lifecycle now.
 - **Parity (P3d).** `tools/parity_desktop.sh` is not created yet. It needs both
   backends plus the server oracle, and it must compare the canonical digest,
   every artifact, and the manifest before the desktop profile can be called
