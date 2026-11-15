@@ -40,6 +40,11 @@ jobs:
       - name: File size
         run: python3 tools/check_file_size.py
 
+      - name: Schema prefixes
+        run: |
+          python3 -m unittest discover -s tools -p 'test_check_schema_prefixes.py'
+          python3 tools/check_schema_prefixes.py
+
       - name: Python gate
         run: |
           python3 -m unittest discover -s tools -p 'test_check_python.py'

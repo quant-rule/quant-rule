@@ -76,6 +76,19 @@ are not treated as releases.
   its object key shared across profiles. The server profile remains on Postgres.
   The desktop object store is wired separately, and the simulation repository
   remains on Postgres until P1d.
+- The desktop SQLite surface has one conformance guard and one written contract
+  (DIST-201, #693 P1e). `tools/check_schema_prefixes.py` reads every
+  `crates/*/migrations/sqlite/*.sql` baseline and every service store against a
+  declared ledger inventory: service-owned `service__table` prefixes, no
+  `CREATE SCHEMA`, `jsonb`, `timestamptz`, or `FOR UPDATE`, exactly one baseline
+  per ledger, one store module per service, the ledger row in the service's
+  profile branch, and the `QR_PROFILE=desktop` with `QR_DATA_DIR` branch that
+  opens the single `quantrule.sqlite` file. Each service source outside its
+  `#[cfg(test)]` modules may name only its own prefixes. The queue ledger is
+  declared pending for #694, and the guard fails when that baseline or store
+  lands without the inventory moving with it. `docs/architecture/desktop.md`
+  records the environment contract, the mapping, the ledgers, the guard, start
+  and stop, and the server-profile default.
 
 ### Changed
 

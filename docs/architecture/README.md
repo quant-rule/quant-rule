@@ -43,6 +43,7 @@ agent interface. Both speak `quantrule.api/v1`.
 | [`control-plane.md`](control-plane.md) | Current; released v1.0.0 | How a run is submitted, retried, and cancelled |
 | [`http-api.md`](http-api.md) | Current; released v1.0.0 | The client contract |
 | [`deployment.md`](deployment.md) | Current; released v1.0.0 | How to run it with one command |
+| [`desktop.md`](desktop.md) | Current; v1.1 in progress | The embedded profile: SQLite, ledgers, prefixes, start and stop |
 | [`client.md`](client.md) | Current; released v1.0.0 | The browser client |
 | [`user-journey.md`](user-journey.md) | Current; released v1.0.0 | How it is used and what it returns |
 | [`security.md`](security.md) | Current; released v1.0.0 | The trust boundary |
@@ -80,6 +81,7 @@ One term per concept. A synonym is a defect.
 | `oracle` | The deterministic hindsight labeler that marks the same window |
 | `research plane` | The interactive, hindsight, isolated plane owned by `simulation` |
 | `profile` | An organisational scope over records; not a security boundary |
+| `desktop profile` | The embedded deployment: one SQLite file, a filesystem content-addressed store, an in-process queue |
 | `desktop shell` | A window over the gateway URL; no compute, no local data |
 
 ## History

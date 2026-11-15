@@ -143,11 +143,11 @@ Secrets come from the environment. No secret is committed.
 | Profile | Contains | Installs with |
 |---|---|---|
 | Server | The image and nine containers | Docker, `make up` |
-| Desktop | A Tauri shell; no compute, no local data | A release asset from GitHub Releases |
+| Desktop | Six bundled sidecars, one supervisor, one SQLite file | A release asset from GitHub Releases |
 
-The desktop shell points at a gateway URL. It does not replace the server and it
-does not run one. The embedded, self-contained desktop is `DIST-200` and is not
-part of v1.0.0.
+The server profile is the default; `QR_PROFILE=desktop` with `QR_DATA_DIR`
+selects the embedded backends in [`desktop.md`](desktop.md) from a fresh data
+directory. The desktop package is not part of v1.0.0.
 
 ## 6. Split host
 
