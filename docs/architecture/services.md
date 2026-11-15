@@ -97,7 +97,9 @@ a fold over time. Claiming otherwise would be false.
 ## 7. Backend adapters
 
 Database, object store, and queue sit behind traits. v1.0.0 ships one
-implementation of each: Postgres, S3, RabbitMQ.
+implementation of each: Postgres, S3, RabbitMQ. The v1.1 desktop profile adds a
+second implementation of each and selects the set once from `QR_PROFILE`; the
+server profile stays the default.
 
 | Trait | v1.0.0 | v1.1 desktop profile |
 |---|---|---|

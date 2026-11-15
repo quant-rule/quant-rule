@@ -45,7 +45,24 @@ are not treated as releases.
   triggers refuse a mark after a decision and freeze a decided run. Profile
   scoping, the transactional mark upsert, the decision lock, the server
   timestamps, the idempotent oracle and check reads, and the CSV mirror are
-  unchanged. The object-store wiring for the desktop profile remains P2c.
+  unchanged. The object-store wiring lands with the desktop backend wiring.
+- The desktop profile is wired end to end (DIST-203, #695 P2c/P2d/P3d). One
+  `quantrule-runtime::backends` construction path selects the backend set from
+  `QR_PROFILE`: the server keeps Postgres, S3, and RabbitMQ, and the desktop
+  opens one SQLite file at `<QR_DATA_DIR>/quantrule.sqlite` for state and the
+  durable queue, plus a filesystem CAS at `<QR_DATA_DIR>/objects`. The data,
+  model, evidence, simulation, and backtest binaries now select the object
+  store and the queue by profile, so a published `run.requested` is a row
+  `qr-backtest` claims from the shared file and evidence's `run.computed` is
+  visible to the finalizer. The full verify-mini fixture completes through the
+  gateway with no Docker: 12 canonical artifacts, 3,559,171 bytes, canonical
+  digest
+  `sha256:453c90b4442dd049074e126bb46b400b6f61baa986443c97fa27c3edd41c1daa`,
+  byte-identical to the server profile. `tools/parity_desktop.sh` runs the
+  desktop fixture and compares the digest, the canonical artifact bytes, and
+  the run status with a server-profile gateway or an isolated Compose oracle;
+  a seeded difference fails. `tools/verify.sh --evidence-dir` retains the
+  compared evidence. The server profile remains the default.
 - `FilesystemStore`, the object-store adapter for the desktop profile
   (DIST-202, #694 P2a). A publish is a temporary file in the destination
   directory, an fsync, and an atomic rename; a key whose last segment is a bare

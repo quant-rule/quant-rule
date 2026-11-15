@@ -5,9 +5,10 @@
 //! hypothesis surface plus the internal lifecycle, and consumes `run.computed`
 //! to verify the hash chain and finalize the run. With `QR_PROFILE=desktop` the
 //! run and hypothesis stores sit on the embedded SQLite file under
-//! `QR_DATA_DIR`; Postgres remains the default. The object store and the broker
-//! stay on their configured adapters until the storage and queue phases wire
-//! the desktop profile end to end.
+//! `QR_DATA_DIR`, artifact bytes live in the filesystem CAS under
+//! `<QR_DATA_DIR>/objects`, and the control-plane queue is the durable queue on
+//! that same SQLite file, so `qr-backtest` sees the `run.computed` publish.
+//! Postgres, S3, and RabbitMQ remain the default.
 
 #![forbid(unsafe_code)]
 
@@ -16,14 +17,13 @@ use std::sync::Arc;
 use quantrule_runtime::adapters::postgres::{
     PgDatabase, apply_migrations_in as apply_postgres_migrations,
 };
-use quantrule_runtime::adapters::rabbitmq::RabbitQueue;
-use quantrule_runtime::adapters::s3::S3Store;
 use quantrule_runtime::adapters::sqlite::{
-    SqliteDatabase, apply_migrations_in as apply_sqlite_migrations,
+    DATABASE_FILE, SqliteDatabase, apply_migrations_in as apply_sqlite_migrations,
 };
 use quantrule_runtime::adapters::{
     Database, Message, MessageHandler, ObjectStore, Queue, QueueConsumer, QueueError,
 };
+use quantrule_runtime::backends::{ControlQueue, Objects};
 use quantrule_runtime::client::{ClientError, DataClient, HttpServiceClient, Service};
 use quantrule_runtime::config::ConfigError;
 use quantrule_runtime::queue::{QUEUE_EVIDENCE, ROUTING_COMPUTED};
@@ -45,12 +45,15 @@ async fn main() -> Result<(), RuntimeError> {
     let mut runs: Option<Arc<dyn RunStore>> = None;
     let mut hypotheses: Option<Arc<dyn quantrule_evidence_service::research::HypothesisStore>> =
         None;
+    // The queue shares the handle the desktop branch opens, so the queue and
+    // the run store use one connection on one file in this process.
+    let mut sqlite: Option<SqliteDatabase> = None;
 
     if config.profile == DeploymentProfile::Desktop {
         let data_dir = config.data_dir.as_deref().ok_or(ConfigError::Missing {
             name: "QR_DATA_DIR",
         })?;
-        let path = data_dir.join(quantrule_runtime::adapters::sqlite::DATABASE_FILE);
+        let path = data_dir.join(DATABASE_FILE);
         let database = SqliteDatabase::open(&path)
             .map_err(|error| RuntimeError::Database(error.to_string()))?;
         if config.migrate {
@@ -65,6 +68,7 @@ async fn main() -> Result<(), RuntimeError> {
         }
         runs = Some(Arc::new(SqliteRunStore::new(database.clone())));
         hypotheses = Some(Arc::new(SqliteHypothesisStore::new(database.clone())));
+        sqlite = Some(database.clone());
         health.register("sqlite", move || {
             let database = database.clone();
             async move { database.ping().await.map_err(|error| error.to_string()) }
@@ -96,29 +100,26 @@ async fn main() -> Result<(), RuntimeError> {
         }
     }
 
-    let s3 = S3Store::new(&config.object_store_url, &config.object_store_bucket).await;
-    let objects: Arc<dyn ObjectStore> = Arc::new(s3.clone());
+    let backend = Objects::open(&config).await?;
+    let objects: Arc<dyn ObjectStore> = Arc::new(backend.clone());
     health.register("object-store", move || {
-        let store = s3.clone();
-        async move { store.check().await.map_err(|error| error.to_string()) }
+        let backend = backend.clone();
+        async move { backend.check().await.map_err(|error| error.to_string()) }
     });
 
-    let queue = Arc::new(
-        RabbitQueue::connect(&config.queue_url)
-            .await
-            .map_err(|error| RuntimeError::Queue(error.to_string()))?,
-    );
+    let queue = Arc::new(ControlQueue::open(&config, sqlite.as_ref()).await?);
     health.register("queue", {
         let queue = Arc::clone(&queue);
         move || {
             let queue = Arc::clone(&queue);
-            async move { queue.check().map_err(|error| error.to_string()) }
+            async move { queue.check().await.map_err(|error| error.to_string()) }
         }
     });
 
     let data: Arc<dyn DataClient> =
         Arc::new(HttpServiceClient::from_env(Service::Data).map_err(data_config_error)?);
 
+    let publish: Arc<dyn Queue> = queue.clone();
     let state = Arc::new(EvidenceState::with_services(
         &config,
         health,
@@ -126,7 +127,7 @@ async fn main() -> Result<(), RuntimeError> {
             runs: runs.as_ref().map(Arc::clone),
             hypotheses,
             objects: Some(Arc::clone(&objects)),
-            queue: Some(Arc::clone(&queue) as Arc<dyn Queue>),
+            queue: Some(publish),
             data: Some(data),
         },
     ));

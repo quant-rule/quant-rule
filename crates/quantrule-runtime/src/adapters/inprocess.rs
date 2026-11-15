@@ -440,6 +440,18 @@ impl InProcessQueue {
             .map_err(|_| QueueError(format!("the pending count {count} is negative")))
     }
 
+    /// Whether the queue tables answer.
+    ///
+    /// The probe reads the pending table, so a missing database or a refused
+    /// schema reports down at `/health` instead of failing the first publish.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`QueueError`] when SQLite refuses the query.
+    pub async fn check(&self) -> Result<(), QueueError> {
+        self.pending_count().await.map(|_| ())
+    }
+
     /// Every dead letter, oldest first.
     ///
     /// # Errors

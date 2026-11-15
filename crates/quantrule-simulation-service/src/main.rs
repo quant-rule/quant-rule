@@ -4,9 +4,10 @@
 //! only the `simulation` migration ledger, and serves the eleven research
 //! endpoints. On the embedded desktop profile it opens `quantrule.sqlite` under
 //! `QR_DATA_DIR`, applies the simulation SQLite baseline to the shared ledger,
-//! and serves the same endpoints through the existing repository trait. It runs
-//! no queue consumer and no worker loop: the research plane is synchronous and
-//! interactive.
+//! and serves the same endpoints through the existing repository trait. The
+//! object store is selected by the same profile, so a recorded bundle read on
+//! the desktop comes from `<QR_DATA_DIR>/objects`. It runs no queue consumer and
+//! no worker loop: the research plane is synchronous and interactive.
 
 #![forbid(unsafe_code)]
 
@@ -15,10 +16,10 @@ use std::sync::Arc;
 use quantrule_runtime::adapters::Database;
 use quantrule_runtime::adapters::ObjectStore;
 use quantrule_runtime::adapters::postgres::{PgDatabase, apply_migrations_in};
-use quantrule_runtime::adapters::s3::S3Store;
 use quantrule_runtime::adapters::sqlite::{
-    SqliteDatabase, apply_migrations_in as apply_sqlite_migrations,
+    DATABASE_FILE, SqliteDatabase, apply_migrations_in as apply_sqlite_migrations,
 };
+use quantrule_runtime::backends::Objects;
 use quantrule_runtime::config::ConfigError;
 use quantrule_runtime::{Config, DeploymentProfile, HealthRegistry, RuntimeError, logging};
 use quantrule_simulation_service::postgres::PgSimulationStore;
@@ -38,7 +39,7 @@ async fn main() -> Result<(), RuntimeError> {
         let data_dir = config.data_dir.as_deref().ok_or(ConfigError::Missing {
             name: "QR_DATA_DIR",
         })?;
-        let path = data_dir.join(quantrule_runtime::adapters::sqlite::DATABASE_FILE);
+        let path = data_dir.join(DATABASE_FILE);
         let database = SqliteDatabase::open(&path)
             .map_err(|error| RuntimeError::Database(error.to_string()))?;
         if config.migrate {
@@ -82,11 +83,11 @@ async fn main() -> Result<(), RuntimeError> {
         }
     }
 
-    let s3 = S3Store::new(&config.object_store_url, &config.object_store_bucket).await;
-    let objects: Arc<dyn ObjectStore> = Arc::new(s3.clone());
+    let backend = Objects::open(&config).await?;
+    let objects: Arc<dyn ObjectStore> = Arc::new(backend.clone());
     health.register("object-store", move || {
-        let store = s3.clone();
-        async move { store.check().await.map_err(|error| error.to_string()) }
+        let backend = backend.clone();
+        async move { backend.check().await.map_err(|error| error.to_string()) }
     });
 
     let state = Arc::new(SimulationState::with_services(

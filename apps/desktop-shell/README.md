@@ -5,11 +5,12 @@ service binaries the installer carries. It is a second way to reach the one
 client, not a second client: the gateway computes, the Svelte client renders,
 and the package supplies the window and the processes.
 
-**Status:** the shell, the supervisor, and both installer files are implemented.
-The embedded backends (SQLite, filesystem CAS, durable queue) are #693/#694 and
-are not merged; the sidecar launch is therefore selected explicitly by the
-`embedded-profile` build feature, and the parity digest is not claimed yet. See
-section 10.
+**Status:** the shell, the supervisor, the six-sidecar desktop wiring, and both
+installer files are implemented. `QR_PROFILE=desktop` selects SQLite, the
+filesystem CAS, and the durable in-process queue; `tools/parity_desktop.sh`
+runs the fixture and compares the desktop canonical digest with the server
+profile. The installers are unsigned and the Windows smoke is release-tier
+(section 10).
 
 ## 1. Boundary
 
@@ -214,6 +215,20 @@ bash tests/check-package.sh target/release/bundle/appimage/*.AppImage
 bash tests/smoke-package-linux.sh target/release/bundle/appimage/*.AppImage
 ```
 
+The six-sidecar run and the digest parity are one command from the repository
+root. The desktop side needs no Docker; the server oracle is a Compose project
+that the script creates and removes, or a gateway passed with `--server-url`:
+
+```bash
+tools/parity_desktop.sh --server-compose --repeat 2
+
+# The packaged supervisor is the same six sidecars:
+cargo build --manifest-path apps/desktop-shell/supervisor/Cargo.toml
+tools/parity_desktop.sh --desktop-only \
+  --via-supervisor apps/desktop-shell/supervisor/target/debug/qr-desktop \
+  --expected "$(printf 'sha256:%s' <a server digest>)"
+```
+
 The shell smoke test starts a stub on the shell's default gateway port, launches
 the release binary under Xvfb, and waits for `GET /health`. If a gateway already
 owns `:8080`, run the test in a private network namespace instead of stopping it:
@@ -287,16 +302,16 @@ rest.
 
 ## 10. Remaining gate
 
-- **Embedded backends.** #693 P1a (the gateway SQLite profile) and #694 P2a
-  (the filesystem store) are merged. The data, evidence, and simulation
-  repositories and the durable queue are still in flight, so a full desktop run
-  is not possible yet; the supervisor's health wait fails honestly instead of
-  claiming a desktop profile. The `embedded-profile` feature is the switch; the
-  tests use stub sidecars and prove the lifecycle now.
-- **Parity (P3d).** `tools/parity_desktop.sh` is not created yet. It needs both
-  backends plus the server oracle, and it must compare the canonical digest,
-  every artifact, and the manifest before the desktop profile can be called
-  equal to the server profile.
+- **Embedded backends.** The SQLite repositories (#693), the filesystem CAS and
+  durable queue (#694), and the six-sidecar wiring are merged. A desktop start
+  opens one `quantrule.sqlite` and one `objects/` CAS under `QR_DATA_DIR`; the
+  fixture completes with no Docker and produces the same canonical digest as
+  the server profile (section 6). The `embedded-profile` build feature only
+  selects the supervisor's default profile; `--profile desktop` always works.
+- **Parity (P3d).** `tools/parity_desktop.sh` compares the canonical digest,
+  every canonical artifact byte, and the run status (manifest entry set and
+  stage states). It is release-tier: the server oracle needs Docker or a
+  running gateway.
 - **Windows evidence.** The installer, the silent install, and the smoke run are
   produced only on `windows-latest`; this branch does not claim Windows
   evidence from Linux.
