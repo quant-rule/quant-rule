@@ -61,6 +61,9 @@ pub enum ErrorCode {
     /// Marking is closed after a decision is recorded.
     #[serde(rename = "simulation.locked")]
     SimulationLocked,
+    /// The bearer token is absent or does not match the configured one.
+    #[serde(rename = "auth.unauthorized")]
+    Unauthorized,
     /// Anything not classified above.
     #[serde(rename = "internal")]
     Internal,
@@ -88,6 +91,7 @@ impl ErrorCode {
             Self::SimulationMarkInvalid => "simulation.mark_invalid",
             Self::SimulationCheckIncomplete => "simulation.check_incomplete",
             Self::SimulationLocked => "simulation.locked",
+            Self::Unauthorized => "auth.unauthorized",
             Self::Internal => "internal",
         }
     }
@@ -110,6 +114,7 @@ impl ErrorCode {
             | Self::RunNotFound
             | Self::SimulationNotFound => 404,
             Self::RunConflict | Self::SimulationCheckIncomplete | Self::SimulationLocked => 409,
+            Self::Unauthorized => 401,
             Self::UploadTooLarge => 413,
             Self::QueueUnavailable | Self::ServiceUnavailable => 503,
             Self::Internal => 500,
@@ -167,7 +172,7 @@ impl ErrorEnvelope {
 mod tests {
     use super::*;
 
-    const ALL: [ErrorCode; 18] = [
+    const ALL: [ErrorCode; 19] = [
         ErrorCode::ProfileNotFound,
         ErrorCode::ProfileInvalid,
         ErrorCode::HypothesisNotFound,
@@ -185,6 +190,7 @@ mod tests {
         ErrorCode::SimulationMarkInvalid,
         ErrorCode::SimulationCheckIncomplete,
         ErrorCode::SimulationLocked,
+        ErrorCode::Unauthorized,
         ErrorCode::Internal,
     ];
 

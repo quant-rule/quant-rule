@@ -2,7 +2,8 @@
 //!
 //! The gateway is the only surface a client sees, so it serves the SPA at the
 //! same origin as the API. A path outside the configured root is refused; an
-//! unknown page falls back to `index.html`, but an `/api/*` path never does.
+//! unknown page falls back to `index.html`, but an `/api/*` or `/internal/*`
+//! path never does.
 
 use std::path::{Path, PathBuf};
 
@@ -17,7 +18,7 @@ pub async fn serve(state: &AppState, uri: &Uri, method: &Method) -> Response {
         return StatusCode::NOT_FOUND.into_response();
     };
     let path = uri.path();
-    if path.starts_with("/api/") {
+    if path.starts_with("/api/") || path.starts_with("/internal/") {
         return StatusCode::NOT_FOUND.into_response();
     }
     if method != Method::GET && method != Method::HEAD {

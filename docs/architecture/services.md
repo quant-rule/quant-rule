@@ -43,6 +43,9 @@ evidence and simulation use their own domain crates.
 - `quantrule-runtime` holds configuration, health, adapters, the migration
   runner, and the internal client. It must not depend on an engine or
   `quantrule-app`.
+- `/inspect/candles` and `/inspect/timeframes` stay with `data`;
+  `/inspect/events` computes a model, so the gateway forwards it to `model`'s
+  internal event-batch route.
 - The gateway links no app, engine, or domain service crate. The compile/source
   guard `crates/quantrule-gateway/tests/service_boundary.rs` fails when that
   edge, a second service binary, or a cross-schema read appears.

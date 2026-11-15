@@ -15,7 +15,8 @@ The host and its container network are trusted. The public internet is not.
 | Host | yes | operator's machine |
 | LAN / internet | **no** | only the gateway port, and only behind a gate |
 
-There is no authentication, by decision. There is no application-level user
+There is no account authentication, by decision. A configured bearer token is a
+shared-secret gate, not a principal, and there is no application-level user
 isolation.
 
 ## 2. Remote exposure is a network problem

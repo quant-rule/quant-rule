@@ -15,6 +15,7 @@
 #![forbid(unsafe_code)]
 
 pub mod adapters;
+mod auth;
 pub mod migrations;
 pub mod profile;
 pub mod server;

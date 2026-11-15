@@ -104,4 +104,6 @@ Inspection is outside the run and writes nothing:
 | Events | `GET /inspect/events?data_version=…&timeframe=…` | event batch |
 
 Inspection exists so a human or an agent can stop and look, without executing a
-partial pipeline.
+partial pipeline. Candles and timeframes are data inspection; events compute a
+model, so the gateway forwards `/inspect/events` to the model service's internal
+event-batch route.
