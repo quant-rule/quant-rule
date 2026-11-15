@@ -6,11 +6,11 @@ client, not a second client: the gateway computes, the Svelte client renders,
 and the package supplies the window and the processes.
 
 **Status:** the shell, the supervisor, the six-sidecar desktop wiring, and both
-installer files are implemented. `QR_PROFILE=desktop` selects SQLite, the
-filesystem CAS, and the durable in-process queue; `tools/parity_desktop.sh`
-runs the fixture and compares the desktop canonical digest with the server
-profile. The installers are unsigned and the Windows smoke is release-tier
-(section 10).
+installer files are implemented and released in v1.1.0. `QR_PROFILE=desktop`
+selects SQLite, the filesystem CAS, and the durable in-process queue;
+`tools/parity_desktop.sh` runs the fixture and compares the desktop canonical
+digest with the server profile. The installers are unsigned and the Windows
+smoke is release-tier (section 10).
 
 ## 1. Boundary
 
@@ -183,11 +183,11 @@ dependency):
 ```bash
 # Linux
 bunx @tauri-apps/cli@2 build --bundles appimage
-# Output: target/release/bundle/appimage/QuantRule_1.0.0_amd64.AppImage
+# Output: target/release/bundle/appimage/QuantRule_1.1.0_amd64.AppImage
 
 # Windows (run on Windows)
 bunx @tauri-apps/cli@2 build --bundles nsis
-# Output: target\release\bundle\nsis\QuantRule_1.0.0_x64-setup.exe
+# Output: target\release\bundle\nsis\QuantRule_1.1.0_x64-setup.exe
 ```
 
 The package contains the shell, `sidecars/qr-desktop`, the six
@@ -261,7 +261,7 @@ unshare --user --map-root-user --net \
 
 ### Windows smoke procedure
 
-1. Install `QuantRule_1.0.0_x64-setup.exe`. It installs for the current user.
+1. Install `QuantRule_1.1.0_x64-setup.exe`. It installs for the current user.
 2. SmartScreen shows “Windows protected your PC”; choose **More info**, then
    **Run anyway**. The artifact is unsigned.
 3. With the stack running at `http://localhost:8080`, launch **QuantRule**. The

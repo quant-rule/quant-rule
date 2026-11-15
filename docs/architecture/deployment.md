@@ -1,6 +1,6 @@
 # Deployment
 
-- Status: Current; released v1.0.0 on 2026-11-15; approved 2026-11-12
+- Status: Current; v1.1.0 release prepared 2026-11-15; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Decision: [`ADR-2026-11-12-01`](../adr/2026-11-12/01-adopt-distributed-service-based-architecture.md)
 - Claim type: Behaviour Claim
@@ -19,7 +19,7 @@ make up
 `make up` builds the image, starts the stack, waits for health, and prints:
 
 ```text
-QuantRule v1.0.0 ready → http://localhost:8080
+QuantRule v1.1.0 ready → http://localhost:8080
 ```
 
 Stop with `make down`. Delete volumes with `make reset`; it asks for
@@ -146,7 +146,7 @@ Secrets come from the environment. No secret is committed.
 
 The server profile is the default; `QR_PROFILE=desktop` with `QR_DATA_DIR`
 selects the embedded backends in [`desktop.md`](desktop.md) from a fresh data
-directory. The desktop package is not part of v1.0.0.
+directory. v1.0.0 shipped the server image; v1.1.0 adds the desktop installer.
 `tools/parity_desktop.sh` proves both profiles match on one fixture.
 
 ## 6. Split host

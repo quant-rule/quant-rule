@@ -1,6 +1,6 @@
 # Desktop profile
 
-- Status: Current; v1.1 work in progress (`DIST-200`, #692)
+- Status: Current; released in v1.1.0 (`DIST-200`, #692)
 - Part of: [`README.md`](README.md)
 - Decision: [`ADR-2026-11-12-12`](../adr/2026-11-12/12-desktop-distribution.md)
 - Claim type: Behaviour Claim

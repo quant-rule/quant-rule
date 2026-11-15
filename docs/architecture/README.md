@@ -42,10 +42,10 @@ agent interface. Both speak `quantrule.api/v1`.
 | [`data-plane.md`](data-plane.md) | Current; released v1.0.0 | How one run stays deterministic |
 | [`control-plane.md`](control-plane.md) | Current; released v1.0.0 | How a run is submitted, retried, and cancelled |
 | [`http-api.md`](http-api.md) | Current; released v1.0.0 | The client contract |
-| [`deployment.md`](deployment.md) | Current; released v1.0.0 | How to run it with one command |
-| [`desktop.md`](desktop.md) | Current; v1.1 in progress | The embedded profile: SQLite, ledgers, prefixes, start and stop |
+| [`deployment.md`](deployment.md) | Current; v1.1.0 | How to run it with one command |
+| [`desktop.md`](desktop.md) | Current; released in v1.1.0 | The embedded profile: SQLite, ledgers, prefixes, start and stop |
 | [`client.md`](client.md) | Current; released v1.0.0 | The browser client |
-| [`user-journey.md`](user-journey.md) | Current; released v1.0.0 | How it is used and what it returns |
+| [`user-journey.md`](user-journey.md) | Current; v1.1.0 | How it is used and what it returns |
 | [`security.md`](security.md) | Current; released v1.0.0 | The trust boundary |
 | [`operations.md`](operations.md) | Current; released v1.0.0 | Running, backing up, recovering |
 | [`module-map.md`](module-map.md) | Current; released v1.0.0 | Where code lives |
