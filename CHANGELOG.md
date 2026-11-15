@@ -13,6 +13,16 @@ are not treated as releases.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-15
+
+The desktop release. The same six services, HTTP contracts, and deterministic
+output now run from one installer with no Docker: SQLite replaces Postgres, a
+filesystem content-addressed store replaces S3, and a durable in-process queue
+replaces RabbitMQ, while a supervisor starts and stops the six sidecars. The
+Linux AppImage and Windows NSIS package carry the shell, the supervisor, and the
+six services, and the packaged profile reproduces the v1.0.0 server canonical
+digest `sha256:453c90b4…`. The v1.0.0 distributed platform remains the baseline.
+
 ### Added
 
 - The evidence service can start on the embedded SQLite profile.
