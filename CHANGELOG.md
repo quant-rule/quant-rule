@@ -7,11 +7,20 @@ requests, and their status live on the GitHub Project.
 
 The changelog starts at the 2026-11-07 workflow documentation reset. Earlier
 release notes are in [`docs/releases/`](docs/releases/), and the detailed change
-history is in Git and the pull requests. Historical tags, including
-`v0.4.0-exp-baseline` and `audit-closure-2026-10-30`, are retained as markers and
-are not treated as releases.
+history is in Git and the pull requests.
+
+> Release tags were renumbered on 2026-11-15 so the history reads `v0.1.0`
+> through `v1.0.0`. The sections below keep their original version headings as
+> historical records; the current tag is `v1.0.0`. See
+> [`docs/releases/README.md`](docs/releases/README.md) for the mapping.
 
 ## [Unreleased]
+
+### Changed
+
+- Release tags were renumbered on 2026-11-15 to a continuous `v0.1.0`–`v1.0.0`
+  history. Commits, images, and published artifacts are unchanged; historical
+  release notes keep their original version headings.
 
 ## [1.1.0] - 2026-11-15
 

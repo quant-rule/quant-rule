@@ -5,14 +5,18 @@ evidence — and keeps that evidence auditable after the client that submitted i
 has closed. It is candles-only, rule-based, and deterministic. There is no
 account, no cloud provider, and no live trading.
 
-> **Status.** The current release is **v1.1.0**, the distributed single-operator
-> platform plus the self-contained desktop package: one image and six services
-> for the server profile, and one installer that starts the same six sidecars on
-> embedded SQLite, a filesystem CAS, and a durable in-process queue for the
-> desktop profile. The browser client, command shell, and desktop shell share
-> one `quantrule.api/v1` contract. The architecture is specified in
-> [`docs/architecture/`](docs/architecture/README.md) and the release record is
-> in [`docs/releases/2026-11-15/v1.1.0.md`](docs/releases/2026-11-15/v1.1.0.md).
+> **Status.** The current release tag is **v1.0.0**, the desktop release: the
+> distributed single-operator platform plus the self-contained desktop package.
+> One image and six services serve the server profile; one installer starts the
+> same six sidecars on embedded SQLite, a filesystem CAS, and a durable
+> in-process queue for the desktop profile. The browser client, command shell,
+> and desktop shell share one `quantrule.api/v1` contract. The tag was
+> renumbered on 2026-11-15 from the version prepared as v1.1.0; the historical
+> release note is
+> [`docs/releases/2026-11-15/v1.1.0.md`](docs/releases/2026-11-15/v1.1.0.md),
+> and the mapping is in
+> [`docs/releases/README.md`](docs/releases/README.md). The architecture is
+> specified in [`docs/architecture/`](docs/architecture/README.md).
 
 ## Why it is distributed
 
@@ -107,15 +111,16 @@ Full journey: [`docs/architecture/user-journey.md`](docs/architecture/user-journ
 
 ## Desktop
 
-A Tauri package is published from GitHub Releases. v1.1.0 adds a supervisor that
-starts the six bundled services on loopback with the embedded SQLite, filesystem
-CAS, and durable in-process queue. There is no Docker requirement, no engine in
-the shell, and no local data read by the shell; the server remains the same stack
-and the same HTTP contract. The packaged desktop profile and the server profile
-both reproduce canonical digest
+A Tauri package is published from GitHub Releases. The desktop release is
+tagged `v1.0.0` (prepared as v1.1.0; the tag was renumbered on 2026-11-15) and
+adds a supervisor that starts the six bundled services on loopback with the
+embedded SQLite, filesystem CAS, and durable in-process queue. There is no
+Docker requirement, no engine in the shell, and no local data read by the shell;
+the server remains the same stack and the same HTTP contract. The packaged
+desktop profile and the server profile both reproduce canonical digest
 `sha256:453c90b4442dd049074e126bb46b400b6f61baa986443c97fa27c3edd41c1daa` for
-the verification fixture. The `v1.1.0` tag is created from `main` after the
-release PR merges; `v1.0.0` is the previous release.
+the verification fixture. The desktop release is `v1.0.0`; `v0.9.0` is the
+previous (distributed platform) release.
 Details: [`apps/desktop-shell/README.md`](apps/desktop-shell/README.md) and
 [ADR-12](docs/adr/2026-11-12/12-desktop-distribution.md).
 

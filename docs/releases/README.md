@@ -54,30 +54,45 @@ The date is the UTC release date. The tag is `vMAJOR.MINOR.PATCH`.
 - A local tag that was never pushed may be deleted before publication.
 - Protect `v*` tags in GitHub if the repository settings allow it.
 
+### Renumbering (2026-11-15)
+
+The release tags were renumbered on 2026-11-15 so the history reads `v0.1.0`
+through `v1.0.0` without gaps. Commits, images, and published artifacts are
+unchanged; release notes and changelog sections keep their original version
+headings as historical records.
+
+| Current tag | Commit | Was |
+|---|---|---|
+| `v0.1.0` | `42e00210` | `v0.2.0` |
+| `v0.2.0` | `86bcb06a` | `audit-closure-2026-10-30` |
+| `v0.3.0` | `2739a67f` | `v0.3.0` (unchanged) |
+| `v0.4.0` | `42307b7e` | `v0.4.0-exp-baseline` |
+| `v0.5.0` | `898881ee` | `v0.6.0` |
+| `v0.6.0` | `b71c510f` | `v0.7.0` |
+| `v0.7.0` | `29a647f3` | `v0.8.0` |
+| `v0.8.0` | `57f5663f` | `v0.9.0` |
+| `v0.9.0` | `748355f7` | `v1.0.0` |
+| `v1.0.0` | `6373c293` | `v1.1.0` |
+
+The GitHub release pages follow the current tag names; published asset and image
+names keep their original build versions.
+
+The current release tag is `v1.0.0`, the desktop release; its historical
+release note is [`v1.1.0`](2026-11-15/v1.1.0.md). The previous tag is `v0.9.0`,
+the distributed platform, whose historical note is
+[`v1.0.0`](2026-11-15/v1.0.0.md).
+
 ## 4. Historical tags
 
-The following tags predate the 2026-11-07 changelog baseline. They are retained
-as history and are not treated as new releases. Do not delete or move them.
+The pre-renumbering markers `v0.4.0-exp-baseline`, the duplicate `v0.5.0`
+commit marker, and `audit-closure-2026-10-30` were retired in the 2026-11-15
+renumbering. Their evidence remains in Git history; the current tags are the
+mapping in section 3.
 
-| Tag | Class | Purpose |
-|---|---|---|
-| `v0.2.0` | Release | MVP v1 |
-| `v0.3.0` | Release | Lab Summary and Help |
-| `v0.4.0-exp-baseline` | Historical marker | Experiment baseline; not a released version |
-| `v0.5.0` | Release | Workflow reset baseline |
-| `audit-closure-2026-10-30` | Historical marker | Audit closure evidence |
-
-The two historical markers are not release tags. New tags use the release
-format unless the human approves a named marker.
-
-The first post-baseline release is [`v0.6.0`](2026-11-07/v0.6.0.md) on
-2026-11-07. It is not in the historical table. The latest release note is
-[`v1.1.0`](2026-11-15/v1.1.0.md), released on 2026-11-15; the annotated tag and
-the GitHub release are published. The previous release is
-[`v1.0.0`](2026-11-15/v1.0.0.md), the first distributed platform release; before
-it is [`v0.9.0`](2026-11-11/v0.9.0.md), the first Tauri Platform release, then
-[`v0.8.0`](2026-11-11/v0.8.0.md) and
-[`v0.7.0`](2026-11-09/v0.7.0.md).
+The first post-baseline release note is
+[`v0.6.0`](2026-11-07/v0.6.0.md) on 2026-11-07; after the renumbering its tag
+is `v0.5.0`. Release notes keep their original filenames and headings, so use
+the mapping to find the note for a current tag.
 
 ## 5. Changelog alignment
 
