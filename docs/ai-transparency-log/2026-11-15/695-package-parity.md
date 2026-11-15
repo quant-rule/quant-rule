@@ -14,7 +14,8 @@
   `tools/verify.sh` so a Windows host can name its interpreter without changing
   the default, `CHANGELOG.md`, and this log. No service or runtime source,
   migration, SQLite or queue code, existing package check, or v1.1 plan was
-  edited. No tag, release, merge, or board write.
+  edited. No tag, release, or merge; the only board transition is #695 to
+  In Review after the PR checks passed.
 - Environment: worktree `/home/zantgo/Proyectos/quant-rule--695-package-final`,
   branch `test/695-package-parity`, base `bd310aa4`. Linux host, Rust 1.99.1,
   Bun 1.4.2.
@@ -93,6 +94,8 @@ Executed on this host unless stated otherwise.
   clean. The workflow YAML parses with 20 desktop steps.
 - `tools/gate.sh`: passed (`CARGO_TARGET_DIR=target/gate`), including CLI,
   terms, changelog, document length, Python, and port-parity checks.
+- PR #820 opened with `Refs #695`; its `sync`, `verify`, `web`, and `web-e2e`
+  checks passed.
 - Windows execution is **not** verified: no Windows host or runner was
   dispatched here. The PowerShell path is syntax-checked only. It remains
   pending a `windows-latest` run after the branch reaches the repository.
