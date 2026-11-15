@@ -586,3 +586,50 @@ Container health after P8:
 
 The Windows Docker Desktop and standalone Podman smoke checks remain manual
 notes. A permanent object-store registry remains a human decision.
+
+## Refresh after #799 — 2026-11-15 (UTC)
+
+- Merge: `origin/main` at `ff0fa96d` (#799) merged into `feat/643-compose` at
+  `3f9ca53e`; the merge was clean and kept every `CHANGELOG.md` entry.
+- README: the root current-state line now says the default stack starts all
+  nine containers instead of the retired six-container tree. This is the
+  one-line accuracy fix authorized for the stale statement created by the
+  Compose work.
+- #799 added `config/examples/verify-mini/candles.csv` and changed the
+  repository config mount, so the content-derived `verify-mini` config id moved
+  from `cfg_312c0eec3438` to `cfg_673cc6eeef2a`. The probe discovered the
+  current id from `GET /catalog/configs` rather than reusing the old one.
+
+### Verification after the refresh — 2026-11-15 (UTC)
+
+| Check | Command | Observed |
+|---|---|---|
+| Compose parse | `docker compose config -q` | exit 0 |
+| Image build | `docker build -t quantrule-server:test .` | exit 0; cached manifest list `sha256:34862aa328c926f7a07299c4d916684a327d64873593559172ad1c4aafe1e1f9` |
+| Clean start | `docker compose down -v && docker compose up -d --build --wait` | exit 0; nine containers |
+| Gateway health | `curl -fsS http://localhost:8080/health` | `state=healthy` |
+| Data probe | `GET /catalog/datasets` | `200`; `[]` before upload |
+| Config scan | `GET /catalog/configs` | `examples/verify-mini` valid at `cfg_673cc6eeef2a` |
+| Dataset upload | `POST /catalog/datasets?name=refresh-fixture.csv` | `201` |
+| Model probe | `POST /model/compute` | `200`; four timeframes; 66,022 bytes |
+| Run submission | `POST /runs` | `202`; `run_id sha256:bbe201b9…` |
+| Run read | `GET /runs/{id}` | `200`; `succeeded`; four stages done; 25 artifacts |
+| Backtest env | `printenv QR_MODEL_URL QR_DATA_URL QR_EVIDENCE_URL` | model, data, evidence URLs present |
+| Simulation create | `POST /simulation/runs` | `201`; `sim_ce4f92c96b2ccd20ffa63e74` |
+| Windows | `POST .../windows` | `200`; one window |
+| Mark | `POST .../marks` | `201`; `m_c1d5f9a4…` |
+| Restart | `docker compose restart simulation` | healthy after 6 s; migrations `applied=0` |
+| Mark after restart | `GET .../marks` | `200`; same mark and note persisted |
+| Profile isolation | `alpha` marks and run detail | both `404 simulation.not_found` |
+| Ledgers | gateway / catalog / runs / simulation | `7` / `1–5` / `2,4,5,8,9,13` / `14` |
+| Migration ordering | stack logs | no deadlock or panic |
+| No Python/Bun | image probes | empty |
+| One-command path | `make up` | exit 0; `QuantRule v0.3.0 ready` |
+| Workspace gate | `tools/gate.sh` | exit 0; `workspace gate passed` |
+
+### Not verified here
+
+The Windows Docker Desktop and standalone Podman smoke checks remain manual
+notes. The root README's `make scale` row still names the retired six-binary
+profile; it is outside the one-line README authorization and remains a
+follow-up.
