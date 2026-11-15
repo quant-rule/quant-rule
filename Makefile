@@ -75,11 +75,9 @@ test-parity: ## Run the port-parity tier
 	./tools/test_tiers.sh parity
 
 remote: ## Start with only :8080 published and a bearer token
-	@if [ ! -f tools/remote.sh ]; then echo "remote: tools/remote.sh is not in this tree yet; it lands with DIST-081 (#672)." >&2; exit 1; fi
-	./tools/remote.sh
+	COMPOSE="$(COMPOSE)" ./tools/remote.sh
 
 token: ## Print a new bearer token
-	@if [ ! -f tools/token.sh ]; then echo "token: tools/token.sh is not in this tree yet; it lands with DIST-081 (#672)." >&2; exit 1; fi
 	./tools/token.sh
 
 backup: ## Dump Postgres and mirror the object store

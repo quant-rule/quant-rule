@@ -28,7 +28,42 @@ A published gateway port without a gate is a misconfiguration. Exactly one of:
 | Private network (WireGuard, Tailscale) | none | **Recommended.** The port never faces the internet. |
 | Bearer token + TLS | token check in the gateway | Public HTTPS with one shared secret |
 
-`make remote` sets the token requirement and publishes only `:8080`.
+`make token` prints a new 256-bit token. `make remote` reads
+`QR_BEARER_TOKEN`, generates one with `tools/token.sh` when it is unset, exports
+it to the gateway, starts the stack, and publishes only `:8080`. The token is
+printed to the terminal; the script writes it to no file. Docker holds it in the
+gateway's environment for the container's lifetime.
+
+```bash
+export QR_BEARER_TOKEN="$(./tools/token.sh)"
+make remote
+curl -fsS -H "Authorization: Bearer $QR_BEARER_TOKEN" \
+  http://localhost:8080/profiles
+```
+
+| Request | Answer |
+|---|---|
+| API route without the token | `401 auth.unauthorized`, `WWW-Authenticate: Bearer` |
+| API route with a wrong token | `401 auth.unauthorized` |
+| API route with the configured token | the route's normal status |
+| `/health`, `/version`, static client | `200` without the token |
+
+Do not forward `:8080` to the public internet. Keep it on a private network, or
+terminate TLS at a reverse proxy in front of the gateway; the gateway itself
+serves plain HTTP. A reverse proxy that injects the token grants every visitor
+the same principal, so it is a private-network tool, not an account system.
+Rotate the token by starting the stack again with a new value; the old value
+stops working when the gateway restarts. `make up` starts the unauthenticated
+local profile, so do not use it after `make remote` while the port is reachable
+from another host.
+
+### 2.1 Browser and shell limitation
+
+The browser client and the shell do not send an `Authorization` header. Against
+a token-protected gateway the static client still loads, but every API call it
+makes answers `401`. The remote profile is API-client safe today; use `curl` or
+another client that sets the header. Remote browser access needs proxy token
+injection or a client token feature, which is not part of this profile.
 
 ## 3. Input boundaries
 
@@ -71,7 +106,7 @@ tenant.
 These are consequences of the single-principal decision and are recorded, not
 hidden.
 
-## 7. Review triggers
+## 8. Review triggers
 
 Invoke the Security and Privacy Reviewer when: a port becomes public, a token is
 introduced or rotated, multi-tenancy appears, or candle data leaves the

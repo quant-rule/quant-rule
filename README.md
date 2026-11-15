@@ -63,13 +63,26 @@ default stack starts all nine containers; see
 | `make scale N=4` | Scale model and backtest when the six-binary profile is enabled |
 | `make verify` | Submit the two fixture configs through the gateway and print the canonical digest |
 | `make test` / `make gate` | Fast tier / full workspace gate |
-| `make remote` / `make token` | Remote exposure and token (DIST-081, #672) |
+| `make remote` | Start with only `:8080` published and a bearer token |
+| `make token` | Print a new bearer token |
 | `make backup` / `make restore FILE=…` | Backup and restore (DIST-080, #671) |
 | `make dev-web` | Web client dev server against `localhost:8080` |
 
-`make remote` and `make token` forward to scripts that are not in this tree yet;
-each target exits nonzero and names the owning issue until that script lands.
+`make remote` generates a token when `QR_BEARER_TOKEN` is unset, starts the stack
+with only `:8080` published, and prints the token and a `curl` example. The
+browser client does not send the token, so remote browser use needs a TLS reverse
+proxy that injects it or a private network; the remote profile is safe for an
+API client that sets the header. See
+[`docs/architecture/security.md`](docs/architecture/security.md) §2.
 `make backup` and `make restore` call `tools/backup.sh` and `tools/restore.sh`.
+
+To keep a token across restarts, generate one first:
+
+```bash
+export QR_BEARER_TOKEN="$(./tools/token.sh)"
+make remote
+curl -fsS -H "Authorization: Bearer $QR_BEARER_TOKEN" http://localhost:8080/profiles
+```
 
 `make verify` needs a healthy stack (`make up`). It uploads the checked-in
 `config/examples/verify-mini` data and two configs with the same effective

@@ -32,8 +32,7 @@ docker compose up -d --build --wait
 
 Fedora may use Docker Engine or Podman: `make up COMPOSE="podman compose"`. The
 provider must support health conditions, YAML anchors, and healthchecks;
-see [`docker/README.md`](../../docker/README.md) §7. The current tree starts all
-nine containers listed in §2.
+see [`docker/README.md`](../../docker/README.md) §7.
 
 ## 2. Topology — `quantrule.deploy/v1`
 
@@ -60,16 +59,11 @@ The image also carries the static client, built with **Bun** (`bun install`,
 
 ## 2.1 Current state
 
-All six service binaries exist and the default stack starts all nine containers.
-`data` serves the catalog, `model` `/model/compute`, `evidence` runs/research, and
-`simulation` the research plane; the gateway proxies all four. Only `backtest` is HTTP-less.
-
-Only `backtest` lacks a healthcheck; Docker reports its process state and `/health`
-reports dependencies. The gateway, data, evidence, and simulation migrate their
-own ledgers (`QR_MIGRATE=1`) under P1's pinned lock; `backtest` and `model` keep `0`.
-
-`minio/minio` has no public image since 2026-09-11; the default is a pinned legacy
-archive, overridable by `QR_OBJECT_STORE_IMAGE`, pending a registry decision.
+All six binaries and nine containers start; only `backtest` is HTTP-less and has
+no healthcheck. Gateway, data, evidence, and simulation migrate their own ledgers
+under P1's pinned lock; `backtest` and `model` keep `0`. `minio/minio` has no
+public image since 2026-09-11; the default is a pinned legacy archive,
+overridable by `QR_OBJECT_STORE_IMAGE`, pending a registry decision.
 
 ## 3. Make targets
 
@@ -82,23 +76,35 @@ archive, overridable by `QR_OBJECT_STORE_IMAGE`, pending a registry decision.
 | `make logs` | Tail all services |
 | `make ps` | Status table |
 | `make scale N=4` | Scale `model` and `backtest` to `N` |
-| `make verify` | Fixture digest check; blocked until `tools/verify.sh` moves to the HTTP shell |
+| `make verify` | Submit the two fixture configs through the gateway and print the canonical digest |
 | `make test` / `make test-fast` | Fast unit and integration tier, no network |
 | `make test-composed` | Composed tier; exits 2 until the suite is wired |
 | `make test-parity` | Port-parity tier |
 | `make gate` | Full workspace gate |
-| `make remote` | Start with only `:8080` and a bearer token |
-| `make token` | Print a new bearer token |
+| `make remote` | Start with only `:8080` published and a bearer token; print the token and usage |
+| `make token` | Print a new 256-bit bearer token; writes no file |
 | `make backup` | Dump Postgres and mirror objects |
 | `make restore FILE=…` | Restore into a clean stack |
 | `make dev-web` | Bun dev server for the web client, proxying `localhost:8080` |
 
-`make scale` scales `model` and `backtest`; both are in the default stack. `make
-remote`, `make token`, `make backup`, and `make restore` forward to the DIST-081
-(#672) and DIST-080 (#671) scripts, and each target exits nonzero naming its
-issue until the script lands. `make test-composed` exits 2 because the composed
-suite is not wired yet. `make verify` keeps the pre-#771 recipe, but
-`tools/verify.sh` still calls the retired local `backtest run` command.
+`make scale` scales `model` and `backtest`. `make backup` and `make restore`
+call `tools/backup.sh` and `tools/restore.sh`. `make test-composed` exits 2
+because the composed suite is not wired yet. `make verify` submits the two
+fixture configs through the gateway and prints the canonical digest.
+
+## 3.1 Remote profile
+
+`make remote` reads `QR_BEARER_TOKEN` or generates one with `tools/token.sh`,
+exports it to the gateway, starts the stack, and prints the token plus a `curl`
+example. Only the gateway publishes `:8080`; every other container stays on the
+bridge network. The script checks the 401/401/200 matrix and the published port
+set on every start.
+
+Never expose `:8080` to the public internet: use WireGuard or Tailscale, or
+terminate TLS at a reverse proxy. The browser and shell do not send the token, so
+their API calls answer `401`; remote browser use needs proxy token injection or a
+client feature outside this profile. API clients send `Authorization: Bearer`; details
+in [`security.md`](security.md) §2.
 
 ## 4. Configuration
 
@@ -145,15 +151,9 @@ part of v1.0.0.
 
 ## 6. Split host
 
-The same compose file runs on two machines:
-
-| Host | Containers |
-|---|---|
-| Client machine | none; a browser |
-| Server | all nine |
-
-The client points at `http://<server>:8080`. Scaling and splitting are
-configuration; no code changes.
+The same compose file runs on two machines: the server runs all nine containers,
+the client runs none. The client points at `http://<server>:8080`. Scaling and
+splitting are configuration; no code changes.
 
 ## 7. Upgrade and rollback
 
