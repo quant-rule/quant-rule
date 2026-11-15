@@ -31,8 +31,19 @@ are not treated as releases.
   invisible, a killed writer process leaves no visible object, and a stale
   temporary file is ignored; traversal, empty, and non-portable key segments are
   refused; an identical republish is a no-op and a different body under an
-  existing key is refused. The durable SQLite queue (P2b) is gated on #693's
-  SQLite adapter and lands separately.
+  existing key is refused.
+- `InProcessQueue`, the durable queue for the desktop profile (DIST-202, #694
+  P2b). The queue stores `queue__messages` and `queue__dead_letter` in the
+  shared SQLite file: a publish commits before it returns, a claim takes a lease
+  and counts the delivery in one immediate transaction, a successful handler
+  deletes the row, and a failed handler makes it ready again, matching the
+  RabbitMQ adapter's immediate requeue. A killed consumer's lease expires and
+  the same bytes are redelivered with `redelivered` set; the caller can apply
+  the worker's three-delivery 5 s/25 s policy through the explicit claim, nack,
+  and dead-letter surface, which files `run.dead` with the original payload;
+  cancellation removes a ready message by routing key and payload digest and
+  survives a reopen. The queue is not yet wired into the service binaries; P2c
+  does that.
 
 ## [1.0.0] - 2026-11-15
 
