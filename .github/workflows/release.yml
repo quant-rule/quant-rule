@@ -359,7 +359,9 @@ jobs:
       - name: Build the six service sidecars
         # The sidecars are built from the same commit as the image and the
         # shell. They are not rebuilt from a different tree, and no service is
-        # sourced from a previous release.
+        # sourced from a previous release. Git Bash on the Windows runner: the
+        # command uses bash line continuations.
+        shell: bash
         run: |
           cargo build --release --locked \
             --bin qr-gateway --bin qr-data --bin qr-model \
@@ -381,6 +383,9 @@ jobs:
         working-directory: apps/desktop-shell
         # Fails when any of the seven executables or the example configs is
         # missing, so an installer can never silently ship a partial package.
+        # Git Bash on the Windows runner: the command uses bash line
+        # continuations and expands GITHUB_WORKSPACE.
+        shell: bash
         run: |
           bun scripts/stage-package.mjs \
             --services-dir "$GITHUB_WORKSPACE/target/release" \
