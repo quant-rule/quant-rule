@@ -149,7 +149,9 @@ function Assert-Sidecars([string]$Label, $status) {
     }
     $names = @($status.services | ForEach-Object { $_.name } | Sort-Object)
     $wanted = @($services | Sort-Object)
-    if ($names.Count -ne 6 -or -not (Compare-Object $names $wanted)) {
+    # Compare-Object is silent when the sets are equal; wrap it so an empty
+    # difference is not mistaken for a failed comparison.
+    if ($names.Count -ne 6 -or @(Compare-Object $names $wanted).Count -gt 0) {
         Fail "$Label`: ports.json names $($names -join ', '), expected six sidecars"
     }
 
