@@ -104,8 +104,13 @@ not an implementation detail this stack may settle.
 
 ## 5. Image checks
 
+The Dockerfile final stage runs `/usr/local/bin/check-no-python` against the
+assembled filesystem, and the release workflow runs the same script against the
+built image. `tools/check_python.py` gates the source tree.
+
 ```bash
 docker run --rm quantrule-server:test --version
+docker run --rm quantrule-server:test /usr/local/bin/check-no-python  # pass
 docker run --rm quantrule-server:test sh -c 'command -v python3'   # empty
 docker run --rm quantrule-server:test sh -c 'command -v bun'       # empty
 docker run --rm quantrule-server:test sh -c 'find / -name "*.py" 2>/dev/null | head'  # empty

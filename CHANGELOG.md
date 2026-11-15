@@ -48,6 +48,13 @@ are not treated as releases.
 
 ### Added
 
+- The product is gated against Python. `tools/check_python.py` fails on a
+  `.py` file outside the governance `tools/` and historical `docs/` trees, and
+  on a `python` or `python3` reference under `crates/`, `apps/`, `docker/`, or
+  `Dockerfile`; it runs in `tools/gate.sh` and CI. The image asserts the same
+  invariant directly: `docker/check-no-python.sh` fails on an interpreter or a
+  `.py` file, runs in the Dockerfile final stage, and runs again in the release
+  image job, so a base-image change cannot quietly reintroduce Python.
 - The shell and the browser send the remote profile's bearer token. The shell
   accepts `--token <token>` or `QUANTRULE_TOKEN`, attaches `Authorization:
   Bearer` to every gateway request when set, and keeps the token out of printed

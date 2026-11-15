@@ -87,6 +87,12 @@ COPY --from=rust-builder /out/version /etc/quantrule-version
 COPY --from=web-builder /web/dist/ /srv/static/
 COPY --chmod=0755 docker/entrypoint.sh /usr/local/bin/quantrule-entry
 
+# Assert the no-Python contract against the assembled filesystem. The script
+# ships too, so the release workflow runs the same check against the built
+# image; a base-image change therefore fails the build, not just the docs.
+COPY --chmod=0755 docker/check-no-python.sh /usr/local/bin/check-no-python
+RUN /usr/local/bin/check-no-python
+
 # The client and the run-config mount are resolved from these paths. Service
 # URLs come from the Compose environment; the engine defaults already name the
 # Compose hosts.
