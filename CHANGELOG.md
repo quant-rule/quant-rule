@@ -13,6 +13,18 @@ are not treated as releases.
 
 ## [Unreleased]
 
+### Added
+
+- `FilesystemStore`, the object-store adapter for the desktop profile
+  (DIST-202, #694 P2a). A publish is a temporary file in the destination
+  directory, an fsync, and an atomic rename; a key whose last segment is a bare
+  SHA-256 is verified on write and read; a staged write that never commits is
+  invisible, a killed writer process leaves no visible object, and a stale
+  temporary file is ignored; traversal, empty, and non-portable key segments are
+  refused; an identical republish is a no-op and a different body under an
+  existing key is refused. The durable SQLite queue (P2b) is gated on #693's
+  SQLite adapter and lands separately.
+
 ## [1.0.0] - 2026-11-15
 
 The first distributed release. One image digest carries six service binaries and
