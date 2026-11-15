@@ -352,6 +352,34 @@ jobs:
         working-directory: apps/desktop-shell
         run: bash tests/boundary.sh
 
+      - name: Test the desktop supervisor
+        working-directory: apps/desktop-shell/supervisor
+        run: cargo test
+
+      - name: Build the six service sidecars
+        # The sidecars are built from the same commit as the image and the
+        # shell. They are not rebuilt from a different tree, and no service is
+        # sourced from a previous release.
+        run: |
+          cargo build --release --locked \
+            --bin qr-gateway --bin qr-data --bin qr-model \
+            --bin qr-backtest --bin qr-evidence --bin qr-simulation
+
+      - name: Build the desktop supervisor
+        working-directory: apps/desktop-shell/supervisor
+        # The embedded profile makes a packaged supervisor start the sidecars.
+        # A plain development build stays external and starts nothing.
+        run: cargo build --release --features embedded-profile
+
+      - name: Stage the packaged resources
+        working-directory: apps/desktop-shell
+        # Fails when any of the seven executables or the example configs is
+        # missing, so an installer can never silently ship a partial package.
+        run: |
+          bun scripts/stage-package.mjs \
+            --services-dir "$GITHUB_WORKSPACE/target/release" \
+            --supervisor-bin "$GITHUB_WORKSPACE/apps/desktop-shell/supervisor/target/release"
+
       - name: Build the installer
         uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0
         env:
@@ -361,6 +389,28 @@ jobs:
           tauriScript: bunx @tauri-apps/cli@2
           includeUpdaterJson: false
           args: --bundles ${{ matrix.bundle }}
+
+      - name: Check the installer contents
+        shell: bash
+        run: |
+          if [ "${{ matrix.bundle }}" = "appimage" ]; then
+            artifact="$(find apps/desktop-shell/target/release/bundle/appimage -maxdepth 1 -type f -name "*.AppImage" -print -quit)"
+            bash apps/desktop-shell/tests/check-package.sh "$artifact"
+          else
+            artifact="$(find apps/desktop-shell/target/release/bundle/nsis -maxdepth 1 -type f -name "*-setup.exe" -print -quit)"
+            powershell -NoProfile -ExecutionPolicy Bypass \
+              -File apps/desktop-shell/tests/check-package.ps1 -Artifact "$artifact"
+          fi
+
+      - name: Smoke the packaged supervisor with stub sidecars
+        if: runner.os == 'Linux'
+        # The six real services need the embedded backends (#693/#694). This
+        # replaces them with the test stub in a throwaway extraction and proves
+        # the packaged supervisor, resource layout, health, and stop path. It
+        # claims no run and no digest.
+        run: |
+          artifact="$(find apps/desktop-shell/target/release/bundle/appimage -maxdepth 1 -type f -name "*.AppImage" -print -quit)"
+          bash apps/desktop-shell/tests/smoke-package-linux.sh "$artifact"
 
       - name: Assert the artifact carries the product version
         env:
