@@ -14,6 +14,7 @@ pub mod postgres;
 pub mod research;
 pub mod routes;
 pub mod runs;
+pub mod sqlite;
 pub mod state;
 
 pub use routes::router;

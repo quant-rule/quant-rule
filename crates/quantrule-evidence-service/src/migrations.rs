@@ -6,6 +6,12 @@
 //! migration (`0013_run_attempts.sql`) was parked with #646 and is registered
 //! here because the run store reads the column it adds. Versions are local to
 //! the ledger and keep their historical numbers.
+//!
+//! The SQLite list is the baseline for the embedded desktop profile, not a
+//! translation of the Postgres history: a desktop database starts at v1.1 and
+//! has no earlier rows to migrate. It writes the same two schemas under the
+//! `runs__` and `research__` table prefixes and starts at version 1 in the
+//! same `runs` ledger.
 
 use quantrule_runtime::migrations::Migration;
 
@@ -46,6 +52,19 @@ pub fn available() -> Vec<Migration> {
     ];
     migrations.sort_by_key(|migration| migration.version);
     migrations
+}
+
+/// The SQLite baseline for the embedded desktop profile, in version order.
+///
+/// The ledger starts at 1 and lives in the shared `schema_migrations` table
+/// under the `runs` ledger name.
+#[must_use]
+pub fn sqlite() -> Vec<Migration> {
+    vec![Migration {
+        version: 1,
+        name: "runs-research",
+        sql: include_str!("../migrations/sqlite/0001_runs_research.sql"),
+    }]
 }
 
 #[cfg(test)]
@@ -129,5 +148,84 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// The executable statements, without the explanatory comments. A comment
+    /// may name the Postgres spelling it is explaining.
+    fn statements(sql: &str) -> String {
+        sql.lines()
+            .filter(|line| !line.trim_start().starts_with("--"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    #[test]
+    fn the_sqlite_baseline_starts_at_one_and_is_complete() {
+        let baseline = sqlite();
+        assert_eq!(baseline.len(), 1);
+        assert_eq!(baseline[0].version, 1);
+        assert_eq!(plan(&[], &baseline).expect("plan").len(), 1);
+    }
+
+    #[test]
+    fn the_sqlite_baseline_uses_the_double_prefixes_and_sqlite_types() {
+        let sql = statements(sqlite()[0].sql);
+        for table in [
+            "runs__runs",
+            "runs__stages",
+            "runs__artifacts",
+            "runs__submissions",
+            "research__hypotheses",
+        ] {
+            assert!(sql.contains(table), "{table} is missing");
+        }
+        for forbidden in [
+            "CREATE SCHEMA",
+            "jsonb",
+            "timestamptz",
+            "boolean",
+            "plpgsql",
+            "to_char",
+            "now()",
+        ] {
+            assert!(
+                !sql.to_ascii_lowercase()
+                    .contains(&forbidden.to_ascii_lowercase()),
+                "the SQLite baseline names the Postgres type or statement {forbidden}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_sqlite_baseline_never_names_another_service_prefix() {
+        for migration in sqlite() {
+            let sql = statements(migration.sql);
+            for forbidden in ["gateway__", "catalog__", "simulation__", "queue__"] {
+                assert!(
+                    !sql.contains(forbidden),
+                    "{} names {forbidden}",
+                    migration.name
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_sqlite_baseline_refuses_to_rewrite_a_sealed_hypothesis() {
+        let sql = statements(sqlite()[0].sql);
+        assert!(
+            sql.contains("BEFORE UPDATE ON research__hypotheses"),
+            "the sealed-row update trigger is missing"
+        );
+        assert!(
+            sql.contains("BEFORE DELETE ON research__hypotheses"),
+            "the sealed-row delete trigger is missing"
+        );
+        assert_eq!(
+            sql.matches("RAISE(ABORT, 'a sealed hypothesis is immutable')")
+                .count(),
+            2,
+            "both sealed-row triggers must abort"
+        );
     }
 }
