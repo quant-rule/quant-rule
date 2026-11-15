@@ -397,6 +397,11 @@ a temporary directory, then fail on `python`, `python3`, `bun`, `node`, or any
 `#693` is one issue and may be up to five PRs. It stays `In Progress` until the
 last one merges. No sub-issues are created.
 
+The filed done-when names the canonical digest, which also needs the storage and
+queue from #694 and the packaging from #695. P1's gate is therefore repository
+and migration parity; the digest criterion closes jointly in P3, and the
+proposed #693 note in section 14 records that amendment.
+
 | Step | Work | Owned paths | Exit |
 |---|---|---|---|
 | P1a | SQLite adapter over the workspace `rusqlite`, migration runner, profile selector, gateway profiles | `crates/quantrule-runtime/src/adapters/sqlite.rs`, `adapters/mod.rs`, `config.rs`, `migrations.rs`; `crates/quantrule-gateway/src/{adapters,profile}/**`, `src/bin/qr_gateway.rs`, `migrations/sqlite/**` | `QR_PROFILE=desktop` starts the gateway on SQLite; health reports `sqlite`; a probe query works |
@@ -740,7 +745,9 @@ PR):
 **Proposed note for #693** (append when P1 starts): implementation may land as up
 to five PRs — runtime and gateway, data, evidence, simulation, then conformance
 and inventory. The issue stays `In Progress` until the last one merges. No
-sub-issues are created; the phase table in the plan is the tracking record.
+sub-issues are created; the phase table in the plan is the tracking record. The
+filed canonical-digest criterion is satisfied jointly with #694 and #695; P1
+closes on repository and migration parity.
 
 **Records.** Plan PR uses `Refs #692`. The behavior changelog entry lands under
 `[Unreleased]` `Added` with P3, not with this plan. The AI contribution is
