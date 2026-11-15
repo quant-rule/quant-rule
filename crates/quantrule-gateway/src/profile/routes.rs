@@ -8,26 +8,39 @@ use axum::http::StatusCode;
 use quantrule_api::{CreateProfileRequest, ErrorCode, ProfileId, ProfileSummary};
 
 use crate::profile::{ProfileError, ProfileRecord};
-use crate::server::{ApiFailure, AppState, data_failure, failure};
+use crate::server::{ApiFailure, AppState, failure, service_failure};
 use quantrule_runtime::clock;
 
 /// Build the wire summary for one profile.
 async fn summary(state: &AppState, record: ProfileRecord) -> Result<ProfileSummary, ApiFailure> {
+    let profile = record.profile_id.clone();
     let datasets = match state.data.as_ref() {
         Some(data) => data
-            .dataset_count(record.profile_id.clone())
+            .dataset_count(profile.clone())
             .await
-            .map_err(data_failure)?,
+            .map_err(service_failure)?,
         None => 0,
     };
-    // Runs and simulations gain their counts with their services; until then
-    // their counts are zero rather than a number no service can support.
+    let runs = match state.runs.as_ref() {
+        Some(runs) => runs
+            .run_count(profile.clone())
+            .await
+            .map_err(service_failure)?,
+        None => 0,
+    };
+    let simulations = match state.simulations.as_ref() {
+        Some(simulations) => simulations
+            .simulation_count(profile)
+            .await
+            .map_err(service_failure)?,
+        None => 0,
+    };
     Ok(ProfileSummary {
         profile_id: record.profile_id,
         name: record.name,
         datasets,
-        runs: 0,
-        simulations: 0,
+        runs,
+        simulations,
     })
 }
 

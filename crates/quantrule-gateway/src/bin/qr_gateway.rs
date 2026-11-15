@@ -55,10 +55,14 @@ async fn main() -> Result<(), RuntimeError> {
     let data_upstream = Arc::new(data_upstream);
     let model_upstream = HttpServiceClient::from_env(Service::Model)
         .map_err(|error| service_config_error(Service::Model, error))?;
-    let evidence_upstream = HttpServiceClient::from_env(Service::Evidence)
-        .map_err(|error| service_config_error(Service::Evidence, error))?;
-    let simulation_upstream = HttpServiceClient::from_env(Service::Simulation)
-        .map_err(|error| service_config_error(Service::Simulation, error))?;
+    let evidence_upstream = Arc::new(
+        HttpServiceClient::from_env(Service::Evidence)
+            .map_err(|error| service_config_error(Service::Evidence, error))?,
+    );
+    let simulation_upstream = Arc::new(
+        HttpServiceClient::from_env(Service::Simulation)
+            .map_err(|error| service_config_error(Service::Simulation, error))?,
+    );
 
     let state = Arc::new(AppState::with_services(
         &config,
@@ -68,8 +72,10 @@ async fn main() -> Result<(), RuntimeError> {
             data: Some(data),
             upstream: Some(data_upstream),
             model_upstream: Some(Arc::new(model_upstream)),
-            evidence_upstream: Some(Arc::new(evidence_upstream)),
-            simulation_upstream: Some(Arc::new(simulation_upstream)),
+            evidence_upstream: Some(evidence_upstream.clone()),
+            simulation_upstream: Some(simulation_upstream.clone()),
+            runs: Some(evidence_upstream),
+            simulations: Some(simulation_upstream),
         },
     ));
     tracing::info!(bind = %config.bind, "starting gateway");

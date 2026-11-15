@@ -193,21 +193,27 @@ async fn a_closed_upstream_is_service_unavailable() {
 }
 
 #[tokio::test]
-async fn the_internal_model_route_is_not_proxied() {
+async fn the_internal_model_routes_are_not_proxied() {
     let fake = Fake::default();
     let hits = Arc::clone(&fake.hits);
     let (address, handle) = start(fake).await;
-    let response = router(gateway(address).await)
-        .oneshot(
-            Request::post("/internal/v1/model/bundle")
-                .header(PROFILE_HEADER, "default")
-                .header("content-type", "application/json")
-                .body(Body::from("{}"))
-                .expect("request"),
-        )
-        .await
-        .expect("response");
-    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    for request in [
+        Request::post("/internal/v1/model/bundle")
+            .header(PROFILE_HEADER, "default")
+            .header("content-type", "application/json")
+            .body(Body::from("{}"))
+            .expect("request"),
+        Request::get("/internal/v1/events?data_version=sha256:x&timeframe=5m")
+            .header(PROFILE_HEADER, "default")
+            .body(Body::empty())
+            .expect("request"),
+    ] {
+        let response = router(gateway(address).await)
+            .oneshot(request)
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
     assert_eq!(hits.load(Ordering::SeqCst), 0);
     handle.abort();
 }
