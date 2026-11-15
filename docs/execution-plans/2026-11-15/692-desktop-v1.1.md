@@ -85,7 +85,7 @@ ping-only `Database` trait would change nothing.
 | Assumption | If it is wrong |
 |---|---|
 | The engines are a pure function of candle and configuration bytes; persistence only moves the same bytes | A digest difference would be an engine defect, and the work stops rather than adjusting the digest |
-| `sqlx` SQLite supports the statements with `?` placeholders, JSON1 functions, `RETURNING`, and `ON CONFLICT` | The P1a spike rewrites the forced statements, or the dialect strategy is revisited before the repositories are copied |
+| The workspace's `rusqlite` 0.42 can serve the repositories through a blocking wrapper; a second SQLite library cannot enter the graph because Cargo permits one `links = "sqlite3"` package | P1a measures the blocking wrapper and row mapping; if the service shape cannot absorb it, the plan returns for a dependency decision instead of forcing two SQLite libraries |
 | One SQLite file in WAL mode supports the evidence and backtest processes on a local disk | Split the queue into its own file, or serialize queue access through one process; both are plan changes |
 | Windows rename cannot replace an existing file | The CAS verifies the existing content and treats an identical object as success; a different object is an error |
 | The server profile remains the oracle; the desktop must match it | A change to the oracle is a separate contract change and needs human approval |
@@ -120,18 +120,30 @@ The domain repository trait is already the seam: `DatasetCatalog`,
 route, use case, or contract. Section 8 compares this with the alternatives and
 records the blast radius.
 
+Backend selection is explicit: `QR_PROFILE=server` is the default and
+`QR_PROFILE=desktop` selects SQLite, the filesystem store, and the in-process
+queue under `QR_DATA_DIR`. A service branches once in `main.rs`; no route, use
+case, or engine reads the profile.
+
 `Database` stays a liveness and backend-name trait. It is not widened into a
 query abstraction. A shared `dialect` helper in `quantrule-runtime` may hold
 table-name mapping, JSON binding, and timestamp formatting, but it does not
 build SQL.
 
-The desktop database uses the existing `sqlx` crate with its `sqlite` feature,
-not `rusqlite`. The services are asynchronous and already use `sqlx`; the
-application memory's `rusqlite` choice is a synchronous local store and is not a
-precedent for the services. No new crate is required, and the bundled SQLite
-keeps the Windows build from needing a system library. The P1a spike settles
-placeholder syntax and row decoding before the first repository is copied; if
-the spike fails, the dialect strategy is revisited before P1b.
+The desktop database uses the workspace's existing `rusqlite` 0.42, not `sqlx`
+SQLite. `sqlx-sqlite` 0.9 requires `libsqlite3-sys >=0.30.1, <0.38`, while
+`rusqlite` 0.42 links `libsqlite3-sys` 0.40; Cargo permits only one package to
+link the native `sqlite3` library, so the two cannot share this workspace.
+
+`rusqlite` is synchronous, so each SQLite repository call runs on
+`tokio::task::spawn_blocking` behind one guarded connection. That serializes
+local database work, which is acceptable for a single-user desktop and keeps the
+async route shape. The application memory remains the schema and migration
+precedent, and the bundled SQLite keeps the Windows build from needing a system
+library. No new crate version is added; `rusqlite` is already a workspace
+dependency. The P1a spike settles the blocking wrapper, transaction handling, and
+row mapping before the first repository is copied; if the service shape cannot
+absorb it, stop before P1b.
 
 ### 5.2 Table prefixes instead of schemas (D2)
 
@@ -387,7 +399,7 @@ last one merges. No sub-issues are created.
 
 | Step | Work | Owned paths | Exit |
 |---|---|---|---|
-| P1a | SQLite adapter, migration runner, profile selector, gateway profiles | `crates/quantrule-runtime/src/adapters/sqlite.rs`, `adapters/mod.rs`, `config.rs`, `migrations.rs`; `crates/quantrule-gateway/src/{adapters,profile}/**`, `migrations/sqlite/**` | `QR_PROFILE=desktop` starts the gateway on SQLite; health reports `sqlite`; a probe query works |
+| P1a | SQLite adapter over the workspace `rusqlite`, migration runner, profile selector, gateway profiles | `crates/quantrule-runtime/src/adapters/sqlite.rs`, `adapters/mod.rs`, `config.rs`, `migrations.rs`; `crates/quantrule-gateway/src/{adapters,profile}/**`, `src/bin/qr_gateway.rs`, `migrations/sqlite/**` | `QR_PROFILE=desktop` starts the gateway on SQLite; health reports `sqlite`; a probe query works |
 | P1b | Data catalog and config store | `crates/quantrule-data-service/src/{postgres.rs,sqlite.rs,main.rs}`, `migrations/sqlite/**`, `tests/**` | Every `DatasetCatalog` and `ConfigCatalog` method passes the conformance suite |
 | P1c | Evidence runs and research | `crates/quantrule-evidence-service/src/{postgres.rs,sqlite.rs,main.rs}`, `migrations/sqlite/**`, `tests/**` | Every `RunStore` and `HypothesisStore` method passes; sealed rows refuse update and delete |
 | P1d | Simulation store | `crates/quantrule-simulation-service/src/{postgres.rs,sqlite.rs,main.rs}`, `migrations/sqlite/**`, `tests/**` | Every `SimulationStore` method passes; mark and decision races hold |
@@ -455,7 +467,7 @@ grows when a service needs an operation, not in anticipation.
 
 | Area | Change |
 |---|---|
-| Runtime | `sqlite.rs`, migration runner, config selector, health names; `PgDatabase` unchanged |
+| Runtime | `sqlite.rs`, `rusqlite` blocking wrapper, migration runner, config selector, health names; `PgDatabase` unchanged |
 | Gateway | One profile repository plus a SQLite baseline |
 | Data | Two repositories plus a SQLite baseline |
 | Evidence | Two repositories plus a SQLite baseline; the sealed-row trigger is rewritten |
@@ -655,6 +667,7 @@ exists, so an upgrade from v1.0 desktop is not tested; there is none.
 
 | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
+| A second SQLite library conflicts with the app memory | High if `sqlx` SQLite is chosen | High | Use the workspace's `rusqlite` 0.42; `sqlx-sqlite` 0.9 requires `libsqlite3-sys` below 0.38, which cannot coexist with 0.40 |
 | A dialect difference changes a stored value or an API response | Medium | High | Per-dialect repositories, a shared conformance suite, a schema inventory, and byte-level parity |
 | The two migration histories drift | Medium | High | Inventory tests on both dialects; a schema change updates both sets in one PR |
 | SQLite write contention stalls the queue or a run | Medium | Medium | Short transactions, WAL, `busy_timeout`; split the queue file if the composed test shows blocking |

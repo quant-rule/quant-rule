@@ -43,6 +43,12 @@
   locks, and schema-qualified DDL all differ. A dialect abstraction would have to
   model the database, so the plan recommends per-dialect repositories behind the
   existing traits with a shared conformance suite.
+- `sqlx` SQLite cannot share this workspace with the existing `rusqlite` 0.42.
+  `sqlx-sqlite` 0.9 requires `libsqlite3-sys >=0.30.1, <0.38`, while `rusqlite`
+  0.42 links 0.40, and Cargo permits only one package for the native `sqlite3`
+  link. The plan therefore uses `rusqlite` through `spawn_blocking`, not a second
+  SQLite library. This correction was found while checking the dependency graph,
+  after the first draft recommended `sqlx` SQLite.
 - `image_digest` is an input to run identity. A desktop package has no image, so
   the parity harness must pass the same explicit digest to both profiles; a real
   desktop run records its own bundle digest and may have a different run id with
@@ -64,10 +70,13 @@
 - A shared query-builder or dialect layer as the primary implementation: the
   forced differences are structural, not lexical, and the layer would leak into
   every statement. Only table-name and JSON/time helpers are shared.
-- `rusqlite` for the services: it is synchronous and would need a blocking pool;
-  the existing `sqlx` crate with its SQLite feature keeps the async repository
-  shape. The application memory remains the `rusqlite` precedent for a
-  synchronous local store only.
+- `sqlx` SQLite for the services: its `libsqlite3-sys` range (below 0.38) cannot
+  coexist with `rusqlite` 0.42's 0.40 under Cargo's one-package-per-`links`
+  rule. The plan uses `rusqlite` behind `spawn_blocking` instead; the blocking
+  wrapper is the P1a spike, not an assumed success.
+- Downgrading `rusqlite` to fit `sqlx`: it would change the application memory's
+  dependency and tests for no product reason, and it still leaves two database
+  APIs in the services.
 - Mechanically translating the 13 PostgreSQL migrations: historical DDL uses
   `DROP CONSTRAINT`, PL/pgSQL, and `jsonb`, and the desktop database starts
   empty. The plan uses one logical baseline per service plus an inventory test.
@@ -101,4 +110,8 @@ engine programme. The risk sits in one place: the repositories are written
 against Postgres, and the `Database` trait gives a false impression that the
 adapter boundary is already complete. Writing that down before implementation is
 the main value of this plan, together with the multi-PR disclosure for #693 and
-the parity oracle's explicit exclusion of timestamps and provenance.
+the parity oracle's explicit exclusion of timestamps and provenance. The SQLite
+library check is the concrete example of why the plan is worth reviewing before
+code: the obvious async choice (`sqlx`) does not link beside the existing
+`rusqlite`, so the implementation must use the dependency the workspace already
+has and measure the blocking wrapper first.
