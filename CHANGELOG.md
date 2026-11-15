@@ -15,6 +15,24 @@ are not treated as releases.
 
 ### Added
 
+- The gateway can start on the embedded SQLite profile. `QR_PROFILE=desktop`
+  with `QR_DATA_DIR` opens `quantrule.sqlite`, applies the gateway's SQLite
+  baseline to one shared `schema_migrations` ledger with a `ledger` column,
+  serves `/profiles` through the existing `ProfileStore` trait, and reports
+  `sqlite` at `/health`. `quantrule-runtime` maps `schema.table` to
+  `schema__table`, stores JSON as `TEXT`, timestamps as RFC 3339 `TEXT`, and
+  runs repository calls on the blocking pool through the workspace's existing
+  `rusqlite` 0.42. The data, evidence, and simulation repositories remain on
+  Postgres until their P1b-P1d changes.
+- `FilesystemStore`, the object-store adapter for the desktop profile
+  (DIST-202, #694 P2a). A publish is a temporary file in the destination
+  directory, an fsync, and an atomic rename; a key whose last segment is a bare
+  SHA-256 is verified on write and read; a staged write that never commits is
+  invisible, a killed writer process leaves no visible object, and a stale
+  temporary file is ignored; traversal, empty, and non-portable key segments are
+  refused; an identical republish is a no-op and a different body under an
+  existing key is refused. The durable SQLite queue (P2b) is gated on #693's
+  SQLite adapter and lands separately.
 - The desktop package now carries and supervises the six service binaries. A
   dependency-free `qr-desktop` supervisor starts them on loopback, waits for
   health, restarts a crashed child within a bounded budget, and stops them when
@@ -22,7 +40,7 @@ are not treated as releases.
   crashed supervisor. The Linux AppImage and Windows NSIS jobs build the six
   services from the same commit, stage all seven executables and the example
   configs, and fail when one is missing or an interpreter appears. The embedded
-  backends are #693/#694, so the launch is selected by the
+  backends are still landing (#693/#694), so the launch is selected by the
   `embedded-profile` build feature and the parity digest is not claimed yet.
 
 ### Changed

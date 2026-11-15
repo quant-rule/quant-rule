@@ -22,7 +22,7 @@ pub mod queue;
 pub mod serve;
 pub mod shutdown;
 
-pub use config::Config;
+pub use config::{Config, DeploymentProfile};
 pub use error::RuntimeError;
 pub use health::HealthRegistry;
 pub use serve::serve;
