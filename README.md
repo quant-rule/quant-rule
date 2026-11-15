@@ -50,8 +50,7 @@ docker compose up -d --build --wait
 ```
 
 Fedora may use Docker Engine or Podman: `make up COMPOSE="podman compose"`. The
-current tree starts the six containers whose binaries exist; the nine-container
-target is in
+default stack starts all nine containers; see
 [`docs/architecture/deployment.md`](docs/architecture/deployment.md).
 
 | Target | Effect |

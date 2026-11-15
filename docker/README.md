@@ -1,8 +1,8 @@
 # The server image and the Compose stack
 
-- Status: Partial implementation of `DIST-022` (#643); three of the six binaries
-  exist and the nine-container target remains
-  [`docs/architecture/deployment.md`](../docs/architecture/deployment.md).
+- Status: Implements `DIST-022` (#643); six of six binaries exist and the default
+  stack starts all nine containers. The permanent object-store registry remains
+  a human decision.
 - Claim type: Behaviour Claim
 
 One image, one published port, one bridge network. The image is `linux/amd64`;
@@ -14,10 +14,15 @@ read-only `config/` mount that the target assigns to the `data` service.
 
 | Path | Contents |
 |---|---|
-| `/usr/local/bin` | `qr-gateway`, `qr-backtest`, `qr-evidence` |
+| `/usr/local/bin` | `qr-gateway`, `qr-data`, `qr-model`, `qr-backtest`, `qr-evidence`, `qr-simulation` |
 | `/srv/static` | The client built with Bun (`bun install --frozen-lockfile`, `bun run build`) |
 | `/etc/quantrule-version` | The workspace version, baked at build time |
 | `/usr/local/bin/quantrule-entry` | Selects the binary and answers `--version` |
+
+The six binaries come from six packages, one per service:
+`quantrule-gateway`, `quantrule-backtest-service`,
+`quantrule-data-service`, `quantrule-model-service`,
+`quantrule-evidence-service`, and `quantrule-simulation-service`.
 
 The runtime is Debian slim with `ca-certificates` and `curl`, and it runs as
 UID 10001. It carries no Python interpreter, no Bun runtime, no Rust toolchain,
@@ -29,51 +34,63 @@ and no `tools/` directory.
 docker build -t quantrule-server:test .
 docker compose up -d --build --wait
 curl -fsS http://localhost:8080/health
+curl -fsS -H 'X-QuantRule-Profile: default' http://localhost:8080/catalog/datasets
 docker compose down
 ```
 
-`make up` is #644 and is not in this tree yet. `docker compose config` validates
-the default stack; `docker compose --profile six-binaries config` validates the
-target topology.
+`make up` is #644. `docker compose config` validates the default stack. There is
+no partial-stack profile: every one of the nine services starts by default.
 
-The default stack is six containers: `gateway`, `backtest`, `evidence`,
-`postgres`, `minio`, and `rabbitmq`. Only `gateway` publishes a port.
-
-## 3. The gap to nine containers
-
-This tree carries three of the six service binaries.
-
-| Target service | Binary | State |
+| Container | Binary | Surface |
 |---|---|---|
-| `gateway` | `qr-gateway` | present |
-| `data` | `qr-data` | **missing** — `DIST-031` |
-| `model` | `qr-model` | **missing** — `DIST-032` |
-| `backtest` | `qr-backtest` | present |
-| `evidence` | `qr-evidence` | present |
-| `simulation` | `qr-simulation` | **missing** — `DIST-102` |
+| `gateway` | `qr-gateway` | `/health`, `/version`, profiles, runs, hypotheses, the model route, the proxied data routes, and the static client |
+| `data` | `qr-data` | `/health`, `/version`, `/catalog/*`, `/datasets/*`, `/inspect/*`, and the internal config/dataset references |
+| `model` | `qr-model` | `/health`, `/version`, `/model/compute`, and the internal model bundle |
+| `backtest` | `qr-backtest` | queue consumer; no HTTP |
+| `evidence` | `qr-evidence` | `/health`, `/version`, `/runs`, `/hypotheses`, and the internal worker lifecycle |
+| `simulation` | `qr-simulation` | `/health`, `/version`, and the eleven research-plane endpoints |
+| `postgres` | `postgres:17` | database |
+| `minio` | `bitnamilegacy/minio` | object store |
+| `rabbitmq` | `rabbitmq:4-management` | broker |
 
-The three missing services are defined under the off-by-default `six-binaries`
-profile. They cannot start until their binaries exist: enabling the profile
-before the split fails at `exec`. The default `docker compose up` never selects
-the profile, so a missing binary does not fail the stack.
+Only `gateway` publishes a port. The five HTTP services carry a healthcheck that
+reads their own `/health`; the three infrastructure containers carry their own
+probes. `backtest` serves no HTTP and publishes no liveness probe, so it has no
+healthcheck. Docker reports its process state; `/health` reports the
+dependencies. A worker probe is part of the split.
 
-Two consequences are recorded rather than hidden:
+## 3. Current state
 
-- The `gateway` currently serves dataset and config ingestion, so it carries the
-  read-only `config/` mount that the target assigns to `data`. The mount moves
-  with the split.
-- `backtest` and `evidence` serve no HTTP and publish no liveness probe, so they
-  have no healthcheck. `/health` reports their dependencies; the container
-  runtime reports the process. A worker probe is part of the split.
+`data` is complete for P3. It owns the `catalog` schema, the read-only `config/`
+mount, the dataset object path, and the public catalog, dataset, config, and
+inspection routes. `model` is complete for P4: it serves `/model/compute` and the
+internal model bundle, reads the catalog through `qr-data`, and owns no database
+schema. `evidence` is complete for P5: it owns the `runs` and `research` schemas,
+serves the run and hypothesis surface, and consumes `run.computed` to finalize.
+`simulation` is complete for P7: it owns the `simulation` schema, serves the
+eleven research-plane endpoints, and reads a recorded bundle from the object
+store. The gateway proxies all four surfaces and keeps no domain handler:
 
-A third finding is a defect in the current runtime, not in the stack: the
-migration helper takes a session-level advisory lock and releases it through the
-pool, so the lock and the unlock can land on different connections. Two services
-that migrate at once therefore deadlock. Compose works around it by making the
-gateway the only migrator (`QR_MIGRATE=1`) and setting `QR_MIGRATE=0` on every
-worker and placeholder. The follow-up is to pin the migration to one connection
-or to give the schema owner the migration step; the Compose workaround is not a
-fix.
+| Service | Route owner | Phase |
+|---|---|---|
+| `data` | `qr-data` (gateway proxy) | P3, landed |
+| `model` | `qr-model` (gateway proxy) | P4, landed |
+| `evidence` | `qr-evidence` (gateway proxy) | P5, landed |
+| `simulation` | `qr-simulation` (gateway proxy) | P7, landed |
+
+Only `data` mounts `config/` read-only. `model` and `evidence` read the dataset
+object through data and the object store, and `simulation` reads its recorded
+bundle from the object store, so none needs a config mount. `backtest` loads the
+dataset and config from data, the model bundle from model, and records the run
+through evidence; it serves no HTTP.
+
+Each schema owner migrates its own ledger. The gateway applies the `gateway`
+ledger with `QR_MIGRATE=1`; `data` applies the `catalog` ledger; `evidence`
+applies the `runs` and `research` ledgers, including the run-attempts migration
+(0013); `simulation` applies its own `simulation` ledger (0014). `backtest` and
+`model` keep `QR_MIGRATE=0` because they own no schema. P1 pinned the
+session-level advisory lock to one connection, so the four migrators can run at
+once; the old gateway-sole-migrator workaround is gone.
 
 ## 4. Object store source
 
@@ -105,9 +122,13 @@ credential has a local default and can be overridden:
 |---|---|
 | `QR_IMAGE` | Image reference; a digest in a release |
 | `QR_IMAGE_DIGEST` | Passed to `/health` and provenance; unset by default |
-| `QR_POSTGRES_PASSWORD` | Postgres and the gateway URL |
+| `QR_DATA_URL` | Data-service base URL used by the gateway and the backtest worker |
+| `QR_MODEL_URL` | Model-service base URL used by the gateway |
+| `QR_EVIDENCE_URL` | Evidence-service base URL used by the gateway and the backtest worker |
+| `QR_SIMULATION_URL` | Simulation-service base URL used by the gateway |
+| `QR_POSTGRES_PASSWORD` | Postgres and the service URL |
 | `QR_OBJECT_STORE_PASSWORD` | MinIO root password and the S3 secret |
-| `QR_RABBITMQ_PASSWORD` | Broker password and the gateway URL |
+| `QR_RABBITMQ_PASSWORD` | Broker password and the service URL |
 | `QR_OBJECT_STORE_IMAGE` | Object-store image reference |
 
 ## 7. Host smoke notes
@@ -133,7 +154,7 @@ podman compose up -d --wait
 ```
 
 `podman compose` delegates to an external Compose provider. The stack uses
-`depends_on: condition: service_healthy`, profiles, YAML anchors, and
-healthchecks; the provider must support all four. On this development host
-`podman compose` delegates to Docker Compose v5.7.1 and the Docker daemon, so it
-is not an independent Podman check.
+`depends_on: condition: service_healthy`, YAML anchors, and healthchecks; the
+provider must support all three. On this development host `podman compose`
+delegates to Docker Compose v5.7.1 and the Docker daemon, so it is not an
+independent Podman check.

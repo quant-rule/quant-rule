@@ -117,13 +117,20 @@ are not treated as releases.
   without `--force`, and writes objects before rows. The opt-in
   `tools/test_backup.sh` proves a byte-identical round trip on an isolated
   Compose project.
-- The single server image and the Compose stack: one `quantrule-server` image
-  carries `qr-gateway`, `qr-backtest`, `qr-evidence`, and the built client, and
-  `compose.yaml` defines the nine-container topology with one published port,
-  three named volumes, and health-gated startup. `docker compose up` starts the
-  six containers whose binaries exist; `data`, `model`, and `simulation` stay
-  behind the `six-binaries` profile until `qr-data`, `qr-model`, and
-  `qr-simulation` exist.
+- The single server image and the Compose stack start the full nine-container
+  topology by default: one `quantrule-server` image carries `qr-gateway`,
+  `qr-data`, `qr-model`, `qr-backtest`, `qr-evidence`, `qr-simulation`, and the
+  built client; Postgres, MinIO, and RabbitMQ complete the stack behind
+  health-gated startup. `data` serves the catalog, dataset, config, and
+  inspection routes through `qr-data`, `model` serves `/model/compute` through
+  `qr-model`, `evidence` serves runs and research through `qr-evidence`, and
+  `simulation` serves the research plane through `qr-simulation`, while the
+  gateway proxies all four; the off-by-default `six-binaries` profile is
+  retired. The gateway, `data`, `evidence`, and `simulation` each apply their own
+  migration ledger. One published port (`8080`), one bridge
+  network, three named volumes. The pinned `bitnamilegacy/minio` archive remains
+  a stopgap overridable with `QR_OBJECT_STORE_IMAGE` until the permanent
+  registry decision is recorded.
 - The operator interface is one command: `make up` builds the default stack,
   waits for health, and prints the URL, and `make help` lists every target.
   `make down`, `make reset` (confirmed), `make logs`, `make ps`, `make scale`,
