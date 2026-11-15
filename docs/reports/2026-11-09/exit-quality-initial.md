@@ -2,7 +2,7 @@
 
 - Date: 2026-11-09 (UTC)
 - Status: Exploratory; no rule and no edge claim
-- Tools: [`tools/trades/exit_quality.py`](../../../tools/trades/exit_quality.py)
+- Tools: `tools/trades/exit_quality.py` (retired by DIST-105)
 - Contract: [`docs/config/2026-11-09/trade-context.md`](../../config/2026-11-09/trade-context.md)
 - Data: `data/improvement/2026-11-09/BINANCE-BTCUSDT/exit_quality.csv` and
   `data/improvement/2026-11-09/SR9-15M-STRUCTURE/exit_quality.csv`

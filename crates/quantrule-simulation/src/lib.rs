@@ -7,7 +7,7 @@
 //! This crate holds the deterministic parts of the simulation domain: the bundle
 //! types, window selection, the mark schema, the hindsight oracle, the path
 //! label, the exit lab, the review, the check, and the meta-label and context
-//! split. The stages are a faithful port of `tools/simulation/`; the golden
+//! split. The stages are a faithful port of the retired Python harness; the golden
 //! fixture `docs/port-parity/PORT-001.golden.json` compares every numeric value
 //! to `1e-9`.
 //!

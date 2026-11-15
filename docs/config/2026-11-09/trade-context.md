@@ -1,9 +1,11 @@
 # Trade Context Artifact Contract
 
 - Date: 2026-11-09 (UTC)
-- Status: Current
+- Status: Historical; the Python trade-context exporter was retired by DIST-105.
+  The seven-column mark schema in section 7 is current in the `simulation`
+  service; the per-trade artifact is retained as the record of the retired
+  exporter.
 - Owner: Quant Developer (tooling), Quant Researcher (exit metrics), Quant Validator (reproduction)
-- Tools: [`tools/trades/`](../../../tools/trades/)
 - Claim type: evaluation artifact; no model, strategy, or edge claim.
 
 ## 1. Purpose
@@ -116,6 +118,6 @@ These metrics are descriptive and exploratory. They do not define a rule.
 
 ## 9. Determinism
 
-The tools read fixed files, sort by bar, and write JSON with sorted keys and CSV
-with a fixed header order. The same bundle and arguments produce identical
-artifacts.
+The retired tools read fixed files, sorted by bar, and wrote JSON with sorted
+keys and CSV with a fixed header order. The same bundle and arguments produced
+identical artifacts.

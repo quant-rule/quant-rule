@@ -47,7 +47,7 @@ repeating a status.
 | Research swarm | Current contract; no active campaign. |
 | Release tags | `v0.9.0` is the latest release. `v1.0.0` is the distributed target and is not tagged. Historical tags are retained. |
 | Changelog | Grouped release history; `0.9.0` is the current release. |
-| Tooling | The shell is the agent command path; it makes one gateway call per command. `tools/improvement/run_current.py` remains the research path. `tools/gate.sh` runs the workspace gate. The distributed stack adds `make` targets and six services, specified in [deployment.md](architecture/deployment.md). Python is confined to repository governance; the product image carries none ([ADR-10](adr/2026-11-12/10-python-boundary.md)). |
+| Tooling | The shell is the agent command path; it makes one gateway call per command. `tools/improvement/run_current.py` remains the research path. `tools/gate.sh` runs the workspace gate. The distributed stack adds `make` targets and six services, specified in [deployment.md](architecture/deployment.md). The `simulation` service and the browser client own chart-first research; the Python simulation, chart, oracle, and trade tools are retired by DIST-105. Python is confined to repository governance; the product image carries none ([ADR-10](adr/2026-11-12/10-python-boundary.md)). |
 
 ## Current architecture
 
@@ -98,8 +98,6 @@ repeating a status.
 | Qualification lab tutorial | Historical; v0.3.0 qualification | `docs/tutorials/2026-11-06/qualification-lab.md` |
 | Analytics lab tutorial | Historical; v0.3.0 analytics | `docs/tutorials/2026-11-06/analytics-lab.md` |
 | Pipeline lab tutorial | Historical; the v0.3.0 stage surface | `docs/tutorials/2026-11-06/pipeline-lab.md` |
-| Trade context lab tutorial | Current; 250-bar entry/exit context, annotations, and exit-quality evaluation | `docs/tutorials/2026-11-09/trade-context.md` |
-| Chart annotator tutorial | Current; local click-to-annotate page for entry/exit marks | `docs/tutorials/2026-11-09/chart-annotator.md` |
 | Shell HTTP tutorial | Current; the v1.0.0 gateway client, profiles, runs, and simulation verbs | `docs/tutorials/2026-11-14/shell-http.md` |
 | Indicator verification matrix | Current; 46 rows, generated from the evidence map | `docs/model/2026-11-06/indicator-verification.md` |
 | Event verification matrix | Current; 143 rows, generated from the evidence map | `docs/model/2026-11-06/event-verification.md` |
@@ -122,7 +120,7 @@ repeating a status.
 | Strategy configuration | Current; `quantrule.strategy/v1`, both generic engines, and the decision record | `docs/config/2026-11-06/strategy-config.md` |
 | Qualification criteria | Current; human-owned criteria, verdict semantics, and human acceptance | `docs/config/2026-11-06/qualification-criteria.md` |
 | Analytics benchmarks | Current; buy-and-hold and matched random-timing evaluation output | `docs/config/2026-11-09/analytics-benchmarks.md` |
-| Trade context | Current; per-trade 250-bar entry/exit context, annotation mapping, and exit-quality table | `docs/config/2026-11-09/trade-context.md` |
+| Trade context | Historical; the Python exporter was retired by DIST-105, with the artifact and mark schemas retained as a record | `docs/config/2026-11-09/trade-context.md` |
 | Strategy position excursions | Current; entry price/ATR, unrealized, MFE/MAE, giveback exit | `docs/config/2026-11-10/strategy-position-excursions.md` |
 | Improvement run contract | Current; `quantrule.improvement-run/v2` is current, v1 is historical | `docs/workflows/run-contract.md` |
 
@@ -227,11 +225,9 @@ evidence service.
 
 | Tool | Purpose | Path |
 |---|---|---|
-| Progression replay oracle | Regenerates and checks the per-bar Progression and retained-leg golden fixtures independently of the Rust implementation. | [`tools/oracle/README.md`](../tools/oracle/README.md) |
-| Simulation harness | Selects M1.3 windows, renders clean charts, writes hindsight marks, and reviews them; exploration only. | [`tools/simulation/README.md`](../tools/simulation/README.md) |
 | Worktree cleanup guard | Classifies, archives, and removes a merged task worktree; required before `git worktree remove`. | `tools/worktree_cleanup.py` |
 | Verification manifest builder | Regenerates `verification.json` and both verification matrices from the registry and claims. | `tools/build_verification.py` |
-| Legacy label scan | Rejects retired model, strategy, and architecture labels in the current surface. | `tools/check_legacy.py` |
+| Legacy label scan | Rejects retired model, strategy, and architecture labels, and the retired DIST-105 tool paths, in the current surface. | `tools/check_legacy.py` |
 | Registry, validation, matrix, evidence, emitter, link, and term checks | CI gates for the current contracts. | `tools/check_registry.py`, `tools/check_validation.py`, `tools/check_verification_matrix.py`, `tools/check_verification.py`, `tools/check_event_emitters.py`, `tools/check_links.py`, `tools/check_terms.py` |
 | Workflow checker | Checks the workflow index, status, required sections, and links. | `tools/check_workflows.py` |
 | Execution-plan checker | Checks current plans for a claim type, a complete reviewer verification table, unique row IDs, and no unresolved row on a `Verified` plan. | `tools/check_execution_plans.py` |

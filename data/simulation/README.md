@@ -1,10 +1,12 @@
 # Simulation run store
 
-`data/simulation/` holds local simulation-run artifacts. A simulation run is a
-chart-first, hindsight-labeled exploration record; it is not an improvement run,
-a backtest, or evidence of an edge.
+`data/simulation/` holds local simulation-run artifacts written by the retired
+Python harness. They remain as exploration records; they are not improvement
+runs, backtests, or evidence of an edge. New simulation runs are records in the
+`simulation` service, reached through the browser client or the `simulation`
+commands.
 
-## Layout
+## Layout of a stored run
 
 ```text
 data/simulation/<YYYY-MM-DD>/<run-id>/
@@ -17,7 +19,7 @@ data/simulation/<YYYY-MM-DD>/<run-id>/
   decision.md         test, refine, or stop
 ```
 
-The `_data/` directory holds the recorded model reports the runs consume:
+The `_data/` directory holds the recorded model reports the runs consumed:
 
 ```text
 data/simulation/_data/M1.3-2018-2022/
@@ -26,11 +28,11 @@ data/simulation/_data/M1.3-2018-2022/
   reproduce.md        the exact command and provenance
 ```
 
-## Rules
+## Rules for reading a stored run
 
 1. Everything here is local data; it is not committed. Only this README is
    tracked.
-2. A run uses a recorded model bundle. It does not reach a live source or
+2. A stored run used a recorded model bundle. It did not reach a live source or
    recompute a model value.
 3. The model identity is `M1.3` and the registry is `2026-11-10.2`.
 4. The label window is `strategy_dev` 2018–2019; the check is 2020–2022. 2023,
@@ -39,11 +41,15 @@ data/simulation/_data/M1.3-2018-2022/
    event's `available_bar_index`.
 6. A run with fewer than 30 non-overlapping candidates is recorded as
    underpowered and makes no rule claim.
-7. The same manifest, seed, and bundle reproduce the same windows, marks, and
-   PNG hashes.
+7. A stored run is read-only history. The harness that produced its PNGs and
+   hashes was retired by DIST-105; the `simulation` service and `PORT-001`
+   carry the current path and its parity evidence.
 
-## Contract
+## Current simulation research
 
 The workflow is [`docs/workflows/simulation-research.md`](../../docs/workflows/simulation-research.md).
-The execution plan is
+The service records runs in the `simulation` schema; the browser client is the
+human workstation and the `simulation` commands are the agent path. The parity
+record is [`docs/port-parity/README.md`](../../docs/port-parity/README.md).
+The execution plan that created the stored runs is
 [`docs/execution-plans/2026-11-10/simulation-runs.md`](../../docs/execution-plans/2026-11-10/simulation-runs.md).

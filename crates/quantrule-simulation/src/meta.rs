@@ -7,8 +7,8 @@
 //! the split is checked on a later window that carries no marks.
 //!
 //! The stage is descriptive. It does not claim an edge, it does not fit a model,
-//! and it never reaches the strategy path. It is the Rust port of
-//! `tools/simulation/meta.py`; the numeric rules and bucket boundaries match the
+//! and it never reaches the strategy path. It is the Rust port of the retired
+//! harness meta stage; the numeric rules and bucket boundaries match the
 //! Python reference, and every fixture value is compared to `1e-9`.
 //!
 //! `port-parity: PORT-001` names the golden fixture this module is compared

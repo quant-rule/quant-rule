@@ -157,7 +157,7 @@ Stop and request human direction when:
 | Shell-only source fetch | `data` service ingestion | `ADR-2026-11-12-01` |
 | Stage-by-stage execution commands | One run plus read-only inspection | `ADR-2026-11-12-06` |
 | One-process determinism claim | Canonical digest with a stated boundary | `ADR-2026-11-12-07` |
-| Python simulation harness (`tools/simulation`, `tools/charts`, `tools/oracle`, `tools/trades`) | The `simulation` service in Rust; the client renders the chart | `ADR-2026-11-12-09`, `ADR-2026-11-12-10` |
+| Python simulation, chart, oracle, and trade tooling (four `tools/` directories) | The `simulation` service in Rust; the client renders the chart | `DIST-105`; [history index, section 3.8](../registry/history.md#38-dist-105-retired-research-tooling) |
 | Server-rendered PNG charts and the click-annotator page | Client-side SVG and the Simulation screens | `ADR-2026-11-12-09` |
 | The Tauri **application** (embedded app service, IPC commands, local file access) | A Tauri **shell** over the gateway URL: no compute, no local data, no IPC domain | `ADR-2026-11-12-12` |
 

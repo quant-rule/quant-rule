@@ -95,23 +95,8 @@ jobs:
           python3 -m py_compile tools/data/*.py
           python3 -m unittest discover -s tools/data -p 'test_*.py'
 
-      - name: Chart tooling
-        run: |
-          python3 -m py_compile tools/charts/*.py
-          python3 -m unittest discover -s tools/charts -p 'test_*.py'
-
-      - name: Trade tooling
-        run: |
-          python3 -m py_compile tools/trades/*.py
-          python3 -m unittest discover -s tools/trades -p 'test_*.py'
-
       - name: Tests
         run: cargo test
-
-      - name: Progression oracle
-        run: |
-          python3 -m unittest discover -s tools/oracle -p 'test_*.py'
-          python3 tools/oracle/progression_replay.py --check
 
       - name: Registry
         run: python3 tools/check_registry.py
@@ -138,7 +123,9 @@ jobs:
         run: python3 tools/check_terms.py
 
       - name: Legacy labels
-        run: python3 tools/check_legacy.py
+        run: |
+          python3 -m unittest discover -s tools -p 'test_check_legacy.py'
+          python3 tools/check_legacy.py
 
       # Historical tooling retained for reproducibility; not part of the current shell surface.
       - name: Historical improvement tooling

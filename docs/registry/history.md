@@ -1,7 +1,8 @@
 # Current-Architecture History Index
 
 - Date: 2026-11-05 (UTC)
-- Updated: 2026-11-08 for the MR5 research-family aliases
+- Updated: 2026-11-08 for the MR5 research-family aliases; 2026-11-15 for the
+  DIST-105 tooling retirement
 - Status: Current boundary; P0.1–P8 complete; M3 preflight underpowered; M4 no edge; MR5 planned
 - Freeze commit: `32e6fb2`
 - Manifest commit: `8acf857`
@@ -157,6 +158,27 @@ oracle no longer rendered:
 
 They remain in Git at `787a1f1`; the plans, audits, and transparency logs that
 created them remain the history of their contracts.
+
+### 3.8 DIST-105 retired research tooling
+
+DIST-105 removed the Python simulation, chart, oracle, and trade tooling after
+the Rust `simulation` service and the browser client passed parity. The checked-in
+fixtures remain the evidence; the last commit that contains the tools is
+`4bbf7749`.
+
+| Path | Replaced by | Evidence |
+|---|---|---|
+| `tools/simulation/` | `crates/quantrule-simulation`, `quantrule-simulation-service`, and the browser Simulation screens | `PORT-001`; the seven-column mark schema |
+| `tools/charts/` | The client-side SVG simulation chart | ADR-2026-11-12-09, ADR-2026-11-12-10 |
+| `tools/oracle/` | Retired; the checked-in Progression fixtures remain and the Rust golden test compares against them | `crates/quantrule-model/tests/fixtures/progression_golden.csv` |
+| `tools/trades/` | Retired; the artifact contract is historical | `docs/config/2026-11-09/trade-context.md` |
+
+The golden fixtures needed no move: the Progression fixture already lives under
+`crates/quantrule-model/tests/fixtures/`, and the simulation fixture already
+lives under `docs/port-parity/`. The run folders under `data/simulation/` are
+local data and were not removed. The oracle's regeneration path is gone; the
+fixtures are now read-only evidence compared by the Rust tests, not regenerated
+by a shipped tool.
 
 ## 4. Keep as history
 
