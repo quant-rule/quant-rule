@@ -111,11 +111,11 @@ dependency):
 ```bash
 # Linux
 bunx @tauri-apps/cli@2 build --bundles appimage
-# Output: target/release/bundle/appimage/QuantRule_0.3.0_amd64.AppImage
+# Output: target/release/bundle/appimage/QuantRule_1.0.0_amd64.AppImage
 
 # Windows (run on Windows)
 bunx @tauri-apps/cli@2 build --bundles nsis
-# Output: target\release\bundle\nsis\QuantRule_0.3.0_x64-setup.exe
+# Output: target\release\bundle\nsis\QuantRule_1.0.0_x64-setup.exe
 ```
 
 ## 5. Verify
@@ -142,7 +142,7 @@ unshare --user --map-root-user --net \
 
 ### Windows smoke procedure
 
-1. Install `QuantRule_0.3.0_x64-setup.exe`. It installs for the current user.
+1. Install `QuantRule_1.0.0_x64-setup.exe`. It installs for the current user.
 2. SmartScreen shows “Windows protected your PC”; choose **More info**, then
    **Run anyway**. The artifact is unsigned.
 3. With the stack running at `http://localhost:8080`, launch **QuantRule**. The

@@ -136,20 +136,20 @@ No quant role is required: no model or strategy behavior changes.
 | V10 | API contract | 12 endpoints documented with errors | manual read | 12 | 12 | Pass | agent | 2026-11-12 | |
 | V11 | Client contract | Six screens with endpoint and empty state | manual read | 6 | 6 | Pass | agent | 2026-11-12 | |
 | V12 | Deployment | `make up` documented as the only setup step | `docs/architecture/deployment.md` | present | present | Pass | agent | 2026-11-12 | |
-| V13 | Course PDFs | Five PDFs rebuilt | `tools/course/build_pdfs.sh` | 5 PDFs | not rebuilt in this session | Pending | — | — | delegated to DIST-018 |
+| V13 | Course PDFs | Five PDFs rebuilt | `tools/course/build_pdfs.sh` | 5 PDFs | the five architecture deliverables and six methodology PDFs were rebuilt in `0460e8b6` (2026-11-13) after the 2026-11-12 sources; 11 PDFs present | Pass | agent | 2026-11-15 | none rebuilt in this session |
 | V14 | Issue tree | Every `DIST-*` issue exists with a claim type | `gh issue list --label dist` | 39 or more | 45 issues (#630-#674) | Pass | agent | 2026-11-12 | one epic plus 44 children |
 | V15 | Board | Every issue has Status, Claim Type, Phase | board query | no empty field | 45 items populated; 7 closed with `Closed date` 2026-11-12 | Pass | agent | 2026-11-12 | `Phase` field created and populated |
 | V16 | Changelog | `[1.0.0]` section exists | `python3 tools/check_changelog.py` | pass | pass | Pass | agent | 2026-11-12 | |
-| V17 | Gate | Workspace gate passes | `tools/gate.sh` | pass | CI `verify` job passed on PR #675 (1m22s) | Pass | agent | 2026-11-12 | no code changed |
+| V17 | Gate | Workspace gate passes | `tools/gate.sh` | pass | `tools/gate.sh` exit 0 on the v1.0.0 tree: 1,995 tests passed, 0 failed, 10 ignored; fmt, clippy, rustdoc, and every checker pass | Pass | agent | 2026-11-15 | release tree |
 | V18 | Honesty | No claim exceeds its evidence | manual read | no overclaim | no overclaim | Pass | agent | 2026-11-12 | cross-machine claim delegated |
-| V19 | Deletion order | `site/` removed before `src-tauri/` | merged history | order holds | not started | Pending | — | — | `DIST-016` then `DIST-050` |
-| V20 | Repo configs visible | repository configs listed and valid | configs screen | listed | not started | Pending | — | — | `DIST-031` read-only mount |
-| V21 | Six services | `services.md` lists six services | `services.md` | six rows | not started | Pending | — | — | ADR-09 |
-| V22 | No Python in the image | image has no interpreter | `docker run --rm <image> sh -c 'command -v python3'` | empty | not started | Pending | — | — | ADR-10 |
-| V23 | Research plane isolated | no run write, no strategy read | guard test | pass | not started | Pending | — | — | DIST-101/102 |
-| V24 | Profiles scoped | two profiles see independent records | two `X-QuantRule-Profile` values | independent | not started | Pending | — | — | ADR-11 |
-| V25 | Desktop shell | loads the gateway URL | shell smoke test | no IPC, no local read | not started | Pending | — | — | ADR-12 |
-| V26 | Adapter traits | one implementation each | trait review + `cargo check` | second impl needs no use-case change | not started | Pending | — | — | DIST-111 |
+| V19 | Deletion order | `site/` removed before `src-tauri/` | merged history | order holds | `20ad78cd` deleted `site/` (2026-11-12); `31ac1cef` deleted `apps/desktop/src-tauri` (2026-11-13); `git merge-base --is-ancestor 20ad78cd 31ac1cef` holds | Pass | agent | 2026-11-15 | `DIST-016` then `DIST-050` |
+| V20 | Repo configs visible | repository configs listed and valid | configs screen | listed | `GET /api/v1/catalog/configs` lists 581 repository configs; the five valid examples include `examples/verify-mini/run.json` and its replica; 576 historical configs carry `valid:false` with their parser message | Pass | agent | 2026-11-15 | `DIST-031` read-only mount |
+| V21 | Six services | `services.md` lists six services | `services.md` | six rows | `docs/architecture/services.md` lists gateway, data, model, backtest, evidence, and simulation, one binary each | Pass | agent | 2026-11-15 | ADR-09 |
+| V22 | No Python in the image | image has no interpreter | `docker run --rm <image> sh -c 'command -v python3'` | empty | `quantrule-server:local` (`sha256:2e48f120…`): `command -v python3` and `command -v bun` print nothing; `/usr/local/bin/check-no-python` prints `image python gate ok: no interpreter and no .py file` | Pass | agent | 2026-11-15 | ADR-10 |
+| V23 | Research plane isolated | no run write, no strategy read | guard test | pass | `cargo test -p quantrule-gateway --test service_boundary` passes 13 tests, including `a_seeded_strategy_read_fails_the_simulation_guard` and `simulation_is_isolated_from_runs_strategy_and_the_queue` | Pass | agent | 2026-11-15 | DIST-101/102 |
+| V24 | Profiles scoped | two profiles see independent records | two `X-QuantRule-Profile` values | independent | live on `:8080`: `alpha` sees 0 runs and 0 datasets; `default` sees 3 runs and 2 datasets; `/profiles` reports both; an unknown profile returns 404 | Pass | agent | 2026-11-15 | ADR-11 |
+| V25 | Desktop shell | loads the gateway URL | shell smoke test | no IPC, no local read | `bun test` 24 passed; `tests/boundary.sh` ok; `QuantRule_1.0.0_amd64.AppImage` built (81 MiB); `tests/smoke-linux.sh` reports the shell probed `/health` and navigated to the gateway | Pass | agent | 2026-11-15 | ADR-12; the Windows NSIS installer is built by the tag run |
+| V26 | Adapter traits | one implementation each | trait review + `cargo check` | second impl needs no use-case change | `quantrule-runtime` defines `Database`, `ObjectStore`, `Queue`, `QueueConsumer`, `ServiceClient`, `DataClient`, `EvidenceClient`, `ModelClient`, `RunCounter`, and `SimulationCounter`; each has a server implementation and an in-memory fake, and the gate compiles both | Pass | agent | 2026-11-15 | DIST-111 |
 
 ## 8. Risks and recovery
 

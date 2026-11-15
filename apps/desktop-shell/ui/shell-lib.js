@@ -8,7 +8,7 @@
  */
 
 /** The version of this shell. Keep in step with `tauri.conf.json`, `package.json`, and `Cargo.toml`. */
-export const SHELL_VERSION = "0.3.0";
+export const SHELL_VERSION = "1.0.0";
 
 /** The gateway the shell opens on a first run. */
 export const DEFAULT_GATEWAY_URL = "http://localhost:8080";

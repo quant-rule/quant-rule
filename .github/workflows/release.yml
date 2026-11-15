@@ -1,14 +1,21 @@
 # The release pipeline: one image digest, two desktop artifacts, one record.
 #
-# A pushed v* tag builds and verifies the image, records its digest, builds the
-# Linux AppImage and the Windows NSIS installer, and attaches all three to the
-# GitHub release. A workflow_dispatch run performs the same build and records
-# the digest in the job summary but creates no release and publishes no asset.
+# A pushed v* tag builds and verifies the image, pushes it to the registry,
+# records its digest, builds the Linux AppImage and the Windows NSIS installer,
+# and attaches all three to the GitHub release.
 #
-# Publishing is tag-only. A tag run requires the four repository values
-# documented in docs/releases/README.md, so a release always names a pullable
-# image. A workflow_dispatch run is always the build-only dry run; its digest is
-# a local image ID, not a registry manifest.
+# The default registry is GHCR and the default image is
+# ghcr.io/<owner>/quantrule-server, authenticated with the workflow's
+# GITHUB_TOKEN and the job-level `packages: write` permission. QR_REGISTRY,
+# QR_IMAGE_NAME, QR_REGISTRY_USERNAME, and QR_REGISTRY_TOKEN remain optional
+# overrides for another registry; a custom registry needs its own token. The tag
+# gate requires the annotated v* tag, main ancestry, and the release note, not a
+# set of repository values, because the default needs none.
+#
+# workflow_dispatch with publish_snapshot=true pushes a snapshot-<sha> image and
+# records its digest without creating a release. That is the pre-tag GHCR proof.
+# A workflow_dispatch without it builds the image locally and records a local
+# image ID.
 
 name: Release
 
@@ -17,6 +24,11 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      publish_snapshot:
+        description: "Push a snapshot-<sha> image to GHCR and record its digest; no release"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -28,6 +40,10 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   LOCAL_IMAGE: quantrule-server:release-${{ github.sha }}
+  # GHCR requires a lowercase repository path, so the resolver lowercases the
+  # owner. Some owners are mixed case; the image name is not.
+  DEFAULT_REGISTRY: ghcr.io
+  DEFAULT_IMAGE_NAME: ${{ github.repository_owner }}/quantrule-server
 
 jobs:
   gate:
@@ -41,11 +57,6 @@ jobs:
 
       - name: Verify the release tag
         if: github.event_name == 'push'
-        env:
-          QR_REGISTRY: ${{ vars.QR_REGISTRY }}
-          QR_IMAGE_NAME: ${{ vars.QR_IMAGE_NAME }}
-          QR_REGISTRY_USERNAME: ${{ secrets.QR_REGISTRY_USERNAME }}
-          QR_REGISTRY_TOKEN: ${{ secrets.QR_REGISTRY_TOKEN }}
         run: |
           if ! printf '%s' "$GITHUB_REF_NAME" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
             echo "::error::$GITHUB_REF_NAME is not a vMAJOR.MINOR.PATCH tag" >&2
@@ -65,11 +76,6 @@ jobs:
             echo "::error::missing release note docs/releases/<YYYY-MM-DD>/$GITHUB_REF_NAME.md" >&2
             exit 1
           fi
-          if [ -z "$QR_REGISTRY" ] || [ -z "$QR_IMAGE_NAME" ] \
-            || [ -z "$QR_REGISTRY_USERNAME" ] || [ -z "$QR_REGISTRY_TOKEN" ]; then
-            echo "::error::a release tag needs QR_REGISTRY, QR_IMAGE_NAME, QR_REGISTRY_USERNAME, and QR_REGISTRY_TOKEN; see docs/releases/README.md" >&2
-            exit 1
-          fi
 
       - name: Install the pinned toolchain
         run: rustup show
@@ -81,9 +87,15 @@ jobs:
     name: Image and digest
     needs: gate
     runs-on: ubuntu-latest
+    # Pushing to GHCR with GITHUB_TOKEN needs packages: write on this job only.
+    permissions:
+      contents: read
+      packages: write
     outputs:
       digest: ${{ steps.digest.outputs.digest }}
       image: ${{ steps.reference.outputs.image }}
+      ref: ${{ steps.reference.outputs.ref }}
+      tag: ${{ steps.reference.outputs.tag }}
       source: ${{ steps.digest.outputs.source }}
     steps:
       - name: Check out the repository
@@ -96,32 +108,64 @@ jobs:
           QR_IMAGE_NAME: ${{ vars.QR_IMAGE_NAME }}
           QR_REGISTRY_USERNAME: ${{ secrets.QR_REGISTRY_USERNAME }}
           QR_REGISTRY_TOKEN: ${{ secrets.QR_REGISTRY_TOKEN }}
+          PUBLISH_SNAPSHOT: ${{ inputs.publish_snapshot }}
         run: |
+          registry="${QR_REGISTRY:-$DEFAULT_REGISTRY}"
+          default_name="$(printf '%s' "$DEFAULT_IMAGE_NAME" | tr '[:upper:]' '[:lower:]')"
+          name="${QR_IMAGE_NAME:-$default_name}"
+          image="$registry/$name"
+          if [ -n "$QR_REGISTRY" ] && [ -z "$QR_REGISTRY_TOKEN" ]; then
+            echo "::error::QR_REGISTRY overrides the GHCR default, so QR_REGISTRY_TOKEN and QR_REGISTRY_USERNAME are required; see docs/releases/README.md" >&2
+            exit 1
+          fi
+          if [ -n "$QR_REGISTRY_TOKEN" ] && [ -z "$QR_REGISTRY_USERNAME" ]; then
+            echo "::error::QR_REGISTRY_TOKEN is set without QR_REGISTRY_USERNAME" >&2
+            exit 1
+          fi
           if [ "$GITHUB_EVENT_NAME" = "push" ]; then
-            if [ -z "$QR_REGISTRY" ] || [ -z "$QR_IMAGE_NAME" ] \
-              || [ -z "$QR_REGISTRY_USERNAME" ] || [ -z "$QR_REGISTRY_TOKEN" ]; then
-              echo "::error::a release tag needs the four registry values; see docs/releases/README.md" >&2
-              exit 1
-            fi
-            echo "image=$QR_REGISTRY/$QR_IMAGE_NAME" >> "$GITHUB_OUTPUT"
-            echo "publish=true" >> "$GITHUB_OUTPUT"
+            tag="$GITHUB_REF_NAME"
+            publish=true
+            source="the version tag"
+          elif [ "$PUBLISH_SNAPSHOT" = "true" ]; then
+            tag="snapshot-$GITHUB_SHA"
+            publish=true
+            source="the snapshot dispatch"
           else
-            echo "image=$LOCAL_IMAGE" >> "$GITHUB_OUTPUT"
-            echo "publish=false" >> "$GITHUB_OUTPUT"
+            tag=""
+            publish=false
+            source="a local build"
+          fi
+          {
+            echo "registry=$registry"
+            echo "image=$image"
+            echo "tag=$tag"
+            echo "publish=$publish"
+            echo "source=$source"
+          } >> "$GITHUB_OUTPUT"
+          if [ "$publish" = "true" ]; then
+            echo "ref=$image:$tag" >> "$GITHUB_OUTPUT"
             {
-              echo "## Image registry"
+              echo "## Image"
               echo
-              echo "This is a workflow_dispatch dry run. The image is built"
-              echo "locally and the recorded digest is a local image ID."
+              echo "- Reference: \`$image:$tag\`"
+              echo "- Built from: $source"
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "ref=$LOCAL_IMAGE" >> "$GITHUB_OUTPUT"
+            {
+              echo "## Image"
+              echo
+              echo "This is a local build. The recorded digest is a local image ID and"
+              echo "no image was pushed. Set publish_snapshot to push one."
             } >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Log in to the image registry
         if: steps.reference.outputs.publish == 'true'
         env:
-          REGISTRY: ${{ vars.QR_REGISTRY }}
-          REGISTRY_USERNAME: ${{ secrets.QR_REGISTRY_USERNAME }}
-          REGISTRY_TOKEN: ${{ secrets.QR_REGISTRY_TOKEN }}
+          REGISTRY: ${{ steps.reference.outputs.registry }}
+          REGISTRY_USERNAME: ${{ secrets.QR_REGISTRY_USERNAME || github.actor }}
+          REGISTRY_TOKEN: ${{ secrets.QR_REGISTRY_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           printf '%s' "$REGISTRY_TOKEN" \
             | docker login "$REGISTRY" --username "$REGISTRY_USERNAME" --password-stdin
@@ -129,92 +173,95 @@ jobs:
       - name: Build the image
         env:
           IMAGE: ${{ steps.reference.outputs.image }}
+          REF: ${{ steps.reference.outputs.ref }}
           PUBLISH: ${{ steps.reference.outputs.publish }}
         run: |
           if [ "$PUBLISH" = "true" ]; then
             docker build \
               --platform linux/amd64 \
-              --tag "$IMAGE:$GITHUB_REF_NAME" \
+              --tag "$REF" \
               --tag "$IMAGE:sha-$GITHUB_SHA" \
               .
-            docker push "$IMAGE:$GITHUB_REF_NAME"
+            docker push "$REF"
             docker push "$IMAGE:sha-$GITHUB_SHA"
           else
-            docker build --platform linux/amd64 --tag "$IMAGE" .
+            docker build --platform linux/amd64 --tag "$REF" .
           fi
 
       - name: Assert the image carries no Python
         env:
-          IMAGE: ${{ steps.reference.outputs.image }}
-        run: docker run --rm "$IMAGE" /usr/local/bin/check-no-python
+          REF: ${{ steps.reference.outputs.ref }}
+        run: docker run --rm "$REF" /usr/local/bin/check-no-python
 
       - name: Check the image contract
         env:
-          IMAGE: ${{ steps.reference.outputs.image }}
+          REF: ${{ steps.reference.outputs.ref }}
         run: |
-          docker run --rm "$IMAGE" --version
-          if docker run --rm "$IMAGE" sh -c 'command -v python3 || command -v bun'; then
+          version="$(awk -F'"' '/^version = /{print $2; exit}' Cargo.toml)"
+          reported="$(docker run --rm "$REF" --version | awk '{print $2}')"
+          if [ "$reported" != "$version" ]; then
+            echo "::error::the image reports $reported, Cargo.toml says $version" >&2
+            exit 1
+          fi
+          if docker run --rm "$REF" sh -c 'command -v python3 || command -v bun'; then
             echo "::error::the image carries a Python or Bun interpreter" >&2
             exit 1
           fi
+          echo "the image reports quantrule-server $reported"
 
       - name: Capture the image digest
         id: digest
         env:
-          IMAGE: ${{ steps.reference.outputs.image }}
+          REF: ${{ steps.reference.outputs.ref }}
           PUBLISH: ${{ steps.reference.outputs.publish }}
         run: |
           if [ "$PUBLISH" = "true" ]; then
-            digest="$(docker buildx imagetools inspect "$IMAGE:$GITHUB_REF_NAME" \
+            digest="$(docker buildx imagetools inspect "$REF" \
               --format '{{.Manifest.Digest}}')"
             source=registry
           else
-            digest="$(docker image inspect "$IMAGE" --format '{{.Id}}')"
+            digest="$(docker image inspect "$REF" --format '{{.Id}}')"
             source=local
           fi
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
           echo "source=$source" >> "$GITHUB_OUTPUT"
           {
-            echo "## Release image"
-            echo
-            echo "- Reference: \`$IMAGE\`"
             echo "- Digest: \`$digest\`"
             echo "- Digest source: $source"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Verify the digest in /health
         env:
-          IMAGE: ${{ steps.reference.outputs.image }}
+          IMAGE: ${{ steps.reference.outputs.ref }}
           DIGEST: ${{ steps.digest.outputs.digest }}
         run: |
           QR_IMAGE="$IMAGE" QR_IMAGE_DIGEST="$DIGEST" \
             docker compose up -d --wait --no-build
           trap 'docker compose down --volumes --remove-orphans' EXIT
-          for attempt in $(seq 1 10); do
+          for attempt in $(seq 1 20); do
             if curl -fsS http://127.0.0.1:8080/health -o health.json; then
               break
             fi
-            echo "the gateway is not answering yet (attempt $attempt of 10)"
-            sleep 2
+            echo "the gateway is not answering yet (attempt $attempt of 20)"
+            sleep 3
           done
           cat health.json
-          python3 - "$DIGEST" <<'PY'
-          import json
-          import sys
-
-          expected = sys.argv[1]
-          with open("health.json", encoding="utf-8") as handle:
-              report = json.load(handle)
-          if report.get("image_digest") != expected:
-              raise SystemExit(
-                  f"/health reports {report.get('image_digest')!r}, expected {expected!r}"
-              )
-          print(f"/health reports {expected}")
-          PY
+          reported="$(jq -r '.image_digest // empty' health.json)"
+          if [ "$reported" != "$DIGEST" ]; then
+            echo "::error::/health reports $reported, expected $DIGEST" >&2
+            exit 1
+          fi
+          expected_version="$(awk -F'"' '/^version = /{print $2; exit}' Cargo.toml)"
+          product="$(curl -fsS http://127.0.0.1:8080/version | jq -r '.product')"
+          if [ "$product" != "$expected_version" ]; then
+            echo "::error::/version reports $product, expected $expected_version" >&2
+            exit 1
+          fi
+          echo "/health reports $DIGEST; /version reports $product"
           docker compose ps
           running="$(docker compose ps --status running --services | wc -l)"
-          if [ "$running" -ne 6 ]; then
-            echo "::error::the default stack started $running services, expected 6" >&2
+          if [ "$running" -ne 9 ]; then
+            echo "::error::the default stack started $running containers, expected 9" >&2
             exit 1
           fi
 
@@ -273,6 +320,31 @@ jobs:
           tauriScript: bunx @tauri-apps/cli@2
           includeUpdaterJson: false
           args: --bundles ${{ matrix.bundle }}
+
+      - name: Assert the artifact carries the product version
+        env:
+          BUNDLE: ${{ matrix.bundle }}
+        # Git Bash on the Windows runner: the check is the same POSIX script.
+        shell: bash
+        run: |
+          version="$(awk -F'"' '/^version = /{print $2; exit}' Cargo.toml)"
+          if [ "$BUNDLE" = "appimage" ]; then
+            artifact="$(find apps/desktop-shell/target/release/bundle/appimage -maxdepth 1 -type f -name "*.AppImage" -print -quit)"
+          else
+            artifact="$(find apps/desktop-shell/target/release/bundle/nsis -maxdepth 1 -type f -name "*-setup.exe" -print -quit)"
+          fi
+          if [ -z "$artifact" ]; then
+            echo "::error::the $BUNDLE bundle produced no artifact" >&2
+            exit 1
+          fi
+          case "$(basename "$artifact")" in
+            *_"$version"_*) ;;
+            *)
+              echo "::error::$(basename "$artifact") does not name version $version" >&2
+              exit 1
+              ;;
+          esac
+          echo "$(basename "$artifact") names version $version"
 
       - name: Smoke test the Linux shell
         if: runner.os == 'Linux'
@@ -375,30 +447,27 @@ jobs:
           DIGEST: ${{ needs.image.outputs.digest }}
         run: |
           gh release view "$GITHUB_REF_NAME" --json body,assets,url > release.json
-          python3 - "$DIGEST" <<'PY'
-          import json
-          import sys
-
-          digest = sys.argv[1]
-          with open("release.json", encoding="utf-8") as handle:
-              release = json.load(handle)
-          names = [asset["name"] for asset in release["assets"]]
-          if digest not in release["body"]:
-              raise SystemExit(f"the release body does not name the digest {digest}")
-          if not any(name.endswith(".AppImage") for name in names):
-              raise SystemExit(f"the release has no AppImage asset: {names}")
-          if not any(name.endswith("-setup.exe") for name in names):
-              raise SystemExit(f"the release has no NSIS installer asset: {names}")
-          print(release["url"])
-          for name in names:
-              print(name)
-          PY
+          names="$(jq -r '.assets[].name' release.json)"
+          if ! jq -e --arg digest "$DIGEST" '.body | contains($digest)' release.json >/dev/null; then
+            echo "::error::the release body does not name the digest $DIGEST" >&2
+            exit 1
+          fi
+          if ! printf '%s\n' "$names" | grep -q '\.AppImage$'; then
+            echo "::error::the release has no AppImage asset: $names" >&2
+            exit 1
+          fi
+          if ! printf '%s\n' "$names" | grep -q -- '-setup\.exe$'; then
+            echo "::error::the release has no NSIS installer asset: $names" >&2
+            exit 1
+          fi
+          jq -r '.url' release.json
+          printf '%s\n' "$names"
           appimage="$(find desktop -maxdepth 1 -type f -name '*.AppImage' -print -quit)"
           installer="$(find desktop -maxdepth 1 -type f -name '*-setup.exe' -print -quit)"
           {
             echo "## Published"
             echo
-            gh release view "$GITHUB_REF_NAME" --json url --jq '.url'
+            jq -r '.url' release.json
             echo
             echo "Copy these two lines into the release note:"
             echo

@@ -45,8 +45,8 @@ repeating a status.
 | Improvement workflow | Current; the S3 surface is implemented; the SR1/SR2 strategy runs, the SR3 feature programme, the SR4 multi-instrument fade, the SR5 absorption count gate, the SR6 VWAP rejection run, the SR7 BTC+ETH H3 cross-section, the SR8 2023 buffer test, the SR8-A 2023 archive data rejection, the SR9 15m structure campaign, and the Binance BTCUSDT cross-venue check are recorded; no baseline accepted; human acceptance pending. |
 | Run contract | Current; `quantrule.improvement-run/v2` is current, v1 is historical. |
 | Research swarm | Current contract; no active campaign. |
-| Release tags | `v0.9.0` is the latest release. `v1.0.0` is the distributed target and is not tagged. Historical tags are retained. |
-| Changelog | Grouped release history; `0.9.0` is the current release. |
+| Release tags | `v1.0.0` is prepared and authorized; the annotated tag is created from `main` after the release PR merges. `v0.9.0` is the latest published release. Historical tags are retained. |
+| Changelog | Grouped release history; `1.0.0` is the current release section. |
 | Tooling | The shell is the agent command path; it makes one gateway call per command. `tools/improvement/run_current.py` remains the research path. `tools/gate.sh` runs the workspace gate. The distributed stack adds `make` targets and six services, specified in [deployment.md](architecture/deployment.md). The `simulation` service and the browser client own chart-first research; the Python simulation, chart, oracle, and trade tools are retired by DIST-105. Python is confined to repository governance; the product image carries none ([ADR-10](adr/2026-11-12/10-python-boundary.md)). |
 
 ## Current architecture
@@ -253,6 +253,8 @@ earlier harnesses). The boundary is recorded in
 | Release | Tag | Notes |
 |---|---|---|
 | Release index and tag rule | — | [`docs/releases/README.md`](releases/README.md) |
+| Distributed platform | `v1.0.0` | [`docs/releases/2026-11-15/v1.0.0.md`](releases/2026-11-15/v1.0.0.md) |
+| Tauri Platform | `v0.9.0` | [`docs/releases/2026-11-11/v0.9.0.md`](releases/2026-11-11/v0.9.0.md) |
 | Last pre-Tauri release | `v0.8.0` | [`docs/releases/2026-11-11/v0.8.0.md`](releases/2026-11-11/v0.8.0.md) |
 | Model states, session coverage, and SR9 | `v0.7.0` | [`docs/releases/2026-11-09/v0.7.0.md`](releases/2026-11-09/v0.7.0.md) |
 | Workflow documentation reset | `v0.6.0` | [`docs/releases/2026-11-07/v0.6.0.md`](releases/2026-11-07/v0.6.0.md) |

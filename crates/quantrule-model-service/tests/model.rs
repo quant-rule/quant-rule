@@ -13,8 +13,15 @@ use tower::ServiceExt;
 /// The coupled gateway route at `fffb33c3` produced this object for the same
 /// fixture. It is the regression oracle for the move: the public model object
 /// must stay byte-identical.
+///
+/// The oracle was regenerated for `1.0.0`. The object carries the compiled
+/// product version in `flat_report`'s sibling `model_version` field, so the
+/// version bump changes exactly that field: the two objects are 66,022 bytes
+/// each and differ in two bytes, and a semantic diff reports only
+/// `.model_version` (`0.3.0` to `1.0.0`). No reading, event, or report value
+/// changed.
 const BASELINE_SHA256: &str =
-    "sha256:eae54cd2e9e957733223559eb53ad66a03f225bfc3683f46927bdd932dc7b71e";
+    "sha256:dcb9bed7dc5afd8bab6d1abeae7971b0e1a268dcf13a9e3be2660e79783e2122";
 const BASELINE_BYTES: u64 = 66_022;
 
 async fn compute(

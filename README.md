@@ -5,13 +5,12 @@ evidence — and keeps that evidence auditable after the client that submitted i
 has closed. It is candles-only, rule-based, and deterministic. There is no
 account, no cloud provider, and no live trading.
 
-> **Status.** The architecture target is **v1.0.0**, a distributed
-> single-operator platform. The command shell now speaks the v1.0.0 HTTP
-> contract as a thin client with no engine dependency; the browser client and
-> the remaining services are in progress. The distributed implementation is
-> tracked by `DIST-000` and specified in
-> [`docs/architecture/`](docs/architecture/README.md). Nothing in this README
-> claims that the whole distributed surface is implemented.
+> **Status.** The current release is **v1.0.0**, the distributed single-operator
+> platform: one image, six services, nine containers, a browser client, a
+> command shell, and a desktop shell on one `quantrule.api/v1` contract. The
+> architecture is specified in
+> [`docs/architecture/`](docs/architecture/README.md) and the release record is
+> in [`docs/releases/2026-11-15/v1.0.0.md`](docs/releases/2026-11-15/v1.0.0.md).
 
 ## Why it is distributed
 
@@ -28,7 +27,7 @@ exceed one machine, and must not collapse with the UI.
 A monolith is the better choice when runs are seconds long and stay on one
 machine. That was true before; it is not true now.
 
-## Start (target v1.0.0)
+## Start
 
 ```bash
 git clone git@github.com:quant-rule/quant-rule.git
