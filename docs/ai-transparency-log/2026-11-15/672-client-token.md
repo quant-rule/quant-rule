@@ -14,9 +14,11 @@ must be able to send the token the gateway already requires, without storing it
 in a URL, a build artifact, a committed file, or printed output. The agent owned
 `crates/quantrule-shell/**`, `apps/web/src/lib/api.ts`, the connection
 components and their tests and e2e, `docs/tutorials/2026-11-12/03-remote-compute.md`,
-the accuracy of `docs/architecture/security.md`, `CHANGELOG.md`, `README.md`,
-the global-flag paragraph in `docs/architecture/command-surface.md`, and this
-log.
+the accuracy of `docs/architecture/security.md`, `CHANGELOG.md`, and this log.
+Two accuracy edits sat outside that literal list and are disclosed here: the
+README remote/command lines and the global-flag paragraph in
+`docs/architecture/command-surface.md`, because a new global flag must appear in
+the command reference.
 
 The gateway auth seam, `tools/remote.sh`, `tools/token.sh`, Compose, the
 Dockerfile, Makefile, `docs/port-parity`, and the retirement stream were read
@@ -90,6 +92,7 @@ All commands ran in `/home/zantgo/Proyectos/quant-rule--672-client` on branch
 | Fixture log | `auth=absent/present`, `match=false/true` | no token in the log |
 | Leak scan | grep of stdout, stderr, state directory, fixture log | no token found |
 | Browser header | Playwright request observer | `Bearer qr_browser_token…` present on API calls |
+| Pull request checks | `gh pr checks 803` | `verify`, `sync`, `web`, and `web-e2e` pass |
 
 The live fixture is a temporary Python server outside the repository; it logs
 only whether a header was present and whether it matched, so the token itself
