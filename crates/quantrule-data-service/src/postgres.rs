@@ -5,12 +5,13 @@
 //! writer and reader. A marker keeps the SQL in one module so a second backend
 //! implements the same trait operations rather than a guessed subset.
 
-use quantrule_api::{ConfigOrigin, Digest, ProfileId};
+use quantrule_api::{ConfigOrigin, ProfileId};
 use quantrule_runtime::adapters::BoxFuture;
 use sqlx::PgPool;
 
 use crate::catalog::CatalogError;
 use crate::configs::{ConfigCatalog, ConfigRecord, ConfigStoreError};
+use crate::rows::{ConfigRow, DatasetRow, config_record, dataset_count, dataset_record};
 
 /// A dataset catalog backed by Postgres.
 #[derive(Debug, Clone)]
@@ -24,58 +25,6 @@ impl PgDatasetCatalog {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
-}
-
-/// The columns of one catalog row, in select order.
-///
-/// `quality` is nullable, so it must be the last position and typed as an
-/// option. The timestamp is non-null and precedes it. A swap here makes a
-/// catalog read parse the timestamp as a quality report; the order is asserted
-/// by the postgres regression test.
-type DatasetRow = (
-    String,
-    String,
-    i64,
-    i64,
-    i64,
-    i64,
-    String,
-    String,
-    String,
-    Option<String>,
-);
-
-fn dataset_count(value: i64, field: &str) -> Result<u64, CatalogError> {
-    u64::try_from(value)
-        .map_err(|_| CatalogError::Store(format!("the catalog holds a negative {field}")))
-}
-
-fn dataset_record(row: DatasetRow) -> Result<quantrule_api::DatasetRecord, CatalogError> {
-    let summary = quantrule_api::DatasetSummary {
-        data_version: Digest::parse(&row.0).map_err(|error| {
-            CatalogError::Store(format!("a stored version is malformed: {error}"))
-        })?,
-        name: row.1,
-        candles: dataset_count(row.2, "candle count")?,
-        first_bar: dataset_count(row.3, "first bar")?,
-        last_bar: dataset_count(row.4, "last bar")?,
-        bytes: dataset_count(row.5, "byte count")?,
-    };
-    Ok(quantrule_api::DatasetRecord {
-        summary,
-        object_key: row.6,
-        sha256: Digest::parse(&row.7)
-            .map_err(|error| CatalogError::Store(format!("a stored hash is malformed: {error}")))?,
-        quality: row
-            .9
-            .as_deref()
-            .map(serde_json::from_str)
-            .transpose()
-            .map_err(|error| {
-                CatalogError::Store(format!("a stored quality report is malformed: {error}"))
-            })?,
-        created_at: row.8,
-    })
 }
 
 impl crate::catalog::DatasetCatalog for PgDatasetCatalog {
@@ -202,49 +151,6 @@ impl PgConfigStore {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
-}
-
-type ConfigRow = (
-    String,
-    String,
-    String,
-    bool,
-    Option<String>,
-    Option<String>,
-    String,
-    String,
-    String,
-);
-
-fn config_origin(value: &str) -> Result<ConfigOrigin, ConfigStoreError> {
-    match value {
-        "repository" => Ok(ConfigOrigin::Repository),
-        "upload" => Ok(ConfigOrigin::Upload),
-        other => Err(ConfigStoreError(format!(
-            "a stored config has an unknown origin: {other}"
-        ))),
-    }
-}
-
-fn config_record(row: ConfigRow) -> Result<ConfigRecord, ConfigStoreError> {
-    let config_hash = row
-        .5
-        .map(|value| Digest::parse(&value))
-        .transpose()
-        .map_err(|error| ConfigStoreError(format!("a stored config hash is malformed: {error}")))?;
-    Ok(ConfigRecord {
-        config_id: row.0,
-        name: row.1,
-        origin: config_origin(&row.2)?,
-        valid: row.3,
-        message: row.4,
-        config_hash,
-        body: row.6,
-        files: serde_json::from_str(&row.7).map_err(|error| {
-            ConfigStoreError(format!("stored config files are malformed: {error}"))
-        })?,
-        created_at: row.8,
-    })
 }
 
 impl ConfigCatalog for PgConfigStore {

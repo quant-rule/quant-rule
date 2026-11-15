@@ -1,9 +1,15 @@
-//! The catalog migration list.
+//! The catalog migration lists.
 //!
-//! The runner lives in `quantrule-runtime`; this list belongs to the data
+//! The runner lives in `quantrule-runtime`; these lists belong to the data
 //! service because it owns the `catalog` schema. A SQL file is inert until it is
 //! listed here, so a new migration is not applied by copying a file into the
 //! directory. Versions are local to the `catalog` ledger.
+//!
+//! The Postgres and SQLite histories are separate on purpose. The Postgres list
+//! replays the released history (`0001`-`0005`); the SQLite baseline is the
+//! final logical shape at version 1, because a desktop database has no earlier
+//! rows to migrate. Both write the same `catalog.datasets`,
+//! `catalog.configs`, and `catalog.config_bundles` relations.
 
 use quantrule_runtime::migrations::Migration;
 
@@ -41,10 +47,32 @@ pub fn available() -> Vec<Migration> {
     migrations
 }
 
+/// The catalog's SQLite baseline, in version order.
+///
+/// The SQLite ledger starts at 1 and lives in the shared `schema_migrations`
+/// table under the `catalog` ledger name.
+#[must_use]
+pub fn sqlite() -> Vec<Migration> {
+    vec![Migration {
+        version: 1,
+        name: "catalog",
+        sql: include_str!("../migrations/sqlite/0001_catalog.sql"),
+    }]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use quantrule_runtime::migrations::{Applied, checksum, plan};
+
+    /// The executable statements, without the explanatory comments. A comment
+    /// may name the Postgres spelling it is explaining.
+    fn statements(sql: &str) -> String {
+        sql.lines()
+            .filter(|line| !line.trim_start().starts_with("--"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
 
     fn applied(version: i64, migration: &Migration) -> Applied {
         Applied {
@@ -124,6 +152,61 @@ mod tests {
                 "{} names gateway",
                 migration.name
             );
+        }
+    }
+
+    #[test]
+    fn the_sqlite_baseline_starts_at_one_and_is_complete() {
+        let available = sqlite();
+        assert_eq!(available.len(), 1);
+        assert_eq!(available[0].version, 1);
+        assert_eq!(plan(&[], &available).expect("plan").len(), 1);
+    }
+
+    #[test]
+    fn the_sqlite_baseline_uses_the_double_prefix_and_the_sqlite_types() {
+        let sql = statements(sqlite()[0].sql);
+        for table in [
+            "catalog__datasets",
+            "catalog__configs",
+            "catalog__config_bundles",
+        ] {
+            assert!(sql.contains(table), "the baseline omits {table}");
+        }
+        assert!(
+            !sql.contains("catalog_datasets") && !sql.contains("catalog_configs"),
+            "the single-underscore prefix is not a SQLite name"
+        );
+        assert!(
+            !sql.contains("catalog.datasets") && !sql.contains("catalog.configs"),
+            "a dotted Postgres name is not a SQLite name"
+        );
+        for forbidden in ["CREATE SCHEMA", "jsonb", "timestamptz", "boolean"] {
+            assert!(
+                !sql.to_ascii_lowercase()
+                    .contains(&forbidden.to_ascii_lowercase()),
+                "the SQLite baseline names the Postgres type or statement {forbidden}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_sqlite_baseline_never_names_another_service_prefix() {
+        for migration in sqlite() {
+            let sql = statements(migration.sql);
+            for forbidden in [
+                "gateway__",
+                "runs__",
+                "research__",
+                "simulation__",
+                "queue__",
+            ] {
+                assert!(
+                    !sql.contains(forbidden),
+                    "{} names {forbidden}",
+                    migration.name
+                );
+            }
         }
     }
 }
