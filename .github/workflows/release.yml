@@ -5,7 +5,7 @@
 # and attaches all three to the GitHub release.
 #
 # The default registry is GHCR and the default image is
-# ghcr.io/<owner>/quantrule-server, authenticated with the workflow's
+# ghcr.io/<owner>/quantrule-platform, authenticated with the workflow's
 # GITHUB_TOKEN and the job-level `packages: write` permission. QR_REGISTRY,
 # QR_IMAGE_NAME, QR_REGISTRY_USERNAME, and QR_REGISTRY_TOKEN remain optional
 # overrides for another registry; a custom registry needs its own token. The tag
@@ -43,7 +43,7 @@ env:
   # GHCR requires a lowercase repository path, so the resolver lowercases the
   # owner. Some owners are mixed case; the image name is not.
   DEFAULT_REGISTRY: ghcr.io
-  DEFAULT_IMAGE_NAME: ${{ github.repository_owner }}/quantrule-server
+  DEFAULT_IMAGE_NAME: ${{ github.repository_owner }}/quantrule-platform
 
 jobs:
   gate:
