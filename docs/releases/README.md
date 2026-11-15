@@ -145,14 +145,14 @@ tests and boundary check, and a nine-container Compose smoke that reads the
 digest back from `/health` and the product version back from `/version`.
 
 The default registry is GHCR, so a tag run needs no repository value: it pushes
-`ghcr.io/<owner>/quantrule-server` and logs in with `GITHUB_TOKEN` under the
+`ghcr.io/<owner>/quantrule-platform` and logs in with `GITHUB_TOKEN` under the
 image job's `packages: write` permission. The four values below are optional
 overrides for another registry, and a custom registry then needs its own token.
 
 | Name | Kind | Purpose |
 |---|---|---|
 | `QR_REGISTRY` | variable | Registry host; defaults to `ghcr.io` |
-| `QR_IMAGE_NAME` | variable | Repository path; defaults to `<owner>/quantrule-server` |
+| `QR_IMAGE_NAME` | variable | Repository path; defaults to `<owner>/quantrule-platform` |
 | `QR_REGISTRY_USERNAME` | secret | Registry user; defaults to the workflow actor |
 | `QR_REGISTRY_TOKEN` | secret | Registry token with push scope; defaults to `GITHUB_TOKEN` on GHCR |
 

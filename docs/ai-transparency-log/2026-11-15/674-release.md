@@ -92,20 +92,30 @@ worker's coupled-baseline digest is unchanged (`sha256:c23925d4…`), and
 
 ## Not verified here, and why
 
-- **Snapshot GHCR push.** `workflow_dispatch` needs the workflow on the default
-  branch; this branch is not merged, and `gh workflow run --ref
-  release/674-v1.0.0` returns `No ref found` because the branch is not pushed.
-  The proof runs after merge: `gh workflow run release.yml --ref main -f
-  publish_snapshot=true`. No digest was invented for it.
-- **Windows NSIS installer.** It is built on `windows-latest` by the tag run; a
-  Linux host cannot produce it. The release note says so. The desktop matrix
-  last ran green in the 2026-11-14 dispatch (run `43609148763`, both desktop
-  jobs), but that run built `0.3.0` with the previous workflow; the `1.0.0`
-  artifact and the new version assertion are the tag run's evidence.
-- **Tag run.** Not created; the Orchestrator tags after the snapshot proof and
-  the merge.
+- **Tag run.** Not created; the Orchestrator tags after this follow-up merges.
+  The tag run's own digest and its release body remain the final tag evidence.
 - **Cross-machine determinism.** Reviewer-executed; this log claims only the two
   local invocations.
+
+## Follow-up — the GHCR snapshot proof (2026-11-15)
+
+- `workflow_dispatch` with `publish_snapshot: true` ran on `main` `90e22047`:
+  run [`43684761275`](https://github.com/quant-rule/quant-rule/actions/runs/43684761275).
+  Gate, Image and digest, and both desktop jobs succeeded; Publish was skipped.
+- The first snapshot under the `quantrule-server` package was denied by the
+  registry. The package is now `quantrule-platform`; `QR_IMAGE_NAME` carries it
+  and the workflow default follows, so a tag run does not hit the denied package.
+- The pushed manifest is
+  `ghcr.io/quant-rule/quantrule-platform:snapshot-90e22047d5acb4f9459eacf69db37f162a550cdf`
+  with digest `sha256:9667e23d8bc2607582a32bc5a0967e66f478206d2c21833950f3de6116bea255`.
+  `/health` reported that digest and `/version` reported `1.0.0`; both lines were
+  read from the run log, not from a summary.
+- The desktop jobs produced `QuantRule_1.0.0_amd64.AppImage` and
+  `QuantRule_1.0.0_x64-setup.exe`, and each version assertion passed in the run.
+- The release note now names the release image and the registry digest, removes
+  the local-digest caveat and the external-registry exclusion, and records both
+  desktop artifacts as built by the dispatch. No changelog entry: the release
+  section and the product behavior are unchanged.
 
 ## Learning
 
