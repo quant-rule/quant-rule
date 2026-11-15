@@ -52,10 +52,17 @@ never renders a label, and never returns a raw engine type.
 | GET | `/inspect/timeframes` | `data_version` | bars and partial buckets per timeframe |
 | GET | `/inspect/events` | `data_version`, `timeframe` | event batch |
 
-The gateway owns `/profiles` and proxies `/catalog/*`, `/datasets/*`, and
-`/inspect/*` to `qr-data`. A proxied response keeps its status, body, content
-type, and ETag; a closed upstream is `503 service.unavailable`. The data service
-trusts the profile the gateway injects and never reads the profile table.
+The gateway owns `/profiles` and proxies `/catalog/*`, `/datasets/*`,
+`/inspect/candles`, and `/inspect/timeframes` to `qr-data`. `/inspect/events`
+computes a model, so the gateway forwards it to `qr-model`'s internal event-batch
+route; the data service never runs a model. A proxied response keeps its status,
+body, content type, and ETag; a closed upstream is `503 service.unavailable`.
+The data service trusts the profile the gateway injects and never reads the
+profile table.
+
+A run or simulation count is read from the service that owns the record and is
+bounded by that service's list page (200 records); a profile with more records
+reports the page rather than an invented total.
 
 The browser client checks `/version` and `/health` and reports `connected`,
 `degraded`, `mismatch`, or `unreachable`. A different API version is a mismatch:
@@ -106,6 +113,7 @@ repeated message as a lookup.
 
 | Code | HTTP | Meaning |
 |---|---|---|
+| `auth.unauthorized` | 401 | Missing or wrong bearer token (when configured) |
 | `profile.not_found` | 404 | Unknown or missing profile |
 | `profile.invalid` | 400 | Bad profile name |
 | `dataset.not_found` | 404 | Unknown `data_version` |

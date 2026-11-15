@@ -15,7 +15,7 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use common::{body_bytes, memory_profiles};
 use futures_util::{StreamExt, stream};
-use quantrule_api::PROFILE_HEADER;
+use quantrule_api::{ErrorCode, ErrorEnvelope, PROFILE_HEADER};
 use quantrule_gateway::server::router;
 use quantrule_gateway::server::{AppState, Services};
 use quantrule_runtime::client::{HttpServiceClient, Service};
@@ -279,6 +279,47 @@ async fn a_closed_upstream_is_service_unavailable() {
     let text = String::from_utf8(body_bytes(response).await).expect("utf8");
     assert!(text.contains("service.unavailable"), "{text}");
     assert!(text.contains("data"), "{text}");
+}
+
+#[tokio::test]
+async fn an_over_limit_upload_keeps_the_413_envelope() {
+    let app = Router::new()
+        .route(
+            "/catalog/datasets",
+            post(|| async {
+                (
+                    StatusCode::PAYLOAD_TOO_LARGE,
+                    Json(ErrorEnvelope::of(
+                        ErrorCode::UploadTooLarge,
+                        "the upload exceeds the limit",
+                    )),
+                )
+            }),
+        )
+        .fallback(|uri: Uri| async move { (StatusCode::NOT_FOUND, uri.to_string()) });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("listener");
+    let address = listener.local_addr().expect("address");
+    let handle = tokio::spawn(async move {
+        axum::serve(listener, app).await.expect("upstream");
+    });
+
+    let response = router(gateway(address).await)
+        .oneshot(
+            Request::post("/catalog/datasets?name=large.csv")
+                .header(PROFILE_HEADER, "default")
+                .header("content-type", "text/csv")
+                .body(Body::from("candles"))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let text = String::from_utf8(body_bytes(response).await).expect("utf8");
+    assert!(text.contains("upload.too_large"), "{text}");
+    assert!(text.contains("quantrule.api/v1"), "{text}");
+    handle.abort();
 }
 
 #[tokio::test]

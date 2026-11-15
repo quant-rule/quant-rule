@@ -81,6 +81,14 @@ async fn an_api_path_never_falls_back() {
 }
 
 #[tokio::test]
+async fn an_internal_path_never_falls_back() {
+    for path in ["/internal/v1/events", "/internal/v1/model/bundle"] {
+        let response = get(path).await;
+        assert_eq!(response.status(), StatusCode::NOT_FOUND, "{path}");
+    }
+}
+
+#[tokio::test]
 async fn a_write_method_is_not_served_the_spa() {
     let response = router(state())
         .oneshot(

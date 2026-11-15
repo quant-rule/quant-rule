@@ -29,7 +29,7 @@ pub use catalog::{
 pub use digest::{Digest, DigestError};
 pub use error::{ApiError, ErrorCode, ErrorEnvelope};
 pub use health::{HealthReport, ServiceHealth, ServiceState, VersionInfo};
-pub use model::{ModelComputeRequest, ModelObject};
+pub use model::{EventBatch, EventRecord, ModelComputeRequest, ModelObject};
 pub use profile::{
     CreateProfileRequest, DEFAULT_PROFILE, PROFILE_HEADER, ProfileId, ProfileSummary,
 };

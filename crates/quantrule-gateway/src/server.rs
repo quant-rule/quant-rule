@@ -4,21 +4,30 @@
 //! evidence, and simulation surfaces are proxied: `/catalog/*`, `/datasets/*`,
 //! `/inspect/*`, `/model/*`, `/runs/*`, `/hypotheses/*`, and `/simulation/*` are
 //! forwarded to their service with the validated profile header, the method, the
-//! path, the query, and a streamed body. The gateway has no dataset, config, inspection,
-//! model, run, research, or simulation handler.
+//! path, the query, and a streamed body. The one rewritten route is
+//! `/inspect/events`: inspection computes a model, so the gateway forwards it to
+//! the model service's internal event-batch route instead of the data service.
+//! The gateway has no dataset, config, inspection, model, run, research, or
+//! simulation handler.
+//!
+//! Every API route passes through the bearer seam when `QR_BEARER_TOKEN` is set;
+//! the static client is served by the fallback outside that layer.
 
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use axum::extract::State;
-use axum::http::{HeaderMap, Request, StatusCode, Uri, header};
+use axum::http::{HeaderMap, Method, Request, StatusCode, Uri, header};
+use axum::middleware;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{any, get};
 use axum::{Json, Router};
 use quantrule_api::{
     ErrorCode, ErrorEnvelope, HealthReport, PROFILE_HEADER, ProfileId, VersionInfo,
 };
-use quantrule_runtime::client::{ClientError, DataClient, HttpServiceClient, Service};
+use quantrule_runtime::client::{
+    ClientError, DataClient, HttpServiceClient, RunCounter, Service, SimulationCounter,
+};
 use quantrule_runtime::config::Config;
 use quantrule_runtime::error::RuntimeError;
 use quantrule_runtime::health::HealthRegistry;
@@ -40,6 +49,10 @@ pub struct Services {
     pub evidence_upstream: Option<Arc<HttpServiceClient>>,
     /// The simulation service's HTTP transport, for the proxy.
     pub simulation_upstream: Option<Arc<HttpServiceClient>>,
+    /// The evidence service's profile run count.
+    pub runs: Option<Arc<dyn RunCounter>>,
+    /// The simulation service's profile simulation count.
+    pub simulations: Option<Arc<dyn SimulationCounter>>,
 }
 
 /// What a handler needs.
@@ -62,6 +75,12 @@ pub struct AppState {
     pub evidence_upstream: Option<Arc<HttpServiceClient>>,
     /// The simulation service's HTTP transport; absent in a test that does not proxy.
     pub simulation_upstream: Option<Arc<HttpServiceClient>>,
+    /// The evidence service's profile run count; absent in a test that does not use it.
+    pub runs: Option<Arc<dyn RunCounter>>,
+    /// The simulation service's profile count; absent in a test that does not use it.
+    pub simulations: Option<Arc<dyn SimulationCounter>>,
+    /// The bearer token the gateway requires, when one is configured.
+    pub bearer_token: Option<Arc<str>>,
 }
 
 impl std::fmt::Debug for AppState {
@@ -77,6 +96,9 @@ impl std::fmt::Debug for AppState {
             .field("model_upstream", &self.model_upstream.is_some())
             .field("evidence_upstream", &self.evidence_upstream.is_some())
             .field("simulation_upstream", &self.simulation_upstream.is_some())
+            .field("runs", &self.runs.is_some())
+            .field("simulations", &self.simulations.is_some())
+            .field("bearer_token", &self.bearer_token.is_some())
             .finish()
     }
 }
@@ -101,6 +123,9 @@ impl AppState {
             model_upstream: services.model_upstream,
             evidence_upstream: services.evidence_upstream,
             simulation_upstream: services.simulation_upstream,
+            runs: services.runs,
+            simulations: services.simulations,
+            bearer_token: config.bearer_token.as_deref().map(Arc::<str>::from),
         }
     }
 }
@@ -113,12 +138,12 @@ pub(crate) fn failure(code: ErrorCode, message: impl Into<String>) -> ApiFailure
     (status, Json(ErrorEnvelope::of(code, message)))
 }
 
-/// Map a data-service client failure onto the public envelope.
+/// Map a service client failure onto the public envelope.
 ///
 /// A transport failure is a 503 `service.unavailable`; an undecodable body is a
 /// 500 `internal`. A 4xx the caller did not expect is an internal defect, not a
 /// client error, because the gateway already validated the request.
-pub(crate) fn data_failure(error: ClientError) -> ApiFailure {
+pub(crate) fn service_failure(error: ClientError) -> ApiFailure {
     match &error {
         ClientError::InvalidResponse { .. } | ClientError::InvalidBase { .. } => {
             failure(ErrorCode::Internal, error.to_string())
@@ -146,6 +171,7 @@ fn routes() -> Router<Arc<AppState>> {
         .route("/catalog", any(proxy_data))
         .route("/catalog/{*rest}", any(proxy_data))
         .route("/datasets/{*rest}", any(proxy_data))
+        .route("/inspect/events", get(proxy_events))
         .route("/inspect/{*rest}", any(proxy_data))
         .route("/model", any(proxy_model))
         .route("/model/{*rest}", any(proxy_model))
@@ -157,11 +183,18 @@ fn routes() -> Router<Arc<AppState>> {
 ///
 /// The client speaks `/api/v1`, the base in the contract. The same routes answer
 /// at the root so a probe and a same-origin operator keep working without the
-/// prefix.
+/// prefix. The API routes carry the bearer seam; the fallback does not, so the
+/// static client stays reachable when a token is configured.
 pub fn router(state: Arc<AppState>) -> Router {
-    Router::new()
+    let api = Router::new()
         .merge(routes())
         .nest("/api/v1", routes())
+        .layer(middleware::from_fn_with_state(
+            Arc::clone(&state),
+            crate::auth::authorize,
+        ));
+    Router::new()
+        .merge(api)
         .fallback(static_client)
         .with_state(state)
 }
@@ -292,6 +325,61 @@ fn data_path_allowed(path: &str) -> bool {
     }) && !path
         .split('/')
         .any(|segment| segment == ".." || segment == ".")
+}
+
+/// Forward an event inspection to `qr-model`.
+///
+/// The public path is `/inspect/events`, but inspection computes a model, and
+/// the data service never computes one. The gateway validates the profile,
+/// keeps the query, and sends the request to the model service's internal
+/// event-batch route. The client cannot choose another internal path: the
+/// gateway builds it here.
+async fn proxy_events(
+    State(state): State<Arc<AppState>>,
+    request: Request<axum::body::Body>,
+) -> Response {
+    match forward_events(&state, request).await {
+        Ok(response) => response,
+        Err(failure) => failure.into_response(),
+    }
+}
+
+async fn forward_events(
+    state: &AppState,
+    request: Request<axum::body::Body>,
+) -> Result<Response, ApiFailure> {
+    let profile = {
+        let headers = request.headers();
+        request_profile(state, headers).await?
+    };
+    let Some(upstream) = state.model_upstream.as_ref() else {
+        return Err(failure(
+            ErrorCode::ServiceUnavailable,
+            "the model service is not configured",
+        ));
+    };
+    let query = request
+        .uri()
+        .query()
+        .map(|query| format!("?{query}"))
+        .unwrap_or_default();
+    let headers = proxy_request_headers(request.headers(), &profile);
+    let mut forwarded = Request::builder()
+        .method(Method::GET)
+        .uri(format!("/internal/v1/events{query}"))
+        .body(axum::body::Body::empty())
+        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
+    *forwarded.headers_mut() = headers;
+    let response = upstream
+        .forward(Service::Model, forwarded)
+        .await
+        .map_err(|error| {
+            failure(
+                ErrorCode::ServiceUnavailable,
+                format!("the model service is unavailable: {error}"),
+            )
+        })?;
+    Ok(proxy_response(response))
 }
 
 /// Forward a model request to `qr-model`.

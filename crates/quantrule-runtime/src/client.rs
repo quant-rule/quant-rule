@@ -23,9 +23,11 @@ use quantrule_service_api::{ConfigBundle, DatasetObject};
 
 use crate::adapters::BoxFuture;
 
+mod counts;
 mod evidence;
 mod model;
 
+pub use counts::{COUNT_PAGE, MemoryCounts, RunCounter, SimulationCounter};
 pub use evidence::{EvidenceClient, MemoryEvidence};
 pub use model::{MemoryModel, ModelClient};
 

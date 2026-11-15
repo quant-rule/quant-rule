@@ -36,6 +36,11 @@ are not treated as releases.
 
 ### Security
 
+- The gateway enforces `QR_BEARER_TOKEN` when it is set. Every API route except
+  `/health` and `/version` requires `Authorization: Bearer`, a refusal is `401
+  auth.unauthorized` with `WWW-Authenticate: Bearer`, and the static client
+  stays reachable so the browser can load. An unset token keeps the documented
+  private-network behavior; `/internal/*` never falls back to the SPA.
 - The native command boundary now rejects filesystem paths outside the opened
   workspace and memory directory. The desktop Settings, Memory, and Run panels
   use the native dialog picker, and every selected path is scope-validated
@@ -43,6 +48,14 @@ are not treated as releases.
 
 ### Added
 
+- Event inspection is served by `qr-model`. The gateway forwards
+  `GET /inspect/events?data_version=…&timeframe=…` to a model-owned internal
+  event-batch route with the validated profile, so the data service never
+  computes a model. The batch is the full availability-ordered record set the
+  `events` command publishes, and inspection writes no object.
+- `/profiles` reports the dataset count from the data service, the run count
+  from evidence, and the simulation count from simulation, per profile. A run or
+  simulation count is the service list page and is bounded at 200 records.
 - `quantrule-server` is retired. The gateway is now `quantrule-gateway`
   (`qr-gateway`): profiles in the `gateway` schema, the static client, the proxy
   table, and health, with no `quantrule-app`, engine, or domain service

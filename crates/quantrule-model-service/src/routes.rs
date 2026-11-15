@@ -12,16 +12,17 @@
 use std::sync::Arc;
 
 use axum::Router;
-use axum::extract::rejection::JsonRejection;
-use axum::extract::{Json, State};
+use axum::extract::rejection::{JsonRejection, QueryRejection};
+use axum::extract::{Json, Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::routing::{get, post};
 use quantrule_api::{
-    Digest, ErrorCode, ErrorEnvelope, HealthReport, ModelComputeRequest, ModelObject,
-    PROFILE_HEADER, ProfileId, VersionInfo,
+    Digest, ErrorCode, ErrorEnvelope, EventBatch, EventRecord, HealthReport, ModelComputeRequest,
+    ModelObject, PROFILE_HEADER, ProfileId, VersionInfo,
 };
 use quantrule_app::config::RunConfig;
 use quantrule_data::Timeframe;
+use quantrule_model::input::MarketStateConfig;
 use quantrule_runtime::client::ClientError;
 use quantrule_service_api::ModelBundleManifest;
 use serde::Deserialize;
@@ -61,6 +62,7 @@ fn routes() -> Router<Arc<ModelState>> {
         .route("/health", get(health))
         .route("/version", get(version))
         .route("/model/compute", post(compute_model))
+        .route("/internal/v1/events", get(event_batch))
         .route("/internal/v1/model/bundle", post(compute_bundle))
 }
 
@@ -300,6 +302,122 @@ async fn compute_model(
             bytes: computed.bytes.len() as u64,
         }),
     ))
+}
+
+/// The query on the internal event-batch route.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct EventsQuery {
+    data_version: Digest,
+    timeframe: String,
+}
+
+/// Read one stored dataset by reference and verify its bytes.
+async fn dataset_bytes(
+    state: &ModelState,
+    profile: ProfileId,
+    data_version: &Digest,
+) -> Result<Vec<u8>, ApiFailure> {
+    let data = state.data.as_ref().ok_or_else(|| {
+        failure(
+            ErrorCode::ServiceUnavailable,
+            "no data service is configured",
+        )
+    })?;
+    let dataset = data
+        .dataset_object(profile, data_version.to_string())
+        .await
+        .map_err(data_failure)?
+        .ok_or_else(|| {
+            failure(
+                ErrorCode::DatasetNotFound,
+                format!("dataset {data_version} is unknown"),
+            )
+        })?;
+    let objects = state
+        .objects
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no object store is configured"))?;
+    let bytes = objects
+        .get(&dataset.object_key)
+        .await
+        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
+    if Digest::sha256(&bytes) != dataset.sha256 {
+        return Err(failure(
+            ErrorCode::Internal,
+            "the stored object does not match the catalog",
+        ));
+    }
+    Ok(bytes)
+}
+
+/// Publish one engine event record in the API shape.
+fn published(record: &quantrule_model::events::EventRecord) -> EventRecord {
+    EventRecord {
+        event_code: record.event_code,
+        event_type: record.event_type.code(),
+        event_subtype: record.event_subtype_code,
+        source: record.source_code,
+        occurred_bar: u64::try_from(record.occurred_bar_index).unwrap_or(u64::MAX),
+        available_bar: u64::try_from(record.available_bar_index).unwrap_or(u64::MAX),
+        direction: record.direction_code,
+        reference_code: record.reference_code,
+        primary_value: record.primary_value,
+        reference_value: record.reference_value,
+    }
+}
+
+/// Compute one timeframe's event batch for a stored dataset.
+///
+/// Inspection is outside the run and writes nothing. The batch is the one the
+/// `events` command publishes: the registry's default configuration over the
+/// requested timeframe alone. A timeframe's events do not depend on the other
+/// members of the ladder, so the single-timeframe shard is the full answer.
+async fn event_batch(
+    State(state): State<Arc<ModelState>>,
+    headers: HeaderMap,
+    query: Result<Query<EventsQuery>, QueryRejection>,
+) -> Result<Json<EventBatch>, ApiFailure> {
+    let profile = request_profile(&headers)?;
+    let Query(query) = query.map_err(|_| {
+        failure(
+            ErrorCode::DatasetInvalid,
+            "the query names no data_version and timeframe",
+        )
+    })?;
+    let timeframe = Timeframe::from_code(&query.timeframe).ok_or_else(|| {
+        failure(
+            ErrorCode::DatasetInvalid,
+            format!("unknown timeframe {}", query.timeframe),
+        )
+    })?;
+    let bytes = dataset_bytes(&state, profile, &query.data_version).await?;
+    let code = timeframe.code().to_owned();
+    let events = tokio::task::spawn_blocking(move || {
+        let set = series(&bytes, quantrule_data::MAX_SERIES)
+            .map_err(|error| failure(ErrorCode::DatasetInvalid, error.to_string()))?;
+        let run = quantrule_app::pipeline::model_run_from_set_with_ladder(
+            &set,
+            &[timeframe],
+            &MarketStateConfig::default(),
+        );
+        let model = run
+            .timeframe(u64::from(timeframe.seconds()))
+            .ok_or_else(|| {
+                failure(
+                    ErrorCode::DatasetInvalid,
+                    format!("the {} timeframe has no complete bar", timeframe.code()),
+                )
+            })?;
+        Ok::<_, ApiFailure>(model.all_events().iter().map(published).collect())
+    })
+    .await
+    .map_err(|error| failure(ErrorCode::Internal, error.to_string()))??;
+    Ok(Json(EventBatch {
+        data_version: query.data_version,
+        timeframe: code,
+        events,
+    }))
 }
 
 /// One internal model-bundle request.
