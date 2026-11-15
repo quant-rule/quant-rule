@@ -425,6 +425,15 @@ async fn finished_run(
     runs: &MemoryRuns,
     objects: &common::MemoryObjects,
 ) -> (String, Digest, Vec<u8>) {
+    finished_run_named(runs, objects, "results.json", b"{\"profit\":1}").await
+}
+
+async fn finished_run_named(
+    runs: &MemoryRuns,
+    objects: &common::MemoryObjects,
+    name: &str,
+    body: &[u8],
+) -> (String, Digest, Vec<u8>) {
     use quantrule_api::ArtifactRef;
     use quantrule_evidence_service::runs::RunStore;
     use quantrule_service_api::RunManifest;
@@ -435,9 +444,9 @@ async fn finished_run(
         .expect("submit");
     let id = submitted.record().run_id.to_string();
     runs.claim(id.clone(), false).await.expect("claim");
-    let bytes = b"{\"profit\":1}".to_vec();
+    let bytes = body.to_vec();
     let artifact = ArtifactRef {
-        name: "results.json".to_owned(),
+        name: name.to_owned(),
         bytes: bytes.len() as u64,
         sha256: Digest::sha256(&bytes),
     };
@@ -489,6 +498,66 @@ async fn a_run_artifact_is_served_by_its_recorded_hash() {
             .is_some_and(|value| value.starts_with("\"sha256:"))
     );
     assert_eq!(body_bytes(response).await, bytes);
+}
+
+#[tokio::test]
+async fn a_nested_run_artifact_is_served_by_its_recorded_hash() {
+    let runs = MemoryRuns::default();
+    let objects = common::MemoryObjects::default();
+    let body = b"fill_id,side,quantity\n1,buy,0.5\n";
+    let (id, _digest, bytes) =
+        finished_run_named(&runs, &objects, "execution/fills.csv", body).await;
+    let response = router(state_with(runs, objects))
+        .oneshot(
+            Request::get(format!("/runs/{id}/artifacts/execution/fills.csv"))
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response
+            .headers()
+            .get(axum::http::header::CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok()),
+        Some("text/csv")
+    );
+    assert!(
+        response
+            .headers()
+            .get(axum::http::header::ETAG)
+            .and_then(|value| value.to_str().ok())
+            .is_some_and(|value| value.starts_with("\"sha256:"))
+    );
+    assert_eq!(body_bytes(response).await, bytes);
+}
+
+#[tokio::test]
+async fn an_unsafe_artifact_name_is_refused() {
+    let state = state_with(MemoryRuns::default(), common::MemoryObjects::default());
+    let run_id = format!("sha256:{}", "a".repeat(64));
+    for name in [
+        "../secret",
+        "execution/../secret",
+        "execution//fills.csv",
+        "/etc/passwd",
+        "execution%5Cfills.csv",
+    ] {
+        let response = router(Arc::clone(&state))
+            .oneshot(
+                Request::get(format!("/runs/{run_id}/artifacts/{name}"))
+                    .header(PROFILE_HEADER, "default")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST, "{name}");
+        let text = String::from_utf8(body_bytes(response).await).expect("utf8");
+        assert!(text.contains("run.invalid"), "{name}: {text}");
+    }
 }
 
 #[tokio::test]

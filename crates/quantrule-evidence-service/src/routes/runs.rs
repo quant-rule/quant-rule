@@ -256,21 +256,24 @@ pub(crate) async fn cancel_run(
     }
 }
 
-/// Refuse an artifact name that is a path rather than a bare file name.
+/// Refuse an artifact name that is not a safe relative path.
 ///
-/// The bytes are read by the content key the run recorded, so a name can never
-/// select a file. The check makes the refusal explicit instead of a lookup miss.
+/// The name is a lookup key, not a filesystem path, but a nested artifact name
+/// such as `execution/fills.csv` is a valid key. Empty segments, `.`, `..`, a
+/// leading slash, a backslash, and NUL are refused so a name can never escape
+/// the artifact set or select a file outside it.
 fn check_artifact_name(name: &str) -> Result<(), ApiFailure> {
     let refused = name.is_empty()
-        || name == "."
-        || name == ".."
-        || name.contains('/')
+        || name.starts_with('/')
         || name.contains('\\')
-        || name.contains('\0');
+        || name.contains('\0')
+        || name
+            .split('/')
+            .any(|segment| segment.is_empty() || segment == "." || segment == "..");
     if refused {
         return Err(failure(
             ErrorCode::RunInvalid,
-            "an artifact name is a bare file name",
+            "an artifact name is a relative path without empty, parent, or absolute segments",
         ));
     }
     Ok(())

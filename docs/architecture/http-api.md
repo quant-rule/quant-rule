@@ -46,7 +46,7 @@ never renders a label, and never returns a raw engine type.
 | POST | `/runs` | `{data_version, config_id}` | `202` new, `200` existing, with `run_id` |
 | GET | `/runs/{id}` | — | status, stages, provenance, artifacts |
 | POST | `/runs/{id}/cancel` | — | `202` or `409` |
-| GET | `/runs/{id}/artifacts/{name}` | — | bytes |
+| GET | `/runs/{id}/artifacts/{*name}` | — | bytes; a nested relative name such as `execution/fills.csv` |
 | GET | `/runs/{id}/digest` | — | canonical digest |
 | GET | `/inspect/candles` | `data_version` | counts and coverage |
 | GET | `/inspect/timeframes` | `data_version` | bars and partial buckets per timeframe |
