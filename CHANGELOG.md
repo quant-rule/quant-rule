@@ -390,6 +390,16 @@ are not treated as releases.
   `analytics evaluate`), source `fetch`, and the local `memory` command are
   removed from the shell in v1.0.0. Their capability moves into the run and
   read-only inspection.
+- The Python simulation harness, chart annotator, Progression replay oracle, and
+  trade-context exporter under `tools/simulation`, `tools/charts`,
+  `tools/oracle`, and `tools/trades`, with their tests and READMEs. The Rust
+  `simulation` service and the browser client own chart-first research, and
+  `PORT-001` keeps the golden fixture that compares the port at `1e-9`. The
+  golden fixtures needed no move: the Progression fixture is already under
+  `crates/quantrule-model/tests/fixtures/` and the simulation fixture is under
+  `docs/port-parity/`. The run folders under `data/simulation/` remain local
+  data. The retired-path gate now rejects a reintroduced path in a current
+  document or source file.
 
 ### Fixed
 

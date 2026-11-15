@@ -3,11 +3,12 @@
 //! The per-bar fixture is a checked-in CSV of 260 candles and the expected
 //! Progression values on every bar, including the full record of the latest
 //! minor and major leg. The ledger fixture is the final record of every
-//! retained leg in creation order. Both are produced by the checked-in oracle
-//! at `tools/oracle/progression_replay.py`, an independent Python
-//! implementation of contract §8.4 and §9. It reads the independently
-//! generated ATR and pivot columns of the readings fixture and never runs the
-//! Rust code under test. Run the oracle with `--check` to verify them.
+//! retained leg in creation order. Both were produced by the retired
+//! Progression replay oracle, an independent Python implementation of contract
+//! §8.4 and §9. It read the independently generated ATR and pivot columns of
+//! the readings fixture and never ran the Rust code under test. The oracle was
+//! removed by DIST-105; the checked-in fixture remains the evidence and this
+//! test compares it to `1e-9`.
 //!
 //! An empty cell is an unavailable measurement; a numeric cell is a measured
 //! value, and a measured zero is written as `0.0`.

@@ -1,7 +1,7 @@
 # Simulation Research Workflow
 
 - Date: 2026-11-10 (UTC)
-- Status: Current; the harness is ported to the `simulation` service in v1.0.0
+- Status: Current; the `simulation` service and the browser client implement the workflow; the Python harness was retired by DIST-105
 - Scope: chart-first, hindsight-labeled hypothesis generation on the development partition
 - Owner: Quant Researcher (premise), AI labeler (marks), Quant Validator (check), Human (acceptance)
 - Contract: [`improvement-workflow.md`](improvement-workflow.md), [`run-contract.md`](run-contract.md), [`strategy-research.md`](strategy-research.md)
@@ -12,8 +12,8 @@
 Simulation Research turns a visual market question into one simple, falsifiable
 rule. The AI marks the entries and exits it would have taken on a historical
 chart with the future visible, using one or two model events or indicators. The
-marks are saved in the same schema as the human annotator, rendered as PNGs for
-human review, and compared against a check window that was not marked.
+marks use the annotator schema, are drawn on the chart in the browser client
+for human review, and are compared against a check window that was not marked.
 
 It is an upstream hypothesis generator. It is not a backtest, not a fill
 simulation, and not evidence of an edge. A pattern that survives the check is
@@ -100,20 +100,21 @@ config, route it to Requirements & Design.
 
 ## 7. Records
 
-One run is one folder under `data/simulation/<date>/<run-id>/`:
+One run is one record in the `simulation` schema. The service records:
 
 ```text
-manifest.json       premise, inputs, windows, seed, model/data identity, criteria
-windows.json        deterministic window selection
-charts/             PNGs and manifest.json with the plot geometry
-marks-ai.csv        the AI marks
-marks-human.csv     the human corrections, when present
-review.md           what the marks show and the candidate rule
-decision.md         test, refine, or stop
+run         premise, inputs digest, seed, criteria, status
+windows     deterministic window selection
+marks       human and oracle marks in the seven-column schema
+check       event-study table and verdict
+decision    test, refine, or stop, with the note
 ```
 
-The run folder is local data, not committed. The synthesis report and any
-workflow change are committed under `docs/`.
+The chart series is computed from the recorded bundle for the requested window
+and returned as numbers and codes; the client renders it. Run folders under
+`data/simulation/<date>/<run-id>/` written by the retired harness remain local
+data and are not committed. The synthesis report and any workflow change are
+committed under `docs/`.
 
 ## 8. Boundaries
 
@@ -128,13 +129,14 @@ workflow change are committed under `docs/`.
 
 ## 9. Verification
 
-- The harness selection, rendering, marks, and review have unit tests.
-- The same seed produces the same `windows.json`; the same window produces the
-  same PNG hash.
+- The `simulation` service and the Rust port have unit tests for selection,
+  marks, oracle, review, check, exit lab, and meta.
+- The same seed produces the same windows; `PORT-001` compares the port to the
+  retired reference at `1e-9`, including the chart list the marks validate.
 - The check report names the event count, the cost proxy, the control, and the
   half-year stability.
-- The run's `manifest.json` records the model identity, registry, data version,
-  code commit, seed, and the closed partitions.
+- The recorded run names the model identity, registry, data version, inputs
+  digest, seed, and the closed partitions.
 
 ## 10. Stop conditions
 
@@ -156,7 +158,7 @@ Stop and report when:
 - [`../execution-plans/2026-11-10/simulation-runs.md`](../execution-plans/2026-11-10/simulation-runs.md)
 - [`../ai-transparency-log/2026-11-10/simulation-runs.md`](../ai-transparency-log/2026-11-10/simulation-runs.md)
 - [`templates/simulation-run.md`](templates/simulation-run.md)
-- [`../../tools/simulation/README.md`](../../tools/simulation/README.md)
+- [`../port-parity/README.md`](../port-parity/README.md)
 
 ## 12. Records and links
 

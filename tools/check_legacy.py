@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
-"""Fail when a retired model, strategy, or architecture label appears in a
-current artifact.
+"""Fail when a retired model, strategy, architecture label, or tool path appears
+in a current artifact.
 
 History directories are not scanned: ADRs, audits, improvement records, AI
 transparency logs, execution plans, releases, and reports keep their original
 names. The naming registry is the one current document that must name the old
 aliases; it is allowlisted explicitly.
+
+The four Python research directories retired by DIST-105 are checked as paths
+across every current file, not only the label-scan set. The port-parity registry,
+the changelog, and the history index are allowlisted because they record the
+retired source or the removal by contract.
 
 The M2.x research evidence under ``config/research/`` predates the cutover and
 still names retired schemas. It is historical evidence, not a current run
@@ -23,15 +28,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 SCAN = [
-    ROOT / "README.md",
-    ROOT / "docs/README.md",
-    ROOT / "docs/architecture",
-    ROOT / "docs/model/2026-11-05",
-    ROOT / "docs/config",
-    ROOT / "config/defaults",
-    ROOT / "config/examples",
-    ROOT / "config/research",
-    ROOT / "crates",
+    "README.md",
+    "docs/README.md",
+    "docs/architecture",
+    "docs/model/2026-11-05",
+    "docs/config",
+    "config/defaults",
+    "config/examples",
+    "config/research",
+    "crates",
 ]
 
 # The alias registry must name the old labels to map them.
@@ -108,46 +113,146 @@ ARCH_PATTERN = re.compile(
     "|".join(re.escape(token) for token in ARCH_TOKENS), re.IGNORECASE
 )
 
+# DIST-105 retired the Python simulation harness and its companion research
+# tools. A current document, script, or source file that names one is treating a
+# deleted tool as live, so the four paths fail the gate when reintroduced.
+RETIRED_PATHS = (
+    "tools/simulation",
+    "tools/charts",
+    "tools/oracle",
+    "tools/trades",
+)
+RETIRED_PATH_PATTERN = re.compile(
+    r"(?<![\w-])("
+    + "|".join(re.escape(path) for path in RETIRED_PATHS)
+    + r")(?![\w-])"
+)
 
-def files() -> list[Path]:
+# These files name the retired paths on purpose:
+# - the changelog records what was removed in a released or unreleased entry;
+# - the port-parity registry and fixture name the captured source by contract;
+# - the history index is the retired-path record, like the alias registry above;
+# - the checker and its test carry the patterns and the seeded violation.
+RETIRED_PATH_ALLOWLIST = {
+    "CHANGELOG.md",
+    "docs/port-parity/registry.json",
+    "docs/port-parity/PORT-001.golden.json",
+    "docs/registry/history.md",
+    "tools/check_legacy.py",
+    "tools/test_check_legacy.py",
+}
+
+# Current documents and source, minus the history kinds and the local data root.
+PATH_SKIP_ROOT = {".git", "target", "data"}
+PATH_SKIP_PARTS = {"node_modules", "__pycache__", ".venv", "venv"}
+PATH_HISTORY = (
+    "docs/adr/",
+    "docs/audits/",
+    "docs/ai-transparency-log/",
+    "docs/execution-plans/",
+    "docs/reports/",
+    "docs/releases/",
+    "docs/improvement/",
+    "docs/course/",
+)
+PATH_MAX_BYTES = 2 * 1024 * 1024
+
+
+def files(root: Path) -> list[Path]:
     found: list[Path] = []
     for entry in SCAN:
-        if entry.is_file():
-            found.append(entry)
-        elif entry.is_dir():
-            found.extend(path for path in entry.rglob("*") if path.is_file())
+        path = root / entry
+        if path.is_file():
+            found.append(path)
+        elif path.is_dir():
+            found.extend(item for item in path.rglob("*") if item.is_file())
     return sorted(set(found))
 
 
-def relative(path: Path) -> str:
-    return path.relative_to(ROOT).as_posix()
+def current_files(root: Path) -> list[Path]:
+    """Every readable text file outside history, the local data root, and builds."""
+    found: list[Path] = []
+    for path in sorted(root.rglob("*")):
+        relative = path.relative_to(root)
+        name = relative.as_posix()
+        if relative.parts[0] in PATH_SKIP_ROOT:
+            continue
+        if any(part in PATH_SKIP_PARTS for part in relative.parts):
+            continue
+        if name.startswith(PATH_HISTORY):
+            continue
+        if not path.is_file():
+            continue
+        try:
+            if path.stat().st_size > PATH_MAX_BYTES:
+                continue
+            data = path.read_bytes()
+        except OSError:
+            continue
+        if b"\x00" in data[:4096]:
+            continue
+        found.append(path)
+    return found
 
 
-def main() -> int:
+def relative(root: Path, path: Path) -> str:
+    return path.relative_to(root).as_posix()
+
+
+def scan(path: Path, name: str) -> list[str]:
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except UnicodeDecodeError:
+        return []
     errors: list[str] = []
-    for path in files():
-        name = relative(path)
+    for number, line in enumerate(lines, 1):
+        match = PATTERN.search(line)
+        if match:
+            errors.append(f"{name}:{number}: retired label {match.group(0)!r}")
+            continue
+        match = ARCH_PATTERN.search(line)
+        if match:
+            errors.append(
+                f"{name}:{number}: retired architecture term {match.group(0)!r}"
+            )
+    return errors
+
+
+def check(root: Path) -> list[str]:
+    errors: list[str] = []
+    label_files = files(root)
+    for path in label_files:
+        name = relative(root, path)
         if name in ALLOWLIST or name.startswith(PENDING):
+            continue
+        errors.extend(scan(path, name))
+    for path in current_files(root):
+        name = relative(root, path)
+        if name in RETIRED_PATH_ALLOWLIST:
             continue
         try:
             lines = path.read_text(encoding="utf-8").splitlines()
         except UnicodeDecodeError:
             continue
         for number, line in enumerate(lines, 1):
-            match = PATTERN.search(line)
-            if match:
-                errors.append(f"{name}:{number}: retired label {match.group(0)!r}")
-                continue
-            match = ARCH_PATTERN.search(line)
+            match = RETIRED_PATH_PATTERN.search(line)
             if match:
                 errors.append(
-                    f"{name}:{number}: retired architecture term {match.group(0)!r}"
+                    f"{name}:{number}: retired tool path {match.group(0)!r}"
                 )
+    return errors
+
+
+def main() -> int:
+    errors = check(ROOT)
     if errors:
         for error in errors:
             print(f"error: {error}", file=sys.stderr)
         return 1
-    print(f"legacy scan ok: {len(files())} current files")
+    print(
+        f"legacy scan ok: {len(files(ROOT))} label files, "
+        f"{len(current_files(ROOT))} current files"
+    )
     return 0
 
 

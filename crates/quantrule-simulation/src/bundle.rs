@@ -6,11 +6,12 @@
 //! the bar and event records, the event catalog, UTC timestamp formatting, and
 //! the correctly rounded mean.
 //!
-//! The types mirror `tools/simulation/bundle.py` field for field. A bar carries
-//! the readings its stages read; an event carries its identity, both bars, its
-//! direction, and its measured reference values. The bundle orders bars by
-//! `(timestamp, bar)` and events by `(available_bar, event_index)`, so a stage
-//! result does not depend on the order the caller supplied.
+//! The types mirror the retired Python harness bundle schema field for field;
+//! the harness was removed by DIST-105 and `PORT-001` keeps its evidence. A bar
+//! carries the readings its stages read; an event carries its identity, both
+//! bars, its direction, and its measured reference values. The bundle orders
+//! bars by `(timestamp, bar)` and events by `(available_bar, event_index)`, so
+//! a stage result does not depend on the order the caller supplied.
 //!
 //! `port-parity: PORT-001` names the golden fixture this module is compared
 //! against.
