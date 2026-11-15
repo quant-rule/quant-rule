@@ -18,6 +18,7 @@ pub mod postgres;
 pub mod records;
 pub mod research;
 pub mod routes;
+pub mod sqlite;
 pub mod state;
 pub mod store;
 

@@ -22,8 +22,21 @@ are not treated as releases.
   `sqlite` at `/health`. `quantrule-runtime` maps `schema.table` to
   `schema__table`, stores JSON as `TEXT`, timestamps as RFC 3339 `TEXT`, and
   runs repository calls on the blocking pool through the workspace's existing
-  `rusqlite` 0.42. The data, evidence, and simulation repositories remain on
-  Postgres until their P1b-P1d changes.
+  `rusqlite` 0.42. The data and evidence repositories remain on Postgres until
+  their P1b-P1c changes.
+- The simulation service can start on the embedded SQLite profile
+  (DIST-201, #693 P1d). `QR_PROFILE=desktop` with `QR_DATA_DIR` opens
+  `quantrule.sqlite`, applies `migrations/sqlite/0001_simulation.sql` to the
+  `simulation` ledger, and serves the eleven research endpoints through the
+  existing `SimulationStore` trait, so no route, contract, or engine changes.
+  The baseline writes `simulation__runs` and `simulation__marks` with `TEXT`
+  JSON and RFC 3339 `TEXT` instants, keeps the mark identity unique, and keeps
+  a decision and its time together. SQLite has no `FOR UPDATE`, so every mark
+  and decision mutation opens an immediate transaction and re-reads the run row;
+  triggers refuse a mark after a decision and freeze a decided run. Profile
+  scoping, the transactional mark upsert, the decision lock, the server
+  timestamps, the idempotent oracle and check reads, and the CSV mirror are
+  unchanged. The object-store wiring for the desktop profile remains P2c.
 - `FilesystemStore`, the object-store adapter for the desktop profile
   (DIST-202, #694 P2a). A publish is a temporary file in the destination
   directory, an fsync, and an atomic rename; a key whose last segment is a bare
