@@ -70,10 +70,11 @@ default stack starts all nine containers; see
 
 `make remote` generates a token when `QR_BEARER_TOKEN` is unset, starts the stack
 with only `:8080` published, and prints the token and a `curl` example. The
-browser client does not send the token, so remote browser use needs a TLS reverse
-proxy that injects it or a private network; the remote profile is safe for an
-API client that sets the header. See
-[`docs/architecture/security.md`](docs/architecture/security.md) §2.
+browser enters the token on the Connection screen and the shell reads `--token`
+or `QUANTRULE_TOKEN`; both then send `Authorization: Bearer` on every API call.
+Keep the host on a private network, or terminate TLS at a reverse proxy. See
+[`docs/architecture/security.md`](docs/architecture/security.md) §2 and the
+[remote tutorial](docs/tutorials/2026-11-12/03-remote-compute.md).
 `make backup` and `make restore` call `tools/backup.sh` and `tools/restore.sh`.
 
 To keep a token across restarts, generate one first:
@@ -152,8 +153,9 @@ Details: [`services.md`](docs/architecture/services.md),
 
 The shell is a thin client over `quantrule.api/v1`; every command makes one
 gateway call. It depends only on the contract crate and its HTTP transport, and
-it holds no engine. Every command accepts `--profile <id>` and `--json`. Local
-source fetch and local stage execution were removed in v1.0.0.
+it holds no engine. Every command accepts `--profile <id>`, `--token <token>`,
+and `--json`. Local source fetch and local stage execution were removed in
+v1.0.0.
 
 | Command | Family | Purpose |
 |---|---|---|

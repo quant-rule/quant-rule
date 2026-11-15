@@ -39,7 +39,14 @@ fn the_short_map_names_the_global_flags_and_environment() {
     let mut buffer = Vec::new();
     run_help(&HelpTopic::Short, &mut buffer).expect("help renders");
     let text = String::from_utf8(buffer).expect("help is UTF-8");
-    for expected in ["--profile", "--json", "QUANTRULE_API_URL", "QUANTRULE_HOME"] {
+    for expected in [
+        "--profile",
+        "--token",
+        "--json",
+        "QUANTRULE_API_URL",
+        "QUANTRULE_HOME",
+        "QUANTRULE_TOKEN",
+    ] {
         assert!(text.contains(expected), "{expected} is missing");
     }
 }

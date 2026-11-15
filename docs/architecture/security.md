@@ -26,7 +26,7 @@ A published gateway port without a gate is a misconfiguration. Exactly one of:
 | Gate | Application change | Use |
 |---|---|---|
 | Private network (WireGuard, Tailscale) | none | **Recommended.** The port never faces the internet. |
-| Bearer token + TLS | token check in the gateway | Public HTTPS with one shared secret |
+| Bearer token + TLS | token check in the gateway; both clients send it | Public HTTPS with one shared secret |
 
 `make token` prints a new 256-bit token. `make remote` reads
 `QR_BEARER_TOKEN`, generates one with `tools/token.sh` when it is unset, exports
@@ -48,6 +48,13 @@ curl -fsS -H "Authorization: Bearer $QR_BEARER_TOKEN" \
 | API route with the configured token | the route's normal status |
 | `/health`, `/version`, static client | `200` without the token |
 
+The browser enters the token on the Connection screen, keeps it in that
+origin's `localStorage`, and sends it on every API call. The shell reads
+`--token` or `QUANTRULE_TOKEN`, sends it on every gateway request, and stores it
+in no file. The browser turns a `401` into a token-required state and clears the
+connected identity; the shell prints the envelope's `auth.unauthorized` code. A
+rotated token is entered again.
+
 Do not forward `:8080` to the public internet. Keep it on a private network, or
 terminate TLS at a reverse proxy in front of the gateway; the gateway itself
 serves plain HTTP. A reverse proxy that injects the token grants every visitor
@@ -57,13 +64,17 @@ stops working when the gateway restarts. `make up` starts the unauthenticated
 local profile, so do not use it after `make remote` while the port is reachable
 from another host.
 
-### 2.1 Browser and shell limitation
+### 2.1 Client token handling
 
-The browser client and the shell do not send an `Authorization` header. Against
-a token-protected gateway the static client still loads, but every API call it
-makes answers `401`. The remote profile is API-client safe today; use `curl` or
-another client that sets the header. Remote browser access needs proxy token
-injection or a client token feature, which is not part of this profile.
+The static client loads without a token so the Connection screen can ask for
+one. Every API call after that carries `Authorization: Bearer`. The token is
+held in the origin's `localStorage`, never in the URL, a cookie, or the build,
+and no page text renders it. Any script running on that origin can read the
+stored value, so the client loads no third-party script and TLS is still the
+requirement for an untrusted network. The shell accepts the token as `--token`
+or `QUANTRULE_TOKEN` and stores it in no file; its printed output and errors
+never include it. `--token` is visible in the local process list while the
+command runs, so `QUANTRULE_TOKEN` is the better default on a shared host.
 
 ## 3. Input boundaries
 
@@ -81,13 +92,15 @@ Every rejection returns a code a client can act on and a message a human can rea
 - Candle and artifact bytes live in object storage; metadata in Postgres.
 - Volumes are local to the host.
 - Backup archives contain candle data and must be handled as sensitive.
-- No secret is committed; no token is logged.
+- No secret is committed and no token is logged. The browser keeps the token in
+  `localStorage`; the shell writes it to no file.
 
 ## 5. Data in transit
 
 - Inside the container network: plain HTTP.
 - From client to gateway: TLS terminates at a proxy, or the private network
-  provides transport security.
+  provides transport security. The bearer token travels in a request header, so
+  a token on an untrusted network without TLS is readable on the path.
 - The gateway never forwards a client path or header to a worker unchecked.
 
 ## 6. Profiles are not a boundary
@@ -100,7 +113,8 @@ tenant.
 ## 7. What is explicitly not protected
 
 - A second principal on the same gateway is not isolated.
-- A stolen bearer token grants full access.
+- A stolen bearer token grants full access, including a token read from the
+  browser's `localStorage` by a script on that origin.
 - The system does not defend against a malicious host administrator.
 
 These are consequences of the single-principal decision and are recorded, not

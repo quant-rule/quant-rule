@@ -3,16 +3,20 @@ import {
   ApiError,
   call,
   currentProfile,
+  currentToken,
   DEFAULT_PROFILE,
   setProfile,
+  setToken,
   uploadDataset,
 } from "./api";
 
 const original = globalThis.fetch;
+const TOKEN = "qr_browser_token_0123456789abcdef";
 
 afterEach(() => {
   globalThis.fetch = original;
   setProfile(DEFAULT_PROFILE);
+  setToken(null);
 });
 
 interface Seen {
@@ -77,6 +81,48 @@ describe("call", () => {
     const switched = new Headers(seen[1]?.init.headers);
     expect(switched.get("X-QuantRule-Profile")).toBe("alpha");
   });
+
+  it("sends the bearer token when one is set", async () => {
+    const seen = capture(200, {});
+    setToken(TOKEN);
+    await call("/version");
+    const headers = new Headers(seen[0]?.init.headers);
+    expect(headers.get("authorization")).toBe(`Bearer ${TOKEN}`);
+    expect(currentToken()).toBe(TOKEN);
+    expect(seen[0]?.url).toBe("/api/v1/version");
+  });
+
+  it("omits the header when the token is cleared", async () => {
+    const seen = capture(200, {});
+    setToken(TOKEN);
+    await call("/version");
+    setToken(null);
+    await call("/version");
+    expect(new Headers(seen[0]?.init.headers).get("authorization")).toBe(
+      `Bearer ${TOKEN}`,
+    );
+    expect(new Headers(seen[1]?.init.headers).get("authorization")).toBeNull();
+    expect(currentToken()).toBeNull();
+  });
+
+  it("keeps the token out of the URL and the error message", async () => {
+    const seen = capture(401, {
+      error: { code: "auth.unauthorized", message: "a bearer token is required" },
+    });
+    setToken(TOKEN);
+    try {
+      await call("/profiles");
+      throw new Error("expected a failure");
+    } catch (error) {
+      const failure = error as ApiError;
+      expect(failure.code).toBe("auth.unauthorized");
+      expect(failure.status).toBe(401);
+      expect(failure.message).not.toContain(TOKEN);
+      expect(`${failure.name}: ${failure.message}`).not.toContain(TOKEN);
+    }
+    expect(seen[0]?.url).toBe("/api/v1/profiles");
+    expect(JSON.stringify(seen[0]?.url)).not.toContain(TOKEN);
+  });
 });
 
 describe("uploadDataset", () => {
@@ -102,6 +148,7 @@ describe("uploadDataset", () => {
     const headers = new Headers(seen[0]?.init.headers);
     expect(headers.get("content-type")).toBe("text/csv");
     expect(headers.get("X-QuantRule-Profile")).toBe(DEFAULT_PROFILE);
+    expect(headers.get("authorization")).toBeNull();
     expect(seen[0]?.init.body).toBe(upload);
     expect(record.summary.candles).toBe(1);
   });

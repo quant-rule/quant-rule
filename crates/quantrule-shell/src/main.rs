@@ -13,6 +13,7 @@ mod error;
 mod output;
 mod profile;
 mod session;
+mod token;
 
 use std::ffi::OsString;
 use std::io::{self, Write};
