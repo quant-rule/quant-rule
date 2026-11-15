@@ -131,6 +131,8 @@ a desktop start never falls back to a server database or broker.
 | `tests/check-package.sh` | Extracts an AppImage and checks every expected file |
 | `tests/check-package.ps1` | Silently installs NSIS and checks every expected file |
 | `tests/smoke-package-linux.sh` | Runs the packaged supervisor with stub sidecars in an extracted AppImage |
+| `tests/smoke-package-parity-linux.sh` | Runs the packaged Linux profile through the fixture and checks the digest |
+| `tests/smoke-package-parity.ps1` | Installs the NSIS artifact, runs the packaged Windows profile through the fixture, and checks the digest |
 | `icons/` | Source SVG and the generated PNG/ICO set |
 
 ## 5. Build
@@ -213,7 +215,26 @@ cargo test                                # 23 unit and 7 lifecycle tests
 # After a bundle:
 bash tests/check-package.sh target/release/bundle/appimage/*.AppImage
 bash tests/smoke-package-linux.sh target/release/bundle/appimage/*.AppImage
+bash tests/smoke-package-parity-linux.sh \
+  --shell-bin ../../target/release/quantrule target/release/bundle/appimage/*.AppImage
 ```
+
+The package parity smoke is the packaged-profile evidence: it checks the
+payload, starts the packaged supervisor with a fresh `QR_DATA_DIR`, runs the
+staged verify-mini fixture, and requires the same canonical digest as the
+server profile. Its seeded-mismatch negative control runs by default. It needs
+`curl` and `jq`; `tools/verify.sh` owns the fixture and digest logic. On
+Windows, run the same evidence path after the NSIS bundle:
+
+```powershell
+$artifact = Get-ChildItem target\release\bundle\nsis\*-setup.exe | Select-Object -First 1
+pwsh tests/smoke-package-parity.ps1 `
+  -Artifact $artifact.FullName -Shell ..\..\target\release\quantrule.exe
+```
+
+Set `QR_PYTHON` to the host's unversioned interpreter command first; the
+release job does. The stock Windows image does not expose the versioned alias
+that `tools/verify.sh` defaults to.
 
 The six-sidecar run and the digest parity are one command from the repository
 root. The desktop side needs no Docker; the server oracle is a Compose project
@@ -270,6 +291,7 @@ were not built on this Linux host.
 | Tauri bundle | AppImage | NSIS |
 | Package contents and version | `check-package.sh` | `check-package.ps1` |
 | Packaged supervisor with stub sidecars | `smoke-package-linux.sh` | — |
+| Packaged profile, six sidecars, fixture, digest | `smoke-package-parity-linux.sh` | `smoke-package-parity.ps1` |
 | Shell smoke | Xvfb, stub gateway | launch for 8 s |
 | Artifact | `quantrule-desktop-linux` | `quantrule-desktop-windows` |
 
@@ -311,7 +333,10 @@ rest.
 - **Parity (P3d).** `tools/parity_desktop.sh` compares the canonical digest,
   every canonical artifact byte, and the run status (manifest entry set and
   stage states). It is release-tier: the server oracle needs Docker or a
-  running gateway.
-- **Windows evidence.** The installer, the silent install, and the smoke run are
-  produced only on `windows-latest`; this branch does not claim Windows
-  evidence from Linux.
+  running gateway. `smoke-package-parity-linux.sh` and
+  `smoke-package-parity.ps1` run the same comparison from the packaged
+  artifacts, not the in-tree binaries.
+- **Windows evidence.** The installer, the silent install, and the packaged
+  smoke are produced only on `windows-latest`; this branch does not claim
+  Windows execution evidence from Linux. The Linux package smoke and its
+  seeded-mismatch control are executed on this host.

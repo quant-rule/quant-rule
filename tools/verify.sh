@@ -27,6 +27,9 @@ profile="default"
 timeout=300
 self_test=0
 evidence_dir=""
+# The interpreter is a host tool, not a product runtime. A Windows runner
+# exposes the unversioned name, so the caller may name it.
+python_bin="${QR_PYTHON:-python3}"
 
 # The canonical digest of the fixture artifact list used by --self-test.
 self_test_digest="4acf7e9c323e2c30f293169bf96a41ee0387fb323d20950ad8e9ae043f2f9bb7"
@@ -57,6 +60,9 @@ run name. The data defaults to candles.csv next to the first config.
 
 The strategy is part of the run config; the old --strategy flag is gone.
 Run "make up" first, or point --api-url at a healthy stack.
+
+QR_PYTHON names the host interpreter used to build the config bundle
+(default: python3), which a Windows Git Bash host may expose as python.
 USAGE
 }
 
@@ -217,7 +223,7 @@ fi
 [ -x "$shell" ] || fail "the shell client is not executable at $shell"
 
 command -v curl >/dev/null || fail "curl is required to talk to the gateway"
-command -v python3 >/dev/null || fail "python3 is required to build the config bundle"
+command -v "$python_bin" >/dev/null || fail "$python_bin is required to build the config bundle"
 [ -f "$config" ] || fail "the run config $config is missing"
 [ -f "$replica" ] || fail "the replica run config $replica is missing"
 [ -n "$data" ] || data="$(dirname "$config")/candles.csv"
@@ -246,7 +252,7 @@ require_stack() {
 }
 
 bundle_json() {
-  python3 - "$1" "$2" <<'PY'
+  "$python_bin" - "$1" "$2" <<'PY'
 import json
 import pathlib
 import sys

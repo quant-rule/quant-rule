@@ -90,6 +90,16 @@ are not treated as releases.
   configs, and fail when one is missing or an interpreter appears. The packaged
   build selects the desktop profile by default; the parity harness and its
   digest evidence are recorded in the desktop wiring entry above.
+- The packaged desktop profile is verified from the artifacts, not the tree
+  (DIST-203, #695 P3c/P3d).
+  `apps/desktop-shell/tests/smoke-package-parity-linux.sh` extracts the
+  AppImage, checks the payload, starts the packaged supervisor with a fresh
+  `QR_DATA_DIR`, runs the verify-mini fixture from the staged config, requires
+  the server canonical digest `sha256:453c90b4…`, and fails on a seeded wrong
+  digest. `apps/desktop-shell/tests/smoke-package-parity.ps1` performs the same
+  silent-install, six-sidecar, fixture, and digest check for the Windows NSIS
+  artifact; the release desktop job runs both after the existing package
+  checks.
 - The data service can start on the embedded SQLite profile (DIST-201, #693
   P1b). `QR_PROFILE=desktop` with `QR_DATA_DIR` opens `quantrule.sqlite`, applies
   the catalog's SQLite baseline to the shared `schema_migrations` ledger under

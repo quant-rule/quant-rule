@@ -365,6 +365,12 @@ jobs:
             --bin qr-gateway --bin qr-data --bin qr-model \
             --bin qr-backtest --bin qr-evidence --bin qr-simulation
 
+      - name: Build the shell client
+        # The packaged-profile smoke drives the HTTP contract through
+        # tools/verify.sh, which needs the thin `quantrule` client. It is not
+        # part of the desktop package.
+        run: cargo build --release --locked --bin quantrule
+
       - name: Build the desktop supervisor
         working-directory: apps/desktop-shell/supervisor
         # The embedded profile makes a packaged supervisor start the sidecars.
@@ -411,6 +417,35 @@ jobs:
         run: |
           artifact="$(find apps/desktop-shell/target/release/bundle/appimage -maxdepth 1 -type f -name "*.AppImage" -print -quit)"
           bash apps/desktop-shell/tests/smoke-package-linux.sh "$artifact"
+
+      - name: Smoke the packaged Linux profile through the fixture
+        if: runner.os == 'Linux'
+        # Package parity, not just package layout: the extracted AppImage's own
+        # supervisor starts its own six sidecars, the fixture runs from the
+        # staged config, and the canonical digest must match the server oracle.
+        run: |
+          artifact="$(find apps/desktop-shell/target/release/bundle/appimage -maxdepth 1 -type f -name "*.AppImage" -print -quit)"
+          bash apps/desktop-shell/tests/smoke-package-parity-linux.sh \
+            --shell-bin target/release/quantrule "$artifact"
+
+      - name: Smoke the packaged Windows profile through the fixture
+        if: runner.os == 'Windows'
+        # Silent NSIS install, the installed supervisor's six sidecars, the
+        # fixture from the installed config, and the same canonical digest.
+        # QR_PYTHON names the host interpreter; the stock image does not expose
+        # the versioned alias that tools/verify.sh defaults to.
+        shell: pwsh
+        env:
+          QR_PYTHON: python
+        run: |
+          $artifact = Get-ChildItem apps/desktop-shell/target/release/bundle/nsis -Filter "*-setup.exe" -File |
+            Select-Object -First 1
+          if (-not $artifact) { throw "the NSIS bundle produced no installer" }
+          & pwsh -NoProfile -ExecutionPolicy Bypass `
+            -File apps/desktop-shell/tests/smoke-package-parity.ps1 `
+            -Artifact $artifact.FullName `
+            -Shell target/release/quantrule.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Assert the artifact carries the product version
         env:
