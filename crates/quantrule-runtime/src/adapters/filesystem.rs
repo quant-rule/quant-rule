@@ -1,9 +1,15 @@
 //! The filesystem content-addressed store adapter.
 //!
+//! A logical key is split on `/`; every segment is validated and then mapped
+//! to a filesystem-safe name. The mapping is deterministic and identical on
+//! every platform: `%` and `:` are percent-encoded, a trailing dot or space is
+//! encoded, and a Windows device name has its first character encoded. The
+//! logical key stays the caller's key, while the physical path is portable.
+//!
 //! The embedded desktop profile has no MinIO. This module implements the same
-//! [`ObjectStore`] trait over a directory: the key becomes a relative path, the
-//! bytes are the object, and a publish is a temporary file in the destination
-//! directory followed by a rename (ADR-2026-11-12-12).
+//! [`ObjectStore`] trait over a directory: the key becomes a mapped relative
+//! path, the bytes are the object, and a publish is a temporary file in the
+//! destination directory followed by a rename (ADR-2026-11-12-12).
 //!
 //! Content addressing is the caller's rule and this adapter enforces it for the
 //! keys that carry an address. A key whose last segment is a bare SHA-256 — the
@@ -79,9 +85,22 @@ impl FilesystemStore {
 
     /// Resolve a key to a path inside the root, refusing anything that could
     /// leave it.
+    ///
+    /// Each segment is mapped to a Windows-safe filename. The mapping is
+    /// deterministic and used by `put`, `get`, and `exists` alike.
     fn path(&self, key: &str) -> Result<PathBuf, StoreError> {
         validate_key(key)?;
-        Ok(self.root.join(key))
+        let mut path = self.root.clone();
+        for segment in key.split('/') {
+            let encoded = encode_segment(segment);
+            if encoded.len() > 255 || encoded.encode_utf16().count() > 255 {
+                return Err(StoreError(format!(
+                    "the object key {key:?} has a segment that is not representable as a Windows filename"
+                )));
+            }
+            path.push(encoded);
+        }
+        Ok(path)
     }
 }
 
@@ -206,6 +225,69 @@ fn validate_key(key: &str) -> Result<(), StoreError> {
         }
     }
     Ok(())
+}
+
+/// Windows device names are reserved as a file name and as the stem before an
+/// extension. A key segment matching one is encoded rather than refused, so a
+/// logical key such as `runs/CON/manifest.json` still round-trips.
+const WINDOWS_RESERVED_STEMS: &[&str] = &[
+    "CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$", "CLOCK$", "COM1", "COM2", "COM3", "COM4",
+    "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7",
+    "LPT8", "LPT9", "COM¹", "COM²", "COM³", "LPT¹", "LPT²", "LPT³",
+];
+
+const HEX_DIGITS: &[u8; 16] = b"0123456789ABCDEF";
+
+/// Map one key segment to a filename every supported filesystem accepts.
+///
+/// The mapping is injective: `%` is always escaped, so a literal escape
+/// sequence in the key can never collide with an encoded character. Colon and
+/// the characters a Windows filename forbids are percent-encoded. A trailing
+/// dot or space is encoded because Windows strips it during path resolution,
+/// and the first character of a reserved device name is encoded so `CON` and
+/// `CON.txt` do not resolve to a device.
+fn encode_segment(segment: &str) -> String {
+    let trailing = segment.trim_end_matches(['.', ' ']).len();
+    let reserved = is_windows_reserved(segment);
+    let mut encoded = String::with_capacity(segment.len());
+    for (index, character) in segment.char_indices() {
+        let encode = character == '%'
+            || character == ':'
+            || is_windows_invalid(character)
+            || (index >= trailing && matches!(character, '.' | ' '))
+            || (reserved && index == 0);
+        if encode {
+            push_percent_encoded(&mut encoded, character);
+        } else {
+            encoded.push(character);
+        }
+    }
+    encoded
+}
+
+/// Whether a segment names a Windows device before its first extension.
+fn is_windows_reserved(segment: &str) -> bool {
+    let stem = segment.split('.').next().unwrap_or(segment);
+    let stem = stem.trim_end_matches([' ', '.']);
+    WINDOWS_RESERVED_STEMS
+        .iter()
+        .any(|reserved| stem.eq_ignore_ascii_case(reserved))
+}
+
+/// The characters Windows refuses in a file name. Most are rejected by
+/// [`validate_key`]; encoding them here keeps the mapping itself total.
+fn is_windows_invalid(character: char) -> bool {
+    character.is_control() || matches!(character, '<' | '>' | '"' | '|' | '?' | '*' | '\\')
+}
+
+/// Append one UTF-8 character as uppercase percent-encoded bytes.
+fn push_percent_encoded(encoded: &mut String, character: char) {
+    let mut buffer = [0_u8; 4];
+    for byte in character.encode_utf8(&mut buffer).bytes() {
+        encoded.push('%');
+        encoded.push(char::from(HEX_DIGITS[usize::from(byte >> 4)]));
+        encoded.push(char::from(HEX_DIGITS[usize::from(byte & 0x0f)]));
+    }
 }
 
 /// The digest a content-addressed key promises, when the key carries one.
@@ -377,7 +459,123 @@ mod tests {
 
         store.put(key, b"{}".to_vec()).await.expect("put");
         assert_eq!(store.get(key).await.expect("get"), b"{}");
-        assert!(root.join(key).is_file());
+        let path = store.path(key).expect("resolve");
+        assert!(path.is_file());
+        let relative = path.strip_prefix(&root).expect("inside the root");
+        assert!(!relative.to_string_lossy().contains(':'));
+
+        std::fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[tokio::test]
+    async fn a_run_key_with_a_colon_round_trips_without_a_colon_on_disk() {
+        let root = test_root("colon");
+        let store = FilesystemStore::new(&root);
+        let hex = Digest::sha256(b"run identity").as_hex().to_owned();
+        let key = format!("runs/sha256:{hex}/manifest.json");
+        let path = store.path(&key).expect("resolve");
+        let relative = path.strip_prefix(&root).expect("inside the root");
+        assert!(!relative.to_string_lossy().contains(':'));
+        assert!(
+            relative.ends_with(
+                Path::new("runs")
+                    .join(format!("sha256%3A{hex}"))
+                    .join("manifest.json")
+            )
+        );
+
+        store.put(&key, b"manifest".to_vec()).await.expect("put");
+        assert!(store.exists(&key).await.expect("exists"));
+        assert_eq!(store.get(&key).await.expect("get"), b"manifest");
+        store
+            .put(&key, b"manifest".to_vec())
+            .await
+            .expect("an identical republish is a no-op");
+        assert!(path.is_file());
+
+        std::fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[tokio::test]
+    async fn a_percent_in_a_key_is_escaped_and_does_not_collide_with_an_escape() {
+        let root = test_root("percent");
+        let store = FilesystemStore::new(&root);
+        let hex = Digest::sha256(b"run identity").as_hex().to_owned();
+        let colon = format!("runs/sha256:{hex}/manifest.json");
+        let literal_escape = format!("runs/sha256%3A{hex}/manifest.json");
+        let plain = "runs/50%/manifest.json";
+        let escaped = "runs/50%25/manifest.json";
+
+        let colon_relative = store
+            .path(&colon)
+            .expect("colon")
+            .strip_prefix(&root)
+            .expect("inside")
+            .to_path_buf();
+        let literal_relative = store
+            .path(&literal_escape)
+            .expect("literal")
+            .strip_prefix(&root)
+            .expect("inside")
+            .to_path_buf();
+        assert_ne!(colon_relative, literal_relative);
+        assert_eq!(
+            literal_relative,
+            Path::new("runs")
+                .join(format!("sha256%253A{hex}"))
+                .join("manifest.json")
+        );
+        assert_eq!(
+            store
+                .path(plain)
+                .expect("plain")
+                .strip_prefix(&root)
+                .expect("inside"),
+            Path::new("runs").join("50%25").join("manifest.json")
+        );
+        assert_eq!(
+            store
+                .path(escaped)
+                .expect("escaped")
+                .strip_prefix(&root)
+                .expect("inside"),
+            Path::new("runs").join("50%2525").join("manifest.json")
+        );
+
+        store.put(plain, b"percent".to_vec()).await.expect("put");
+        store.put(escaped, b"escaped".to_vec()).await.expect("put");
+        assert_eq!(store.get(plain).await.expect("get"), b"percent");
+        assert_eq!(store.get(escaped).await.expect("get"), b"escaped");
+
+        std::fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[tokio::test]
+    async fn windows_reserved_names_and_trailing_characters_are_encoded() {
+        let root = test_root("reserved");
+        let store = FilesystemStore::new(&root);
+        for (key, expected) in [
+            ("runs/CON/manifest.json", "runs/%43ON/manifest.json"),
+            ("runs/con.txt/manifest.json", "runs/%63on.txt/manifest.json"),
+            ("runs/COM1/manifest.json", "runs/%43OM1/manifest.json"),
+            (
+                "runs/trailing./manifest.json",
+                "runs/trailing%2E/manifest.json",
+            ),
+            (
+                "runs/trailing /manifest.json",
+                "runs/trailing%20/manifest.json",
+            ),
+            ("runs/.../manifest.json", "runs/%2E%2E%2E/manifest.json"),
+        ] {
+            let path = store.path(key).expect("resolve");
+            let relative = path.strip_prefix(&root).expect("inside the root");
+            assert_eq!(relative, Path::new(expected), "{key}");
+            assert!(!relative.to_string_lossy().contains(':'), "{key}");
+            store.put(key, b"body".to_vec()).await.expect("put");
+            assert_eq!(store.get(key).await.expect("get"), b"body");
+            assert!(store.exists(key).await.expect("exists"));
+        }
 
         std::fs::remove_dir_all(&root).expect("cleanup");
     }
@@ -387,13 +585,14 @@ mod tests {
         let root = test_root("staged");
         let store = FilesystemStore::new(&root);
         let key = "runs/run/manifest.json";
+        let target = store.path(key).expect("resolve");
 
         // The temporary file holds the full body, but no reader resolves it.
-        let temp = stage_temp(&root.join(key), b"manifest").expect("stage");
+        let temp = stage_temp(&target, b"manifest").expect("stage");
         assert!(!store.exists(key).await.expect("exists"));
         assert!(store.get(key).await.is_err());
 
-        commit_temp(&temp, &root.join(key)).expect("commit");
+        commit_temp(&temp, &target).expect("commit");
         assert_eq!(store.get(key).await.expect("get"), b"manifest");
 
         std::fs::remove_dir_all(&root).expect("cleanup");
@@ -438,9 +637,10 @@ mod tests {
         let root = test_root("killed");
         let store = FilesystemStore::new(&root);
         let key = "runs/run/manifest.json";
+        let target = store.path(key).expect("resolve");
 
         // A kill between the temporary write and the rename leaves the temp.
-        let temp = stage_temp(&root.join(key), b"partial").expect("stage");
+        let temp = stage_temp(&target, b"partial").expect("stage");
         assert!(temp.is_file());
         assert!(!store.exists(key).await.expect("exists"));
         assert!(store.get(key).await.is_err());
@@ -485,7 +685,8 @@ mod tests {
 
         let root = test_root("process-kill");
         let key = "runs/run/manifest.json";
-        let target = root.join(key);
+        let store = FilesystemStore::new(&root);
+        let target = store.path(key).expect("resolve");
         let marker = root.join("kill-marker");
         std::fs::create_dir_all(&root).expect("root");
 
@@ -523,7 +724,6 @@ mod tests {
             Path::new(&temp).is_file(),
             "the staged temporary file remains after the kill"
         );
-        let store = FilesystemStore::new(&root);
         assert!(!store.exists(key).await.expect("exists"));
         assert!(store.get(key).await.is_err());
         let restarted = FilesystemStore::new(&root);
@@ -549,8 +749,9 @@ mod tests {
         let root = test_root("corrupt");
         let store = FilesystemStore::new(&root);
         let key = content_key(b"expected");
-        std::fs::create_dir_all(root.join("artifacts")).expect("dirs");
-        std::fs::write(root.join(&key), b"corrupt").expect("plant");
+        let path = store.path(&key).expect("resolve");
+        std::fs::create_dir_all(path.parent().expect("parent")).expect("dirs");
+        std::fs::write(&path, b"corrupt").expect("plant");
 
         let error = store.get(&key).await.expect_err("corrupt bytes must fail");
         assert!(error.0.contains("hash to sha256:"), "{error}");
