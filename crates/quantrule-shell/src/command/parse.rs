@@ -12,6 +12,7 @@ use quantrule_api::{
 
 use super::help::is_command;
 use super::types::{Command, GlobalOptions, HelpTopic, Invocation, ParseError};
+use crate::token::BearerToken;
 
 /// Parse an already-split argv, after the binary name.
 ///
@@ -112,6 +113,19 @@ fn extract_globals(argv: &[String]) -> Result<(GlobalOptions, Vec<String>), Pars
             index += 2;
             continue;
         }
+        if let Some(value) = token.strip_prefix("--token=") {
+            set_token(&mut globals, value)?;
+            index += 1;
+            continue;
+        }
+        if token == "--token" {
+            let value = argv
+                .get(index + 1)
+                .ok_or_else(|| ParseError::Usage(String::from("--token requires a value")))?;
+            set_token(&mut globals, value)?;
+            index += 2;
+            continue;
+        }
         rest.push(token.to_owned());
         index += 1;
     }
@@ -128,6 +142,18 @@ fn set_profile(globals: &mut GlobalOptions, value: &str) -> Result<(), ParseErro
     quantrule_api::ProfileId::parse(value)
         .map_err(|error| ParseError::Usage(format!("--profile {error}")))?;
     globals.profile = Some(value.to_owned());
+    Ok(())
+}
+
+fn set_token(globals: &mut GlobalOptions, value: &str) -> Result<(), ParseError> {
+    if globals.token.is_some() {
+        return Err(ParseError::Usage(String::from(
+            "--token was supplied twice",
+        )));
+    }
+    let token = BearerToken::parse(value)
+        .map_err(|reason| ParseError::Usage(format!("--token {reason}")))?;
+    globals.token = Some(token);
     Ok(())
 }
 
@@ -781,5 +807,52 @@ mod tests {
     #[test]
     fn a_duplicate_profile_is_rejected() {
         assert!(parse_line("--profile a --profile b health").is_err());
+    }
+
+    #[test]
+    fn a_global_token_is_removed_from_the_command() {
+        let parsed = parse_line("--token secret-token health")
+            .expect("the line parses")
+            .expect("a command");
+        assert_eq!(
+            parsed
+                .globals
+                .token
+                .as_ref()
+                .map(super::BearerToken::as_str),
+            Some("secret-token")
+        );
+        assert!(matches!(parsed.command, Command::Health));
+    }
+
+    #[test]
+    fn a_token_after_the_command_is_still_global() {
+        let parsed = parse_line("dataset list --token=secret-token")
+            .expect("the line parses")
+            .expect("a command");
+        assert_eq!(
+            parsed
+                .globals
+                .token
+                .as_ref()
+                .map(super::BearerToken::as_str),
+            Some("secret-token")
+        );
+        assert!(matches!(parsed.command, Command::DatasetList));
+    }
+
+    #[test]
+    fn a_duplicate_token_is_rejected() {
+        assert!(parse_line("--token a --token b health").is_err());
+    }
+
+    #[test]
+    fn an_empty_or_spaced_token_is_rejected_without_echoing_it() {
+        for line in ["--token= health", "--token 'two words' health"] {
+            let error = parse_line(line).expect_err("the token is invalid");
+            let rendered = error.to_string();
+            assert!(!rendered.contains("two words"), "{rendered}");
+            assert!(rendered.contains("--token"), "{rendered}");
+        }
     }
 }

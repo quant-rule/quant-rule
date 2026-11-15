@@ -48,15 +48,22 @@ are not treated as releases.
 
 ### Added
 
+- The shell and the browser send the remote profile's bearer token. The shell
+  accepts `--token <token>` or `QUANTRULE_TOKEN`, attaches `Authorization:
+  Bearer` to every gateway request when set, and keeps the token out of printed
+  output, error messages, `Debug` rendering, and local state. The browser's
+  Connection screen takes the token, stores it in `localStorage`, sends the same
+  header, and turns a `401` into a token-required state with no stale connected
+  identity; `Forget token` clears it. The token never enters the URL, a cookie,
+  a query string, or the build. An unset token keeps the unauthenticated local
+  behavior.
 - `make remote` and `make token` implement the remote exposure profile. The
   remote script reads `QR_BEARER_TOKEN` or generates a 256-bit token with
   `tools/token.sh`, exports it to the gateway, starts the stack with only `:8080`
   published, verifies the 401/401/200 token matrix and the published-port set,
   and prints the token with a `curl` example. The script writes it to no file.
   Compose passes `QR_BEARER_TOKEN` to the gateway with an empty default, so
-  `make up` stays unauthenticated. Remote browser use remains a gap: the client
-  does not send the header, so it needs a proxy that injects the token or a
-  private network.
+  `make up` stays unauthenticated.
 - Event inspection is served by `qr-model`. The gateway forwards
   `GET /inspect/events?data_version=…&timeframe=…` to a model-owned internal
   event-batch route with the validated profile, so the data service never

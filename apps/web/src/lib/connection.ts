@@ -1,3 +1,4 @@
+import { ApiError } from "./api";
 import type { HealthReport, VersionInfo } from "./types";
 
 /** The API contract this client was built against. */
@@ -9,12 +10,26 @@ export type ConnectionState =
   | "connected"
   | "degraded"
   | "mismatch"
-  | "unreachable";
+  | "unreachable"
+  /** The gateway refused the call for want of a bearer token. */
+  | "unauthorized";
 
 /** The verdict for one gateway answer. */
 export interface Classification {
   state: ConnectionState;
   error: string | null;
+}
+
+/**
+ * The state for one failed call.
+ *
+ * Only a `401` means the token is missing or wrong. Any other failure is the
+ * gateway being unreachable or refusing for a reason the screen reports itself.
+ */
+export function classifyFailure(error: unknown): "unauthorized" | "unreachable" {
+  return error instanceof ApiError && error.status === 401
+    ? "unauthorized"
+    : "unreachable";
 }
 
 /**

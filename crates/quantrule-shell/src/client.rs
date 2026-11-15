@@ -2,7 +2,8 @@
 //!
 //! Every command calls one gateway path through this module. The shell never
 //! reaches an engine, opens a database, or computes a measurement; it builds a
-//! request, forwards the profile header, and returns the response bytes.
+//! request, forwards the profile header, attaches the bearer token when one is
+//! configured, and returns the response bytes.
 //!
 //! A non-2xx response is not an I/O failure: the shared envelope is parsed and
 //! its stable code is preserved. A body that does not match the contract is a
@@ -13,6 +14,7 @@ use std::time::Duration;
 use quantrule_api::{PROFILE_HEADER, ProfileId};
 
 use crate::error::RunError;
+use crate::token::BearerToken;
 
 /// The gateway base used when `QUANTRULE_API_URL` is unset.
 pub(crate) const DEFAULT_API_URL: &str = "http://127.0.0.1:8080/api/v1";
@@ -25,21 +27,26 @@ pub(crate) struct Response {
     pub(crate) body: Vec<u8>,
 }
 
-/// A gateway client bound to one base URL and one profile.
+/// A gateway client bound to one base URL, one profile, and one token.
 pub(crate) struct Client {
     agent: ureq::Agent,
     base_url: String,
     profile: ProfileId,
+    token: Option<BearerToken>,
 }
 
 impl Client {
-    /// Build a client for one profile.
+    /// Build a client for one profile and an optional bearer token.
     ///
     /// # Errors
     ///
     /// The agent construction is infallible; the result is kept so the caller
     /// has one shape for every setup failure.
-    pub(crate) fn new(base_url: String, profile: ProfileId) -> Result<Self, RunError> {
+    pub(crate) fn new(
+        base_url: String,
+        profile: ProfileId,
+        token: Option<BearerToken>,
+    ) -> Result<Self, RunError> {
         let config = ureq::Agent::config_builder()
             .http_status_as_error(false)
             .timeout_global(Some(Duration::from_secs(120)))
@@ -48,6 +55,7 @@ impl Client {
             agent: ureq::Agent::new_with_config(config),
             base_url: base_url.trim_end_matches('/').to_owned(),
             profile,
+            token,
         })
     }
 
@@ -60,10 +68,7 @@ impl Client {
     pub(crate) fn get(&self, path: &str) -> Result<Response, RunError> {
         let url = self.url(path);
         let response = self
-            .agent
-            .get(&url)
-            .header(PROFILE_HEADER, self.profile.as_str())
-            .header("accept", "application/json")
+            .common_headers(self.agent.get(&url))
             .call()
             .map_err(|error| RunError::Transport(error.to_string()))?;
         read(response, path)
@@ -77,10 +82,7 @@ impl Client {
     pub(crate) fn post_json(&self, path: &str, body: &str) -> Result<Response, RunError> {
         let url = self.url(path);
         let response = self
-            .agent
-            .post(&url)
-            .header(PROFILE_HEADER, self.profile.as_str())
-            .header("accept", "application/json")
+            .common_headers(self.agent.post(&url))
             .header("content-type", "application/json")
             .send(body)
             .map_err(|error| RunError::Transport(error.to_string()))?;
@@ -95,10 +97,7 @@ impl Client {
     pub(crate) fn post_csv(&self, path: &str, body: Vec<u8>) -> Result<Response, RunError> {
         let url = self.url(path);
         let response = self
-            .agent
-            .post(&url)
-            .header(PROFILE_HEADER, self.profile.as_str())
-            .header("accept", "application/json")
+            .common_headers(self.agent.post(&url))
             .header("content-type", "text/csv")
             .send(body)
             .map_err(|error| RunError::Transport(error.to_string()))?;
@@ -113,13 +112,21 @@ impl Client {
     pub(crate) fn post_empty(&self, path: &str) -> Result<Response, RunError> {
         let url = self.url(path);
         let response = self
-            .agent
-            .post(&url)
-            .header(PROFILE_HEADER, self.profile.as_str())
-            .header("accept", "application/json")
+            .common_headers(self.agent.post(&url))
             .send_empty()
             .map_err(|error| RunError::Transport(error.to_string()))?;
         read(response, path)
+    }
+
+    /// Attach the headers every gateway call carries.
+    fn common_headers<B>(&self, request: ureq::RequestBuilder<B>) -> ureq::RequestBuilder<B> {
+        let request = request
+            .header(PROFILE_HEADER, self.profile.as_str())
+            .header("accept", "application/json");
+        match &self.token {
+            Some(token) => request.header("authorization", token.header()),
+            None => request,
+        }
     }
 
     fn url(&self, path: &str) -> String {

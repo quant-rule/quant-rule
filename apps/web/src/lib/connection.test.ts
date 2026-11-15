@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { classify, EXPECTED_API } from "./connection";
+import { ApiError } from "./api";
+import { classify, classifyFailure, EXPECTED_API } from "./connection";
 import type { HealthReport, VersionInfo } from "./types";
 
 function version(api = EXPECTED_API): VersionInfo {
@@ -48,5 +49,18 @@ describe("classify", () => {
     expect(classify(version("quantrule.api/v2"), health("degraded")).state).toBe(
       "mismatch",
     );
+  });
+});
+
+describe("classifyFailure", () => {
+  it("reports a 401 as token required", () => {
+    expect(
+      classifyFailure(new ApiError(401, "auth.unauthorized", "a bearer token is required")),
+    ).toBe("unauthorized");
+  });
+
+  it("reports every other failure as unreachable", () => {
+    expect(classifyFailure(new ApiError(500, "internal", "boom"))).toBe("unreachable");
+    expect(classifyFailure(new Error("connection refused"))).toBe("unreachable");
   });
 });

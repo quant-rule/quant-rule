@@ -8,7 +8,7 @@
   import ProfileSwitcher from "./lib/ProfileSwitcher.svelte";
   import SimulationChartHarness from "./lib/SimulationChartHarness.svelte";
   import SimulationRunsPanel from "./lib/SimulationRunsPanel.svelte";
-  import { refresh } from "./lib/connection.svelte";
+  import { initialise } from "./lib/connection.svelte";
   import { load as loadProfiles } from "./lib/profiles.svelte";
 
   type Section =
@@ -39,8 +39,11 @@
     if (fixture === "simulation-chart") {
       return;
     }
-    void refresh();
-    void loadProfiles();
+    // Apply the stored token first, then load the profile list with it.
+    void (async () => {
+      await initialise();
+      await loadProfiles();
+    })();
   });
 </script>
 

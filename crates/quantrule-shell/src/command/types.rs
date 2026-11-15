@@ -11,11 +11,18 @@ use quantrule_api::{
     Digest, MarkAction, MarkOrigin, MarkQuality, RunState, Side, SimulationStatus,
 };
 
+use crate::token::BearerToken;
+
 /// A flag that applies to every command.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub(crate) struct GlobalOptions {
     /// The profile named on this invocation, if any.
     pub(crate) profile: Option<String>,
+    /// The bearer token named on this invocation, if any.
+    ///
+    /// `BearerToken` renders redacted, so a debug print of an invocation cannot
+    /// leak the shared secret.
+    pub(crate) token: Option<BearerToken>,
     /// Print the gateway JSON instead of the human rendering.
     pub(crate) json: bool,
 }

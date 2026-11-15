@@ -6,6 +6,7 @@ export const DEFAULT_PROFILE = "default";
 import type { DatasetRecord } from "./types";
 
 let activeProfile = DEFAULT_PROFILE;
+let activeToken: string | null = null;
 
 /** Select the profile every call carries. */
 export function setProfile(profile: string): void {
@@ -15,6 +16,17 @@ export function setProfile(profile: string): void {
 /** The profile every call carries. */
 export function currentProfile(): string {
   return activeProfile;
+}
+
+/** Select the bearer token every call carries, or clear it with null. */
+export function setToken(token: string | null): void {
+  const trimmed = token?.trim() ?? "";
+  activeToken = trimmed === "" ? null : trimmed;
+}
+
+/** The bearer token every call carries, or null when the gateway is open. */
+export function currentToken(): string | null {
+  return activeToken;
 }
 
 /** The error envelope every service returns. */
@@ -43,6 +55,9 @@ function requestHeaders(init?: HeadersInit, contentType?: string): Headers {
     headers.set("content-type", "application/json");
   }
   headers.set(PROFILE_HEADER, activeProfile);
+  if (activeToken !== null) {
+    headers.set("authorization", `Bearer ${activeToken}`);
+  }
   return headers;
 }
 
