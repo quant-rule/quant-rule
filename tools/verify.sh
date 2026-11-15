@@ -7,7 +7,9 @@
 # digest. The two configs differ only in the run name, so their config hashes
 # and run ids differ while their data artifacts must not. The digest covers
 # results.json, *.csv, and *.ndjson and excludes provenance, manifests, logs,
-# and images, exactly as the run contract defines.
+# and images, exactly as the run contract defines. Every canonical artifact is
+# downloaded through the gateway and hashed; the run record's hash and the
+# digest route are cross-checks.
 #
 # The script holds no engine and never runs a pipeline stage. Every run is
 # submitted and read through the gateway; the shell is a thin HTTP client.
@@ -344,51 +346,46 @@ wait_run() {
   done
 }
 
-# Try every canonical artifact and hash the bytes when the route serves them.
-# The current evidence route matches one path segment, so a nested artifact
-# name is listed but not downloadable; the digest then uses the run record's
-# hash, which is the value the digest route records.
-verify_bytes() {
-  local run_id="$1" artifacts="$2" name sha code file actual
-  local downloaded=0 missing=0 total=0
+# Download every canonical artifact, verify it against the run record's hash,
+# and return the "name<TAB>sha256" list computed from the downloaded bytes.
+fetch_artifacts() {
+  local run_id="$1" artifacts="$2" name sha code file actual directory listing
+  local total_bytes=0
+  directory="$work/artifacts/${run_id//:/_}"
+  listing="$work/artifacts/${run_id//:/_}.tsv"
+  mkdir -p "$work/artifacts"
+  : > "$listing"
   while IFS=$'\t' read -r name sha; do
     [ -n "$name" ] || continue
-    total=$((total + 1))
-    file="$work/artifacts/$name"
+    case "$name" in
+      ""|/*|*\\*|*//*|.|..|*/./*|*/../*|*/.|*/..)
+        fail "the run lists the unsafe artifact name '$name'"
+        ;;
+    esac
+    file="$directory/$name"
     mkdir -p "$(dirname "$file")"
     code="$(curl -sS -o "$file" -w '%{http_code}' \
       -H "X-QuantRule-Profile: $profile" \
       "$api_url/runs/${run_id//:/%3A}/artifacts/$name")" \
       || fail "cannot reach the gateway for $name"
-    case "$code" in
-      200)
-        actual="$(sha256sum "$file" | cut -d' ' -f1)"
-        [ "$actual" = "$sha" ] || fail "artifact $name does not match the run record"
-        downloaded=$((downloaded + 1))
-        ;;
-      404)
-        missing=$((missing + 1))
-        ;;
-      *)
-        fail "artifact $name answered with HTTP $code"
-        ;;
-    esac
+    [ "$code" = "200" ] || fail "artifact $name answered with HTTP $code"
+    actual="$(sha256sum "$file" | cut -d' ' -f1)"
+    [ "$actual" = "$sha" ] || fail "artifact $name does not match the run record"
+    total_bytes=$((total_bytes + $(wc -c < "$file")))
+    printf '%s\t%s\n' "$name" "$actual" >> "$listing"
   done <<< "$artifacts"
-  if [ "$missing" -gt 0 ]; then
-    say "note: $missing of $total canonical artifacts are listed but not downloadable on this tree (the nested-name route is #646); the digest uses the run record"
-  fi
-  [ "$downloaded" -gt 0 ] || [ "$missing" -gt 0 ] \
-    || fail "the run listed no canonical artifacts"
+  say "run $run_id: $(wc -l < "$listing" | tr -d ' ') canonical artifacts, $total_bytes bytes verified"
+  cat "$listing"
 }
 
 run_digest() {
-  local run_id="$1" artifacts digest recorded
+  local run_id="$1" artifacts fetched digest recorded
   wait_run "$run_id"
   artifacts="$(canonical_artifacts "$run_detail")"
   [ -n "$artifacts" ] || fail "run $run_id has no canonical artifacts"
-  digest="$(printf '%s\n' "$artifacts" | canonical_digest)"
+  fetched="$(fetch_artifacts "$run_id" "$artifacts")" || exit 1
+  digest="$(printf '%s\n' "$fetched" | canonical_digest)"
   [ ${#digest} -eq 64 ] || fail "the canonical digest for $run_id is malformed"
-  verify_bytes "$run_id" "$artifacts"
   recorded="$("$shell" --profile "$profile" verify "$run_id")" \
     || fail "cannot read the recorded digest for $run_id"
   recorded="$(printf '%s\n' "$recorded" | sed -n 's/^digest: sha256:\([0-9a-f]*\)$/\1/p')"

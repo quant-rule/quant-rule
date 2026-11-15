@@ -137,7 +137,10 @@ fn routes() -> Router<Arc<AppState>> {
         .route("/version", get(version))
         .route("/profiles", get(list_profiles).post(create_profile))
         .route("/runs", any(proxy_evidence))
-        .route("/runs/{*rest}", any(proxy_evidence))
+        .route("/runs/{id}", any(proxy_evidence))
+        .route("/runs/{id}/cancel", any(proxy_evidence))
+        .route("/runs/{id}/digest", any(proxy_evidence))
+        .route("/runs/{id}/artifacts/{*name}", any(proxy_evidence))
         .route("/hypotheses", any(proxy_evidence))
         .route("/hypotheses/{*rest}", any(proxy_evidence))
         .route("/catalog", any(proxy_data))
@@ -513,18 +516,43 @@ async fn forward_evidence(
 }
 
 /// A path the evidence proxy owns. `/internal/v1` is never in this set.
+///
+/// An artifact name is a relative path: nested names such as
+/// `execution/fills.csv` are served, while an absolute path, an empty segment,
+/// a `.` or `..` segment, a backslash, or an encoded separator or parent path
+/// is refused before it reaches evidence.
 fn evidence_path_allowed(path: &str) -> bool {
     const PREFIXES: [&str; 2] = ["/runs", "/hypotheses"];
     let lowered = path.to_ascii_lowercase();
     if lowered.contains("%2e") || lowered.contains("%2f") || lowered.contains("%5c") {
         return false;
     }
-    PREFIXES.iter().any(|prefix| {
+    let allowed = PREFIXES.iter().any(|prefix| {
         path.strip_prefix(prefix)
             .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
     }) && !path
+        .trim_start_matches('/')
         .split('/')
-        .any(|segment| segment == ".." || segment == ".")
+        .any(|segment| segment.is_empty() || segment == ".." || segment == ".");
+    allowed
+        && artifact_name(path).is_none_or(|name| {
+            !name.is_empty()
+                && !name.starts_with('/')
+                && !name.contains('\\')
+                && name
+                    .split('/')
+                    .all(|segment| !segment.is_empty() && segment != "." && segment != "..")
+        })
+}
+
+/// The nested artifact name in an artifact download path.
+fn artifact_name(path: &str) -> Option<&str> {
+    let rest = path.strip_prefix("/runs/")?;
+    let (id, name) = rest.split_once("/artifacts/")?;
+    if id.is_empty() {
+        return None;
+    }
+    Some(name)
 }
 
 /// The request headers the gateway forwards. Everything else, including a

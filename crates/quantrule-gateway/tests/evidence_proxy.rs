@@ -7,9 +7,10 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use axum::body::{Body, Bytes};
-use axum::extract::{Request, State};
+use axum::extract::{Path, Request, State};
 use axum::http::{HeaderMap, StatusCode, Uri, header};
 use axum::response::{IntoResponse, Response};
+use axum::routing::get;
 use axum::{Json, Router};
 use common::{body_bytes, memory_profiles};
 use quantrule_api::PROFILE_HEADER;
@@ -50,6 +51,35 @@ async fn echo(State(fake): State<Fake>, headers: HeaderMap, uri: Uri, body: Byte
 
 async fn start(fake: Fake) -> (SocketAddr, tokio::task::JoinHandle<()>) {
     let app = Router::new().fallback(echo).with_state(fake);
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("listener");
+    let address = listener.local_addr().expect("address");
+    let handle = tokio::spawn(async move {
+        axum::serve(listener, app).await.expect("upstream");
+    });
+    (address, handle)
+}
+
+const NESTED_BODY: &[u8] = b"fill_id,side,quantity\n1,buy,0.5\n";
+const NESTED_ETAG: &str = "\"sha256:nested\"";
+
+async fn nested_artifact(Path((id, name)): Path<(String, String)>) -> Response {
+    assert_eq!(id, "sha256:abc");
+    assert_eq!(name, "execution/fills.csv");
+    (
+        StatusCode::OK,
+        [
+            (header::CONTENT_TYPE, "text/csv".to_owned()),
+            (header::ETAG, NESTED_ETAG.to_owned()),
+        ],
+        Body::from(NESTED_BODY),
+    )
+        .into_response()
+}
+
+async fn start_nested() -> (SocketAddr, tokio::task::JoinHandle<()>) {
+    let app = Router::new().route("/api/v1/runs/{id}/artifacts/{*name}", get(nested_artifact));
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
         .expect("listener");
@@ -140,6 +170,65 @@ async fn a_run_detail_artifact_and_digest_path_is_forwarded() {
             serde_json::from_slice(&body_bytes(response).await).expect("json");
         assert_eq!(value["path"], path, "{path}");
         assert_eq!(value["profiles"], serde_json::json!(["default"]), "{path}");
+    }
+    handle.abort();
+}
+
+#[tokio::test]
+async fn a_nested_artifact_is_forwarded_byte_for_byte() {
+    let (address, handle) = start_nested().await;
+    let response = router(gateway(address).await)
+        .oneshot(
+            Request::get("/api/v1/runs/sha256:abc/artifacts/execution/fills.csv")
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response
+            .headers()
+            .get(header::CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok()),
+        Some("text/csv")
+    );
+    assert_eq!(
+        response
+            .headers()
+            .get(header::ETAG)
+            .and_then(|value| value.to_str().ok()),
+        Some(NESTED_ETAG)
+    );
+    assert_eq!(body_bytes(response).await, NESTED_BODY);
+    handle.abort();
+}
+
+#[tokio::test]
+async fn an_artifact_traversal_never_reaches_the_upstream() {
+    let fake = Fake::default();
+    let hits = Arc::clone(&fake.hits);
+    let (address, handle) = start(fake).await;
+    for path in [
+        "/api/v1/runs/sha256:abc/artifacts/%2e%2e/secret",
+        "/api/v1/runs/sha256:abc/artifacts/execution/../../secret",
+        "/api/v1/runs/sha256:abc/artifacts//etc/passwd",
+        "/api/v1/runs/sha256:abc/artifacts/execution%2Ffills.csv",
+        "/api/v1/runs/sha256:abc/artifacts/execution%5Cfills.csv",
+        "/api/v1/runs/sha256:abc/artifacts/",
+    ] {
+        let response = router(gateway(address).await)
+            .oneshot(
+                Request::get(path)
+                    .header(PROFILE_HEADER, "default")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::NOT_FOUND, "{path}");
+        assert_eq!(hits.load(Ordering::SeqCst), 0, "{path}");
     }
     handle.abort();
 }

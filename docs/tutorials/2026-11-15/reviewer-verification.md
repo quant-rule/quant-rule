@@ -45,11 +45,14 @@ healthy gateway and exits nonzero with a `make up` reminder when there is none.
 2. Uploads both config directories as bundles through
    `POST /catalog/configs`. Each content-addressed `config_id` is returned by
    the gateway; a second upload of the same bytes returns the same id.
-3. Submits both ids through `POST /runs`, waits for `succeeded`, and reads each
-   run's artifact list and digest through `/runs/{id}` and `/runs/{id}/digest`.
-4. Recomputes the canonical digest over `results.json`, `*.csv`, and `*.ndjson`
-   from the run record, and fails when the recomputation disagrees with the
-   recorded digest.
+3. Submits both ids through `POST /runs`, waits for `succeeded`, reads each
+   run's artifact list and digest through `/runs/{id}` and
+   `/runs/{id}/digest`, and downloads every canonical artifact through
+   `/runs/{id}/artifacts/{*name}`.
+4. Computes the canonical digest over `results.json`, `*.csv`, and `*.ndjson`
+   from the downloaded bytes, fails when a byte count or SHA-256 disagrees with
+   the run record, and fails when the recomputation disagrees with the recorded
+   digest.
 5. Prints `canonical digest sha256:…`, or compares `--expected` and prints
    `verified sha256:…`.
 
@@ -101,13 +104,6 @@ defines: path, NUL, `sha256:` digest, newline.
 
 ## 7. Limits
 
-- The evidence artifact route matches one path segment, so a nested artifact
-  name such as `model/readings.csv` is listed by the run but is not
-  downloadable on this tree (#646). The script tries each canonical artifact,
-  hashes the bytes when the route serves them, and otherwise uses the hash the
-  run record carries. The printed line is unchanged when the route starts
-  serving nested names. Until then the digest proves the deterministic
-  computation and the run record, not the stored bytes.
 - The mini fixture exercises the pipeline and the digest, not a strategy result.
   It has no fills.
 - Cross-host comparison is reviewer verification, not a cross-machine CI claim;
@@ -115,6 +111,10 @@ defines: path, NUL, `sha256:` digest, newline.
   [`07-canonical-digest-and-claim-boundary.md`](../../adr/2026-11-12/07-canonical-digest-and-claim-boundary.md).
 - Another config pair can be compared with `--config` and `--replica`, provided
   the two directories differ only in non-result metadata such as the run name.
+- The artifact route accepts a relative nested name. It refuses an absolute
+  path, an empty segment, `.` or `..`, a backslash, and an encoded separator or
+  parent path before the request reaches evidence; a refusal fails the
+  verification instead of producing a partial digest.
 
 ## 8. Re-run the self-test
 

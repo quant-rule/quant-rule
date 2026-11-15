@@ -45,21 +45,26 @@ engine, calls no local stage, and sends only identifiers to the gateway.
   `EXPECTED`; `make verify EXPECTED="canonical digest sha256:…"` compares the
   line. `test`, `test-fast`, `test-composed`, `test-parity`, and `gate` are
   unchanged.
-- Deferred by ownership: the evidence artifact route matches one path segment,
-  so a nested artifact name such as `model/readings.csv` is listed by the run
-  but answers 404 on `/runs/{id}/artifacts/{name}`. `run fetch` therefore fails
-  on the first nested artifact. The script tries each canonical artifact,
-  verifies the bytes where the route serves them, and otherwise uses the hash
-  the run record carries; it prints a `note` naming #646. Fixing the route is a
-  `crates/quantrule-evidence-service` change outside this slice.
+- Implemented (authorized cross-stream follow-up): the evidence artifact route
+  matches `/runs/{id}/artifacts/{*name}`, and the gateway registers the same
+  route and validates a relative name (no absolute path, empty segment, `.`,
+  `..`, backslash, or encoded separator or parent segment) before proxying the
+  full name. Gateway tests cover a nested artifact byte-for-byte through the
+  proxy and traversal rejection; evidence tests cover a nested artifact and
+  unsafe names. `tools/verify.sh` downloads every canonical artifact, checks its
+  size and SHA-256 against the run record, computes the digest from the bytes,
+  and cross-checks `/runs/{id}/digest`. #646 stays open for
+  bearer/profile/inspect/events.
 
 ## Verification and evidence
 
 The commands were run in `/home/zantgo/Proyectos/quant-rule--789-gates` on this
 host. The stack was an isolated project (`quantrule-789-test`, `:18080`) copied
-from #643's unmerged compose with the local `quantrule-server:local` image and
-this worktree's `config/` mounted read-only. A first manual run against #643's
-live stack on `:8080` produced the same digest before that stack was torn down.
+from #643's unmerged compose with the image `quantrule-server:789-fix` built from
+#643's Dockerfile and this worktree's source, and with this worktree's `config/`
+mounted read-only. A first manual run against #643's live stack on `:8080`
+produced the same digest before that stack was torn down; the post-fix run used
+the rebuilt image.
 
 | Check | Command | Observed |
 |---|---|---|
@@ -75,8 +80,11 @@ live stack on `:8080` produced the same digest before that stack was torn down.
 | Run ids | first fresh run | `sha256:4bf3edd9…` and `sha256:5c7e1e15…`, distinct |
 | Config ids | first fresh run | `cfg_673cc6eeef2a` and `cfg_8a45ba3a30bd`, distinct |
 | No local engine | `grep -n "backtest run" tools/verify.sh` | no match |
-| Artifact fetch | `tools/verify.sh` note | `12 of 12 canonical artifacts are listed but not downloadable on this tree`; `run fetch` fails on `execution/fills.csv` with HTTP 404 |
-| Links | `python3 tools/check_links.py` | 950 files, no broken relative links |
+| Artifact bytes | `tools/verify.sh`; `run fetch` | 12 canonical artifacts per run, 3,559,171 bytes; `run fetch` wrote all 25 artifacts, including `execution/fills.csv` (73 B), `model/readings.csv` (2,110,334 B), and `strategy/decisions.ndjson` (399,098 B) |
+| Live nested route | `curl /api/v1/runs/{id}/artifacts/execution/fills.csv` and `.../model/readings.csv` | 200; exact bytes and ETag; a parent/empty/encoded path returns 404 |
+| Gateway tests | `cargo test -p quantrule-gateway` | pass; `evidence_proxy` 9 passed, nested artifact byte-for-byte, traversal refused before the upstream |
+| Evidence tests | `cargo test -p quantrule-evidence-service` | pass; 18 run tests, nested artifact served, unsafe names refused |
+| Links | `python3 tools/check_links.py` | 951 files, no broken relative links |
 | Docs length | `python3 tools/check_doc_length.py` | 34 files within cap |
 | Changelog | `python3 tools/check_changelog.py` | 5 releases, 107 entries |
 | Gate | `tools/gate.sh` | exit 0 (see PR verification table) |
@@ -95,15 +103,17 @@ live stack on `:8080` produced the same digest before that stack was torn down.
 - `make verify` on a warm stack reuses the two content-addressed runs
   (`created=false`). The first invocation on a wiped project creates both
   (`created=true`). Both invocations printed the same line.
-- The nested-artifact route gap is not a script defect: the run record and the
-  digest are correct, and the flat artifacts download. The canonical artifacts
-  are the nested ones, so the byte-level check is deferred to #646. The script
-  keeps the same printed line when that route serves nested names.
-- Rejected: a Rust harness (a crates change outside this slice); a Python digest
-  implementation (the shell encoding is short and `sha256sum` is already a
-  prerequisite); `run fetch` as the only path (it fails on nested names); a
-  single config submitted twice (not a reproducibility proof); and editing the
-  evidence route or compose (outside the ownership boundary).
+- The nested-artifact gap was a route defect, not a digest defect: the run
+  record and the digest were correct, but the evidence handler matched one path
+  segment and the gateway had no artifact route. Serving `{*name}` and
+  validating the relative name before proxying makes `run fetch` and the
+  reviewer script download the canonical bytes.
+- Rejected: a Rust harness (a crates change outside the original slice); a
+  Python digest implementation (the shell encoding is short and `sha256sum` is
+  already a prerequisite); a single config submitted twice (not a
+  reproducibility proof); and editing compose (outside the ownership boundary).
+  The evidence and gateway route change was a separately authorized cross-stream
+  fix.
 - The #644-owned `docs/architecture/deployment.md` still says `make verify` is
   blocked. That file is outside this slice; the README and tutorial are current,
   and the deployment note is a #644 follow-up.

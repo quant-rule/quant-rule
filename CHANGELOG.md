@@ -18,11 +18,21 @@ are not treated as releases.
 - Reviewer verification (`tools/verify.sh`, `make verify`) now runs on the
   distributed path. It uploads the checked-in mini fixture and two
   `verify-mini` configs through the gateway, submits two distinct runs with the
-  same effective parameters, waits for both, recomputes the canonical digest
-  from the run record, cross-checks `/runs/{id}/digest`, and prints one line.
-  A wrong `--expected` exits nonzero. The script holds no engine and calls no
-  local `backtest run`; the two configs differ only in the run name, so their
-  config hashes and run ids differ while their data artifacts must not.
+  same effective parameters, waits for both, downloads every canonical
+  artifact, computes the digest from the downloaded bytes, cross-checks the run
+  record and `/runs/{id}/digest`, and prints one line. A wrong `--expected`
+  exits nonzero. The script holds no engine and calls no local `backtest run`;
+  the two configs differ only in the run name, so their config hashes and run
+  ids differ while their data artifacts must not.
+
+### Fixed
+
+- Run artifact downloads accept nested artifact names. The evidence route
+  matches `/runs/{id}/artifacts/{*name}`, and the gateway registers that route
+  and refuses an absolute, empty, parent, backslash, or encoded separator or
+  parent segment before proxying the full relative name. `run fetch` and the
+  reviewer verification download `execution/fills.csv`, `model/readings.csv`,
+  and the rest of the canonical set by name.
 
 ### Security
 
