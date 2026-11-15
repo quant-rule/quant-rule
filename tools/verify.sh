@@ -26,6 +26,7 @@ api_url="${QUANTRULE_API_URL:-http://127.0.0.1:8080/api/v1}"
 profile="default"
 timeout=300
 self_test=0
+evidence_dir=""
 
 # The canonical digest of the fixture artifact list used by --self-test.
 self_test_digest="4acf7e9c323e2c30f293169bf96a41ee0387fb323d20950ad8e9ae043f2f9bb7"
@@ -35,20 +36,24 @@ usage() {
 usage: tools/verify.sh [--config <run.json>] [--replica <run.json>]
                        [--data <candles.csv>] [--expected <digest>]
                        [--profile <id>] [--api-url <url>] [--timeout <seconds>]
-                       [--self-test]
+                       [--evidence-dir <dir>] [--self-test]
 
 Submits two configs with the same effective behavior through the gateway,
 compares their canonical digests, and prints one line. The default pair is
 config/examples/verify-mini/run.json and its replica, which differ only in the
 run name. The data defaults to candles.csv next to the first config.
 
-  --expected   A "canonical digest sha256:..." line, "verified sha256:...", or
-               the digest itself. A different value exits nonzero.
-  --profile    The gateway profile (default: default).
-  --api-url    The gateway base (default: QUANTRULE_API_URL or
-               http://127.0.0.1:8080/api/v1).
-  --timeout    Seconds to wait for each run (default: 300).
-  --self-test  Compare a fixed artifact list; no gateway is contacted.
+  --expected     A "canonical digest sha256:..." line, "verified sha256:...", or
+                 the digest itself. A different value exits nonzero.
+  --profile      The gateway profile (default: default).
+  --api-url      The gateway base (default: QUANTRULE_API_URL or
+                 http://127.0.0.1:8080/api/v1).
+  --timeout      Seconds to wait for each run (default: 300).
+  --evidence-dir Keep the downloaded canonical artifacts under <dir>/artifacts,
+                 every run status under <dir>/status, the assigned config and
+                 run ids in <dir>/runs.tsv, and the digest in <dir>/digest, so a
+                 parity harness can compare the artifact bytes of two profiles.
+  --self-test    Compare a fixed artifact list; no gateway is contacted.
 
 The strategy is part of the run config; the old --strategy flag is gone.
 Run "make up" first, or point --api-url at a healthy stack.
@@ -101,6 +106,11 @@ while [ $# -gt 0 ]; do
     --timeout)
       [ $# -ge 2 ] || usage_error "--timeout needs a value"
       timeout="$2"
+      shift 2
+      ;;
+    --evidence-dir)
+      [ $# -ge 2 ] || usage_error "--evidence-dir needs a value"
+      evidence_dir="$2"
       shift 2
       ;;
     --self-test)
@@ -217,6 +227,11 @@ export QUANTRULE_API_URL="$api_url"
 
 work="$(mktemp -d "${TMPDIR:-/tmp}/quantrule-verify.XXXXXX")"
 trap 'rm -rf "$work"' EXIT
+
+if [ -n "$evidence_dir" ]; then
+  mkdir -p "$evidence_dir/artifacts" "$evidence_dir/status"
+  : > "$evidence_dir/runs.tsv"
+fi
 
 say() {
   printf 'verify: %s\n' "$*" >&2
@@ -351,7 +366,11 @@ wait_run() {
 fetch_artifacts() {
   local run_id="$1" artifacts="$2" name sha code file actual directory listing
   local total_bytes=0
-  directory="$work/artifacts/${run_id//:/_}"
+  if [ -n "$evidence_dir" ]; then
+    directory="$evidence_dir/artifacts/${run_id//:/_}"
+  else
+    directory="$work/artifacts/${run_id//:/_}"
+  fi
   listing="$work/artifacts/${run_id//:/_}.tsv"
   mkdir -p "$work/artifacts"
   : > "$listing"
@@ -381,6 +400,9 @@ fetch_artifacts() {
 run_digest() {
   local run_id="$1" artifacts fetched digest recorded
   wait_run "$run_id"
+  if [ -n "$evidence_dir" ]; then
+    printf '%s\n' "$run_detail" > "$evidence_dir/status/${run_id//:/_}.txt"
+  fi
   artifacts="$(canonical_artifacts "$run_detail")"
   [ -n "$artifacts" ] || fail "run $run_id has no canonical artifacts"
   fetched="$(fetch_artifacts "$run_id" "$artifacts")" || exit 1
@@ -420,6 +442,12 @@ if [ "$digest_a" != "$digest_b" ]; then
   printf '  %s: sha256:%s\n' "$run_a" "$digest_a" >&2
   printf '  %s: sha256:%s\n' "$run_b" "$digest_b" >&2
   exit 1
+fi
+
+if [ -n "$evidence_dir" ]; then
+  printf '%s\n' "$digest_a" > "$evidence_dir/digest"
+  printf '%s\t%s\t%s\n' "$config_id" "$run_a" "$digest_a" >> "$evidence_dir/runs.tsv"
+  printf '%s\t%s\t%s\n' "$replica_id" "$run_b" "$digest_b" >> "$evidence_dir/runs.tsv"
 fi
 
 compare_expected "$digest_a"

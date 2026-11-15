@@ -31,8 +31,7 @@ are not treated as releases.
   `sqlite` at `/health`. `quantrule-runtime` maps `schema.table` to
   `schema__table`, stores JSON as `TEXT`, timestamps as RFC 3339 `TEXT`, and
   runs repository calls on the blocking pool through the workspace's existing
-  `rusqlite` 0.42. The data and evidence repositories remain on Postgres until
-  their P1b-P1c changes.
+  `rusqlite` 0.42.
 - The simulation service can start on the embedded SQLite profile
   (DIST-201, #693 P1d). `QR_PROFILE=desktop` with `QR_DATA_DIR` opens
   `quantrule.sqlite`, applies `migrations/sqlite/0001_simulation.sql` to the
@@ -45,7 +44,24 @@ are not treated as releases.
   triggers refuse a mark after a decision and freeze a decided run. Profile
   scoping, the transactional mark upsert, the decision lock, the server
   timestamps, the idempotent oracle and check reads, and the CSV mirror are
-  unchanged. The object-store wiring for the desktop profile remains P2c.
+  unchanged. The object-store wiring lands with the desktop backend wiring.
+- The desktop profile is wired end to end (DIST-203, #695 P2c/P2d/P3d). One
+  `quantrule-runtime::backends` construction path selects the backend set from
+  `QR_PROFILE`: the server keeps Postgres, S3, and RabbitMQ, and the desktop
+  opens one SQLite file at `<QR_DATA_DIR>/quantrule.sqlite` for state and the
+  durable queue, plus a filesystem CAS at `<QR_DATA_DIR>/objects`. The data,
+  model, evidence, simulation, and backtest binaries now select the object
+  store and the queue by profile, so a published `run.requested` is a row
+  `qr-backtest` claims from the shared file and evidence's `run.computed` is
+  visible to the finalizer. The full verify-mini fixture completes through the
+  gateway with no Docker: 12 canonical artifacts, 3,559,171 bytes, canonical
+  digest
+  `sha256:453c90b4442dd049074e126bb46b400b6f61baa986443c97fa27c3edd41c1daa`,
+  byte-identical to the server profile. `tools/parity_desktop.sh` runs the
+  desktop fixture and compares the digest, the canonical artifact bytes, and
+  the run status with a server-profile gateway or an isolated Compose oracle;
+  a seeded difference fails. `tools/verify.sh --evidence-dir` retains the
+  compared evidence. The server profile remains the default.
 - `FilesystemStore`, the object-store adapter for the desktop profile
   (DIST-202, #694 P2a). A publish is a temporary file in the destination
   directory, an fsync, and an atomic rename; a key whose last segment is a bare
@@ -64,17 +80,16 @@ are not treated as releases.
   the worker's three-delivery 5 s/25 s policy through the explicit claim, nack,
   and dead-letter surface, which files `run.dead` with the original payload;
   cancellation removes a ready message by routing key and payload digest and
-  survives a reopen. The queue is not yet wired into the service binaries; P2c
-  does that.
+  survives a reopen.
 - The desktop package now carries and supervises the six service binaries. A
   dependency-free `qr-desktop` supervisor starts them on loopback, waits for
   health, restarts a crashed child within a bounded budget, and stops them when
   the shell exits; a guard around each service also ends the children of a
   crashed supervisor. The Linux AppImage and Windows NSIS jobs build the six
   services from the same commit, stage all seven executables and the example
-  configs, and fail when one is missing or an interpreter appears. The embedded
-  backends are still landing (#693/#694), so the launch is selected by the
-  `embedded-profile` build feature and the parity digest is not claimed yet.
+  configs, and fail when one is missing or an interpreter appears. The packaged
+  build selects the desktop profile by default; the parity harness and its
+  digest evidence are recorded in the desktop wiring entry above.
 - The data service can start on the embedded SQLite profile (DIST-201, #693
   P1b). `QR_PROFILE=desktop` with `QR_DATA_DIR` opens `quantrule.sqlite`, applies
   the catalog's SQLite baseline to the shared `schema_migrations` ledger under
@@ -85,8 +100,6 @@ are not treated as releases.
   booleans as `INTEGER`, and RFC 3339 UTC timestamps. A config upsert writes its
   shared bundle and profile-scoped row in one transaction, and a dataset keeps
   its object key shared across profiles. The server profile remains on Postgres.
-  The desktop object store is wired separately, and the simulation repository
-  remains on Postgres until P1d.
 - The desktop SQLite surface has one conformance guard and one written contract
   (DIST-201, #693 P1e). `tools/check_schema_prefixes.py` reads every
   `crates/*/migrations/sqlite/*.sql` baseline and every service store against a

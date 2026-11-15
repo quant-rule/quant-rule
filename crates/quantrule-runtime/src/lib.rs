@@ -11,6 +11,7 @@
 #![forbid(unsafe_code)]
 
 pub mod adapters;
+pub mod backends;
 pub mod client;
 pub mod clock;
 pub mod config;

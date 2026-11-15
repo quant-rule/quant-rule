@@ -59,6 +59,24 @@ impl FilesystemStore {
         &self.root
     }
 
+    /// Whether the root is a writable directory.
+    ///
+    /// This is a liveness probe, not a content check: it creates the root when
+    /// it is absent and writes and removes one temporary file, so a read-only
+    /// or missing volume reports down at `/health` before the first run fails.
+    /// The probe never names a key, so it cannot collide with an object.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] when the root cannot be created, is not a
+    /// directory, or refuses the probe file.
+    pub async fn check(&self) -> Result<(), StoreError> {
+        let root = self.root.clone();
+        tokio::task::spawn_blocking(move || probe_root(&root))
+            .await
+            .map_err(|error| StoreError(format!("the object-store probe failed: {error}")))?
+    }
+
     /// Resolve a key to a path inside the root, refusing anything that could
     /// leave it.
     fn path(&self, key: &str) -> Result<PathBuf, StoreError> {
@@ -117,8 +135,25 @@ impl ObjectStore for FilesystemStore {
     }
 }
 
-/// Refuse a key that is not a portable relative path.
+/// Create the root and prove it accepts a file.
 ///
+/// The probe file carries the temporary prefix, so a reader that lists the
+/// directory during the probe cannot mistake it for an object; it is removed
+/// before the probe returns.
+fn probe_root(root: &Path) -> Result<(), StoreError> {
+    std::fs::create_dir_all(root)
+        .map_err(|error| StoreError(format!("cannot create {}: {error}", root.display())))?;
+    let path = root.join(format!("{TEMP_PREFIX}probe-{}", std::process::id()));
+    let written = std::fs::write(&path, []).and_then(|()| std::fs::remove_file(&path));
+    written.map_err(|error| {
+        StoreError(format!(
+            "the object-store root {} is not writable: {error}",
+            root.display()
+        ))
+    })
+}
+
+/// Refuse a key that is not a portable relative path.///
 /// The rule mirrors the gateway's artifact-name check: absolute, empty, `.`,
 /// `..`, and backslash segments are refused. Characters a common filesystem
 /// cannot store portably are refused too, so a key that is accepted on Linux

@@ -7,17 +7,21 @@
 //! publishes `run.computed` or `run.failed`. Evidence finalizes the run. A
 //! retryable failure holds the delivery, waits, and retries in place. It serves
 //! no HTTP and owns no database schema.
+//!
+//! The worker selects the same backend set as every other service. On the
+//! desktop profile it opens the shared SQLite file only for the durable queue,
+//! and reads and writes artifact bytes in the filesystem CAS under
+//! `<QR_DATA_DIR>/objects`; the server profile keeps RabbitMQ and S3.
 
 #![forbid(unsafe_code)]
 
 use std::sync::Arc;
 
 use quantrule_backtest_service::backtest::{ProcessOutcome, WorkerServices, process};
-use quantrule_runtime::adapters::rabbitmq::RabbitQueue;
-use quantrule_runtime::adapters::s3::S3Store;
 use quantrule_runtime::adapters::{
     Message, MessageHandler, ObjectStore, Queue, QueueConsumer, QueueError,
 };
+use quantrule_runtime::backends::{self, ControlQueue, Objects};
 use quantrule_runtime::client::{
     ClientError, DataClient, EvidenceClient, HttpServiceClient, ModelClient, Service,
 };
@@ -31,12 +35,9 @@ async fn main() -> Result<(), RuntimeError> {
     let config = Config::from_env()?;
     logging::init("info")?;
 
-    let objects = S3Store::new(&config.object_store_url, &config.object_store_bucket).await;
-    let queue = Arc::new(
-        RabbitQueue::connect(&config.queue_url)
-            .await
-            .map_err(|error| RuntimeError::Queue(error.to_string()))?,
-    );
+    let database = backends::open_database(&config)?;
+    let objects: Arc<dyn ObjectStore> = Arc::new(Objects::open(&config).await?);
+    let queue = Arc::new(ControlQueue::open(&config, database.as_ref()).await?);
 
     let data: Arc<dyn DataClient> = Arc::new(
         HttpServiceClient::from_env(Service::Data)
@@ -50,12 +51,13 @@ async fn main() -> Result<(), RuntimeError> {
         HttpServiceClient::from_env(Service::Evidence)
             .map_err(|error| service_config_error(Service::Evidence, error))?,
     );
+    let publish: Arc<dyn Queue> = queue.clone();
     let services = Arc::new(WorkerServices {
         evidence,
         data,
         model,
-        objects: Arc::new(objects) as Arc<dyn ObjectStore>,
-        queue: Arc::clone(&queue) as Arc<dyn Queue>,
+        objects,
+        queue: publish,
     });
 
     let handler: MessageHandler = Box::new(move |message: Message| {

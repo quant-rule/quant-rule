@@ -61,9 +61,9 @@ The image also carries the static client, built with **Bun** (`bun install`,
 
 All six binaries and nine containers start; only `backtest` is HTTP-less and has
 no healthcheck. Gateway, data, evidence, and simulation migrate their own ledgers
-under P1's pinned lock; `backtest` and `model` keep `0`. `minio/minio` has no
-public image since 2026-09-11; the default is a pinned legacy archive,
-overridable by `QR_OBJECT_STORE_IMAGE`, pending a registry decision.
+under P1's pinned lock; `backtest` and `model` keep `0`. The MinIO image is a
+pinned legacy archive, overridable by `QR_OBJECT_STORE_IMAGE`, pending a registry
+decision.
 
 ## 3. Make targets
 
@@ -89,8 +89,7 @@ overridable by `QR_OBJECT_STORE_IMAGE`, pending a registry decision.
 
 `make scale` scales `model` and `backtest`. `make backup` and `make restore`
 call `tools/backup.sh` and `tools/restore.sh`. `make test-composed` exits 2
-because the composed suite is not wired yet. `make verify` submits the two
-fixture configs through the gateway and prints the canonical digest.
+because the composed suite is not wired yet.
 
 ## 3.1 Remote profile
 
@@ -140,14 +139,15 @@ Secrets come from the environment. No secret is committed.
 
 ## 5. Two distribution profiles
 
-| Profile | Contains | Installs with |
-|---|---|---|
-| Server | The image and nine containers | Docker, `make up` |
-| Desktop | Six bundled sidecars, one supervisor, one SQLite file | A release asset from GitHub Releases |
+| Profile | Backends | Contains | Installs with |
+|---|---|---|---|
+| Server | Postgres, S3, RabbitMQ | The image and nine containers | Docker, `make up` |
+| Desktop | SQLite, filesystem CAS, in-process queue | Six bundled sidecars, one supervisor, one SQLite file | A release asset from GitHub Releases |
 
 The server profile is the default; `QR_PROFILE=desktop` with `QR_DATA_DIR`
 selects the embedded backends in [`desktop.md`](desktop.md) from a fresh data
 directory. The desktop package is not part of v1.0.0.
+`tools/parity_desktop.sh` proves both profiles match on one fixture.
 
 ## 6. Split host
 

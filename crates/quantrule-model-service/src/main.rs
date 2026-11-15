@@ -2,14 +2,16 @@
 //!
 //! It connects to the object store, reads the catalog references through the data
 //! service, and serves the public model compute and the internal model bundle.
-//! It applies no migration and owns no database schema.
+//! It applies no migration and owns no database schema. The object store is
+//! selected by the deployment profile: S3 on the server, the filesystem CAS
+//! under `<QR_DATA_DIR>/objects` on the desktop.
 
 #![forbid(unsafe_code)]
 
 use std::sync::Arc;
 
 use quantrule_runtime::adapters::ObjectStore;
-use quantrule_runtime::adapters::s3::S3Store;
+use quantrule_runtime::backends::Objects;
 use quantrule_runtime::client::{ClientError, DataClient, HttpServiceClient, Service};
 use quantrule_runtime::config::ConfigError;
 use quantrule_runtime::{Config, HealthRegistry, RuntimeError, logging, serve};
@@ -22,11 +24,11 @@ async fn main() -> Result<(), RuntimeError> {
     logging::init("info")?;
 
     let mut health = HealthRegistry::new();
-    let s3 = S3Store::new(&config.object_store_url, &config.object_store_bucket).await;
-    let objects: Arc<dyn ObjectStore> = Arc::new(s3.clone());
+    let backend = Objects::open(&config).await?;
+    let objects: Arc<dyn ObjectStore> = Arc::new(backend.clone());
     health.register("object-store", move || {
-        let store = s3.clone();
-        async move { store.check().await.map_err(|error| error.to_string()) }
+        let backend = backend.clone();
+        async move { backend.check().await.map_err(|error| error.to_string()) }
     });
 
     let data: Arc<dyn DataClient> =

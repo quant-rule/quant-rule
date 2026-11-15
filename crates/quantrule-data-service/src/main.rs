@@ -4,19 +4,22 @@
 //! the catalog migrations, and serves the routes the gateway proxies. The
 //! desktop profile opens the embedded SQLite file under `QR_DATA_DIR`, applies
 //! the catalog SQLite baseline to the shared ledger, and serves the same routes
-//! from the same traits. The profile header is trusted because the gateway
-//! validates and injects it.
+//! from the same traits. The object store is selected by the same profile: S3
+//! on the server, the filesystem CAS under `<QR_DATA_DIR>/objects` on the
+//! desktop. The profile header is trusted because the gateway validates and
+//! injects it.
 
 #![forbid(unsafe_code)]
 
 use std::sync::Arc;
 
+use quantrule_runtime::adapters::Database;
+use quantrule_runtime::adapters::ObjectStore;
 use quantrule_runtime::adapters::postgres::{PgDatabase, apply_migrations_in};
-use quantrule_runtime::adapters::s3::S3Store;
 use quantrule_runtime::adapters::sqlite::{
     DATABASE_FILE, SqliteDatabase, apply_migrations_in as apply_sqlite_migrations,
 };
-use quantrule_runtime::adapters::{Database, ObjectStore};
+use quantrule_runtime::backends::Objects;
 use quantrule_runtime::config::ConfigError;
 use quantrule_runtime::{Config, DeploymentProfile, HealthRegistry, RuntimeError, logging, serve};
 
@@ -83,11 +86,11 @@ async fn main() -> Result<(), RuntimeError> {
         }
     }
 
-    let s3 = S3Store::new(&config.object_store_url, &config.object_store_bucket).await;
-    let objects: Arc<dyn ObjectStore> = Arc::new(s3.clone());
+    let backend = Objects::open(&config).await?;
+    let objects: Arc<dyn ObjectStore> = Arc::new(backend.clone());
     health.register("object-store", move || {
-        let store = s3.clone();
-        async move { store.check().await.map_err(|error| error.to_string()) }
+        let backend = backend.clone();
+        async move { backend.check().await.map_err(|error| error.to_string()) }
     });
 
     let state = Arc::new(DataState::with_services(

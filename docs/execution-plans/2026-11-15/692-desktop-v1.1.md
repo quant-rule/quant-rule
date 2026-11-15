@@ -647,9 +647,9 @@ exists, so an upgrade from v1.0 desktop is not tested; there is none.
 | V24 | P2b queue durability | A committed message survives a process restart; an unacked message is redelivered | restart test | durable and redelivered | | Pending | | | |
 | V25 | P2b retry and dead-letter | Three failures mark the run failed and publish `run.dead`; cancellation is consumed | worker and queue tests | same state as the server profile | | Pending | | | |
 | V26 | P2b multi-process | Evidence and backtest share the queue file without corruption or lost messages | two-process test | no loss, no deadlock | | Pending | | | |
-| V27 | P2c full desktop run | The fixture completes with SQLite, filesystem CAS, and the in-process queue before packaging | end-to-end test | succeeded | | Pending | | | |
-| V28 | P2d digest pre-check | The desktop digest equals the server digest before an installer exists | `tools/parity_desktop.sh` | equal | | Pending | | | |
-| V29 | P3a supervisor start | Six children start, five health endpoints answer, and the worker consumes | supervisor integration test | six running, health pass | | Pending | | | |
+| V27 | P2c full desktop run | The fixture completes with SQLite, filesystem CAS, and the in-process queue before packaging | end-to-end test | succeeded | six sidecars, 12 canonical artifacts, 3,559,171 bytes; digest `sha256:453c90b4…` | Pending | | | |
+| V28 | P2d digest pre-check | The desktop digest equals the server digest before an installer exists | `tools/parity_desktop.sh` | equal | desktop and server both `sha256:453c90b4…`; 24 artifact files byte-identical | Pending | | | |
+| V29 | P3a supervisor start | Six children start, five health endpoints answer, and the worker consumes | supervisor integration test | six running, health pass | `qr-desktop --profile desktop` started all six; five `/health` endpoints healthy; two runs computed and finalized | Pending | | | |
 | V30 | P3a restart | A killed child is restarted within the budget and the run continues or is reclaimed | supervisor test | recovery | | Pending | | | |
 | V31 | P3a stop and orphans | A supervisor stop leaves no child running; a supervisor kill makes children exit and frees the ports | kill and restart test | no orphan | | Pending | | | |
 | V32 | P3b port allocation | 8080 is used when free, the fallback works when it is taken, and internal ports do not collide | supervisor test | correct URLs | | Pending | | | |
@@ -657,9 +657,9 @@ exists, so an upgrade from v1.0 desktop is not tested; there is none.
 | V34 | P3c Linux installer | The AppImage starts six sidecars and completes a run with no Docker socket | release job smoke | succeeded, no Docker | | Pending | | | |
 | V35 | P3c Windows installer | The NSIS installer starts six sidecars and completes a run with no Docker socket | `windows-latest` smoke | succeeded, no Docker | | Pending | | | |
 | V36 | P3c package contents | The shell plus seven bundled executables; no `python`, `bun`, `node`, or `.py` file | `tools/check_desktop_package.sh` | pass | | Pending | | | |
-| V37 | P3d parity digest | Desktop and server canonical digests are equal for the fixture | `tools/parity_desktop.sh` | equal | | Pending | | | |
-| V38 | P3d parity artifacts | Every artifact byte length and SHA-256, the manifest set, and the API projection match | `tools/parity_desktop.sh` | equal | | Pending | | | |
-| V39 | P3d parity repetition | Two runs per profile and both start orders agree | `tools/parity_desktop.sh` | equal | | Pending | | | |
+| V37 | P3d parity digest | Desktop and server canonical digests are equal for the fixture | `tools/parity_desktop.sh` | equal | `sha256:453c90b4…` on both profiles | Pending | | | |
+| V38 | P3d parity artifacts | Every artifact byte length and SHA-256, the manifest set, and the API projection match | `tools/parity_desktop.sh` | equal | 24 canonical artifact files byte-identical; `run status` (25-entry manifest, stages) identical | Pending | | | |
+| V39 | P3d parity repetition | Two runs per profile and both start orders agree | `tools/parity_desktop.sh` | equal | two rounds, desktop-first then server-first; both `sha256:453c90b4…` | Pending | | | |
 | V40 | P3 no in-process engine | The shell and supervisor link no engine or app crate; six processes answer | boundary test plus process list | pass | | Pending | | | |
 | V41 | P3 unsigned artifacts | The release note states the SmartScreen path and the Linux executable bit | release note review | present | | Pending | | | |
 | V42 | P4 changelog | The `[Unreleased]` `Added` entry, or the recorded reason none is needed | `python3 tools/check_changelog.py` | pass | | Pending | | | |
