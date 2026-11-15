@@ -1,6 +1,6 @@
 # Deployment
 
-- Status: Target v1.0.0; approved 2026-11-12
+- Status: Current; released v1.0.0 on 2026-11-15; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Decision: [`ADR-2026-11-12-01`](../adr/2026-11-12/01-adopt-distributed-service-based-architecture.md)
 - Claim type: Behaviour Claim

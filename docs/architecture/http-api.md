@@ -1,6 +1,6 @@
 # HTTP API — `quantrule.api/v1`
 
-- Status: Target v1.0.0; approved 2026-11-12
+- Status: Current; released v1.0.0 on 2026-11-15; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 

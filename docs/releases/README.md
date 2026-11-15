@@ -72,8 +72,8 @@ format unless the human approves a named marker.
 
 The first post-baseline release is [`v0.6.0`](2026-11-07/v0.6.0.md) on
 2026-11-07. It is not in the historical table. The latest release note is
-[`v1.0.0`](2026-11-15/v1.0.0.md), prepared on 2026-11-15; the annotated tag is
-created from `main` after the release PR merges. The previous release is
+[`v1.0.0`](2026-11-15/v1.0.0.md), released on 2026-11-15; the annotated tag
+and the GitHub release are published. The previous release is
 [`v0.9.0`](2026-11-11/v0.9.0.md), the first Tauri Platform release; before it
 are [`v0.8.0`](2026-11-11/v0.8.0.md) and
 [`v0.7.0`](2026-11-09/v0.7.0.md).

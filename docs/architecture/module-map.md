@@ -1,6 +1,6 @@
 # Code Module Map
 
-- Status: Target v1.0.0; approved 2026-11-12
+- Status: Current; released v1.0.0 on 2026-11-15; approved 2026-11-12
 - Part of: [`docs/architecture/README.md`](README.md)
 - Normative rules: [`AGENTS.md`](../../AGENTS.md) section 2
 - Claim type: Behaviour Claim
