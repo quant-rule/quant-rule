@@ -23,6 +23,20 @@ export const RELEASE_API_URL =
 /** How long a gateway probe may take before the shell treats it as unreachable. */
 export const HEALTH_TIMEOUT_MS = 2500;
 
+/** How long a fallback candidate probe may take. The supervisor starts in
+ * well under a second once the window exists, and a refused loopback port
+ * fails immediately, so a short budget keeps the launch responsive. */
+export const FALLBACK_PROBE_TIMEOUT_MS = 400;
+
+/** How many times the candidate list is probed before the shell gives up. */
+export const CANDIDATE_PASSES = 2;
+
+/** How long the shell pauses between candidate passes. */
+export const CANDIDATE_PAUSE_MS = 700;
+
+/** The ports a local desktop profile may bind, in preference order. */
+export const LOCAL_GATEWAY_PORTS = [8080, 8081, 8082, 8083, 8084, 8085, 8086, 8087, 8088, 8089];
+
 /** How long the release check may take before the shell continues without it. */
 export const UPDATE_TIMEOUT_MS = 4000;
 
@@ -63,9 +77,71 @@ export function normalizeGatewayUrl(value) {
   return url.origin;
 }
 
-/** The reachability probe for a gateway. It answers at the root, next to the API. */
+/**
+ * The reachability probe for a gateway. It answers at the root, next to the API.
+ */
 export function healthUrl(gatewayUrl) {
   return `${gatewayUrl}/health`;
+}
+
+/**
+ * The gateways a launch tries, in order.
+ *
+ * The configured URL always wins, because an existing setting is a human
+ * decision. The loopback candidates are the desktop supervisor's documented
+ * range: the gateway prefers 8080 and walks forward when a running Docker
+ * stack owns it. The shell probes them without reading a file, so a packaged
+ * profile still reaches its own gateway when 8080 is taken.
+ *
+ * @param {unknown} configured
+ * @returns {string[]}
+ */
+export function gatewayCandidates(configured) {
+  const candidates = [normalizeGatewayUrl(configured) ?? DEFAULT_GATEWAY_URL];
+  for (const port of LOCAL_GATEWAY_PORTS) {
+    const candidate = `http://127.0.0.1:${port}`;
+    if (!candidates.includes(candidate)) {
+      candidates.push(candidate);
+    }
+  }
+  return candidates;
+}
+
+const defaultSleep = (milliseconds) =>
+  new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+/**
+ * Probe candidates until one answers, then stop.
+ *
+ * The configured candidate gets the full health budget; a loopback fallback
+ * gets the short one. Two passes cover the moment between the window loading
+ * and the supervisor finishing its first health wait.
+ *
+ * @param {typeof fetch} fetchImpl
+ * @param {string[]} candidates
+ * @param {{firstTimeoutMs?: number, timeoutMs?: number, passes?: number, pauseMs?: number, sleep?: (ms: number) => Promise<unknown>}} [options]
+ * @returns {Promise<string | null>}
+ */
+export async function probeCandidates(fetchImpl, candidates, options = {}) {
+  const {
+    firstTimeoutMs = HEALTH_TIMEOUT_MS,
+    timeoutMs = FALLBACK_PROBE_TIMEOUT_MS,
+    passes = CANDIDATE_PASSES,
+    pauseMs = CANDIDATE_PAUSE_MS,
+    sleep = defaultSleep,
+  } = options;
+  for (let pass = 0; pass < passes; pass += 1) {
+    for (let index = 0; index < candidates.length; index += 1) {
+      const budget = index === 0 && pass === 0 ? firstTimeoutMs : timeoutMs;
+      if (await probeGateway(fetchImpl, candidates[index], budget)) {
+        return candidates[index];
+      }
+    }
+    if (pass + 1 < passes) {
+      await sleep(pauseMs);
+    }
+  }
+  return null;
 }
 
 /**

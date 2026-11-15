@@ -105,21 +105,27 @@ client never constructs a `data_version`.
 
 ## 9. Desktop shell
 
-`apps/desktop-shell/` is a Tauri 2 window over the gateway URL.
+`apps/desktop-shell/` is a Tauri 2 window over the gateway URL. The package also
+carries a dependency-free `qr-desktop` supervisor: the shell starts it once from
+the resource directory, the supervisor starts the six services on loopback,
+waits for health, restarts a crashed child, and stops them when its control
+socket closes. The shell still has no IPC domain.
 
 | It does | It does not |
 |---|---|
 | Load the gateway URL | Embed an engine |
-| Remember the URL and the active profile | Read a local file |
-| Check for a new release | Own an IPC domain |
-| Show the connection state | Implement a use case |
+| Remember the active profile | Read a local data file |
+| Check for a new release | Own an IPC command |
+| Start one packaged supervisor | Manage a service or a port |
 
 It is a window onto the Svelte client, not a second client. When the gateway is
-unreachable it shows the disconnected state, exactly like the browser.
+unreachable it shows the disconnected state, exactly like the browser, after
+probing the supervisor's 8080–8089 range.
 
 The shell persists one setting, the gateway URL. The active profile remains the
 web client's `quantrule.profile` setting and its `X-QuantRule-Profile` header.
-Build, smoke tests, the unsigned-artifact warning, and the CI matrix are in
+The embedded backends are #693/#694; build, supervisor tests, the package check,
+and the unsigned-artifact warning are in
 [`apps/desktop-shell/README.md`](../../apps/desktop-shell/README.md).
 
 ## 10. Accessibility and determinism

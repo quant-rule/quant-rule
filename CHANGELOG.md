@@ -33,6 +33,21 @@ are not treated as releases.
   refused; an identical republish is a no-op and a different body under an
   existing key is refused. The durable SQLite queue (P2b) is gated on #693's
   SQLite adapter and lands separately.
+- The desktop package now carries and supervises the six service binaries. A
+  dependency-free `qr-desktop` supervisor starts them on loopback, waits for
+  health, restarts a crashed child within a bounded budget, and stops them when
+  the shell exits; a guard around each service also ends the children of a
+  crashed supervisor. The Linux AppImage and Windows NSIS jobs build the six
+  services from the same commit, stage all seven executables and the example
+  configs, and fail when one is missing or an interpreter appears. The embedded
+  backends are still landing (#693/#694), so the launch is selected by the
+  `embedded-profile` build feature and the parity digest is not claimed yet.
+
+### Changed
+
+- The desktop shell probes the supervisor's `8080`–`8089` loopback range after
+  the configured gateway, and does not persist a fallback address. A development
+  shell with no supervisor beside it still opens the configured gateway.
 
 ## [1.0.0] - 2026-11-15
 
