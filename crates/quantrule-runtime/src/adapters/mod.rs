@@ -8,6 +8,7 @@
 //! The surface is deliberately small. A trait grows when a service needs an
 //! operation, not in anticipation of one.
 
+pub mod filesystem;
 pub mod postgres;
 pub mod rabbitmq;
 pub mod s3;
