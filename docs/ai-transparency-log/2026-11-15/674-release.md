@@ -92,8 +92,9 @@ worker's coupled-baseline digest is unchanged (`sha256:c23925d4…`), and
 
 ## Not verified here, and why
 
-- **Tag run.** Not created; the Orchestrator tags after this follow-up merges.
-  The tag run's own digest and its release body remain the final tag evidence.
+- **Tag run.** The tag is published (object `ced9bc14…`, commit `748355f7`) and
+  the push run failed at the tag check; see the recovery follow-up below. The
+  recovery dispatch's own digest and release body remain the final tag evidence.
 - **Cross-machine determinism.** Reviewer-executed; this log claims only the two
   local invocations.
 
@@ -116,6 +117,30 @@ worker's coupled-baseline digest is unchanged (`sha256:c23925d4…`), and
   the local-digest caveat and the external-registry exclusion, and records both
   desktop artifacts as built by the dispatch. No changelog entry: the release
   section and the product behavior are unchanged.
+
+## Follow-up — the tag and the manual recovery path (2026-11-15)
+
+- The annotated tag `v1.0.0` is published: tag object `ced9bc14…` targets
+  `748355f7` on `main`. It was not moved, deleted, or recreated.
+- Tag run [`43686787967`](https://github.com/quant-rule/quant-rule/actions/runs/43686787967)
+  failed in the gate's tag check, not in a build. Its log shows checkout fetching
+  `+748355f7…:refs/tags/v1.0.0` with `--no-tags`, which writes a lightweight
+  local ref, so `git for-each-ref` reported `commit`. No image and no release
+  were published.
+- The workflow now runs `git fetch --tags --force origin` before
+  `git cat-file -t "refs/tags/<tag>"`, on both the tag push and the new
+  `release_tag` dispatch. The step was exercised against the published tag in a
+  scratch clone: the failing lightweight state reports `commit`, the fetch
+  restores `tag`, and a lightweight tag, a malformed name, a tag off `main`, and
+  a tag without a release note each exit 1.
+- `release_tag` is the manual recovery input, mutually exclusive with
+  `publish_snapshot`. Every job checks out that tag, the image job pushes the
+  version tag, both desktop jobs rebuild, and the publish job creates the release
+  with `gh release create --verify-tag` or updates the existing one in place.
+- The command to run is
+  `gh workflow run release.yml --ref main -f release_tag=v1.0.0`. It remains to
+  run it, and the release note's status and digest are updated if the registry
+  digest differs.
 
 ## Learning
 

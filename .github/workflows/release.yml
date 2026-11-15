@@ -16,6 +16,12 @@
 # records its digest without creating a release. That is the pre-tag GHCR proof.
 # A workflow_dispatch without it builds the image locally and records a local
 # image ID.
+#
+# workflow_dispatch with release_tag=<vX.Y.Z> is the manual recovery path: it
+# checks out the existing tag, re-runs every gate and build, pushes the version
+# tag to the registry, and creates or updates the GitHub release. It never
+# creates, moves, or deletes a tag (`gh release create --verify-tag`). The two
+# dispatch inputs are mutually exclusive.
 
 name: Release
 
@@ -29,12 +35,17 @@ on:
         description: "Push a snapshot-<sha> image to GHCR and record its digest; no release"
         type: boolean
         default: false
+      release_tag:
+        description: "Existing annotated vX.Y.Z tag to release (manual recovery); no new tag"
+        type: string
+        default: ""
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  # A tag push and a manual recovery for the same tag share one group.
+  group: release-${{ inputs.release_tag || github.ref }}
   cancel-in-progress: false
 
 env:
@@ -50,32 +61,50 @@ jobs:
     name: Gate
     runs-on: ubuntu-latest
     steps:
+      - name: Reject conflicting dispatch inputs
+        if: github.event_name == 'workflow_dispatch' && inputs.publish_snapshot && inputs.release_tag != ''
+        run: |
+          echo "::error::publish_snapshot and release_tag are mutually exclusive" >&2
+          exit 1
+
       - name: Check out the repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
         with:
+          ref: ${{ inputs.release_tag || github.ref }}
           fetch-depth: 0
+          fetch-tags: true
 
       - name: Verify the release tag
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || inputs.release_tag != ''
+        env:
+          RELEASE_TAG_INPUT: ${{ inputs.release_tag }}
         run: |
-          if ! printf '%s' "$GITHUB_REF_NAME" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "::error::$GITHUB_REF_NAME is not a vMAJOR.MINOR.PATCH tag" >&2
+          tag="${RELEASE_TAG_INPUT:-$GITHUB_REF_NAME}"
+          printf 'release tag: %s\n' "$tag"
+          if ! printf '%s' "$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::$tag is not a vMAJOR.MINOR.PATCH tag" >&2
             exit 1
           fi
-          if [ "$(git for-each-ref --format='%(objecttype)' "refs/tags/$GITHUB_REF_NAME")" != tag ]; then
-            echo "::error::$GITHUB_REF_NAME is not an annotated tag" >&2
+          # actions/checkout fetches a tag push as `+<commit>:refs/tags/<tag>`
+          # with --no-tags, which leaves a lightweight ref. Re-fetch the tag
+          # objects before asking for the object type; a lightweight tag is a
+          # defect the gate must still refuse.
+          git fetch --tags --force origin
+          if [ "$(git cat-file -t "refs/tags/$tag" 2>/dev/null || true)" != tag ]; then
+            echo "::error::$tag is not an annotated tag" >&2
             exit 1
           fi
           git fetch --no-tags origin main
-          if ! git merge-base --is-ancestor HEAD origin/main; then
-            echo "::error::$GITHUB_REF_NAME is not on main" >&2
+          if ! git merge-base --is-ancestor "refs/tags/$tag^{commit}" origin/main; then
+            echo "::error::$tag is not on main" >&2
             exit 1
           fi
-          note="$(find docs/releases -type f -name "$GITHUB_REF_NAME.md" -print -quit)"
+          note="$(find docs/releases -type f -name "$tag.md" -print -quit)"
           if [ -z "$note" ]; then
-            echo "::error::missing release note docs/releases/<YYYY-MM-DD>/$GITHUB_REF_NAME.md" >&2
+            echo "::error::missing release note docs/releases/<YYYY-MM-DD>/$tag.md" >&2
             exit 1
           fi
+          echo "$tag is annotated, on main, and has $note"
 
       - name: Install the pinned toolchain
         run: rustup show
@@ -100,6 +129,8 @@ jobs:
     steps:
       - name: Check out the repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
 
       - name: Resolve the image reference
         id: reference
@@ -109,6 +140,7 @@ jobs:
           QR_REGISTRY_USERNAME: ${{ secrets.QR_REGISTRY_USERNAME }}
           QR_REGISTRY_TOKEN: ${{ secrets.QR_REGISTRY_TOKEN }}
           PUBLISH_SNAPSHOT: ${{ inputs.publish_snapshot }}
+          RELEASE_TAG_INPUT: ${{ inputs.release_tag }}
         run: |
           registry="${QR_REGISTRY:-$DEFAULT_REGISTRY}"
           default_name="$(printf '%s' "$DEFAULT_IMAGE_NAME" | tr '[:upper:]' '[:lower:]')"
@@ -126,6 +158,10 @@ jobs:
             tag="$GITHUB_REF_NAME"
             publish=true
             source="the version tag"
+          elif [ -n "$RELEASE_TAG_INPUT" ]; then
+            tag="$RELEASE_TAG_INPUT"
+            publish=true
+            source="the manual release dispatch"
           elif [ "$PUBLISH_SNAPSHOT" = "true" ]; then
             tag="snapshot-$GITHUB_SHA"
             publish=true
@@ -177,13 +213,16 @@ jobs:
           PUBLISH: ${{ steps.reference.outputs.publish }}
         run: |
           if [ "$PUBLISH" = "true" ]; then
+            # The checked-out commit is the tag commit on a tag push and on a
+            # manual release dispatch, so the sha tag names what was built.
+            sha_tag="sha-$(git rev-parse HEAD)"
             docker build \
               --platform linux/amd64 \
               --tag "$REF" \
-              --tag "$IMAGE:sha-$GITHUB_SHA" \
+              --tag "$IMAGE:$sha_tag" \
               .
             docker push "$REF"
-            docker push "$IMAGE:sha-$GITHUB_SHA"
+            docker push "$IMAGE:$sha_tag"
           else
             docker build --platform linux/amd64 --tag "$REF" .
           fi
@@ -286,6 +325,8 @@ jobs:
     steps:
       - name: Check out the repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
 
       - name: Install the pinned toolchain
         run: rustup show
@@ -374,7 +415,7 @@ jobs:
 
   publish:
     name: Publish the release
-    if: github.event_name == 'push' && needs.image.outputs.source == 'registry'
+    if: (github.event_name == 'push' || inputs.release_tag != '') && needs.image.outputs.source == 'registry'
     needs:
       - gate
       - image
@@ -383,9 +424,15 @@ jobs:
     permissions:
       actions: read
       contents: write
+    env:
+      # On a tag push this is the pushed tag; on the manual recovery dispatch it
+      # is the existing tag. It never names a branch.
+      RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
     steps:
       - name: Check out the repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
 
       - name: Download the desktop assets
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -400,9 +447,9 @@ jobs:
           DIGEST: ${{ needs.image.outputs.digest }}
           SOURCE: ${{ needs.image.outputs.source }}
         run: |
-          note="$(find docs/releases -type f -name "$GITHUB_REF_NAME.md" -print -quit)"
+          note="$(find docs/releases -type f -name "$RELEASE_TAG.md" -print -quit)"
           if [ -z "$note" ]; then
-            echo "::error::missing release note docs/releases/<YYYY-MM-DD>/$GITHUB_REF_NAME.md" >&2
+            echo "::error::missing release note docs/releases/<YYYY-MM-DD>/$RELEASE_TAG.md" >&2
             exit 1
           fi
           appimage="$(find desktop -maxdepth 1 -type f -name '*.AppImage' -print -quit)"
@@ -431,14 +478,20 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release edit "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/release-body.md"
+          # --verify-tag refuses to create a release for a tag that does not
+          # exist, so this step can never create, move, or delete one. An
+          # existing release for the same tag is updated, which makes a retry
+          # idempotent instead of creating a second release.
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "release $RELEASE_TAG exists; updating its body and assets"
+            gh release edit "$RELEASE_TAG" --notes-file "$RUNNER_TEMP/release-body.md"
           else
-            gh release create "$GITHUB_REF_NAME" \
-              --title "$GITHUB_REF_NAME" \
+            gh release create "$RELEASE_TAG" \
+              --verify-tag \
+              --title "$RELEASE_TAG" \
               --notes-file "$RUNNER_TEMP/release-body.md"
           fi
-          gh release upload "$GITHUB_REF_NAME" \
+          gh release upload "$RELEASE_TAG" \
             desktop/*.AppImage desktop/*-setup.exe --clobber
 
       - name: Verify the released record
@@ -446,7 +499,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DIGEST: ${{ needs.image.outputs.digest }}
         run: |
-          gh release view "$GITHUB_REF_NAME" --json body,assets,url > release.json
+          gh release view "$RELEASE_TAG" --json body,assets,url > release.json
           names="$(jq -r '.assets[].name' release.json)"
           if ! jq -e --arg digest "$DIGEST" '.body | contains($digest)' release.json >/dev/null; then
             echo "::error::the release body does not name the digest $DIGEST" >&2
