@@ -110,3 +110,16 @@ entries). The verification was repeated on the refreshed tree:
 | `tools/test_tiers.sh parity` | `port parity ok: 1 registered port(s)` |
 | `python3 tools/check_links.py` | 947 Markdown files; no broken relative links |
 | `tools/gate.sh` | exit 0; 1979 tests across 102 test binaries |
+
+## Refresh after #803
+
+The branch was refreshed from `8cb67cc1` (`origin/main` after #803) with a clean
+merge; the changelog kept the client-token entry and the retirement (109
+entries). The verification was repeated on the refreshed tree:
+
+| Command | Result |
+|---|---|
+| `python3 tools/check_legacy.py` | exit 0; 1773 label files, 3173 current files |
+| `tools/test_tiers.sh parity` | `port parity ok: 1 registered port(s)` |
+| `python3 tools/check_links.py` | 948 Markdown files; no broken relative links |
+| `tools/gate.sh` | exit 0; 1995 tests across 103 test binaries |
