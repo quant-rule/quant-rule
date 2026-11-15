@@ -61,9 +61,9 @@ are not treated as releases.
   remote script reads `QR_BEARER_TOKEN` or generates a 256-bit token with
   `tools/token.sh`, exports it to the gateway, starts the stack with only `:8080`
   published, verifies the 401/401/200 token matrix and the published-port set,
-  and prints the token with a `curl` example. The script writes it to no file.
-  Compose passes `QR_BEARER_TOKEN` to the gateway with an empty default, so
-  `make up` stays unauthenticated.
+  and prints the token with a `curl` example plus the browser and shell token
+  steps. The script writes it to no file. Compose passes `QR_BEARER_TOKEN` to
+  the gateway with an empty default, so `make up` stays unauthenticated.
 - Event inspection is served by `qr-model`. The gateway forwards
   `GET /inspect/events?data_version=…&timeframe=…` to a model-owned internal
   event-batch route with the validated profile, so the data service never

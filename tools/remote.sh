@@ -17,10 +17,9 @@
 #
 # Remote exposure is still a network decision. Do not publish :8080 to the
 # public internet: use WireGuard or Tailscale, or terminate TLS at a reverse
-# proxy in front of the gateway. The browser client and the shell do not send
-# the Authorization header, so their API calls answer 401 against this profile;
-# use curl or another API client that sets the header until a client token
-# feature lands.
+# proxy in front of the gateway. The browser enters the token on its Connection
+# screen and the shell reads --token or QUANTRULE_TOKEN, so both send
+# Authorization: Bearer on every API call.
 #
 # Usage: tools/remote.sh
 #
@@ -140,6 +139,6 @@ printf '\nTLS and network: never expose :8080 to the public internet. Use WireGu
 printf 'Tailscale, or terminate TLS at a reverse proxy in front of the gateway.\n'
 printf '\nRestart: use make remote again, not make up; make up starts the\n'
 printf 'unauthenticated local profile.\n'
-printf '\nBrowser and shell: neither sends Authorization, so their API calls answer 401.\n'
-printf 'Remote browser use needs a proxy that injects the token, or the private-network\n'
-printf 'gateway with no token; use curl or an API client that sets the header.\n'
+printf '\nClients: the browser enters the token on the Connection screen; the shell\n'
+printf 'reads --token or QUANTRULE_TOKEN. Both send Authorization: Bearer on every\n'
+printf 'API call.\n'

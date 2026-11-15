@@ -20,10 +20,13 @@ README remote/command lines and the global-flag paragraph in
 `docs/architecture/command-surface.md`, because a new global flag must appear in
 the command reference.
 
-The gateway auth seam, `tools/remote.sh`, `tools/token.sh`, Compose, the
-Dockerfile, Makefile, `docs/port-parity`, and the retirement stream were read
-where relevant and not edited. No dependency was added, no `unsafe` was
-introduced, and no test was weakened.
+The gateway auth seam, `tools/token.sh`, Compose, the Dockerfile, Makefile,
+`docs/port-parity`, and the retirement stream were read where relevant and not
+edited. `tools/remote.sh` was outside the first commit's ownership; after the
+owner authorized the accuracy fix, its header comment and printed trailer were
+changed to name the browser token field and the shell `--token` /
+`QUANTRULE_TOKEN` while keeping the TLS/private-network warning. No dependency
+was added, no `unsafe` was introduced, and no test was weakened.
 
 ## Implemented and proposed
 
@@ -58,11 +61,12 @@ introduced, and no test was weakened.
   enters it in Connection, and shows `--token` / `QUANTRULE_TOKEN` for the shell,
   with the TLS/private-network warning. `security.md` §2 and §2.1 describe the
   client handling and its risks; the changelog and README carry the change.
-- Observed but not edited: `tools/remote.sh` still prints the #802-era sentence
-  that the browser and shell do not send `Authorization` and that remote browser
-  use needs a proxy. That text is now false. The script is outside this work
-  item's ownership, so it needs a follow-up edit to point at the Connection
-  field and `--token`.
+- Implemented (follow-up accuracy fix): `tools/remote.sh` no longer says the
+  browser and shell omit `Authorization`. Its header and trailer point at the
+  Connection token field and `--token` / `QUANTRULE_TOKEN`, and the
+  TLS/private-network warning is unchanged. The script's 401/401/200 matrix was
+  run again against the real Compose stack, and the trailer printed the new
+  text.
 - Not implemented: proxy token injection and any account system. The token
   remains one shared secret and one principal, by decision.
 
@@ -80,6 +84,12 @@ All commands ran in `/home/zantgo/Proyectos/quant-rule--672-client` on branch
 | Web unit tests | `bun test` | 109 passed, 0 failed |
 | Web build | `bun run build` | 153 modules, `dist/` written |
 | Web e2e | `bun run e2e` | 33 passed, including six token tests |
+| Script syntax | `bash -n tools/remote.sh` | passed |
+| Remote self-check | `QR_BEARER_TOKEN=… tools/remote.sh` | passed; only `:8080` published, 401/401/200 matrix, new trailer printed |
+| Live shell, no token | `quantrule --json profile list` against `:8080` | exit 1, `auth.unauthorized` |
+| Live shell, `--token` | same command with the container token | exit 0, profiles printed |
+| Live shell, `QUANTRULE_TOKEN` | same command with the environment token | exit 0 |
+| Live browser | Playwright against `:8080` | token-required first, then connected; header seen; no token in URL, body, or cookies; input cleared; stored in `localStorage` |
 | Workspace gate | `tools/gate.sh` | passed; fmt, clippy, workspace tests, rustdoc, and every checker |
 | Live fixture, no token | `curl /api/v1/profiles` | `401 auth.unauthorized` |
 | Live fixture, wrong token | `curl -H 'Authorization: Bearer wrong-token'` | `401 auth.unauthorized` |
