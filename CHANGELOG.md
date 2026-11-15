@@ -15,6 +15,15 @@ are not treated as releases.
 
 ### Added
 
+- The evidence service can start on the embedded SQLite profile.
+  `QR_PROFILE=desktop` with `QR_DATA_DIR` opens `quantrule.sqlite`, applies the
+  runs/research SQLite baseline under the shared `runs` ledger, serves the
+  existing `RunStore` and `HypothesisStore` traits through SQLite
+  implementations, and reports `sqlite` at `/health`. Run claims, decisions, and
+  finalization use `BEGIN IMMEDIATE` and re-read the row inside the transaction,
+  preserving the queued/running/succeeded/failed/cancelled state machine, the
+  retry budget, the artifact set, and the canonical digest; the sealed-hypothesis
+  trigger refuses update and delete. Postgres remains the default.
 - The gateway can start on the embedded SQLite profile. `QR_PROFILE=desktop`
   with `QR_DATA_DIR` opens `quantrule.sqlite`, applies the gateway's SQLite
   baseline to one shared `schema_migrations` ledger with a `ledger` column,
@@ -44,6 +53,21 @@ are not treated as releases.
   cancellation removes a ready message by routing key and payload digest and
   survives a reopen. The queue is not yet wired into the service binaries; P2c
   does that.
+- The desktop package now carries and supervises the six service binaries. A
+  dependency-free `qr-desktop` supervisor starts them on loopback, waits for
+  health, restarts a crashed child within a bounded budget, and stops them when
+  the shell exits; a guard around each service also ends the children of a
+  crashed supervisor. The Linux AppImage and Windows NSIS jobs build the six
+  services from the same commit, stage all seven executables and the example
+  configs, and fail when one is missing or an interpreter appears. The embedded
+  backends are still landing (#693/#694), so the launch is selected by the
+  `embedded-profile` build feature and the parity digest is not claimed yet.
+
+### Changed
+
+- The desktop shell probes the supervisor's `8080`–`8089` loopback range after
+  the configured gateway, and does not persist a fallback address. A development
+  shell with no supervisor beside it still opens the configured gateway.
 
 ## [1.0.0] - 2026-11-15
 

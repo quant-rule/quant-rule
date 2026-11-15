@@ -2756,6 +2756,7 @@ dependencies = [
  "quantrule-research",
  "quantrule-runtime",
  "quantrule-service-api",
+ "rusqlite",
  "serde",
  "serde_json",
  "sqlx",

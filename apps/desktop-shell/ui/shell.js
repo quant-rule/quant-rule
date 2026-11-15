@@ -16,9 +16,10 @@ import {
   checkForUpdate,
   DEFAULT_GATEWAY_URL,
   GATEWAY_STORAGE_KEY,
+  gatewayCandidates,
   launchPlan,
   normalizeGatewayUrl,
-  probeGateway,
+  probeCandidates,
   SHELL_VERSION,
   UPDATE_TIMEOUT_MS,
 } from "./shell-lib.js";
@@ -121,7 +122,6 @@ function openGateway() {
     return;
   }
   opening = true;
-  rememberGateway(gateway);
   setStatus(`Gateway reachable at ${gateway}. Opening…`, "ok");
   window.location.replace(gateway);
 }
@@ -164,8 +164,8 @@ async function evaluate() {
   hideOffline();
   setStatus(`Checking ${candidate}…`, "busy");
 
-  const [reachable, update] = await Promise.all([
-    probeGateway(window.fetch.bind(window), candidate),
+  const [reachableAt, update] = await Promise.all([
+    probeCandidates(window.fetch.bind(window), gatewayCandidates(candidate)),
     checkForUpdate(window.fetch.bind(window), SHELL_VERSION, UPDATE_TIMEOUT_MS),
   ]);
 
@@ -174,6 +174,8 @@ async function evaluate() {
     return;
   }
 
+  const reachable = reachableAt !== null;
+  const target = reachableAt ?? candidate;
   const updateAvailable = update.status === "available";
   const plan = launchPlan({
     reachable,
@@ -196,13 +198,16 @@ async function evaluate() {
   if (!plan.open) {
     if (updateAvailable) {
       setStatus(
-        `Gateway reachable at ${candidate}. A newer release is available.`,
+        `Gateway reachable at ${target}. A newer release is available.`,
         "ok",
       );
     }
     return;
   }
 
+  // The configured URL is what is persisted. A supervisor fallback is this
+  // session's address, not a new setting: the next launch probes again.
+  gateway = target;
   openGateway();
 }
 

@@ -4,12 +4,14 @@ import {
   canNavigateWithoutProbe,
   checkForUpdate,
   DEFAULT_GATEWAY_URL,
+  gatewayCandidates,
   healthUrl,
   isLocalGateway,
   isNewerVersion,
   launchPlan,
   normalizeGatewayUrl,
   parseVersion,
+  probeCandidates,
   probeGateway,
   releaseSummary,
   SHELL_VERSION,
@@ -81,6 +83,87 @@ describe("gateway URL", () => {
     expect(canNavigateWithoutProbe("https://quant.example.com")).toBe(false);
     expect(canNavigateWithoutProbe("http://192.168.1.20:8080")).toBe(true);
     expect(isLocalGateway("quant.example.com")).toBe(false);
+  });
+});
+
+describe("gateway candidates", () => {
+  it("keeps the configured gateway first and adds the loopback range", () => {
+    const candidates = gatewayCandidates("https://quant.example.com");
+    expect(candidates[0]).toBe("https://quant.example.com");
+    expect(candidates).toContain("http://127.0.0.1:8080");
+    expect(candidates).toContain("http://127.0.0.1:8089");
+    expect(new Set(candidates).size).toBe(candidates.length);
+    expect(candidates).toHaveLength(11);
+  });
+
+  it("does not duplicate the configured loopback gateway", () => {
+    const candidates = gatewayCandidates("http://127.0.0.1:8083");
+    expect(candidates[0]).toBe("http://127.0.0.1:8083");
+    expect(
+      candidates.filter((candidate) => candidate === "http://127.0.0.1:8083"),
+    ).toHaveLength(1);
+  });
+
+  it("falls back to the default for an invalid setting", () => {
+    expect(gatewayCandidates("file:///etc/passwd")[0]).toBe(DEFAULT_GATEWAY_URL);
+    expect(gatewayCandidates("")).toHaveLength(11);
+  });
+});
+
+describe("candidate probe", () => {
+  it("stops at the first reachable candidate", async () => {
+    const seen = [];
+    const fake = async (url) => {
+      seen.push(url);
+      if (url === "http://127.0.0.1:8081/health") {
+        return new Response(null, { status: 200 });
+      }
+      throw new TypeError("refused");
+    };
+    const found = await probeCandidates(
+      fake,
+      ["http://localhost:8080", "http://127.0.0.1:8081", "http://127.0.0.1:8082"],
+      { passes: 1, firstTimeoutMs: 10, timeoutMs: 10 },
+    );
+    expect(found).toBe("http://127.0.0.1:8081");
+    expect(seen).toEqual([
+      "http://localhost:8080/health",
+      "http://127.0.0.1:8081/health",
+    ]);
+  });
+
+  it("probes again after a pause and fails cleanly", async () => {
+    let pauses = 0;
+    const fake = async () => {
+      throw new TypeError("refused");
+    };
+    const found = await probeCandidates(fake, ["http://127.0.0.1:8080"], {
+      passes: 2,
+      pauseMs: 5,
+      timeoutMs: 1,
+      sleep: async () => {
+        pauses += 1;
+      },
+    });
+    expect(found).toBeNull();
+    expect(pauses).toBe(1);
+  });
+
+  it("finds a supervisor that became ready after the first pass", async () => {
+    let calls = 0;
+    const fake = async () => {
+      calls += 1;
+      if (calls > 2) {
+        return new Response(null, { status: 200 });
+      }
+      throw new TypeError("refused");
+    };
+    const found = await probeCandidates(
+      fake,
+      ["http://127.0.0.1:8080", "http://127.0.0.1:8081"],
+      { passes: 2, pauseMs: 1, sleep: async () => {}, timeoutMs: 1 },
+    );
+    expect(found).toBe("http://127.0.0.1:8080");
   });
 });
 
@@ -267,5 +350,22 @@ describe("shell boundary", () => {
     );
     expect(cargo).not.toMatch(/tauri[-_]plugin/);
     expect(cargo).not.toMatch(/path\s*=\s*"\.\./);
+  });
+
+  it("starts exactly one packaged supervisor, from the resource directory", () => {
+    const rust = read("src/main.rs");
+    expect(rust.match(/Command::new/g)).toHaveLength(1);
+    expect(rust).toContain("--resource-dir");
+    expect(rust).toContain("--parent-stdin");
+    expect(rust).toContain("resource_dir()");
+  });
+
+  it("bundles the supervisor, the six sidecars, and the client as resources", () => {
+    const tauri = JSON.parse(read("tauri.conf.json"));
+    expect(tauri.bundle.resources).toEqual({
+      "resources/sidecars": "sidecars",
+      "resources/config": "config",
+      dist: "client",
+    });
   });
 });

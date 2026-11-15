@@ -30,7 +30,12 @@
     "active": true,
     "category": "Productivity",
     "shortDescription": "A window over the QuantRule gateway",
-    "longDescription": "The QuantRule desktop shell. It loads the gateway URL, remembers it, checks for a newer release, and owns no compute, no IPC command, and no local data.",
+    "longDescription": "The QuantRule desktop package. The shell loads the gateway URL and starts the six bundled services on loopback when the desktop profile is packaged. It owns no IPC command, no engine, and no local domain data.",
+    "resources": {
+      "resources/sidecars": "sidecars",
+      "resources/config": "config",
+      "dist": "client"
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
