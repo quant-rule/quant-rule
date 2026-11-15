@@ -299,6 +299,10 @@ fn write_short(writer: &mut impl Write) -> std::io::Result<()> {
     )?;
     writeln!(
         writer,
+        "  --token <token>  Send Authorization: Bearer (default: QUANTRULE_TOKEN)."
+    )?;
+    writeln!(
+        writer,
         "  --json          Print the gateway JSON instead of the human rendering."
     )?;
     writeln!(writer)?;
@@ -310,6 +314,10 @@ fn write_short(writer: &mut impl Write) -> std::io::Result<()> {
     writeln!(
         writer,
         "  QUANTRULE_HOME     Local shell state (default: $HOME/.quantrule)."
+    )?;
+    writeln!(
+        writer,
+        "  QUANTRULE_TOKEN    Bearer token for a token-protected gateway; never printed."
     )?;
     writeln!(writer)?;
     writeln!(

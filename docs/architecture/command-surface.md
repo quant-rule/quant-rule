@@ -96,9 +96,11 @@ enforces the distinction.
 | `simulation decide` | Implemented | `sim_id`, test/refine/stop, note | decision record |
 | `help` | Implemented | topic | the command map |
 
-Every command accepts `--profile <id>`, which sets `X-QuantRule-Profile`, and
-`--json`, which prints the gateway JSON instead of the human rendering. With no
-flag, the shell uses the stored default and then `default`.
+Every command accepts `--profile <id>`, which sets `X-QuantRule-Profile`,
+`--token <token>`, which sets `Authorization: Bearer` and falls back to
+`QUANTRULE_TOKEN`, and `--json`, which prints the gateway JSON instead of the
+human rendering. With no profile flag, the shell uses the stored default and
+then `default`; with no token, it sends no `Authorization` header.
 
 ## 4. Output and identity rule
 

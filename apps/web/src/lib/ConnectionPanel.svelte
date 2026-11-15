@@ -1,61 +1,107 @@
 <script lang="ts">
-  import { connection, refresh } from "./connection.svelte";
+  import { connection, forgetToken, refresh, useToken } from "./connection.svelte";
 
-  const state = $derived(connection());
+  const view = $derived(connection());
+
+  let token = $state("");
+  let saving = $state(false);
 
   const label = $derived(
-    state.state === "connected"
+    view.state === "connected"
       ? "connected"
-      : state.state === "degraded"
+      : view.state === "degraded"
         ? "degraded"
-        : state.state === "mismatch"
+        : view.state === "mismatch"
           ? "version mismatch"
-          : state.state === "unreachable"
+          : view.state === "unreachable"
             ? "unreachable"
-            : "unknown",
+            : view.state === "unauthorized"
+              ? "token required"
+              : "unknown",
   );
 
   const klass = $derived(
-    state.state === "connected"
+    view.state === "connected"
       ? "ok"
-      : state.state === "degraded"
+      : view.state === "degraded"
         ? "warn"
-        : state.state === "mismatch"
+        : view.state === "mismatch" ||
+            view.state === "unreachable" ||
+            view.state === "unauthorized"
           ? "error"
-          : state.state === "unreachable"
-            ? "error"
-            : "",
+          : "",
   );
+
+  async function save(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    if (token.trim() === "" || saving) {
+      return;
+    }
+    saving = true;
+    const accepted = await useToken(token);
+    saving = false;
+    if (accepted) {
+      token = "";
+    }
+  }
+
+  async function forget(): Promise<void> {
+    saving = true;
+    await forgetToken();
+    saving = false;
+  }
 </script>
 
 <section class="stack">
   <div class="row">
     <h2>Connection</h2>
     <span class="badge {klass}">{label}</span>
-    <button onclick={refresh}>Refresh</button>
+    <button onclick={refresh} disabled={saving}>Refresh</button>
   </div>
 
-  {#if state.error}
-    <div class="notice error">{state.error}</div>
+  {#if view.error}
+    <div class="notice error" role="alert">{view.error}</div>
   {/if}
 
-  {#if state.version}
+  <form class="row" onsubmit={(event) => void save(event)}>
+    <input
+      type="password"
+      bind:value={token}
+      placeholder={view.tokenStored ? "Token stored; enter a new one" : "Bearer token"}
+      aria-label="Gateway bearer token"
+      autocomplete="off"
+      spellcheck="false"
+    />
+    <button type="submit" disabled={token.trim() === "" || saving}>Use token</button>
+    {#if view.tokenStored}
+      <button type="button" onclick={() => void forget()} disabled={saving}>
+        Forget token
+      </button>
+    {/if}
+  </form>
+  <p class="muted small">
+    Stored in this browser only. Every API call sends it as
+    <span class="mono">Authorization: Bearer</span>; it never enters the URL or
+    the build.
+  </p>
+
+  {#if view.version}
     <table>
       <tbody>
-        <tr><th>Product</th><td class="mono">{state.version.product}</td></tr>
-        <tr><th>API</th><td class="mono">{state.version.api}</td></tr>
-        <tr><th>Image digest</th><td class="mono">{state.version.image_digest ?? "unknown"}</td></tr>
+        <tr><th>Product</th><td class="mono">{view.version.product}</td></tr>
+        <tr><th>API</th><td class="mono">{view.version.api}</td></tr>
+        <tr><th>Image digest</th><td class="mono">{view.version.image_digest ?? "unknown"}</td></tr>
       </tbody>
     </table>
   {/if}
 
-  {#if state.health}
+  {#if view.health}
     <table>
       <thead>
         <tr><th>Service</th><th>State</th><th>Detail</th></tr>
       </thead>
       <tbody>
-        {#each state.health.services as service (service.name)}
+        {#each view.health.services as service (service.name)}
           <tr>
             <td class="mono">{service.name}</td>
             <td>{service.state}</td>
@@ -65,11 +111,23 @@
       </tbody>
     </table>
     <p class="muted small">
-      Queue depth {state.health.queue_depth}, workers {state.health.workers}.
+      Queue depth {view.health.queue_depth}, workers {view.health.workers}.
     </p>
   {/if}
 </section>
 
 <style>
   section { max-width: 60rem; }
+
+  form { flex-wrap: wrap; }
+
+  input {
+    font: inherit;
+    color: inherit;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 0.4rem 0.6rem;
+    min-width: 18rem;
+  }
 </style>

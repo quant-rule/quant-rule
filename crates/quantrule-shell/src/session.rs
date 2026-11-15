@@ -1,9 +1,10 @@
-//! Where a command's gateway and profile come from.
+//! Where a command's gateway, profile, and token come from.
 //!
-//! The base URL is deployment configuration; the profile is organisation. The
-//! precedence is fixed: an explicit `--profile` wins, then the locally stored
-//! default, then `default`. A stored value is never replaced because the server
-//! refused it; the refusal must reach the operator.
+//! The base URL and token are deployment configuration; the profile is
+//! organisation. The precedence is fixed: an explicit `--profile` wins, then the
+//! locally stored default, then `default`; an explicit `--token` wins, then
+//! `QUANTRULE_TOKEN`, then no token. A stored value is never replaced because the
+//! server refused it; the refusal must reach the operator.
 
 use std::env;
 use std::path::PathBuf;
@@ -14,6 +15,7 @@ use crate::client::{Client, DEFAULT_API_URL};
 use crate::command::GlobalOptions;
 use crate::error::RunError;
 use crate::profile;
+use crate::token::{self, BearerToken};
 
 /// The environment variable that names the gateway base.
 pub(crate) const API_URL_ENV: &str = "QUANTRULE_API_URL";
@@ -25,6 +27,7 @@ pub(crate) struct Session {
     base_url: String,
     explicit: Option<ProfileId>,
     home: Option<PathBuf>,
+    token: Option<BearerToken>,
 }
 
 impl Session {
@@ -32,7 +35,8 @@ impl Session {
     ///
     /// # Errors
     ///
-    /// Returns [`RunError::Usage`] when `--profile` is not a valid profile id.
+    /// Returns [`RunError::Usage`] when `--profile` is not a valid profile id,
+    /// or when `QUANTRULE_TOKEN` is not UTF-8 or not a valid token.
     pub(crate) fn new(globals: &GlobalOptions) -> Result<Self, RunError> {
         let base_url = env::var(API_URL_ENV)
             .ok()
@@ -45,10 +49,15 @@ impl Session {
             .map(ProfileId::parse)
             .transpose()
             .map_err(|error| RunError::Usage(format!("--profile {error}")))?;
+        let token = match &globals.token {
+            Some(token) => Some(token.clone()),
+            None => token::from_environment().map_err(RunError::Usage)?,
+        };
         Ok(Self {
             base_url,
             explicit,
             home: profile::home(),
+            token,
         })
     }
 
@@ -76,7 +85,7 @@ impl Session {
     /// Returns the same failures as [`Session::profile`] and
     /// [`Client::new`].
     pub(crate) fn client(&self) -> Result<Client, RunError> {
-        Client::new(self.base_url.clone(), self.profile()?)
+        Client::new(self.base_url.clone(), self.profile()?, self.token.clone())
     }
 
     /// Store a new default profile.

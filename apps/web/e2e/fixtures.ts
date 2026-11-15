@@ -30,6 +30,11 @@ export interface Fixture {
   version?: Partial<VersionFixture>;
   health?: Partial<HealthFixture>;
   profiles?: unknown[];
+  /**
+   * Require this bearer token on every API route except `/version` and
+   * `/health`, mirroring the gateway's bearer seam.
+   */
+  token?: string;
   /** Abort every API call, so the client sees an unreachable gateway. */
   unreachable?: boolean;
   /** Handle any endpoint the fixture does not know; return true when handled. */
@@ -48,6 +53,18 @@ export async function installFixture(page: Page, fixture: Fixture = {}): Promise
     const path = new URL(route.request().url()).pathname.replace("/api/v1", "");
     if (fixture.unreachable === true) {
       await route.abort();
+      return;
+    }
+    const gated = fixture.token !== undefined && path !== "/version" && path !== "/health";
+    if (gated && route.request().headers()["authorization"] !== `Bearer ${fixture.token}`) {
+      await route.fulfill({
+        status: 401,
+        headers: { "www-authenticate": "Bearer" },
+        json: {
+          v: API,
+          error: { code: "auth.unauthorized", message: "a bearer token is required" },
+        },
+      });
       return;
     }
     if (path === "/version") {

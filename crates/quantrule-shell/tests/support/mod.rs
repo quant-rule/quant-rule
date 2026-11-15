@@ -107,12 +107,15 @@ struct FixtureState {
     artifact_bytes: Vec<u8>,
     next_profile: u64,
     parity: Option<Value>,
+    /// The bearer token the fixture requires, when a test sets one.
+    token: Option<String>,
 }
 
 /// The response a handler builds.
 struct Response {
     status: u16,
     content_type: &'static str,
+    headers: Vec<(&'static str, &'static str)>,
     body: Vec<u8>,
 }
 
@@ -121,6 +124,7 @@ impl Response {
         Self {
             status,
             content_type: "application/json",
+            headers: Vec::new(),
             body: serde_json::to_vec(value).expect("the fixture value is JSON"),
         }
     }
@@ -135,10 +139,18 @@ impl Response {
         )
     }
 
+    /// The gateway's refusal when the token is absent or wrong.
+    fn unauthorized() -> Self {
+        let mut response = Self::error(401, "auth.unauthorized", "a bearer token is required");
+        response.headers.push(("www-authenticate", "Bearer"));
+        response
+    }
+
     fn bytes(status: u16, content_type: &'static str, body: Vec<u8>) -> Self {
         Self {
             status,
             content_type,
+            headers: Vec::new(),
             body,
         }
     }
@@ -213,6 +225,7 @@ impl Fixture {
             artifact_bytes,
             next_profile: 0,
             parity,
+            token: None,
         }));
         let stop = Arc::new(AtomicBool::new(false));
         let handle = {
@@ -336,6 +349,13 @@ impl Fixture {
             .clear();
     }
 
+    /// Require `Authorization: Bearer <token>` on every gated route.
+    ///
+    /// `/health` and `/version` stay open, mirroring the gateway's bearer seam.
+    pub fn require_token(&self, token: &str) {
+        self.state.lock().expect("the fixture lock").token = Some(token.to_owned());
+    }
+
     /// Add a profile to the list.
     pub fn add_profile(&self, id: &str, name: &str) {
         self.state
@@ -371,7 +391,11 @@ fn serve(listener: TcpListener, state: Arc<Mutex<FixtureState>>, stop: Arc<Atomi
                     let response = {
                         let mut state = state.lock().expect("the fixture lock");
                         state.requests.push(request.clone());
-                        handle(&mut state, &request)
+                        if authorized(&state, &request) {
+                            handle(&mut state, &request)
+                        } else {
+                            Response::unauthorized()
+                        }
                     };
                     let _ = write_response(&mut stream, response);
                 }
@@ -434,6 +458,18 @@ fn read_request(stream: &mut TcpStream) -> Option<Request> {
     })
 }
 
+/// Whether one request may reach the handler under the fixture's token.
+fn authorized(state: &FixtureState, request: &Request) -> bool {
+    let Some(expected) = state.token.as_deref() else {
+        return true;
+    };
+    if matches!(request.path.as_str(), "/health" | "/version") {
+        return true;
+    }
+    let presented = format!("Bearer {expected}");
+    request.header("authorization") == Some(presented.as_str())
+}
+
 fn write_response(stream: &mut TcpStream, response: Response) -> std::io::Result<()> {
     let reason = match response.status {
         200 => "OK",
@@ -441,16 +477,21 @@ fn write_response(stream: &mut TcpStream, response: Response) -> std::io::Result
         202 => "Accepted",
         204 => "No Content",
         400 => "Bad Request",
+        401 => "Unauthorized",
         404 => "Not Found",
         409 => "Conflict",
         _ => "Internal Server Error",
     };
-    let head = format!(
-        "HTTP/1.1 {} {reason}\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+    let mut head = format!(
+        "HTTP/1.1 {} {reason}\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\n",
         response.status,
         response.content_type,
         response.body.len()
     );
+    for (name, value) in &response.headers {
+        head.push_str(&format!("{name}: {value}\r\n"));
+    }
+    head.push_str("\r\n");
     stream.write_all(head.as_bytes())?;
     stream.write_all(&response.body)?;
     stream.flush()
