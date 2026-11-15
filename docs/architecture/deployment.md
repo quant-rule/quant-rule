@@ -142,11 +142,12 @@ Secrets come from the environment. No secret is committed.
 | Profile | Backends | Contains | Installs with |
 |---|---|---|---|
 | Server | Postgres, S3, RabbitMQ | The image and nine containers | Docker, `make up` |
-| Desktop | SQLite, filesystem CAS, in-process queue | Tauri shell, supervisor, six sidecars | An installer; no Docker |
+| Desktop | SQLite, filesystem CAS, in-process queue | Six bundled sidecars, one supervisor, one SQLite file | A release asset from GitHub Releases |
 
-A service selects its backend set once from `QR_PROFILE`; the profile is a
-deployment shape, not a second architecture, and the HTTP contracts are
-unchanged. The server profile is the default; `tools/parity_desktop.sh` proves both profiles match on one fixture.
+The server profile is the default; `QR_PROFILE=desktop` with `QR_DATA_DIR`
+selects the embedded backends in [`desktop.md`](desktop.md) from a fresh data
+directory. The desktop package is not part of v1.0.0.
+`tools/parity_desktop.sh` proves both profiles match on one fixture.
 
 ## 6. Split host
 
