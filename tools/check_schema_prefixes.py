@@ -14,13 +14,13 @@ three:
 * no service source outside its test modules names another service's prefix, so
   one file with six prefixes cannot silently become one shared unowned table.
 
-It also proves each service branches once on `QR_PROFILE=desktop` with
-`QR_DATA_DIR` and opens the one `quantrule.sqlite` file, and that its baseline
-is listed in its own `migrations.rs`: a SQL file that is not listed is inert.
-
-`queue` is the one pending ledger. It is listed so the inventory is complete,
-and the checker fails the moment #694's baseline or store appears, because the
-change that lands it must move the ledger out of pending in the same commit.
+It also proves each database-owning service branches once on
+`QR_PROFILE=desktop` with `QR_DATA_DIR`, opens the one `quantrule.sqlite` file,
+and lists its baseline in its own `migrations.rs`: a SQL file that is not listed
+is inert. The runtime queue is the one row with no baseline and no service
+binary: its adapter owns two idempotent `CREATE TABLE` statements because the
+queue is runtime infrastructure, not a service schema, so the guard checks its
+store and tables instead of a ledger.
 
 The contract this checker enforces is `docs/architecture/desktop.md`. The rule
 text is `AGENTS.md` section 3; P1e of the v1.1 plan introduced the guard.
@@ -77,7 +77,6 @@ class Ledger:
     baseline: str | None
     store: str
     main: str | None
-    pending: str = ""
 
 
 @dataclass(frozen=True)
@@ -95,6 +94,8 @@ class Violation:
 # The complete SQLite inventory. `runs` and `research` share one ledger and one
 # baseline because the evidence service owns both prefixes and one forward-only
 # history; the row is still written per prefix so the table set is explicit.
+# `queue` has no baseline and no binary: the runtime adapter owns its two
+# tables, so `baseline` and `main` are `None` on purpose, not an omission.
 LEDGERS = (
     Ledger(
         name="gateway",
@@ -154,11 +155,10 @@ LEDGERS = (
         name="queue",
         crate="quantrule-runtime",
         prefix="queue",
-        tables=("queue__messages",),
+        tables=("queue__dead_letter", "queue__messages"),
         baseline=None,
         store="src/adapters/inprocess.rs",
         main=None,
-        pending="#694",
     ),
 )
 
@@ -349,7 +349,6 @@ def check_crate(root: Path, crate: str, rows: list[Ledger]) -> list[Violation]:
     """Check one crate's baselines, stores, main branches, and ledger rows."""
     base = root / CRATES / crate
     violations: list[Violation] = []
-    pending = sorted({row.pending for row in rows if row.pending})
     declared = {row.baseline for row in rows if row.baseline}
     sqlite_dir = base / SQLITE_DIR
     actual = {
@@ -358,17 +357,6 @@ def check_crate(root: Path, crate: str, rows: list[Ledger]) -> list[Violation]:
         if path.is_file()
     } if sqlite_dir.is_dir() else set()
 
-    if pending and actual:
-        violations.append(
-            file_violation(
-                "inventory-pending",
-                root,
-                sqlite_dir,
-                f"{', '.join(sorted(actual))} exists; move the {', '.join(pending)} "
-                "ledger out of pending in the same change",
-            )
-        )
-        return violations
     if actual != declared:
         missing = sorted(declared - actual)
         extra = sorted(actual - declared)
@@ -386,97 +374,89 @@ def check_crate(root: Path, crate: str, rows: list[Ledger]) -> list[Violation]:
             )
         )
 
-    if pending:
-        if any((base / row.store).exists() for row in rows):
-            violations.append(
-                file_violation(
-                    "inventory-pending",
-                    root,
-                    base,
-                    f"a store exists for the {', '.join(pending)} ledger; move it "
-                    "out of pending in the same change",
-                )
-            )
-        return violations
-
     declared_prefixes = tuple(sorted({row.prefix for row in rows}))
     declared_tables = {table for row in rows for table in row.tables}
-    created: set[str] = set()
-    for path in sorted(sqlite_dir.glob("*.sql")):
-        sql = strip_sql_comments(path.read_text(encoding="utf-8"))
-        for rule, pattern in FORBIDDEN_SQL:
-            match = pattern.search(sql)
-            if match is not None:
-                violations.append(
-                    file_violation(
-                        rule,
-                        root,
-                        path,
-                        f"SQLite baseline uses the Postgres spelling {match.group(0)!r}",
+    if declared:
+        created: set[str] = set()
+        for path in sorted(sqlite_dir.glob("*.sql")):
+            sql = strip_sql_comments(path.read_text(encoding="utf-8"))
+            for rule, pattern in FORBIDDEN_SQL:
+                match = pattern.search(sql)
+                if match is not None:
+                    violations.append(
+                        file_violation(
+                            rule,
+                            root,
+                            path,
+                            f"SQLite baseline uses the Postgres spelling {match.group(0)!r}",
+                        )
                     )
-                )
-        for name in CREATE_RELATION.findall(sql):
-            prefix, separator, suffix = name.partition("__")
-            if not separator or not suffix:
-                violations.append(
-                    file_violation(
-                        "baseline-prefix",
-                        root,
-                        path,
-                        f"{name} is not a prefix__table identifier",
+            for name in CREATE_RELATION.findall(sql):
+                prefix, separator, suffix = name.partition("__")
+                if not separator or not suffix:
+                    violations.append(
+                        file_violation(
+                            "baseline-prefix",
+                            root,
+                            path,
+                            f"{name} is not a prefix__table identifier",
+                        )
                     )
-                )
-            elif prefix not in declared_prefixes:
-                violations.append(
-                    file_violation(
-                        "baseline-prefix",
-                        root,
-                        path,
-                        f"{name} is outside {', '.join(declared_prefixes)}",
+                elif prefix not in declared_prefixes:
+                    violations.append(
+                        file_violation(
+                            "baseline-prefix",
+                            root,
+                            path,
+                            f"{name} is outside {', '.join(declared_prefixes)}",
+                        )
                     )
-                )
-        created.update(CREATE_TABLE.findall(sql))
-    if created != declared_tables:
-        missing = sorted(declared_tables - created)
-        extra = sorted(created - declared_tables)
-        detail = []
-        if missing:
-            detail.append(f"missing {', '.join(missing)}")
-        if extra:
-            detail.append(f"undeclared {', '.join(extra)}")
-        violations.append(
-            file_violation(
-                "baseline-drift",
-                root,
-                sqlite_dir,
-                "the created tables do not match the inventory: " + "; ".join(detail),
-            )
-        )
-
-    wiring = base / "src" / "migrations.rs"
-    wiring_text = wiring.read_text(encoding="utf-8") if wiring.is_file() else ""
-    for baseline in sorted(name for name in declared if name):
-        if Path(baseline).name not in wiring_text:
+            created.update(CREATE_TABLE.findall(sql))
+        if created != declared_tables:
+            missing = sorted(declared_tables - created)
+            extra = sorted(created - declared_tables)
+            detail = []
+            if missing:
+                detail.append(f"missing {', '.join(missing)}")
+            if extra:
+                detail.append(f"undeclared {', '.join(extra)}")
             violations.append(
                 file_violation(
-                    "baseline-wired",
+                    "baseline-drift",
                     root,
-                    wiring,
-                    f"{Path(baseline).name} is not listed by migrations.rs",
+                    sqlite_dir,
+                    "the created tables do not match the inventory: " + "; ".join(detail),
                 )
             )
+
+        wiring = base / "src" / "migrations.rs"
+        wiring_text = wiring.read_text(encoding="utf-8") if wiring.is_file() else ""
+        for baseline in sorted(declared):
+            if Path(baseline).name not in wiring_text:
+                violations.append(
+                    file_violation(
+                        "baseline-wired",
+                        root,
+                        wiring,
+                        f"{Path(baseline).name} is not listed by migrations.rs",
+                    )
+                )
 
     seen_main: set[str] = set()
     seen_store: set[str] = set()
     for row in rows:
         main = base / row.main if row.main else None
-        if main is None or not main.is_file():
+        if row.main is None:
+            # The runtime queue is opened by the services that select it and
+            # has no binary of its own; its store is checked below.
+            pass
+        elif not main.is_file():
             violations.append(
                 file_violation(
                     "profile-branch",
                     root,
                     base,
-                    f"the {row.prefix} ledger has no {row.main or 'main'} to branch",
+                    f"the {row.prefix} ledger has no {row.main} to branch",
                 )
             )
         elif row.main not in seen_main:
@@ -611,14 +591,12 @@ def file_violation(rule: str, root: Path, path: Path, message: str) -> Violation
 
 
 def summary() -> str:
-    """The one-line pass message, including the pending ledger."""
+    """The one-line pass message."""
     tables = sum(len(ledger.tables) for ledger in LEDGERS)
     baselines = len({ledger.baseline for ledger in LEDGERS if ledger.baseline})
-    pending = sorted({ledger.pending for ledger in LEDGERS if ledger.pending})
-    pending_note = f", {len(pending)} pending ({', '.join(pending)})" if pending else ""
     return (
         f"schema prefixes ok: {len(LEDGERS)} ledger rows, {tables} tables, "
-        f"{baselines} baselines{pending_note}"
+        f"{baselines} baselines"
     )
 
 

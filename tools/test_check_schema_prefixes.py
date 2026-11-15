@@ -85,8 +85,6 @@ def write_valid_tree(root: Path) -> None:
     """Write the files the checker's inventory declares, and nothing else."""
     grouped: dict[str, list[check_schema_prefixes.Ledger]] = {}
     for ledger in check_schema_prefixes.LEDGERS:
-        if ledger.pending:
-            continue
         grouped.setdefault(ledger.crate, []).append(ledger)
     for crate, rows in grouped.items():
         base = root / "crates" / crate
@@ -94,13 +92,15 @@ def write_valid_tree(root: Path) -> None:
         baselines = sorted({row.baseline for row in rows if row.baseline})
         for baseline in baselines:
             write(base / baseline, baseline_text(tables))
-        write(
-            base / "src" / "migrations.rs",
-            "".join(migrations_text(baseline) for baseline in baselines),
-        )
+        if baselines:
+            write(
+                base / "src" / "migrations.rs",
+                "".join(migrations_text(baseline) for baseline in baselines),
+            )
         ledgers = sorted({row.name for row in rows})
         for row in rows:
-            write(base / row.main, main_text(ledgers[0]))
+            if row.main is not None:
+                write(base / row.main, main_text(ledgers[0]))
             write(base / row.store, store_text(tables))
 
 
@@ -269,12 +269,20 @@ class ProfileBranchTests(GuardTestCase):
         (self.root / "crates" / "quantrule-evidence-service" / "src" / "sqlite" / "mod.rs").unlink()
         self.assertIn("store-missing", self.rules())
 
-    def test_a_pending_ledger_that_lands_is_reported(self) -> None:
+    def test_a_store_owned_ddl_is_checked_without_a_baseline(self) -> None:
+        self.replace(
+            "crates/quantrule-runtime/src/adapters/inprocess.rs",
+            '"queue__dead_letter"',
+            '"queue__dead"',
+        )
+        self.assertIn("store-table", self.rules())
+
+    def test_a_queue_baseline_would_be_reported_as_undeclared(self) -> None:
         write(
             self.root / "crates" / "quantrule-runtime" / "migrations" / "sqlite" / "0001_queue.sql",
             "CREATE TABLE queue__messages (id TEXT) STRICT;\n",
         )
-        self.assertIn("inventory-pending", self.rules())
+        self.assertIn("baseline-drift", self.rules())
 
 
 if __name__ == "__main__":

@@ -16,6 +16,8 @@
   or Makefile change.
 - Environment: worktree `/home/zantgo/Proyectos/quant-rule--693-conformance`,
   branch `feat/693-conformance`, base `dee568a7` (P1a-P1d merged on `main`).
+  #694 merged to `main` while the PR was open; the branch merged `main` and the
+  inventory was reconciled with the queue adapter before the final gate.
 
 ## What was read
 
@@ -36,8 +38,10 @@
 
 - `tools/check_schema_prefixes.py` holds one inventory of six ledger rows —
   `gateway`, `catalog`, `runs`, `research` (both on the `runs` ledger),
-  `simulation`, and the pending `queue` — with the baseline, store module,
-  tables, and binary each row owns. `check(root)` returns violations for:
+  `simulation`, and `queue` — with the baseline, store module, tables, and
+  binary each row owns. The `queue` row has no baseline and no binary because
+  #694's adapter owns its two idempotent tables, so the row is a declared
+  exception rather than an omission. `check(root)` returns violations for:
   - a baseline file that is missing, undeclared, or in a crate outside the
     inventory;
   - a `CREATE TABLE`, index, or trigger whose name is not `prefix__name` for an
@@ -49,9 +53,7 @@
   - a `migrations.rs` that does not list its baseline, or a service binary that
     does not branch on `DeploymentProfile::Desktop` with `.data_dir`,
     `QR_DATA_DIR`, `DATABASE_FILE`, `migrations::sqlite()`, and the expected
-    ledger row;
-  - a pending ledger whose baseline or store has landed without the inventory
-    moving with it.
+    ledger row.
 - The guard strips `#[cfg(test)]` modules and comments before reading table
   names, so the existing negative tests may keep naming another service's prefix
   and the runtime's shared `Schema` mapping keeps naming all six.
@@ -61,8 +63,9 @@
   timestamptz, `CREATE SCHEMA`, `FOR UPDATE`, a wrong ledger, a missing ledger,
   a missing baseline wiring, an undeclared baseline, a crate outside the
   inventory, a missing data-directory branch, a missing single-file open, a
-  missing store, and a pending ledger that lands. A comment that names a
-  Postgres spelling and a test module that names another prefix must not fail.
+  missing store, a queue baseline that would contradict the adapter-owned DDL,
+  and a store-owned table that drifts. A comment that names a Postgres spelling
+  and a test module that names another prefix must not fail.
 - `docs/architecture/desktop.md` records the environment contract, the single
   SQLite file and its pragmas, the service/ledger/prefix inventory, the storage
   rules, the guard, start and stop, current state, and the parity gate. The
@@ -81,32 +84,32 @@
 | `runs` | `quantrule-evidence-service` | `runs` | 4 | `0001_runs_research.sql` |
 | `runs` | `quantrule-evidence-service` | `research` | 1 | `0001_runs_research.sql` |
 | `simulation` | `quantrule-simulation-service` | `simulation` | 2 | `0001_simulation.sql` |
-| `queue` | `quantrule-runtime` | `queue` | 1 | pending, #694 |
+| `queue` | `quantrule-runtime` | `queue` | 2 | adapter-owned DDL |
 
-The guard reports `6 ledger rows, 12 tables, 4 baselines, 1 pending (#694)`.
-The four merged services match their baselines, stores, and binary branches; no
-wrong prefix or foreign table reference was found in the service sources.
+The guard reports `6 ledger rows, 13 tables, 4 baselines`. The four database
+services match their baselines, stores, and binary branches, and the runtime
+queue matches its adapter-owned tables; no wrong prefix or foreign table
+reference was found in the service sources.
 
 ## Verification
 
 | Command | Observed |
 |---|---|
-| `python3 tools/check_schema_prefixes.py` | `schema prefixes ok: 6 ledger rows, 12 tables, 4 baselines, 1 pending (#694)` |
-| `python3 tools/test_check_schema_prefixes.py` | `Ran 20 tests` … `OK` |
-| `python3 -m unittest discover -s tools -p 'test_check_schema_prefixes.py'` | `Ran 20 tests` … `OK` (the CI form) |
+| `python3 tools/check_schema_prefixes.py` | `schema prefixes ok: 6 ledger rows, 13 tables, 4 baselines` |
+| `python3 tools/test_check_schema_prefixes.py` | `Ran 21 tests` … `OK` |
+| `python3 -m unittest discover -s tools -p 'test_check_schema_prefixes.py'` | `Ran 21 tests` … `OK` (the CI form) |
 | `tools/gate.sh` | `workspace gate passed with CARGO_TARGET_DIR=…/target/gate`: fmt, clippy, the workspace tests, rustdoc, and all 23 checkers passed |
-| `python3 tools/check_links.py` | `checked 963 Markdown files; no broken relative links` |
+| `python3 tools/check_links.py` | `checked 964 Markdown files; no broken relative links` |
 | `python3 tools/check_doc_length.py` | `document length ok: 35 file(s) within cap` |
 | `python3 tools/check_terms.py` | `checked 595 file(s); no banned terms` |
-| `python3 tools/check_legacy.py` | `legacy scan ok: 1805 label files, 3230 current files` |
+| `python3 tools/check_legacy.py` | `legacy scan ok: 1807 label files, 3232 current files` |
 | Seeded violation | `sed` changed `gateway__profiles` to `catalog__profiles` in the gateway baseline: `baseline-prefix: … catalog__profiles is outside gateway` and `baseline-drift: … missing gateway__profiles; undeclared catalog__profiles`, exit 1. The file was restored; the checker then printed the pass line and `git diff` was empty |
 
 ## Learning and rejected alternatives
 
 - **One inventory, in the checker.** A separate inventory file would be a second
   source of truth that a migration could forget. The declared rows live next to
-  the rule that reads them, and the pending row names the change that must
-  activate it.
+  the rule that reads them, so an unlisted baseline, table, or store fails.
 - **A Python guard, not a Rust integration test.** The property is cross-crate:
   no single crate can see every service's baseline, binary, and store. A Rust
   test would need a new shared test crate or a dependency in the wrong
@@ -114,10 +117,16 @@ wrong prefix or foreign table reference was found in the service sources.
 - **Test modules are excluded on purpose.** The per-service tests already assert
   that another prefix is refused, and those assertions must name it. The guard
   documents that a test may name another prefix while production source may not.
-- **The queue is declared pending, not omitted.** #694 owns the queue store and
-  baseline; this change cannot add them. Declaring the row and failing when it
-  lands without the inventory update keeps the phase honest without claiming a
-  store that does not exist.
+- **The queue row has no baseline on purpose.** #694's adapter creates
+  `queue__messages` and `queue__dead_letter` in one immediate transaction and
+  takes no service ledger, because the queue is runtime infrastructure rather
+  than a service schema. The row records that exception and checks the store and
+  both tables; inventing a ledger for it would misdescribe the code.
+- **CI caught the merge that this worktree did not.** #694 merged to `main`
+  while the PR was open, so the `verify` job ran on the merge ref and failed on
+  the new `inprocess.rs` while the local tree still passed. The branch then
+  merged `main`, and the inventory was reconciled before the final gate. The
+  local gate cannot see a later `main`; the PR merge ref can.
 - **No edit to `apps/desktop-shell/README.md`.** Its status line still says the
   embedded backends are unmerged, which is now stale for SQLite. #695 owns that
   file; the drift is reported rather than fixed here, and `desktop.md` records
@@ -128,9 +137,8 @@ wrong prefix or foreign table reference was found in the service sources.
 
 ## Remaining work
 
-- #694 must move `queue` out of pending in the same change that adds
-  `migrations/sqlite/0001_queue.sql` and `src/adapters/inprocess.rs`; the guard
-  fails until it does.
+- P2c must wire `InProcessQueue` into the service binaries; today it is
+  implemented and tested but not selected by a service.
 - #695 owns the supervisor, installer, and parity documentation. The parity
   harness `tools/parity_desktop.sh` does not exist yet, so no digest parity is
   claimed.

@@ -95,11 +95,11 @@ are not treated as releases.
   per ledger, one store module per service, the ledger row in the service's
   profile branch, and the `QR_PROFILE=desktop` with `QR_DATA_DIR` branch that
   opens the single `quantrule.sqlite` file. Each service source outside its
-  `#[cfg(test)]` modules may name only its own prefixes. The queue ledger is
-  declared pending for #694, and the guard fails when that baseline or store
-  lands without the inventory moving with it. `docs/architecture/desktop.md`
-  records the environment contract, the mapping, the ledgers, the guard, start
-  and stop, and the server-profile default.
+  `#[cfg(test)]` modules may name only its own prefixes. The runtime queue is
+  covered through its adapter-owned DDL and its two tables, because it takes no
+  service ledger. `docs/architecture/desktop.md` records the environment
+  contract, the mapping, the ledgers, the guard, start and stop, and the
+  server-profile default.
 
 ### Changed
 

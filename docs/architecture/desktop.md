@@ -51,7 +51,8 @@ QR_DATA_DIR/
   owns one forward-only SQLite baseline starting at version 1 and records it
   under its own ledger name; a changed body, an unknown version, and a database
   ahead of the binary are refused. The baseline and its ledger row commit in one
-  immediate transaction.
+  immediate transaction. The queue creates its two tables outside that ledger,
+  which is why its adapter owns the DDL.
 - `model` and `backtest` own no schema and add no ledger.
 
 ## 3. Service, ledger, and prefix
@@ -63,12 +64,14 @@ QR_DATA_DIR/
 | `evidence` | `runs` | `runs` | `runs__runs`, `runs__stages`, `runs__artifacts`, `runs__submissions` | `0001_runs_research.sql` |
 | `evidence` | `runs` | `research` | `research__hypotheses` | `0001_runs_research.sql` |
 | `simulation` | `simulation` | `simulation` | `simulation__runs`, `simulation__marks` | `0001_simulation.sql` |
-| runtime queue | `queue` | `queue` | `queue__messages` | pending, #694 |
+| runtime queue | none | `queue` | `queue__dead_letter`, `queue__messages` | adapter-owned DDL |
 
 Evidence owns two prefixes and one ledger and one baseline, so its history stays
-forward-only. `queue` is declared and pending: #694 lands its baseline, store,
-and ledger row, and the guard below fails until the inventory is updated in the
-same change.
+forward-only. The runtime queue has no service ledger and no binary of its own:
+`InProcessQueue` owns two idempotent `CREATE TABLE` statements in
+`src/adapters/inprocess.rs`, because the queue is runtime infrastructure rather
+than a service schema. The guard records that exception and still checks its
+store and both tables.
 
 ## 4. Storage rules
 
@@ -90,8 +93,8 @@ would change stored bytes and therefore parity.
 
 | Command | Proves |
 |---|---|
-| `python3 tools/check_schema_prefixes.py` | Each service owns exactly its baseline, ledger, tables, and store module; no baseline uses a Postgres spelling; no crate gains an undeclared baseline; no store names another prefix; each service branches on `QR_PROFILE=desktop` with `QR_DATA_DIR` and opens `quantrule.sqlite` |
-| `python3 tools/test_check_schema_prefixes.py` | The guard still rejects a wrong prefix, a JSONB or timestamptz, `CREATE SCHEMA`, a missing ledger row, and a pending ledger that lands |
+| `python3 tools/check_schema_prefixes.py` | Each service owns exactly its baseline, ledger, tables, and store module; the runtime queue owns its two tables and store; no baseline uses a Postgres spelling; no crate gains an undeclared baseline; no store names another prefix; each service branches on `QR_PROFILE=desktop` with `QR_DATA_DIR` and opens `quantrule.sqlite` |
+| `python3 tools/test_check_schema_prefixes.py` | The guard still rejects a wrong prefix, a JSONB or timestamptz, `CREATE SCHEMA`, `FOR UPDATE`, a missing ledger row, and a store-owned table that drifts |
 
 The inventory lives in the checker, not in a second list, so a migration, a table
 rename, or a new ledger that is not declared fails the gate. The guard scans
@@ -117,8 +120,10 @@ gateway that is already running.
 - `FilesystemStore` is implemented and tested with atomic publish, hash on read,
   and traversal refusal. The service routes still build the S3 store, so the
   embedded object store is not yet the run-time backend.
-- The durable in-process queue is #694. Until it lands, a desktop start still
-  needs the control-plane queue.
+- `InProcessQueue` is implemented with publish, claim, lease, retry, and
+  dead-letter over `queue__messages` and `queue__dead_letter`. The service
+  binaries do not select it yet, so the desktop control plane is not wired end
+  to end.
 - The installers and the supervisor are implemented; artifacts are unsigned.
 - Parity is the release gate: `tools/parity_desktop.sh` (#695) runs the same
   fixture, configuration, and image digest on both profiles and compares the
