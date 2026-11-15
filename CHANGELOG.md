@@ -42,6 +42,18 @@ are not treated as releases.
   configs, and fail when one is missing or an interpreter appears. The embedded
   backends are still landing (#693/#694), so the launch is selected by the
   `embedded-profile` build feature and the parity digest is not claimed yet.
+- The data service can start on the embedded SQLite profile (DIST-201, #693
+  P1b). `QR_PROFILE=desktop` with `QR_DATA_DIR` opens `quantrule.sqlite`, applies
+  the catalog's SQLite baseline to the shared `schema_migrations` ledger under
+  the `catalog` name, and serves `/catalog/datasets` and `/catalog/configs`
+  through the existing `DatasetCatalog` and `ConfigCatalog` traits; `/health`
+  reports `sqlite`. The baseline is `catalog__datasets`, `catalog__configs`, and
+  `catalog__config_bundles`, with JSON as `TEXT` checked by `json_valid`,
+  booleans as `INTEGER`, and RFC 3339 UTC timestamps. A config upsert writes its
+  shared bundle and profile-scoped row in one transaction, and a dataset keeps
+  its object key shared across profiles. The server profile remains on Postgres.
+  The desktop object store is wired separately, and the evidence and simulation
+  repositories remain on Postgres until P1c-P1d.
 
 ### Changed
 
