@@ -135,14 +135,20 @@ tag after the release PR merges.
 | Trigger | Result |
 |---|---|
 | Annotated `vMAJOR.MINOR.PATCH` tag on `main` | Published image, Linux AppImage, Windows NSIS installer, GitHub release |
+| `workflow_dispatch` with `release_tag: vX.Y.Z` | Manual recovery of an existing tag: image pushed under that tag, both artifacts built, release created or updated |
 | `workflow_dispatch` with `publish_snapshot: true` | `snapshot-<sha>` image pushed, digest in the job summary, no release, no asset |
 | `workflow_dispatch` | Local build only, never pushes; the recorded digest is a local image ID; no release, no asset |
 
 The workflow fails a lightweight tag, a tag off `main`, and a tag whose release
-note is missing. Before it publishes it runs `tools/gate.sh`, the image contract
-checks (`--version` against `Cargo.toml`, no Python, no Bun), the desktop helper
-tests and boundary check, and a nine-container Compose smoke that reads the
-digest back from `/health` and the product version back from `/version`.
+note is missing. The tag check runs `git fetch --tags --force origin` before
+`git cat-file -t "refs/tags/<tag>"`: `actions/checkout` fetches a tag push as
+`+<commit>:refs/tags/<tag>` with `--no-tags`, which leaves a lightweight local
+ref and made a valid annotated tag look lightweight. The explicit tag fetch
+restores the tag object, and a genuinely lightweight tag still fails. Before it
+publishes the workflow runs `tools/gate.sh`, the image contract checks
+(`--version` against `Cargo.toml`, no Python, no Bun), the desktop helper tests
+and boundary check, and a nine-container Compose smoke that reads the digest
+back from `/health` and the product version back from `/version`.
 
 The default registry is GHCR, so a tag run needs no repository value: it pushes
 `ghcr.io/<owner>/quantrule-platform` and logs in with `GITHUB_TOKEN` under the
@@ -171,6 +177,23 @@ checked. It pushes a `snapshot-<sha>` image and records its manifest digest
 without creating a release; that digest is the GHCR evidence the release note
 may cite before the tag exists. A run without the input records the local image
 ID only, and its artifacts hold the installers.
+
+### Manual recovery
+
+A published tag is never moved, deleted, or recreated, so a failed tag run is
+recovered from the existing tag:
+
+```bash
+gh workflow run release.yml --ref main -f release_tag=v1.0.0
+```
+
+Every job checks out that tag, the gate repeats the tag check, and the image job
+pushes the same version tag to the registry. Both desktop artifacts are rebuilt,
+and the release is created for the existing tag with `gh release create
+--verify-tag`, so the step cannot create, move, or delete a tag. A rerun for a
+tag whose release already exists updates that release and replaces its assets
+instead of creating a second one. `release_tag` and `publish_snapshot` are
+mutually exclusive.
 
 ## 8. Checker
 
