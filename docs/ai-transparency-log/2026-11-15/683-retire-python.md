@@ -82,3 +82,18 @@
 - The oracle's removal ends fixture regeneration. The fixtures are now read-only
   evidence compared by the Rust tests; a later intentional fixture change has no
   shipped regeneration tool and must be recorded as a new capture.
+
+## Refresh after #801
+
+The branch was refreshed from `bb60d394` (`origin/main` after #801) with a clean
+merge; the changelog kept every entry from both sides (109 entries). The
+verification was repeated on the refreshed tree:
+
+| Command | Result |
+|---|---|
+| `cargo test -p quantrule-simulation` | 72 unit and 6 parity tests pass |
+| `tools/test_tiers.sh parity` | `port parity ok: 1 registered port(s)` |
+| `python3 tools/check_legacy.py` | exit 0; 1771 label files, 3166 current files |
+| `python3 tools/check_terms.py` | exit 0; no banned terms |
+| `python3 tools/check_links.py` | 946 Markdown files; no broken relative links |
+| `tools/gate.sh` | exit 0; 1979 tests across 102 test binaries |
