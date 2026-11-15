@@ -2,13 +2,15 @@
 //!
 //! A service calls a trait, never a client library. v1.0.0 shipped one
 //! implementation of each: Postgres, an S3-compatible store, and RabbitMQ. The
-//! embedded desktop profile implements the same traits; SQLite is the first of
-//! those adapters, which is why this boundary exists (ADR-2026-11-12-12).
+//! embedded desktop profile implements the same traits; SQLite, the filesystem
+//! store, and the in-process queue are those adapters, which is why this
+//! boundary exists (ADR-2026-11-12-12).
 //!
 //! The surface is deliberately small. A trait grows when a service needs an
 //! operation, not in anticipation of one.
 
 pub mod filesystem;
+pub mod inprocess;
 pub mod postgres;
 pub mod rabbitmq;
 pub mod s3;
