@@ -13,6 +13,16 @@ are not treated as releases.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-15
+
+The first distributed release. One image digest carries six service binaries and
+the built browser client; the default Compose stack runs nine containers behind
+one published port; the browser, the command shell, and the desktop shell reach
+the same `quantrule.api/v1` contract; and the simulation research plane runs as a
+separate, hindsight-by-design service. The image contains no Python and
+no Bun runtime, and the release publishes the image digest, a Linux AppImage, and
+a Windows NSIS installer.
+
 ### Changed
 
 - Reviewer verification (`tools/verify.sh`, `make verify`) now runs on the

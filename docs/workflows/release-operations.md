@@ -178,20 +178,27 @@ Stop and request human direction when:
 
 ## Distributed release — v1.0.0
 
-The release unit is a container image, not an installer.
+The release has two distribution profiles: the server image is the release unit,
+and the desktop shell is two unsigned GitHub Release assets. GitHub Releases is
+the only place an artifact is fetched; there is no download page.
 
 | Step | Evidence |
 |---|---|
 | 1. Gate | `tools/gate.sh` passes |
-| 2. Image | Built from the release commit; the digest is recorded |
-| 3. Contract check | `/version` reports the product version and digest |
-| 4. Verification | `make up` and `make verify` on a clean host |
-| 5. Note | `docs/releases/<date>/<tag>.md` names the image digest |
+| 2. Image | Built from the release commit, pushed to the registry, digest recorded |
+| 3. Contract check | `/version` reports the product version; `/health` reports the digest |
+| 4. Verification | `make up` (nine containers) and `make verify` on a clean host |
+| 5. Note | `docs/releases/<date>/<tag>.md` names the digest and both artifacts |
 | 6. Tag | Annotated `v1.0.0` from `main` after the release PR merges |
+
+A `workflow_dispatch` with `publish_snapshot` pushes a `snapshot-<sha>` image and
+records its digest before the tag exists; that is the pre-tag GHCR proof. A tag
+run pushes the version tag, builds the Linux AppImage and the Windows NSIS
+installer, and writes the digest and both artifact names into the release body.
 
 Rollback is starting the previous image digest. Migrations are forward-only; a
 rollback never reverts the schema, so the previous version must tolerate the
-newer one.
+newer one. For `v1.0.0`, the first image release, there is no earlier digest:
+recovery is `make reset` and a rebuild from a known commit.
 
-There is no download page and no installer. The retired surface is recorded in
-`ADR-2026-11-12-08`.
+The retired static download page is recorded in `ADR-2026-11-12-08`.

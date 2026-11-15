@@ -2684,7 +2684,7 @@ dependencies = [
 
 [[package]]
 name = "quantrule-api"
-version = "0.3.0"
+version = "1.0.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -2692,7 +2692,7 @@ dependencies = [
 
 [[package]]
 name = "quantrule-app"
-version = "0.3.0"
+version = "1.0.0"
 dependencies = [
  "quantrule-backtest",
  "quantrule-data",
@@ -2703,7 +2703,7 @@ dependencies = [
 
 [[package]]
 name = "quantrule-backtest"
-version = "0.3.0"
+version = "1.0.0"
 dependencies = [
  "quantrule-data",
  "quantrule-model",
@@ -2712,7 +2712,7 @@ dependencies = [
 
 [[package]]
 name = "quantrule-backtest-service"
-version = "0.3.0"
+version = "1.0.0"
 dependencies = [
  "quantrule-api",
  "quantrule-app",
@@ -2726,11 +2726,11 @@ dependencies = [
 
 [[package]]
 name = "quantrule-data"
-version = "0.3.0"
+version = "1.0.0"
 
 [[package]]
 name = "quantrule-data-service"
-version = "0.3.0"
+version = "1.0.0"
 dependencies = [
  "axum",
  "futures-util",
@@ -2749,7 +2749,7 @@ dependencies = [
 
 [[package]]
 name = "quantrule-evidence-service"
-version = "0.3.0"
+version = "1.0.0"
 dependencies = [
  "axum",
  "quantrule-api",
@@ -2766,7 +2766,7 @@ dependencies = [
 
 [[package]]
 name = "quantrule-gateway"
-version = "0.3.0"
+version = "1.0.0"
 dependencies = [
  "axum",
  "futures-util",
@@ -2783,14 +2783,14 @@ dependencies = [
 
 [[package]]
 name = "quantrule-model"
-version = "0.3.0"
+version = "1.0.0"
 dependencies = [
  "quantrule-data",
 ]
 
 [[package]]
 name = "quantrule-model-service"
-version = "0.3.0"
+version = "1.0.0"
 dependencies = [
  "axum",
  "quantrule-api",
@@ -2808,7 +2808,7 @@ dependencies = [
 
 [[package]]
 name = "quantrule-research"
-version = "0.3.0"
+version = "1.0.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -2816,7 +2816,7 @@ dependencies = [
 
 [[package]]
 name = "quantrule-runtime"
-version = "0.3.0"
+version = "1.0.0"
 dependencies = [
  "aws-config",
  "aws-sdk-s3",
@@ -2841,7 +2841,7 @@ dependencies = [
 
 [[package]]
 name = "quantrule-service-api"
-version = "0.3.0"
+version = "1.0.0"
 dependencies = [
  "quantrule-api",
  "serde",
@@ -2850,7 +2850,7 @@ dependencies = [
 
 [[package]]
 name = "quantrule-shell"
-version = "0.3.0"
+version = "1.0.0"
 dependencies = [
  "quantrule-api",
  "serde_json",
@@ -2859,7 +2859,7 @@ dependencies = [
 
 [[package]]
 name = "quantrule-simulation"
-version = "0.3.0"
+version = "1.0.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -2867,7 +2867,7 @@ dependencies = [
 
 [[package]]
 name = "quantrule-simulation-service"
-version = "0.3.0"
+version = "1.0.0"
 dependencies = [
  "axum",
  "quantrule-api",

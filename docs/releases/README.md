@@ -71,10 +71,12 @@ The two historical markers are not release tags. New tags use the release
 format unless the human approves a named marker.
 
 The first post-baseline release is [`v0.6.0`](2026-11-07/v0.6.0.md) on
-2026-11-07. It is not in the historical table. The latest release is
-[`v0.9.0`](2026-11-11/v0.9.0.md) on 2026-11-11, the first Tauri Platform release.
-The previous release is [`v0.8.0`](2026-11-11/v0.8.0.md), the last pre-Tauri
-release; before it is [`v0.7.0`](2026-11-09/v0.7.0.md).
+2026-11-07. It is not in the historical table. The latest release note is
+[`v1.0.0`](2026-11-15/v1.0.0.md), prepared on 2026-11-15; the annotated tag is
+created from `main` after the release PR merges. The previous release is
+[`v0.9.0`](2026-11-11/v0.9.0.md), the first Tauri Platform release; before it
+are [`v0.8.0`](2026-11-11/v0.8.0.md) and
+[`v0.7.0`](2026-11-09/v0.7.0.md).
 
 ## 5. Changelog alignment
 
@@ -133,24 +135,26 @@ tag after the release PR merges.
 | Trigger | Result |
 |---|---|
 | Annotated `vMAJOR.MINOR.PATCH` tag on `main` | Published image, Linux AppImage, Windows NSIS installer, GitHub release |
-| `workflow_dispatch` | Build only, never pushes; digest in the job summary; no release, no asset |
+| `workflow_dispatch` with `publish_snapshot: true` | `snapshot-<sha>` image pushed, digest in the job summary, no release, no asset |
+| `workflow_dispatch` | Local build only, never pushes; the recorded digest is a local image ID; no release, no asset |
 
-The workflow fails a lightweight tag, a tag off `main`, a tag whose release note
-is missing, and a tag without the registry configuration. Before it publishes it
-runs `tools/gate.sh`, the image contract checks, the shell tests and boundary
-check, and a six-container Compose smoke that reads the digest back from
-`/health`.
+The workflow fails a lightweight tag, a tag off `main`, and a tag whose release
+note is missing. Before it publishes it runs `tools/gate.sh`, the image contract
+checks (`--version` against `Cargo.toml`, no Python, no Bun), the desktop helper
+tests and boundary check, and a nine-container Compose smoke that reads the
+digest back from `/health` and the product version back from `/version`.
 
-A tag run requires all four repository values, so a published release always
-names a pullable image. A `workflow_dispatch` run never pushes: it is the
-build-only dry run, records the local image ID, and creates no release.
+The default registry is GHCR, so a tag run needs no repository value: it pushes
+`ghcr.io/<owner>/quantrule-server` and logs in with `GITHUB_TOKEN` under the
+image job's `packages: write` permission. The four values below are optional
+overrides for another registry, and a custom registry then needs its own token.
 
 | Name | Kind | Purpose |
 |---|---|---|
-| `QR_REGISTRY` | variable | Registry host, for example `ghcr.io` |
-| `QR_IMAGE_NAME` | variable | Repository path, for example `quant-rule/quantrule-server` |
-| `QR_REGISTRY_USERNAME` | secret | Registry user |
-| `QR_REGISTRY_TOKEN` | secret | Registry token with push scope |
+| `QR_REGISTRY` | variable | Registry host; defaults to `ghcr.io` |
+| `QR_IMAGE_NAME` | variable | Repository path; defaults to `<owner>/quantrule-server` |
+| `QR_REGISTRY_USERNAME` | secret | Registry user; defaults to the workflow actor |
+| `QR_REGISTRY_TOKEN` | secret | Registry token with push scope; defaults to `GITHUB_TOKEN` on GHCR |
 
 The desktop jobs use `GITHUB_TOKEN` only. The release job gets `contents: write`
 and `actions: read` to create or update the release and read the uploaded
@@ -161,9 +165,12 @@ the GitHub release body. Copy the two fields into the release note's
 `- Image digest:` and `- Desktop artifacts:` lines in the follow-up record
 commit. A published tag is never moved.
 
-A dry run is `gh workflow run release.yml --ref main`, or **Release** from the
-Actions tab. The run summary names the digest and both artifacts, and the run's
-artifacts hold the installers.
+The pre-tag proof is `gh workflow run release.yml --ref main -f
+publish_snapshot=true`, or **Release** from the Actions tab with the input
+checked. It pushes a `snapshot-<sha>` image and records its manifest digest
+without creating a release; that digest is the GHCR evidence the release note
+may cite before the tag exists. A run without the input records the local image
+ID only, and its artifacts hold the installers.
 
 ## 8. Checker
 
