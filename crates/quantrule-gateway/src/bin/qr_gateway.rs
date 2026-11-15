@@ -9,44 +9,75 @@
 use std::sync::Arc;
 
 use quantrule_gateway::adapters::postgres::PgProfileStore;
+use quantrule_gateway::adapters::sqlite::SqliteProfileStore;
 use quantrule_gateway::profile::ProfileStore;
 use quantrule_gateway::server::{self, AppState, Services};
 use quantrule_runtime::adapters::Database;
-use quantrule_runtime::adapters::postgres::{PgDatabase, apply_migrations_in};
+use quantrule_runtime::adapters::postgres::{
+    PgDatabase, apply_migrations_in as apply_postgres_migrations,
+};
+use quantrule_runtime::adapters::sqlite::{
+    SqliteDatabase, apply_migrations_in as apply_sqlite_migrations,
+};
 use quantrule_runtime::client::{ClientError, DataClient, HttpServiceClient, Service};
 use quantrule_runtime::config::ConfigError;
-use quantrule_runtime::{Config, HealthRegistry, RuntimeError, logging};
+use quantrule_runtime::{Config, DeploymentProfile, HealthRegistry, RuntimeError, logging};
 
 #[tokio::main]
 async fn main() -> Result<(), RuntimeError> {
     let config = Config::from_env()?;
     logging::init("info")?;
+    tracing::info!(profile = config.profile.as_str(), "starting gateway");
 
     let mut health = HealthRegistry::new();
     let mut profiles: Option<Arc<dyn ProfileStore>> = None;
 
-    match PgDatabase::connect(&config.database_url).await {
-        Ok(database) => {
-            if config.migrate {
-                let gateway = apply_migrations_in(
-                    database.pool(),
-                    "gateway",
-                    &quantrule_gateway::migrations::gateway(),
-                )
-                .await
-                .map_err(|error| RuntimeError::Migrations(error.to_string()))?;
-                tracing::info!(gateway, "gateway migrations applied");
-            }
-            profiles = Some(Arc::new(PgProfileStore::new(database.pool().clone())));
-            health.register("postgres", move || {
-                let database = database.clone();
-                async move { database.ping().await.map_err(|error| error.to_string()) }
-            })
+    if config.profile == DeploymentProfile::Desktop {
+        let data_dir = config.data_dir.as_deref().ok_or(ConfigError::Missing {
+            name: "QR_DATA_DIR",
+        })?;
+        let path = data_dir.join(quantrule_runtime::adapters::sqlite::DATABASE_FILE);
+        let database = SqliteDatabase::open(&path)
+            .map_err(|error| RuntimeError::Database(error.to_string()))?;
+        if config.migrate {
+            let applied = apply_sqlite_migrations(
+                &database,
+                "gateway",
+                &quantrule_gateway::migrations::sqlite(),
+            )
+            .await
+            .map_err(|error| RuntimeError::Migrations(error.to_string()))?;
+            tracing::info!(applied, "gateway SQLite migrations applied");
         }
-        Err(error) => health.register("postgres", move || {
-            let message = error.to_string();
-            async move { Err(message) }
-        }),
+        profiles = Some(Arc::new(SqliteProfileStore::new(database.clone())));
+        health.register("sqlite", move || {
+            let database = database.clone();
+            async move { database.ping().await.map_err(|error| error.to_string()) }
+        });
+    } else {
+        match PgDatabase::connect(&config.database_url).await {
+            Ok(database) => {
+                if config.migrate {
+                    let gateway = apply_postgres_migrations(
+                        database.pool(),
+                        "gateway",
+                        &quantrule_gateway::migrations::gateway(),
+                    )
+                    .await
+                    .map_err(|error| RuntimeError::Migrations(error.to_string()))?;
+                    tracing::info!(gateway, "gateway migrations applied");
+                }
+                profiles = Some(Arc::new(PgProfileStore::new(database.pool().clone())));
+                health.register("postgres", move || {
+                    let database = database.clone();
+                    async move { database.ping().await.map_err(|error| error.to_string()) }
+                })
+            }
+            Err(error) => health.register("postgres", move || {
+                let message = error.to_string();
+                async move { Err(message) }
+            }),
+        }
     }
 
     let data_upstream = HttpServiceClient::from_env(Service::Data)
