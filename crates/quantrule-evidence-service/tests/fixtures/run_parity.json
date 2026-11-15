@@ -1,0 +1,68 @@
+{
+  "contract": "quantrule.evidence-parity/v1",
+  "profile_id": "parity-profile",
+  "run": {
+    "run_id": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "status": "running",
+    "owner": "parity-owner",
+    "config_id": "cfg_parity",
+    "data_version": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "config_hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "model_version": "M1.0",
+    "image_digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+    "submitted_at": "2026-11-15T00:00:00Z",
+    "stages": [
+      {
+        "name": "data",
+        "state": "done",
+        "elapsed_ms": 12
+      },
+      {
+        "name": "model",
+        "state": "done",
+        "elapsed_ms": null
+      },
+      {
+        "name": "backtest",
+        "state": "pending",
+        "elapsed_ms": null
+      },
+      {
+        "name": "evidence",
+        "state": "pending",
+        "elapsed_ms": null
+      }
+    ],
+    "digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+    "artifacts": [
+      {
+        "name": "execution/fills.csv",
+        "bytes": 12,
+        "sha256": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+      },
+      {
+        "name": "results.json",
+        "bytes": 32,
+        "sha256": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+      }
+    ],
+    "error": null,
+    "attempts": 2
+  },
+  "storage": {
+    "run_id": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "config_id": "cfg_parity",
+    "data_version": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "owner": "parity-owner",
+    "status": "running",
+    "submitted_at": "2026-11-15T00:00:00Z",
+    "started_at": "2026-11-15T00:00:01Z",
+    "finished_at": null,
+    "digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+    "error": null,
+    "config_hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "model_version": "M1.0",
+    "image_digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+    "attempts": 2
+  }
+}

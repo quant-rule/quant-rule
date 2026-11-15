@@ -15,6 +15,15 @@ are not treated as releases.
 
 ### Added
 
+- The evidence service can start on the embedded SQLite profile.
+  `QR_PROFILE=desktop` with `QR_DATA_DIR` opens `quantrule.sqlite`, applies the
+  runs/research SQLite baseline under the shared `runs` ledger, serves the
+  existing `RunStore` and `HypothesisStore` traits through SQLite
+  implementations, and reports `sqlite` at `/health`. Run claims, decisions, and
+  finalization use `BEGIN IMMEDIATE` and re-read the row inside the transaction,
+  preserving the queued/running/succeeded/failed/cancelled state machine, the
+  retry budget, the artifact set, and the canonical digest; the sealed-hypothesis
+  trigger refuses update and delete. Postgres remains the default.
 - The gateway can start on the embedded SQLite profile. `QR_PROFILE=desktop`
   with `QR_DATA_DIR` opens `quantrule.sqlite`, applies the gateway's SQLite
   baseline to one shared `schema_migrations` ledger with a `ledger` column,
@@ -52,8 +61,8 @@ are not treated as releases.
   booleans as `INTEGER`, and RFC 3339 UTC timestamps. A config upsert writes its
   shared bundle and profile-scoped row in one transaction, and a dataset keeps
   its object key shared across profiles. The server profile remains on Postgres.
-  The desktop object store is wired separately, and the evidence and simulation
-  repositories remain on Postgres until P1c-P1d.
+  The desktop object store is wired separately, and the simulation repository
+  remains on Postgres until P1d.
 
 ### Changed
 

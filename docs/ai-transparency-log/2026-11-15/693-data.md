@@ -17,8 +17,11 @@
 - Environment: worktree `/home/zantgo/Proyectos/quant-rule--693-data`, branch
   `feat/693-data`, base `3772ecdf` (P1a SQLite runtime and gateway, #694 P2a
   filesystem CAS, and the v1.1 plan merged), rebased onto `aafe6b0e` after PR
-  #813 (P3 packaging) merged. The data-service suite and the gate were rerun
-  after the rebase.
+  #813 (P3 packaging) merged, then merged with `origin/main` at `2e964f5b`
+  (PR #816, evidence P1c) on the PR branch. The merge had no textual conflict;
+  `CHANGELOG.md` and `Cargo.lock` auto-merged and both sides were kept. The
+  data-service suite, the workspace suite, and the gate were rerun on the
+  merged tree.
 
 ## What was read
 
@@ -84,9 +87,9 @@
 | `cargo fmt --all -- --check` | passed |
 | `cargo clippy --workspace --all-targets -- -D warnings` | passed; no warning, exit 0 |
 | `cargo test -p quantrule-data-service` | 123 passed, 2 ignored (the opt-in Postgres `d1` and catalog conformance cases); the new SQLite suites pass 6 catalog-shape, 5 migration, 3 route, and 2 conformance tests, with the catalog Postgres case ignored |
-| `cargo test --workspace` | passed; 2063 passed, 0 failed, 12 ignored, exit 0 |
+| `cargo test --workspace` | passed on the merged tree; 2081 passed, 0 failed, 13 ignored, exit 0 |
 | `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps` | passed; exit 0 |
-| `CARGO_BUILD_JOBS=2 tools/gate.sh` | passed on the rebased tree; the workspace gate and every installed checker reported ok, the script printed `workspace gate passed with CARGO_TARGET_DIR=.../target/gate`, exit 0 |
+| `CARGO_BUILD_JOBS=2 tools/gate.sh` | passed on the merged tree; the workspace gate and every installed checker reported ok, the script printed `workspace gate passed with CARGO_TARGET_DIR=.../target/gate`, exit 0 |
 | `QR_PROFILE=desktop qr-data` smoke | first start logged `catalog SQLite migrations applied applied=1`; two restarts logged `applied=0`; `/health` reported `sqlite` healthy and `object-store` down (the S3-compatible branch is unchanged until P2c); `/catalog/configs` scanned three fixture configs into `catalog__configs` with `INTEGER` booleans and valid JSON bundles; the internal dataset count and dataset list were empty; a restart kept the three config rows and the one `catalog` ledger row; `sqlite3` showed `catalog__datasets`, `catalog__configs`, `catalog__config_bundles`, and `schema_migrations` |
 
 ## Learning and rejected alternatives
