@@ -97,3 +97,16 @@ verification was repeated on the refreshed tree:
 | `python3 tools/check_terms.py` | exit 0; no banned terms |
 | `python3 tools/check_links.py` | 946 Markdown files; no broken relative links |
 | `tools/gate.sh` | exit 0; 1979 tests across 102 test binaries |
+
+## Refresh after #802
+
+The branch was refreshed from `642a764b` (`origin/main` after #802) with a clean
+merge; the changelog kept the remote-profile entry and the retirement (109
+entries). The verification was repeated on the refreshed tree:
+
+| Command | Result |
+|---|---|
+| `python3 tools/check_legacy.py` | exit 0; 1771 label files, 3168 current files |
+| `tools/test_tiers.sh parity` | `port parity ok: 1 registered port(s)` |
+| `python3 tools/check_links.py` | 947 Markdown files; no broken relative links |
+| `tools/gate.sh` | exit 0; 1979 tests across 102 test binaries |
