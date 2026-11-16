@@ -1,5 +1,7 @@
 # Checkpoint E - Delivery, Observation, Recovery
 
+> **Tag map.** Current release [`v1.2.0`](../../../releases/2026-11-16/v1.2.0.md); server platform `v0.9.0`; desktop package `v1.0.0`; 1.1.0 alignment `v1.1.0`. Authoritative map: [`docs/releases/README.md`](../../../releases/README.md).
+
 ## Claim
 
 **Claim type: Outcome.**
@@ -45,7 +47,7 @@ failed run, not as a silent loss.
 | Evidence stage down after compute | finalization retries | run stays `running`, never `succeeded` with a missing artifact; release note records the run lifecycle and no-partial-publish guard |
 | Database lost | restore the last backup | `tools/test_backup.sh`; release note backup/restore over Postgres and the object store |
 | Object store lost | restore from backup | `tools/test_backup.sh` and `tools/restore.sh`; missing objects make runs unverifiable, and that is reported |
-| Bad image | start the previous digest | release note rollback: server starts `v0.9.0`; migrations are forward-only, so the previous version must tolerate the newer schema |
+| Bad image | start the previous release digest | release note rollback: start the previous release digest (`v1.1.0`); `v0.9.0` is the server-platform baseline; migrations are forward-only, so the previous version must tolerate the newer schema |
 
 ## Limit
 
@@ -57,9 +59,9 @@ runs on the release host, and the packaged parity smokes, not a second day.
 
 ## Decision
 
-Shipped in v1.0.0 and current in v1.2.0: the server platform and the
-self-contained desktop package share the same six services and the same
-canonical digest; the server profile
+Shipped as `v0.9.0` (server) and `v1.0.0` (desktop); both current in
+`v1.2.0`. The server platform and the self-contained desktop package share the
+same six services and the same canonical digest; the server profile
 remains the default and the oracle. The thin shell, profiles, and desktop are
 released, not deferred.
 

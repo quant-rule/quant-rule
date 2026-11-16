@@ -1,5 +1,7 @@
 # Checkpoint D - Architecture and Changeability
 
+> **Tag map.** Current release [`v1.2.0`](../../../releases/2026-11-16/v1.2.0.md); server platform `v0.9.0`; desktop package `v1.0.0`; 1.1.0 alignment `v1.1.0`. Authoritative map: [`docs/releases/README.md`](../../../releases/README.md).
+
 - Status: Released v1.2.0; updated 2026-11-16
 - Release: [`docs/releases/2026-11-16/v1.2.0.md`](../../../releases/2026-11-16/v1.2.0.md) (current tag `v1.2.0`)
 
@@ -11,8 +13,9 @@ screen changes without touching the engines.
 
 Service-Based, domain-partitioned, six services, one image, nine containers.
 The current v1.2.0 release covers the server profile and the self-contained
-desktop package; the distributed server platform itself was released as v0.9.0
-(prepared as v1.0.0).
+desktop package; the distributed server platform itself was released as v0.9.0.
+Its historical note was prepared as v1.0.0 before the 2026-11-15 renumbering;
+see the [tag map](../../../releases/README.md).
 
 | Service | Code | Capability |
 |---|---|---|

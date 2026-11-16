@@ -6,6 +6,11 @@
 - Plan: [`docs/execution-plans/2026-11-12/dist-000-distributed-platform.md`](../../execution-plans/2026-11-12/dist-000-distributed-platform.md)
 - Release: [`docs/releases/2026-11-16/v1.2.0.md`](../../releases/2026-11-16/v1.2.0.md) (current tag `v1.2.0`)
 
+> **Tag note.** The current release is `v1.2.0`. The server platform first
+> shipped as `v0.9.0`, the desktop package as `v1.0.0`, and the 1.1.0 alignment
+> release as `v1.1.0`. The authoritative map is
+> [`docs/releases/README.md`](../../releases/README.md).
+
 ## Sources and deliverables
 
 | Source | Deliverable |
