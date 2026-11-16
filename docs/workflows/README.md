@@ -49,6 +49,7 @@ The remaining workflows keep their stages and gates.
 | [`refactor-workflow.md`](refactor-workflow.md) | Is the structure cheap to change and provable? | Engineering improvement | Current | Yes |
 | [`engine-execution.md`](engine-execution.md) | How is one engine run alone, and what does its output prove? | Execution diagnostic | Target | Commands land in #850–#854 |
 | [`backtest.md`](backtest.md) | What did the frozen full configuration do, and can it be reproduced? | Execution evidence | Current | Yes |
+| [`end-to-end-verification.md`](end-to-end-verification.md) | Does a clean deployment reproduce a verified digest? | Operations verification | Current | Yes |
 | [`improvement-workflow.md`](improvement-workflow.md) | Does a change improve the trading system? | Quant spine | Current | Yes; no tiered run yet |
 | [`run-contract.md`](run-contract.md) | What makes a run valid evidence? | Quant record | Current | Yes; v2 current |
 | [`research-swarm.md`](research-swarm.md) | How do pre-registered cells run concurrently? | Quant execution | Current | Yes; no active campaign |
@@ -73,6 +74,7 @@ The remaining workflows keep their stages and gates.
 | A structural problem, coupling, file size, or duplication | [Refactor Workflow](refactor-workflow.md) |
 | Running one engine alone for diagnosis | [Engine Execution](engine-execution.md) |
 | Producing a coupled backtest or an evidence run | [Backtest Workflow](backtest.md) |
+| Verifying a clean deployment or a release candidate | [End-to-End Verification](end-to-end-verification.md) |
 | A model measurement, event, or family hypothesis | [Model Research](model-research.md) |
 | An indicator, event, or model implementation change | [Model Change](model-change.md) |
 | A chart-first, hindsight-labeled hypothesis | [Simulation Research](simulation-research.md) |
