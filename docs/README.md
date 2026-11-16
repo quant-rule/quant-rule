@@ -299,6 +299,7 @@ current-tag map is in [`docs/releases/README.md`](releases/README.md).
 | M2.x model programme | Closed at `no_edge`; legacy removal #463 complete | `docs/execution-plans/2026-11-05/410-m2-model-programme.md` |
 | Workflow documentation reset | Released as `v0.5.0` (prepared as `v0.6.0`; PR #542) | `docs/execution-plans/2026-11-07/workflow-documentation-reset.md` |
 | Simulation runs | Approved 2026-11-10; execution started | `docs/execution-plans/2026-11-10/simulation-runs.md` |
+| Stage execution surface | Approved 2026-11-16; epic #842 | `docs/execution-plans/2026-11-16/842-stage-execution-surface.md` |
 
 ## Current architecture decisions
 
