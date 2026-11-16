@@ -5,8 +5,7 @@
 - Decision: [`ADR-2026-11-12-05`](../adr/2026-11-12/05-svelte-only-web-client.md)
 - Claim type: Behaviour Claim
 
-The client is a Svelte 5 single-page application served by the gateway at the
-same origin as the API. It holds no domain logic and no source of truth.
+The client is a Svelte 5 single-page application served by the gateway at the same origin as the API; it holds no domain logic and no source of truth.
 
 The gateway serves the built assets from `QR_STATIC_DIR`. A path outside that
 root is refused, an unknown page falls back to `index.html`, and an `/api/*`
@@ -24,7 +23,7 @@ path never falls back to the client.
 | Run detail | `RunDetail.svelte` | Stages, provenance, canonical digest with Verify, artifacts with verified download | Only for a known run |
 | Inspect | `InspectPanel.svelte` | Candles, timeframe ladder, and event batch for one dataset; read-only | "No datasets to inspect." |
 | Simulation | `SimulationRunsPanel.svelte` | `sim_id`, premise, bundle, windows, marked/unmarked, status | "No simulation runs." |
-| Simulation run | `SimulationRunDetail.svelte` | Window navigator, chart with a deterministic SVG export, mark toolbar, marks table, review, check, decision | Only for a known run |
+| Simulation run | `SimulationRunDetail.svelte` | Run state and requests from `simulationRun.svelte.ts`; window navigator, chart, review, and the marks, check, and decision panels | Only for a known run |
 | Help | `HelpPanel.svelte` | The 27 registered commands and the screen that reaches each use case | — |
 
 Every screen is owned by one component. The browser and the command shell reach
@@ -41,6 +40,7 @@ registered command has a browser control (`tests/fixtures/client-parity/api.json
 | `configs.svelte.ts` | profile configs and the last submission | on demand |
 | `runs.svelte.ts` | profile run list, selected run, and detail | 2 s active, 30 s idle |
 | `simulation.svelte.ts` | profile simulation summaries | on demand |
+| `simulationRun.svelte.ts` | one run's windows, series, marks, and action state | on demand |
 | `profileScope.svelte.ts` | the switch, clear, and reload boundary for the four profile stores | — |
 | `labels.generated.ts` | numeric code → word | static, generated |
 
