@@ -11,11 +11,12 @@
 - The platform may iterate freely. A hypothesis may not: after it runs, a change
   is a new, separately recorded hypothesis.
 
-Release evidence: [`docs/releases/2026-11-15/v1.0.0.md`](../../../releases/2026-11-15/v1.0.0.md)
-(current tag `v1.0.0`).
+Release evidence: [`docs/releases/2026-11-16/v1.2.0.md`](../../../releases/2026-11-16/v1.2.0.md)
+(current tag `v1.2.0`).
 
 **Observed:** the pipeline, the bundle contract, the gate, and the distributed
-run lifecycle are released (server profile v0.9.0, desktop profile v1.0.0). The
+run lifecycle are released (server profile v0.9.0, desktop profile v1.0.0,
+current v1.2.0). The
 release note records two equivalent runs on the release host, 12 canonical
 artifacts and 3,559,171 bytes each, both printing
 `sha256:453c90b4442dd049074e126bb46b400b6f61baa986443c97fa27c3edd41c1daa`.
@@ -39,7 +40,8 @@ hypothesis -> pre-registration -> data version -> run -> review -> decision
 | Decision | the human | the review, not the run | human; accept, revise, or stop |
 
 The longest wait is a run, and it is unattended by design. The release evidence
-is the two-run comparison in `tools/verify.sh` and the v1.0.0 release note:
+is the two-run comparison in `tools/verify.sh`, the desktop release note
+(v1.0.0), and the current note (v1.2.0):
 two verify-mini runs, 12 canonical artifacts and 3,559,171 bytes each, both
 `sha256:453c90b4…`.
 

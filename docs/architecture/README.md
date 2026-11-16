@@ -38,17 +38,17 @@ agent interface. Both speak `quantrule.api/v1`.
 |---|---|---|
 | [`kata.md`](kata.md) | Current | Why the product exists |
 | [`characteristics.md`](characteristics.md) | Current | Which qualities are measurable and how |
-| [`services.md`](services.md) | Current; released as v0.9.0 (prepared as v1.0.0); unchanged through v1.1.0 | Who does what, and what each service owns |
-| [`data-plane.md`](data-plane.md) | Current; released as v0.9.0 (prepared as v1.0.0); unchanged through v1.1.0 | How one run stays deterministic |
-| [`control-plane.md`](control-plane.md) | Current; released as v0.9.0 (prepared as v1.0.0); unchanged through v1.1.0 | How a run is submitted, retried, and cancelled |
-| [`http-api.md`](http-api.md) | Current; released as v0.9.0 (prepared as v1.0.0); unchanged through v1.1.0 | The client contract |
-| [`deployment.md`](deployment.md) | Current; released as v1.0.0 (prepared as v1.1.0); current in v1.1.0 | How to run it with one command |
-| [`desktop.md`](desktop.md) | Current; released as v1.0.0 (prepared as v1.1.0); current in v1.1.0 | The embedded profile: SQLite, ledgers, prefixes, start and stop |
-| [`client.md`](client.md) | Current; product 1.1.0, current tag v1.1.0 | The browser client |
-| [`user-journey.md`](user-journey.md) | Current; released as v1.0.0 (prepared as v1.1.0); current in v1.1.0 | How it is used and what it returns |
-| [`security.md`](security.md) | Current; released as v0.9.0 (prepared as v1.0.0); unchanged through v1.1.0 | The trust boundary |
-| [`operations.md`](operations.md) | Current; released as v0.9.0 (prepared as v1.0.0); unchanged through v1.1.0 | Running, backing up, recovering |
-| [`module-map.md`](module-map.md) | Current; released as v0.9.0 (prepared as v1.0.0); unchanged through v1.1.0 | Where code lives |
+| [`services.md`](services.md) | Current; released as v0.9.0 (prepared as v1.0.0); unchanged through v1.2.0 | Who does what, and what each service owns |
+| [`data-plane.md`](data-plane.md) | Current; released as v0.9.0 (prepared as v1.0.0); unchanged through v1.2.0 | How one run stays deterministic |
+| [`control-plane.md`](control-plane.md) | Current; released as v0.9.0 (prepared as v1.0.0); unchanged through v1.2.0 | How a run is submitted, retried, and cancelled |
+| [`http-api.md`](http-api.md) | Current; released as v0.9.0 (prepared as v1.0.0); unchanged through v1.2.0 | The client contract |
+| [`deployment.md`](deployment.md) | Current; released as v1.0.0 (prepared as v1.1.0); current in v1.2.0 | How to run it with one command |
+| [`desktop.md`](desktop.md) | Current; released as v1.0.0 (prepared as v1.1.0); current in v1.2.0 | The embedded profile: SQLite, ledgers, prefixes, start and stop |
+| [`client.md`](client.md) | Current; product 1.2.0, current tag v1.2.0 | The browser client |
+| [`user-journey.md`](user-journey.md) | Current; released as v1.0.0 (prepared as v1.1.0); current in v1.2.0 | How it is used and what it returns |
+| [`security.md`](security.md) | Current; released as v0.9.0 (prepared as v1.0.0); unchanged through v1.2.0 | The trust boundary |
+| [`operations.md`](operations.md) | Current; released as v0.9.0 (prepared as v1.0.0); unchanged through v1.2.0 | Running, backing up, recovering |
+| [`module-map.md`](module-map.md) | Current; released as v0.9.0 (prepared as v1.0.0); unchanged through v1.2.0 | Where code lives |
 | [`command-surface.md`](command-surface.md) | Current | Implemented commands and the retirement record |
 
 `Target` means the decision is accepted and the document is the implementation

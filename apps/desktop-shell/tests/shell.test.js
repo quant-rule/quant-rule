@@ -347,7 +347,7 @@ describe("shell boundary", () => {
     const pkg = JSON.parse(read("package.json"));
     const cargo = /\[package\][\s\S]*?\nversion = "([^"]+)"/.exec(read("Cargo.toml"));
 
-    expect(SHELL_VERSION).toBe("1.1.0");
+    expect(SHELL_VERSION).toBe("1.2.0");
     expect(tauri.version).toBe(SHELL_VERSION);
     expect(pkg.version).toBe(SHELL_VERSION);
     expect(cargo?.[1]).toBe(SHELL_VERSION);

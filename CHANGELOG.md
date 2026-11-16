@@ -13,10 +13,33 @@ history is in Git and the pull requests.
 > through `v1.0.0`. On 2026-11-16 the release-note filenames and the sections
 > below were normalized to those current tags, and the next two releases were
 > cut as `v1.1.0` and `v1.2.0`. Each release note keeps its historical heading
-> and records the version it was prepared as. The current tag is `v1.1.0`. See
+> and records the version it was prepared as. The current tag is `v1.2.0`. See
 > [`docs/releases/README.md`](docs/releases/README.md) for the mapping.
 
 ## [Unreleased]
+
+## [1.2.0] - 2026-11-16
+
+The version alignment release. The product version, the current tag, the
+release records, the documentation, and the course deliverables now name
+`1.2.0` / `v1.2.0`. The canonical pipeline output is unchanged; the only
+model-object delta is the compiled product version.
+
+### Changed
+
+- The workspace and its 16 lockfile entries, the web package, the desktop shell,
+  the supervisor, the Tauri config, `SHELL_VERSION`, and the desktop version
+  test move to `1.2.0`.
+- The release index, current-tag map, README, status docs, architecture status
+  index, deployment and user-journey examples, and course sources name
+  `v1.2.0`; the course PDFs are rebuilt.
+
+### Fixed
+
+- The model-object regression oracle is regenerated for `1.2.0`. The object is
+  66,022 bytes, one byte differs, and a semantic diff reports only
+  `.model_version`; no reading, event, report, or canonical artifact value
+  changed.
 
 ## [1.1.0] - 2026-11-16
 

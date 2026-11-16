@@ -76,15 +76,17 @@ historical heading and records the prepared version in a tag note.
 | `v0.9.0` | `748355f7` | `v1.0.0` |
 | `v1.0.0` | `6373c293` | `v1.1.0` |
 | `v1.1.0` | tag target on `main` | new 2026-11-16 (current 1.1.0 tree) |
+| `v1.2.0` | tag target on `main` | new 2026-11-16 (version alignment) |
 
 The GitHub release pages follow the current tag names; published asset and image
 names keep their original build versions. The `v1.0.0` desktop release was built
 as `1.1.0`, so its installers keep that name; its `v1.1.0` registry tag was
 reassigned to the 2026-11-16 release, and its digest is the stable reference.
 
-The current release tag is `v1.1.0` (2026-11-16), the version-alignment release;
-its note is [`v1.1.0`](2026-11-16/v1.1.0.md). The previous tag is `v1.0.0`, the
-desktop release, whose note is [`v1.0.0`](2026-11-15/v1.0.0.md).
+The current release tag is `v1.2.0` (2026-11-16), the final version-alignment
+release; its note is [`v1.2.0`](2026-11-16/v1.2.0.md). The previous tag is
+`v1.1.0`, the 1.1.0 alignment release, whose note is
+[`v1.1.0`](2026-11-16/v1.1.0.md); `v1.0.0` is the desktop release.
 
 The map below is authoritative: a current tag resolves to exactly one note, and
 the release workflow and `tools/check_releases.py` both read it. Paths are
@@ -104,7 +106,8 @@ above; the checker fails when the two drift.
   "v0.8.0": "2026-11-11/v0.8.0.md",
   "v0.9.0": "2026-11-15/v0.9.0.md",
   "v1.0.0": "2026-11-15/v1.0.0.md",
-  "v1.1.0": "2026-11-16/v1.1.0.md"
+  "v1.1.0": "2026-11-16/v1.1.0.md",
+  "v1.2.0": "2026-11-16/v1.2.0.md"
 }
 ```
 <!-- current-tags:end -->
@@ -136,8 +139,8 @@ keeps its historical heading and states the prepared version in a tag note.
   backfilled.
 - A correction to a released section is a new release or a dated addendum in the
   next release.
-- The current release section is `1.1.0`; `1.0.0` is the desktop release and
-  `0.9.0` is the distributed platform.
+- The current release section is `1.2.0`; `1.1.0` is the 1.1.0 alignment,
+  `1.0.0` is the desktop release, and `0.9.0` is the distributed platform.
 
 ## 6. Release note template
 
@@ -233,7 +236,7 @@ A published tag is never moved, deleted, or recreated, so a failed tag run is
 recovered from the existing tag:
 
 ```bash
-gh workflow run release.yml --ref main -f release_tag=v1.0.0
+gh workflow run release.yml --ref main -f release_tag=v1.2.0
 ```
 
 Every job checks out that tag, the gate repeats the tag check, and the image job

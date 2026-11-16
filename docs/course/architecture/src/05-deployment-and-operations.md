@@ -18,7 +18,7 @@ make restore FILE=...
 `make up` blocks until `/health` returns 200 and prints:
 
 ```text
-QuantRule v1.0.0 ready -> http://localhost:8080
+QuantRule v1.2.0 ready -> http://localhost:8080
 ```
 
 ## 2. Topology

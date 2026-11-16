@@ -9,7 +9,7 @@ an OHLCV hypothesis into reproducible, cost-aware evidence.
   digest, without an account.
 - **What exists:** a deterministic pipeline - candles, model, strategy,
   execution, portfolio, backtest, qualification, analytics - behind a command
-  shell. Released as v1.0.0: six services, one image, nine containers, a browser
+  shell. Released as v1.2.0: six services, one image, nine containers, a browser
   client, a command shell, and a self-contained desktop package.
 - **How it is judged:** the same candles and configuration produce the same
   bytes; a reviewer compares one digest; a negative result is a valid outcome.

@@ -30,17 +30,27 @@
 
 ## Verification and evidence
 
-- `python3 tools/check_releases.py`: `releases ok: 10 release notes, 11 current
-  tags, 7 changelog versions, baseline 2026-11-07`.
-- `tools/gate.sh`: `workspace gate passed`; 2,118 passed, 0 failed, 14 ignored;
-  24 checkers.
+- `python3 tools/check_releases.py`: `releases ok: 11 release notes, 12 current
+  tags, 8 changelog versions, baseline 2026-11-07`.
+- `tools/gate.sh` on the 1.1.0 tree: `workspace gate passed`; 2,118 passed, 0
+  failed, 14 ignored; 24 checkers.
+- `tools/gate.sh` on the 1.2.0 tree: `workspace gate passed`; 2,118 passed, 0
+  failed, 14 ignored; 24 checkers.
 - The 1.1.0 model object was dumped before the bump: 66,022 bytes,
   `sha256:d3ed28f8a944de50bd9df986424f14bc6c5a89d8fd346f7895cd5f3914b16c6f`,
   matching the recorded oracle.
-- `check_links.py`, `check_doc_length.py`, and `check_terms.py` passed after the
-  note renames.
-- The 1.2.0 oracle delta, the full gate, the PDF build, and both tag runs are
-  recorded after they run; this log does not pre-claim them.
+- The 1.2.0 model object is 66,022 bytes,
+  `sha256:73e2fe4f4f0bffe5ee8cc30f24e7773952fad4ffad300ec717352868d2b62de7`;
+  `cmp -l` reports one differing byte and a semantic JSON diff reports one path,
+  `.model_version` (`1.1.0` to `1.2.0`). No reading, event, report, or canonical
+  artifact value changed.
+- `check_links.py` (980 files), `check_doc_length.py` (35 within cap), and
+  `check_terms.py` (602 files, no banned terms) passed.
+- `tools/course/build_pdfs.sh` built 11 PDFs (six methodology, five
+  architecture). The generated text contains `v1.2.0` in the overview, the
+  checkpoint evidence, the deployment example, and the user-journey example;
+  page counts are unchanged.
+- Both tag runs are recorded after they run; this log does not pre-claim them.
 
 ## Learning
 

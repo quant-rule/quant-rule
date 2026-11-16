@@ -79,12 +79,12 @@ Excluded:
 
 | ID | Plan item | Acceptance criterion | Evidence / command | Expected | Observed | Status | Reviewer | Date | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| V1 | Release alignment | Every current tag resolves | `python3 tools/check_releases.py` | passes | pending | Pending |  |  |  |
-| V2 | Workspace gate | Fast and full gate pass | `tools/gate.sh` | passes | pending | Pending |  |  |  |
-| V3 | Version surfaces | All report `1.2.0` | manifest and shell checks | all `1.2.0` | pending | Pending |  |  |  |
-| V4 | Oracle delta | Only `.model_version` changes | dumps and `cmp` | one semantic path | pending | Pending |  |  |  |
-| V5 | Links and docs | No broken links or over-cap docs | `check_links`, `check_doc_length`, `check_terms` | pass | pending | Pending |  |  |  |
-| V6 | PDFs | Sources and PDFs agree | `tools/course/build_pdfs.sh` | builds and content matches | pending | Pending |  |  |  |
+| V1 | Release alignment | Every current tag resolves | `python3 tools/check_releases.py` | passes | `releases ok: 11 release notes, 12 current tags, 8 changelog versions` | Pass | Agent self-check | 2026-11-16 | Human review pending |
+| V2 | Workspace gate | Fast and full gate pass | `tools/gate.sh` | passes | `workspace gate passed`; 2,118 passed, 0 failed, 14 ignored; 24 checkers | Pass | Agent self-check | 2026-11-16 | Human review pending |
+| V3 | Version surfaces | All report `1.2.0` | manifest and shell checks | all `1.2.0` | workspace, 16 lockfile entries, web, desktop, supervisor, Tauri, shell, and test all `1.2.0` | Pass | Agent self-check | 2026-11-16 |  |
+| V4 | Oracle delta | Only `.model_version` changes | dumps and `cmp` | one semantic path | 66,022 bytes each; 1 byte differs; only `.model_version` (`1.1.0` to `1.2.0`) | Pass | Agent self-check | 2026-11-16 |  |
+| V5 | Links and docs | No broken links or over-cap docs | `check_links`, `check_doc_length`, `check_terms` | pass | 980 files, 35 within cap, 602 terms, no banned terms | Pass | Agent self-check | 2026-11-16 |  |
+| V6 | PDFs | Sources and PDFs agree | `tools/course/build_pdfs.sh` | builds and content matches | 11 PDFs built; six methodology PDFs and five architecture PDFs; v1.2.0 text and page counts verified | Pass | Agent self-check | 2026-11-16 |  |
 | V7 | Tags | Both annotated and on `main` | `git cat-file`, workflow runs | both published | pending | Pending |  |  |  |
 | V8 | Release records | Digest and assets recorded | GitHub release pages | appended | pending | Pending |  |  |  |
 

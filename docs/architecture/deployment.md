@@ -1,6 +1,6 @@
 # Deployment
 
-- Status: Current; released as v1.0.0 on 2026-11-15 (prepared as v1.1.0); current in v1.1.0; approved 2026-11-12
+- Status: Current; released as v1.0.0 on 2026-11-15 (prepared as v1.1.0); current in v1.2.0; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Decision: [`ADR-2026-11-12-01`](../adr/2026-11-12/01-adopt-distributed-service-based-architecture.md)
 - Claim type: Behaviour Claim
@@ -19,7 +19,7 @@ make up
 `make up` builds the image, starts the stack, waits for health, and prints:
 
 ```text
-QuantRule v1.1.0 ready → http://localhost:8080
+QuantRule v1.2.0 ready → http://localhost:8080
 ```
 
 Stop with `make down`. Delete volumes with `make reset`; it asks for

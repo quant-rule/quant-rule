@@ -47,7 +47,7 @@ only when the source changes.
 
 ## Boundary
 
-- The architecture sources describe the v1.0.0 distributed platform in
+- The architecture sources describe the v1.2.0 distributed platform in
   [`docs/architecture/`](../architecture/README.md). Where they differ, the
   architecture copy governs.
 - The static download site was deleted on 2026-11-12; distribution is the

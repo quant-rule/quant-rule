@@ -1,6 +1,6 @@
 # User Journey
 
-- Status: Current; released as v1.0.0 on 2026-11-15 (prepared as v1.1.0); current in v1.1.0; approved 2026-11-12
+- Status: Current; released as v1.0.0 on 2026-11-15 (prepared as v1.1.0); current in v1.2.0; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Claim type: Outcome Claim
 
@@ -12,7 +12,7 @@ document links here instead of restating it.
 | # | The operator does | Sees | Value |
 |---|---|---|---|
 | 1 | `make up` | `ready → http://localhost:8080` | one command, no configuration file |
-| 2 | Opens the URL | `connected · v1.1.0` | a client that is only a browser |
+| 2 | Opens the URL | `connected · v1.2.0` | a client that is only a browser |
 | 2b | Creates a profile, or keeps `default` | the switcher shows the active profile | research lines stay separate |
 | 3 | Uploads a candle CSV | `data_version`, candles, coverage | data identified by content |
 | 4 | Picks a config, sees `valid`, submits | `202`, run appears `queued` | submission returns immediately |
