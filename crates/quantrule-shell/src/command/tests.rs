@@ -35,6 +35,25 @@ fn help_all_lists_every_usage_once() {
 }
 
 #[test]
+fn a_usage_error_carries_the_registry_usage() {
+    use super::parse::parse_line;
+
+    for name in names() {
+        // `help` answers an unknown topic instead of echoing a usage line.
+        if name == "help" {
+            continue;
+        }
+        let input = format!("{name} --bogus");
+        let error = parse_line(&input).expect_err("an unknown option is rejected");
+        let registry = super::help::usage(name).expect("the registry lists the command");
+        assert!(
+            error.to_string().contains(registry),
+            "{name}: {error}\nregistry usage: {registry}"
+        );
+    }
+}
+
+#[test]
 fn the_short_map_names_the_global_flags_and_environment() {
     let mut buffer = Vec::new();
     run_help(&HelpTopic::Short, &mut buffer).expect("help renders");

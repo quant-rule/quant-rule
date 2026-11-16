@@ -40,7 +40,7 @@ bash tools/checkers.sh
 |---|---|---|---|---|---|---|---|---|---|---|
 | REF-2026-11-16-01 | Medium | tests | Five service test suites copy the same in-memory object store | `rg -n 'pub struct MemoryObjects' crates` returns 5 copies, 57-69 lines each, 0.89-0.96 similar | duplication, testability | A / B / C | A | one definition; five suites import it; test count unchanged | Open | plan P1 |
 | REF-2026-11-16-02 | Medium | runtime, services | Four service binaries repeat the profile database bootstrap | `data-service/src/main.rs:39`, `evidence-service/src/main.rs:52`, `gateway/src/bin/qr_gateway.rs:36`, `simulation-service/src/main.rs:38`; `backtest-service/src/main.rs:38` already calls `backends::open_database` | duplication, coupling | A / B / C | A | one branch in runtime; four binaries call one helper; health tests pass | Open | plan pending |
-| REF-2026-11-16-03 | Medium | shell | Command usage text is duplicated between the help registry and the parser | 25 of 27 `help.rs` usages are byte-identical literals in `parse.rs`; example `help.rs:51` vs `parse.rs:319` | duplication, coupling | A / B / C | A | 0 duplicated usage literals; shell output tests unchanged | Open | plan pending |
+| REF-2026-11-16-03 | Medium | shell | Command usage text is duplicated between the help registry and the parser | 25 of 27 `help.rs` usages are byte-identical literals in `parse.rs`; example `help.rs:51` vs `parse.rs:319` | duplication, coupling | A / B / C | A | 0 duplicated usage literals; shell output tests unchanged | Refactored | plan P2 |
 | REF-2026-11-16-04 | Low | app | The timeframe code is mapped in three places | `artifact/labels.rs:8` (hand-written), `artifact/model_bundle/bundle.rs:278` and `stages/analytics/metrics.rs:323` (both from `Timeframe::ALL`) | duplication | A / B / C | A | one lookup; report and metrics tests unchanged | Open | plan pending |
 | REF-2026-11-16-05 | Low | app | Stage artifact writers duplicate the engine-code mappings | `sizing_label` at `execution/run.rs:561` and `portfolio/run.rs:513`; `summary_number` at 604 and 528; `collect` at `backtest.rs:556` and `execution/run.rs:357` | duplication | A / B | A | one definition each; bundle bytes identical | Open | plan pending |
 | REF-2026-11-16-06 | Low | docs | The normative crate list is stale in AGENTS.md and README.md | `AGENTS.md:48-63` and `README.md:237-250` list 14 crates; `Cargo.toml:3-18` lists 16; `quantrule-research` and `quantrule-simulation` missing | readability | A / B / C | A | both tables match `cargo metadata`; link and term checks pass | Open | plan pending |
@@ -177,6 +177,12 @@ print the same bytes; a new test maps each command to its registry usage.
 
 #### Links
 Plan pending.
+
+- Revision (2026-11-16, P2): the parity test found that the parser's
+  `simulation marks` hint advertised `--origin human|oracle|all`, while help and
+  the parser accept `human|oracle`. The human approved the correction; the hint
+  now comes from the registry and no longer names `all`. Every other usage error
+  keeps its bytes.
 
 ### REF-2026-11-16-04 — Three timeframe label mappings
 
