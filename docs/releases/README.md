@@ -75,8 +75,8 @@ historical heading and records the prepared version in a tag note.
 | `v0.8.0` | `57f5663f` | `v0.9.0` |
 | `v0.9.0` | `748355f7` | `v1.0.0` |
 | `v1.0.0` | `6373c293` | `v1.1.0` |
-| `v1.1.0` | tag target on `main` | new 2026-11-16 (current 1.1.0 tree) |
-| `v1.2.0` | tag target on `main` | new 2026-11-16 (version alignment) |
+| `v1.1.0` | `a734e7fb` | new 2026-11-16 (current 1.1.0 tree) |
+| `v1.2.0` | `231c1395` | new 2026-11-16 (version alignment) |
 
 The GitHub release pages follow the current tag names; published asset and image
 names keep their original build versions. The `v1.0.0` desktop release was built

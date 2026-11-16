@@ -1,6 +1,6 @@
 # Release 1.2.0 — Version and tag alignment
 
-- Status: In Progress
+- Status: In Review
 - Date: 2026-11-16 (UTC)
 - Workflow: [Release & Operations](../../workflows/release-operations.md)
 - Claim type: Outcome Claim (release identity and reproducibility)
@@ -85,8 +85,9 @@ Excluded:
 | V4 | Oracle delta | Only `.model_version` changes | dumps and `cmp` | one semantic path | 66,022 bytes each; 1 byte differs; only `.model_version` (`1.1.0` to `1.2.0`) | Pass | Agent self-check | 2026-11-16 |  |
 | V5 | Links and docs | No broken links or over-cap docs | `check_links`, `check_doc_length`, `check_terms` | pass | 980 files, 35 within cap, 602 terms, no banned terms | Pass | Agent self-check | 2026-11-16 |  |
 | V6 | PDFs | Sources and PDFs agree | `tools/course/build_pdfs.sh` | builds and content matches | 11 PDFs built; six methodology PDFs and five architecture PDFs; v1.2.0 text and page counts verified | Pass | Agent self-check | 2026-11-16 |  |
-| V7 | Tags | Both annotated and on `main` | `git cat-file`, workflow runs | both published | pending | Pending |  |  |  |
-| V8 | Release records | Digest and assets recorded | GitHub release pages | appended | pending | Pending |  |  |  |
+| V7 | Tags | Both annotated and on `main` | `git cat-file`, workflow runs | both published | `v1.1.0` object `c13cfe22…` targets `a734e7fb`; `v1.2.0` object `00387d41…` targets `231c1395`; runs `43889152217` and `43889152059` succeeded | Pass | Agent self-check | 2026-11-16 | Human review pending |
+| V8 | Release records | Digest and assets recorded | GitHub release pages | appended | `v1.1.0` digest `sha256:d5ce83da…`; `v1.2.0` digest `sha256:26350916…`; both releases carry the AppImage and NSIS assets | Pass | Agent self-check | 2026-11-16 |  |
+| V9 | Closure | Worktree and branches removed; board items remain | `python3 tools/worktree_cleanup.py check <worktree>` | check passes; board items present | pending | Pending |  |  |  |
 
 ## Risks and recovery
 
