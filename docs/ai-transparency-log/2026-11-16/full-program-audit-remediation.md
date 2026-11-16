@@ -155,8 +155,9 @@ The sections above describe the audit and plan pass. The human approved the plan
 options, and the implementation pass below followed. At the implementation pass
 it did not commit, push, open a pull request, merge, change the board, or move
 an audit finding to `Fixed`; those remained gated. The human then authorized a
-commit and pull request, recorded in the handoff section at the end. Findings
-remain `Open` until review.
+commit and pull request, recorded in the handoff section at the end. The audit
+findings moved to `Fixed` with the pull request; independent verification
+remains.
 
 ### Roles and completeness
 
@@ -301,6 +302,6 @@ was unavailable, and no cross-machine CPU comparison was observed.
 - Branch: `docs/audit-full-program-2026-11-16`, pushed to `origin`.
 - Pull request: [#828](https://github.com/quant-rule/quant-rule/pull/828),
   opened against `main` after the human authorized the commit and PR.
-- The audit findings remain `Open`, the plan is `In Review`, and the 38
-  verification rows remain `Pending`. The human review is the next gate; no
-  merge, release, or board edit has been made by the agent.
+- The audit findings are `Fixed` by PR #828; the plan is `In Review`, and the
+  38 verification rows remain `Pending`. Independent verification and the
+  merge gate remain; the board automation, not the agent, added the PR item.
