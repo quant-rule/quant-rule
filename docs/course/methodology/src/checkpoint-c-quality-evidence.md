@@ -18,7 +18,11 @@ One control is not a test: contract versioning plus the review rule.
 - **Behaviour:** an event appears only at or after the bar on which it became
   knowable.
 - **Expected:** appending later bars does not change any earlier published value.
-- **Observed:** the prefix and causality tests pass on the current model suite.
+- **Observed:** `every_prefix_keeps_the_output_lengths_and_ranges`
+  (`crates/quantrule-model/tests/hardening.rs`) and
+  `every_prefix_matches_the_full_series`
+  (`crates/quantrule-model/tests/progression_golden.rs`) pass in the
+  2026-11-16 gate. The v1.0.0 release gate (2026-11-15) passed 2,134 tests.
 
 Command: `cargo test -p quantrule-model` (causality and prefix tests).
 
@@ -31,13 +35,21 @@ still read a level before it is confirmed.
 ## Three decisions
 
 - **Review.** Kept numeric model output and rejected labels at the service
-  boundary; labels are a client mapping, so two clients cannot drift.
+  boundary; labels are a client mapping in `labels.generated.ts`, so two clients
+  cannot drift (`docs/architecture/client.md` §5). The review kept the
+  service-side numeric contract and rejected a server-rendered label.
 - **AI use.** AI drafted the architecture documents and the work items. Every
   claim was checked against code or the gate; cross-machine determinism is
   explicitly not claimed as observed.
 - **Residual risk.** The determinism claim is bounded to one machine until a
-  second one runs the verification procedure. Next: add the scale-invariance
-  test before the client ships.
+  second one runs the verification procedure. The observed scale result is the
+  shard-invariance suite: `one_pass_and_four_shards_share_one_digest`,
+  `a_reversed_ladder_produces_the_same_digest`,
+  `one_shard_merged_equals_the_full_pass`, and
+  `an_unsorted_merge_would_change_the_digest` pass (2026-11-14,
+  `docs/ai-transparency-log/2026-11-14/664-scale-invariance.md`). That proves
+  digest invariance, not throughput. Next: measure cross-machine determinism
+  and throughput at scale; the client has shipped.
 
 **Risk -> Control -> Evidence -> Review -> Residual:** the evidence supports the
 causality claim for the tested readings, not for a strategy built on them.
