@@ -44,7 +44,7 @@ bash tools/checkers.sh
 | REF-2026-11-16-04 | Low | app | The timeframe code is mapped in three places | `artifact/labels.rs:8` (hand-written), `artifact/model_bundle/bundle.rs:278` and `stages/analytics/metrics.rs:323` (both from `Timeframe::ALL`) | duplication | A / B / C | A | one lookup; report and metrics tests unchanged | Open | plan pending |
 | REF-2026-11-16-05 | Low | app | Stage artifact writers duplicate the engine-code mappings | `sizing_label` at `execution/run.rs:561` and `portfolio/run.rs:513`; `summary_number` at 604 and 528; `collect` at `backtest.rs:556` and `execution/run.rs:357` | duplication | A / B | A | one definition each; bundle bytes identical | Open | plan pending |
 | REF-2026-11-16-06 | Low | docs | The normative crate list is stale in AGENTS.md and README.md | `AGENTS.md:48-63` and `README.md:237-250` list 14 crates; `Cargo.toml:3-18` lists 16; `quantrule-research` and `quantrule-simulation` missing | readability | A / B / C | A | both tables match `cargo metadata`; link and term checks pass | Open | plan pending |
-| REF-2026-11-16-07 | Medium | client | `SimulationRunDetail.svelte` owns state, loaders, actions, and markup | 762 lines; 23 `$state` variables; 7 async flows; the other panels use `*.svelte.ts` stores | cohesion, atomicity | A / B / C | A | component under 400 lines; web unit and e2e tests pass | Open | plan pending |
+| REF-2026-11-16-07 | Medium | client | `SimulationRunDetail.svelte` owns state, loaders, actions, and markup | 762 lines; 23 `$state` variables; 7 async flows; the other panels use `*.svelte.ts` stores | cohesion, atomicity | A / B / C | A | component under 400 lines; web unit and e2e tests pass | Refactored | plan P4 |
 | REF-2026-11-16-08 | Low | app | Two different types are named `StageProvenance` in one module tree | `artifact/provenance.rs:22` (identity fields) and `artifact/backtest.rs:121` (manifest stage record) | readability | A / B | A | no duplicate type name; gate passes | Open | plan pending |
 
 ## Detail blocks
@@ -343,6 +343,13 @@ quantrule-app` and the gate pass.
 
 #### Links
 Plan pending.
+
+- Revision (2026-11-16, P4): the screen is 344 lines and reads one store. The
+  marks table, the check, and the decision moved to their own components; the
+  chart gained `onMarksChanged` and `onMarkPosted` callbacks so the store owns
+  the mark list without a two-way binding. The e2e suite found one lost update
+  during implementation (a state spread across an `await`), which was fixed
+  before the cycle closed.
 
 ## Observations
 

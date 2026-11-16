@@ -26,8 +26,10 @@
     marks?: ChartMark[];
     /** A decided run refuses every mark and undo. */
     locked?: boolean;
-    /** The server has a new mark set; the parent may re-read the run state. */
-    onMarksChange?: () => void;
+    /** The list changed; the parent writes it back to its own state. */
+    onMarksChanged?: (marks: ChartMark[]) => void;
+    /** The server accepted a mark change; the parent may re-read the run. */
+    onMarkPosted?: () => void;
   }
 
   let {
@@ -35,7 +37,8 @@
     simulationId,
     marks = $bindable([]),
     locked = false,
-    onMarksChange,
+    onMarksChanged,
+    onMarkPosted,
   }: Props = $props();
 
   const visibleMarks = $derived(
@@ -182,7 +185,8 @@
       postedIds = [...postedIds, ack.mark_id];
       note = "";
       status = `${markClass.label} at bar ${bar}.`;
-      onMarksChange?.();
+      onMarksChanged?.(marks);
+      onMarkPosted?.();
     } catch (failure) {
       // The selected class, bar, and note stay put so the user can correct and retry.
       error = errorText(failure);
@@ -209,7 +213,8 @@
       marks = removeMarkById(marks, last.mark_id);
       postedIds = postedIds.filter((id) => id !== last.mark_id);
       status = `Removed ${last.mark_id}.`;
-      onMarksChange?.();
+      onMarksChanged?.(marks);
+      onMarkPosted?.();
     } catch (failure) {
       error = errorText(failure);
     } finally {

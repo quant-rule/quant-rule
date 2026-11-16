@@ -1,59 +1,45 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { errorText } from "./api";
-  import { markClassLabel } from "./chart/markClasses";
-  import type { ChartMark, ChartSeries } from "./chart/types";
   import { connection } from "./connection.svelte";
   import { shortId } from "./runs";
-  import {
-    fetchMarks,
-    fetchRun,
-    fetchSeries,
-    postCheck,
-    postDecision,
-    postOracle,
-    selectWindows,
-    type SimulationCheck,
-    type SimulationDecisionKind,
-    type SimulationRun,
-    type SimulationStatus,
-    type SimulationWindow,
+  import type {
+    SimulationRun,
+    SimulationStatus,
+    SimulationWindow,
   } from "./simulation";
   import { countMarks, sortMarks } from "./simulationReview";
+  import SimulationMarksTable from "./SimulationMarksTable.svelte";
+  import SimulationCheckPanel from "./SimulationCheckPanel.svelte";
   import SimulationChart from "./SimulationChart.svelte";
+  import SimulationDecisionPanel from "./SimulationDecisionPanel.svelte";
+  import {
+    openRun,
+    openWindow,
+    refreshRun,
+    runOracle,
+    setMarks,
+    simulationRun,
+  } from "./simulationRun.svelte";
 
   let { simId, onBack }: { simId: string; onBack: () => void } = $props();
 
-  let run = $state<SimulationRun | null>(null);
-  let runLoading = $state(true);
-  let runError = $state<string | null>(null);
-
-  let windows = $state<SimulationWindow[]>([]);
-  let windowsLoading = $state(false);
-  let windowsError = $state<string | null>(null);
-  let chart = $state<number | null>(null);
-
-  let series = $state<ChartSeries | null>(null);
-  let seriesLoading = $state(false);
-  let seriesError = $state<string | null>(null);
-  let windowRequest = 0;
-
-  let marks = $state<ChartMark[]>([]);
-  let marksLoading = $state(false);
-  let marksError = $state<string | null>(null);
-  let marksRequest = 0;
-
-  let oracleBusy = $state(false);
-  let checkBusy = $state(false);
-  let checkResult = $state<SimulationCheck | null>(null);
-  let checkError = $state<string | null>(null);
-  let decisionKind = $state<SimulationDecisionKind>("test");
-  let decisionNote = $state("");
-  let decisionBusy = $state(false);
-  let decisionError = $state<string | null>(null);
-
-  let actionError = $state<string | null>(null);
-  let actionStatus = $state<string | null>(null);
+  const view = $derived(simulationRun());
+  const run: SimulationRun | null = $derived(view.run);
+  const runLoading = $derived(view.runLoading);
+  const runError = $derived(view.runError);
+  const windows: SimulationWindow[] = $derived(view.windows);
+  const windowsLoading = $derived(view.windowsLoading);
+  const windowsError = $derived(view.windowsError);
+  const chart = $derived(view.chart);
+  const series = $derived(view.series);
+  const seriesLoading = $derived(view.seriesLoading);
+  const seriesError = $derived(view.seriesError);
+  const marks = $derived(view.marks);
+  const marksLoading = $derived(view.marksLoading);
+  const marksError = $derived(view.marksError);
+  const oracleBusy = $derived(view.oracleBusy);
+  const actionError = $derived(view.actionError);
+  const actionStatus = $derived(view.actionStatus);
 
   const link = $derived(connection());
   const locked = $derived(run?.status === "decided" || run?.decision != null);
@@ -61,17 +47,8 @@
   const human = $derived(countMarks(marks, "human"));
   const oracle = $derived(countMarks(marks, "oracle"));
 
-  const FAILURE_TEXT: Readonly<Record<string, string>> = {
-    too_few_events: "too few filtered events",
-    mean_not_positive: "the filtered mean is not positive",
-    hit_rate_low: "the filtered hit rate is too low",
-    control_mean_not_beaten: "the control mean is not beaten",
-    control_hit_rate_not_beaten: "the control hit rate is not beaten",
-    unstable: "the direction does not hold across sub-periods",
-  };
-
   onMount(() => {
-    void open();
+    void openRun(simId);
   });
 
   function statusBadge(status: SimulationStatus): string {
@@ -87,177 +64,11 @@
     }
   }
 
-  async function open(): Promise<void> {
-    runLoading = true;
-    runError = null;
-    try {
-      run = await fetchRun(simId);
-    } catch (error) {
-      runLoading = false;
-      runError = errorText(error);
-      return;
-    }
-    runLoading = false;
-    await Promise.all([loadWindows(), loadMarks()]);
-  }
-
-  async function loadWindows(): Promise<void> {
-    windowsLoading = true;
-    windowsError = null;
-    try {
-      const found = await selectWindows(simId);
-      windows = found;
-      if (found.length === 0) {
-        chart = null;
-        series = null;
-        return;
-      }
-      const preferred =
-        chart !== null && found.some((window) => window.index === chart)
-          ? chart
-          : found[0].index;
-      await openWindow(preferred);
-    } catch (error) {
-      windowsError = errorText(error);
-    } finally {
-      windowsLoading = false;
-    }
-  }
-
-  async function openWindow(index: number): Promise<void> {
-    const request = (windowRequest += 1);
-    chart = index;
-    series = null;
-    seriesError = null;
-    seriesLoading = true;
-    try {
-      const next = await fetchSeries(simId, index);
-      if (request === windowRequest) {
-        series = next;
-      }
-    } catch (error) {
-      if (request === windowRequest) {
-        seriesError = errorText(error);
-      }
-    } finally {
-      if (request === windowRequest) {
-        seriesLoading = false;
-      }
-    }
-  }
-
-  async function loadMarks(): Promise<void> {
-    const request = (marksRequest += 1);
-    marksLoading = true;
-    marksError = null;
-    try {
-      const next = await fetchMarks(simId);
-      if (request === marksRequest) {
-        marks = next;
-      }
-    } catch (error) {
-      if (request === marksRequest) {
-        marks = [];
-        marksError = errorText(error);
-      }
-    } finally {
-      if (request === marksRequest) {
-        marksLoading = false;
-      }
-    }
-  }
-
-  async function refreshRun(): Promise<void> {
-    try {
-      run = await fetchRun(simId);
-    } catch {
-      // The action already succeeded against the server; keep the confirmed run.
-    }
-  }
-
-  async function runOracle(): Promise<void> {
-    if (oracleBusy || locked) {
-      return;
-    }
-    oracleBusy = true;
-    actionError = null;
-    actionStatus = null;
-    try {
-      await postOracle(simId);
-      await Promise.all([loadMarks(), refreshRun()]);
-      actionStatus = "Oracle marks recorded.";
-    } catch (error) {
-      actionError = errorText(error);
-    } finally {
-      oracleBusy = false;
-    }
-  }
-
-  async function runCheck(): Promise<void> {
-    if (checkBusy || locked) {
-      return;
-    }
-    checkBusy = true;
-    checkResult = null;
-    checkError = null;
-    actionError = null;
-    actionStatus = null;
-    try {
-      checkResult = await postCheck(simId);
-      await refreshRun();
-      actionStatus = checkResult.passed ? "The check passed." : "The check failed.";
-    } catch (error) {
-      checkError = errorText(error);
-    } finally {
-      checkBusy = false;
-    }
-  }
-
-  async function submitDecision(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
-    if (decisionBusy || locked) {
-      return;
-    }
-    const note = decisionNote.trim();
-    if (note === "") {
-      decisionError = "A decision needs a note.";
-      return;
-    }
-    decisionBusy = true;
-    decisionError = null;
-    actionError = null;
-    actionStatus = null;
-    try {
-      const record = await postDecision(simId, decisionKind, note);
-      if (run !== null) {
-        run = { ...run, status: "decided", decision: record };
-      }
-      decisionNote = "";
-      actionStatus = "Decision recorded. Marking is closed.";
-    } catch (error) {
-      decisionError = errorText(error);
-    } finally {
-      decisionBusy = false;
-    }
-  }
-
   function utc(iso: string | undefined): string {
     if (iso === undefined) {
       return "—";
     }
     return iso.replace("T", " ").replace(".000Z", "Z");
-  }
-
-  function percent(value: number): string {
-    return `${(value * 100).toFixed(2)}%`;
-  }
-
-  function decimal(value: number): string {
-    return value.toFixed(4);
-  }
-
-  function failureText(code: string): string {
-    return FAILURE_TEXT[code] ?? code;
   }
 
   function windowMarkCount(index: number): number {
@@ -354,7 +165,7 @@
           <button
             class:selected={chart === window.index}
             aria-pressed={chart === window.index}
-            onclick={() => void openWindow(window.index)}
+            onclick={() => void openWindow(simId, window.index)}
             data-testid={`sim-window-${window.index}`}
           >
             W{window.index} · {window.start}–{window.end}
@@ -367,9 +178,10 @@
         <SimulationChart
           {series}
           simulationId={simId}
-          bind:marks
+          {marks}
           {locked}
-          onMarksChange={() => void refreshRun()}
+          onMarksChanged={(next) => setMarks(next)}
+          onMarkPosted={() => void refreshRun(simId)}
         />
       {:else if seriesLoading}
         <div class="notice">Loading window…</div>
@@ -382,63 +194,13 @@
       {/if}
     {/if}
 
-    <div class="row">
-      <h3>Marks</h3>
-      <span class="badge">{marks.length}</span>
-      <span class="muted small">Human and oracle rows are kept distinct.</span>
-    </div>
-
-    {#if marksError}
-      <div class="notice error" role="alert" data-testid="sim-marks-error">
-        {marksError}
-      </div>
-    {:else if marksLoading && ordered.length === 0}
-      <div class="notice">Loading marks…</div>
-    {:else if ordered.length === 0}
-      <div class="notice" data-testid="sim-marks-empty">
-        No marks yet. Point at a bar and press 1–8.
-      </div>
-    {:else}
-      <table data-testid="sim-marks">
-        <thead>
-          <tr>
-            <th>Mark</th>
-            <th>Origin</th>
-            <th>Window</th>
-            <th>Bar</th>
-            <th>Class</th>
-            <th>Note</th>
-            <th>Recorded (UTC)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each ordered as mark (mark.mark_id)}
-            <tr class="mark-row {mark.origin}" data-testid={`sim-mark-${mark.mark_id}`}>
-              <td class="mono">{mark.mark_id}</td>
-              <td>
-                <span
-                  class="badge {mark.origin === 'human' ? 'ok' : 'warn'}"
-                  data-origin={mark.origin}
-                >
-                  {mark.origin}
-                </span>
-              </td>
-              <td>{mark.chart}</td>
-              <td>{mark.bar}</td>
-              <td>{markClassLabel(mark)}</td>
-              <td class="note">{mark.note === "" ? "—" : mark.note}</td>
-              <td class="mono">{utc(mark.marked_time_utc)}</td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    {/if}
+    <SimulationMarksTable marks={marks} loading={marksLoading} error={marksError} />
 
     <section class="review" data-testid="sim-review">
       <div class="row">
         <h3>Review</h3>
         <button
-          onclick={() => void runOracle()}
+          onclick={() => void runOracle(simId)}
           disabled={oracleBusy || locked}
           data-testid="sim-oracle"
         >
@@ -503,143 +265,14 @@
       {/if}
     </section>
 
-    <section class="check" data-testid="sim-check">
-      <div class="row">
-        <h3>Check</h3>
-        <button
-          onclick={() => void runCheck()}
-          disabled={checkBusy || locked}
-          data-testid="sim-check-run"
-        >
-          {checkBusy ? "Checking…" : "Run check"}
-        </button>
-        {#if locked}
-          <span class="muted small">A decided run is closed.</span>
-        {/if}
-      </div>
+    <SimulationCheckPanel {simId} />
 
-      {#if checkError}
-        <div class="notice error" role="alert" data-testid="sim-check-error">
-          {checkError}
-        </div>
-      {:else if checkBusy}
-        <div class="notice" data-testid="sim-check-busy">Running the check…</div>
-      {:else if checkResult}
-        <table data-testid="sim-check-table">
-          <tbody>
-            <tr><th>Filtered events</th><td>{checkResult.events}</td></tr>
-            <tr><th>Mean net (R)</th><td>{decimal(checkResult.mean_net)}</td></tr>
-            <tr><th>Hit rate</th><td>{percent(checkResult.hit_rate)}</td></tr>
-            <tr><th>Control events</th><td>{checkResult.control}</td></tr>
-            <tr><th>Control mean (R)</th><td>{decimal(checkResult.control_mean_net)}</td></tr>
-            <tr><th>Control hit rate</th><td>{percent(checkResult.control_hit_rate)}</td></tr>
-            <tr><th>Positive half-years</th><td>{checkResult.positive_half_years}</td></tr>
-          </tbody>
-        </table>
-        <div
-          class="notice"
-          class:error={!checkResult.passed}
-          role="status"
-          data-testid="sim-check-verdict"
-        >
-          {checkResult.passed ? "passed" : "failed"}
-        </div>
-        {#if checkResult.failures.length > 0}
-          <ul data-testid="sim-check-failures">
-            {#each checkResult.failures as failure (failure)}
-              <li>{failureText(failure)}</li>
-            {/each}
-          </ul>
-        {/if}
-      {:else}
-        <div class="notice" data-testid="sim-check-empty">
-          No check yet. The check runs on a later, unmarked window.
-        </div>
-      {/if}
-    </section>
-
-    <section class="decision" data-testid="sim-decision">
-      <h3>Decision</h3>
-
-      {#if run.decision}
-        <div class="notice" data-testid="sim-decision-record">
-          <div class="row">
-            <strong>{run.decision.decision}</strong>
-            {#if run.decision.decided_at_utc}
-              <span class="muted small">{utc(run.decision.decided_at_utc)}</span>
-            {/if}
-          </div>
-          <p>{run.decision.note}</p>
-          <p class="muted small">Marking is closed for this run.</p>
-        </div>
-      {:else if locked}
-        <div class="notice" data-testid="sim-decision-record">
-          This run is decided; marking is closed.
-        </div>
-      {:else}
-        <form class="stack" onsubmit={(event) => void submitDecision(event)}>
-          <fieldset>
-            <legend class="muted small">Outcome</legend>
-            <div class="row options">
-              <label class="row">
-                <input
-                  type="radio"
-                  bind:group={decisionKind}
-                  value="test"
-                  data-testid="sim-decision-test"
-                />
-                Test
-              </label>
-              <label class="row">
-                <input
-                  type="radio"
-                  bind:group={decisionKind}
-                  value="refine"
-                  data-testid="sim-decision-refine"
-                />
-                Refine
-              </label>
-              <label class="row">
-                <input
-                  type="radio"
-                  bind:group={decisionKind}
-                  value="stop"
-                  data-testid="sim-decision-stop"
-                />
-                Stop
-              </label>
-            </div>
-          </fieldset>
-
-          <label>
-            <span class="muted small">Note</span>
-            <textarea
-              bind:value={decisionNote}
-              rows="2"
-              placeholder="Why this outcome; the candidate rule, if any."
-              data-testid="sim-decision-note"
-            ></textarea>
-          </label>
-
-          {#if decisionError}
-            <div class="notice error" role="alert" data-testid="sim-decision-error">
-              {decisionError}
-            </div>
-          {/if}
-
-          <div class="row">
-            <button
-              type="submit"
-              disabled={decisionBusy || decisionNote.trim() === ""}
-              data-testid="sim-decision-submit"
-            >
-              {decisionBusy ? "Recording…" : "Record decision"}
-            </button>
-            <span class="muted small">Recording a decision locks marking.</span>
-          </div>
-        </form>
-      {/if}
-    </section>
+    <SimulationDecisionPanel
+      {simId}
+      decidedAt={run.decision?.decided_at_utc
+        ? utc(run.decision.decided_at_utc)
+        : undefined}
+    />
   {/if}
 </section>
 
@@ -674,22 +307,7 @@
     color: var(--accent);
   }
 
-  .note {
-    max-width: 28rem;
-    overflow-wrap: anywhere;
-  }
-
-  .mark-row.oracle td:first-child {
-    border-left: 3px solid var(--warn);
-  }
-
-  .mark-row.human td:first-child {
-    border-left: 3px solid var(--ok);
-  }
-
-  .review,
-  .check,
-  .decision {
+  .review {
     border-top: 1px solid var(--line);
     padding-top: 0.8rem;
   }
@@ -711,42 +329,6 @@
   .counts td {
     padding: 0.2rem 0.4rem;
     border-bottom: none;
-  }
-
-  .options {
-    flex-wrap: wrap;
-  }
-
-  fieldset {
-    border: none;
-    margin: 0;
-    padding: 0;
-    display: grid;
-    gap: 0.3rem;
-  }
-
-  legend {
-    padding: 0;
-  }
-
-  input,
-  textarea {
-    font: inherit;
-    color: inherit;
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    padding: 0.45rem 0.6rem;
-  }
-
-  input[type="radio"] {
-    width: auto;
-    accent-color: var(--accent);
-  }
-
-  textarea {
-    resize: vertical;
-    width: 100%;
   }
 
   .lock {
