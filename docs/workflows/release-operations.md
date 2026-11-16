@@ -32,7 +32,6 @@ Do not use it when:
 
 - the change is a defect: use the Audit Workflow;
 - the change is a model or strategy hypothesis: use the Quant workflows;
-- the change is a policy envelope: use Policy Change;
 - the change is a data source or partition: use Data Lifecycle.
 
 ## 3. Stages
@@ -178,7 +177,7 @@ Stop and request human direction when:
 - [`../../AGENTS.md`](../../AGENTS.md)
 - [`../../README.md`](../../README.md)
 
-## Distributed release — v1.0.0
+## Distributed release — v0.9.0 (prepared as v1.0.0)
 
 The release has two distribution profiles: the server image is the release unit,
 and the desktop shell is two unsigned GitHub Release assets. GitHub Releases is
@@ -191,7 +190,7 @@ the only place an artifact is fetched; there is no download page.
 | 3. Contract check | `/version` reports the product version; `/health` reports the digest |
 | 4. Verification | `make up` (nine containers) and `make verify` on a clean host |
 | 5. Note | `python3 tools/check_releases.py --note <tag>` names the digest and both artifacts |
-| 6. Tag | Annotated `v1.0.0` from `main` after the release PR merges |
+| 6. Tag | Annotated `vMAJOR.MINOR.PATCH` from `main` after the release PR merges; the first distributed release is `v0.9.0`, prepared as `v1.0.0` |
 
 A `workflow_dispatch` with `publish_snapshot` pushes a `snapshot-<sha>` image and
 records its digest before the tag exists; that is the pre-tag GHCR proof. A tag
@@ -200,7 +199,7 @@ installer, and writes the digest and both artifact names into the release body.
 
 Rollback is starting the previous image digest. Migrations are forward-only; a
 rollback never reverts the schema, so the previous version must tolerate the
-newer one. For `v1.0.0`, the first image release, there is no earlier digest:
+newer one. For `v0.9.0` (prepared as `v1.0.0`), the first image release, there is no earlier digest:
 recovery is `make reset` and a rebuild from a known commit.
 
 The retired static download page is recorded in `ADR-2026-11-12-08`.

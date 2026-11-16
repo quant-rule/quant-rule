@@ -12,7 +12,7 @@
 
 <label class="switcher">
   <span class="muted small">Profile</span>
-  <select value={view.active} onchange={(event) => void change(event)} aria-label="Active profile">
+  <select data-testid="profile-use" value={view.active} onchange={(event) => void change(event)} aria-label="Active profile">
     {#if view.items.length === 0 || !view.items.some((profile) => profile.profile_id === view.active)}
       <option value={view.active}>{view.active} (unknown)</option>
     {/if}

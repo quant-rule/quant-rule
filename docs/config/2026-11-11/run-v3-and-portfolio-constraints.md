@@ -1,7 +1,7 @@
 # Run v3 and Portfolio Constraints
 
 - Date: 2026-11-11 (UTC)
-- Status: Current
+- Status: Current; `quantrule.run/v3` is accepted for a model-only run; `quantrule.run/v4` is current for a full run
 - Claim type: ADR (Architecture Decision)
 - Plan: [`docs/execution-plans/2026-11-11/588-tauri-platform.md`](../../execution-plans/2026-11-11/588-tauri-platform.md)
 
@@ -9,7 +9,8 @@
 
 Remove the policy/prop-firm layer from the current surface. Keep capital, sizing,
 costs, drawdown, leverage, and position limits as first-class portfolio
-constraints. The run schema becomes `quantrule.run/v3`.
+constraints. The model-only run schema becomes `quantrule.run/v3`; a full run
+uses `quantrule.run/v4`, which adds the strategy file.
 
 ## 2. Run v3
 
@@ -54,11 +55,11 @@ Cross-config checks:
 No account objective, performance target, evaluation window, or prop-firm rule
 belongs in the configuration.
 
-## 4. Command change
+## 4. Validation path
 
-`policy check` becomes `run check`. The new command validates the run and the
-engine files; it does not validate a policy envelope. The old command is removed
-from the current surface.
+The gateway config catalog validates the run and the engine files when a config
+is submitted. It does not validate a policy envelope. There is no standalone
+validation command in the current shell.
 
 ## 5. Qualification
 
@@ -81,7 +82,7 @@ the tagged `v0.8.0` binary or a documented archive reader.
 | Run v3 fixture loads | pass |
 | Removed policy field is rejected | pass |
 | Portfolio constraints still validate | pass |
-| `run check` printed output | pass |
+| Config catalog accepts the v3 fixture as a model-only run | pass |
 | Byte-identical rerun | pass |
 | No model/strategy signal change | pass |
 

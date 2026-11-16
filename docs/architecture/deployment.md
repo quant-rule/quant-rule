@@ -1,6 +1,6 @@
 # Deployment
 
-- Status: Current; v1.1.0 release prepared 2026-11-15; approved 2026-11-12
+- Status: Current; released as v1.0.0 on 2026-11-15 (prepared as v1.1.0); approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Decision: [`ADR-2026-11-12-01`](../adr/2026-11-12/01-adopt-distributed-service-based-architecture.md)
 - Claim type: Behaviour Claim
@@ -45,7 +45,7 @@ see [`docker/README.md`](../../docker/README.md) §7.
 | `evidence` | `quantrule-server` | — | — |
 | `simulation` | `quantrule-server` | — | — |
 | `postgres` | `postgres:17` | — | `pgdata` |
-| `minio` | `minio/minio` | — | `objects` |
+| `minio` | `bitnamilegacy/minio` (pinned digest; `QR_OBJECT_STORE_IMAGE` override) | — | `objects` |
 | `rabbitmq` | `rabbitmq:4-management` | — | `mqdata` |
 
 One bridge network. Services resolve each other by container name. Only the
@@ -78,7 +78,7 @@ decision.
 | `make scale N=4` | Scale `model` and `backtest` to `N` |
 | `make verify` | Submit the two fixture configs through the gateway and print the canonical digest |
 | `make test` / `make test-fast` | Fast unit and integration tier, no network |
-| `make test-composed` | Composed tier; exits 2 until the suite is wired |
+| `make test-composed` | Composed tier against a running stack |
 | `make test-parity` | Port-parity tier |
 | `make gate` | Full workspace gate |
 | `make remote` | Start with only `:8080` published and a bearer token; print the token and usage |
@@ -88,8 +88,8 @@ decision.
 | `make dev-web` | Bun dev server for the web client, proxying `localhost:8080` |
 
 `make scale` scales `model` and `backtest`. `make backup` and `make restore`
-call `tools/backup.sh` and `tools/restore.sh`. `make test-composed` exits 2
-because the composed suite is not wired yet.
+call `tools/backup.sh` and `tools/restore.sh`. `make test-composed` runs the
+composed tier against a stack started by `make up`.
 
 ## 3.1 Remote profile
 
@@ -100,9 +100,9 @@ bridge network. The script checks the 401/401/200 matrix and the published port
 set on every start.
 
 Never expose `:8080` to the public internet: use WireGuard or Tailscale, or
-terminate TLS at a reverse proxy. The browser and shell do not send the token, so
-their API calls answer `401`; remote browser use needs proxy token injection or a
-client feature outside this profile. API clients send `Authorization: Bearer`; details
+terminate TLS at a reverse proxy. The browser enters the token on the Connection
+screen and the shell accepts `--token` or `QUANTRULE_TOKEN`; both send
+`Authorization: Bearer` on every gateway request. API clients do the same; details
 in [`security.md`](security.md) §2.
 
 ## 4. Configuration
@@ -146,7 +146,7 @@ Secrets come from the environment. No secret is committed.
 
 The server profile is the default; `QR_PROFILE=desktop` with `QR_DATA_DIR`
 selects the embedded backends in [`desktop.md`](desktop.md) from a fresh data
-directory. v1.0.0 shipped the server image; v1.1.0 adds the desktop installer.
+directory. v0.9.0 shipped the server image; v1.0.0 adds the desktop installer.
 `tools/parity_desktop.sh` proves both profiles match on one fixture.
 
 ## 6. Split host

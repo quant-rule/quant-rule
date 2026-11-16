@@ -130,7 +130,7 @@
 
   {#if candles}
     <h3>Candles</h3>
-    <table>
+    <table data-testid="inspect-candles">
       <tbody>
         <tr><th>Data version</th><td class="mono">{candles.data_version}</td></tr>
         <tr><th>Name</th><td>{candles.name}</td></tr>
@@ -142,7 +142,7 @@
     </table>
   {:else if ladder}
     <h3>Timeframes</h3>
-    <table>
+    <table data-testid="inspect-timeframes">
       <thead>
         <tr>
           <th>Timeframe</th>
@@ -169,7 +169,7 @@
     {#if events.events.length === 0}
       <div class="notice">No events were published for this timeframe.</div>
     {:else}
-      <table>
+      <table data-testid="inspect-events">
         <thead>
           <tr>
             <th>Type</th>

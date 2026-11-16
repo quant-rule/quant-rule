@@ -34,11 +34,54 @@ class WorkflowInvocationTests(unittest.TestCase):
     def test_implemented_command_in_a_workflow_passes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "strategy.md"
-            write(path, "```bash\nquantrule run submit --data-version dv_1\n```\n")
+            write(path, "```bash\nquantrule run submit dv_1 cfg_1\n```\n")
             self.assertEqual(
                 check_command_surface.document_unimplemented({"run submit"}, [path]),
                 [],
             )
+
+
+class InvocationGrammarTests(unittest.TestCase):
+    def test_wrong_flag_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "runbook.md"
+            write(path, "```bash\nquantrule run submit --data-version dv_1 --config cfg_1\n```\n")
+            problems = check_command_surface.invocation_errors(
+                check_command_surface.help_commands(), [path]
+            )
+            self.assertTrue(any("unknown option '--data-version'" in p for p in problems), problems)
+            self.assertTrue(any("unknown option '--config'" in p for p in problems), problems)
+
+    def test_positional_command_passes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "runbook.md"
+            write(path, "```bash\nquantrule run submit dv_1 cfg_1\n```\n")
+            self.assertEqual(
+                check_command_surface.invocation_errors(
+                    check_command_surface.help_commands(), [path]
+                ),
+                [],
+            )
+
+    def test_retired_command_in_a_current_config_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "contract.md"
+            write(
+                path,
+                "- Status: Current\n\nThe `strategy run` command writes a bundle.\n",
+            )
+            problems = check_command_surface.retired_backticks([path])
+            self.assertEqual(len(problems), 1, problems)
+            self.assertIn("strategy run", problems[0])
+
+    def test_retired_command_in_a_historical_config_is_allowed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "contract.md"
+            write(
+                path,
+                "- Status: Historical\n\nThe `strategy run` command was retired.\n",
+            )
+            self.assertEqual(check_command_surface.retired_backticks([path]), [])
 
 
 class NormativeListTests(unittest.TestCase):

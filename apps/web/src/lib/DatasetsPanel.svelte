@@ -1,15 +1,44 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { errorText } from "./api";
+  import { datasetRecord } from "./datasets";
   import { datasets, load, upload } from "./datasets.svelte";
+  import type { DatasetRecord } from "./types";
 
   const view = $derived(datasets());
   let file = $state<File | null>(null);
   let input = $state<HTMLInputElement | null>(null);
   let tolerant = $state(false);
+  let selected = $state<DatasetRecord | null>(null);
+  let detailLoading = $state(false);
+  let detailError = $state<string | null>(null);
 
   onMount(() => {
     void load();
   });
+
+  $effect(() => {
+    if (selected && !view.items.some((item) => item.data_version === selected?.summary.data_version)) {
+      selected = null;
+    }
+  });
+
+  async function open(dataVersion: string): Promise<void> {
+    detailLoading = true;
+    detailError = null;
+    try {
+      selected = await datasetRecord(dataVersion);
+    } catch (error) {
+      detailError = errorText(error);
+      selected = null;
+    } finally {
+      detailLoading = false;
+    }
+  }
+
+  function closeDetail(): void {
+    selected = null;
+  }
 
   function choose(event: Event): void {
     const target = event.currentTarget as HTMLInputElement;
@@ -47,7 +76,7 @@
     <button onclick={() => void load()} disabled={view.loading}>Refresh</button>
   </div>
 
-  <form class="row" onsubmit={(event) => void submit(event)}>
+  <form class="row" data-testid="dataset-upload" onsubmit={(event) => void submit(event)}>
     <input
       bind:this={input}
       type="file"
@@ -89,7 +118,7 @@
   {:else if view.items.length === 0}
     <div class="notice">No datasets. Upload a CSV.</div>
   {:else}
-    <table>
+    <table data-testid="dataset-table">
       <thead>
         <tr>
           <th>Version</th>
@@ -97,6 +126,7 @@
           <th>Candles</th>
           <th>First bar (UTC)</th>
           <th>Last bar (UTC)</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -107,10 +137,62 @@
             <td>{item.candles}</td>
             <td class="mono">{utc(item.first_bar)}</td>
             <td class="mono">{utc(item.last_bar)}</td>
+            <td>
+              <button
+                data-testid="dataset-detail-open"
+                aria-label="Details"
+                title={`Details for ${item.name}`}
+                onclick={() => void open(item.data_version)}
+                disabled={detailLoading}
+              >
+                Details
+              </button>
+            </td>
           </tr>
         {/each}
       </tbody>
     </table>
+
+    {#if detailLoading}
+      <div class="notice" role="status">Loading dataset detail…</div>
+    {/if}
+    {#if detailError}
+      <div class="notice error" role="alert">{detailError}</div>
+    {/if}
+    {#if selected}
+      <section class="detail" data-testid="dataset-detail">
+        <div class="row">
+          <h3>Dataset detail</h3>
+          <button onclick={closeDetail}>Close</button>
+        </div>
+        <table>
+          <tbody>
+            <tr><th>Name</th><td>{selected.summary.name}</td></tr>
+            <tr><th>Data version</th><td class="mono">{selected.summary.data_version}</td></tr>
+            <tr><th>Object key</th><td class="mono">{selected.object_key}</td></tr>
+            <tr><th>SHA-256</th><td class="mono">{selected.sha256}</td></tr>
+            <tr><th>Candles</th><td>{selected.summary.candles}</td></tr>
+            <tr>
+              <th>Coverage</th>
+              <td class="mono">{utc(selected.summary.first_bar)} → {utc(selected.summary.last_bar)}</td>
+            </tr>
+            <tr><th>Bytes</th><td>{selected.summary.bytes}</td></tr>
+            <tr><th>Created</th><td class="mono">{selected.created_at}</td></tr>
+            <tr>
+              <th>Quality</th>
+              <td>
+                {#if selected.quality}
+                  {selected.quality.accepted}/{selected.quality.rows_read} accepted,
+                  {selected.quality.rejected} rejected
+                {:else}
+                  none
+                {/if}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    {/if}
   {/if}
 </section>
 

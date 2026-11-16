@@ -100,7 +100,7 @@
 
 </script>
 
-<section class="stack">
+<section class="stack" data-testid="run-status">
   <div class="row">
     <button onclick={onBack} aria-label="Back to runs">Back</button>
     <h2>Run detail</h2>
@@ -151,7 +151,7 @@
           </td>
         </tr>
         <tr>
-          <th>Model version</th>
+          <th>Model identity</th>
           <td class="mono">{detail.provenance.model_version}</td>
         </tr>
         <tr>
@@ -164,7 +164,7 @@
     {#if detail.digest}
       <div class="row">
         <h3>Canonical digest</h3>
-        <button onclick={() => void verify()} disabled={verifying} aria-label="Verify canonical digest">
+        <button data-testid="run-verify" onclick={() => void verify()} disabled={verifying} aria-label="Verify canonical digest">
           {verifying ? "Verifying…" : "Verify"}
         </button>
         <button onclick={() => void copy()} aria-label="Copy canonical digest">
@@ -204,6 +204,7 @@
                 <td class="mono" title={artifact.sha256}>{shortId(artifact.sha256)}</td>
                 <td>
                   <button
+                    data-testid="run-fetch"
                     onclick={() => void download(artifact)}
                     disabled={downloading !== null}
                     aria-label={`Download ${artifact.name}`}

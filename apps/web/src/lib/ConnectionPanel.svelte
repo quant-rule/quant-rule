@@ -96,7 +96,7 @@
   {/if}
 
   {#if view.health}
-    <table>
+    <table data-testid="health-report">
       <thead>
         <tr><th>Service</th><th>State</th><th>Detail</th></tr>
       </thead>

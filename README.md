@@ -168,8 +168,8 @@ Details: [`services.md`](docs/architecture/services.md),
 The shell is a thin client over `quantrule.api/v1`; every command makes one
 gateway call. It depends only on the contract crate and its HTTP transport, and
 it holds no engine. Every command accepts `--profile <id>`, `--token <token>`,
-and `--json`. Local source fetch and local stage execution were removed in
-v1.0.0.
+and `--json`. Local source fetch and local stage execution were removed in the
+distributed release (v0.9.0, prepared as v1.0.0).
 
 | Command | Family | Purpose |
 |---|---|---|

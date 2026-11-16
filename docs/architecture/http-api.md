@@ -1,6 +1,6 @@
 # HTTP API — `quantrule.api/v1`
 
-- Status: Current; released v1.0.0 on 2026-11-15; approved 2026-11-12
+- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); unchanged in the v1.0.0 desktop release; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 
@@ -13,7 +13,7 @@ never renders a label, and never returns a raw engine type.
 | Rule | Value |
 |---|---|
 | Base | `/api/v1`; paths below are relative to it |
-| Profile | `X-QuantRule-Profile` header on every request; default `default` |
+| Profile | `X-QuantRule-Profile` header on every API request; required except `/health`, `/version`, and `/profiles` |
 | Content type | `application/json` except upload and artifact download |
 | Version | `quantrule.api/v1` in `/version` and every error envelope |
 | Identifier | Content hash or opaque catalog id; never a path |
@@ -42,6 +42,7 @@ never renders a label, and never returns a raw engine type.
 | GET | `/datasets/{version}/ladder/{timeframe}` | — | canonical CSV for one timeframe, built once and reused |
 | GET | `/catalog/configs` | — | run configs with validity and origin |
 | POST | `/catalog/configs` | run-config bundle | `201` new, `200` existing, with the summary |
+| POST | `/model/compute` | `{data_version, config_id, timeframes?}` | model object with registry version, timeframes, CAS key, hash, and bytes |
 | GET | `/runs` | `status`, `limit` | run summaries |
 | POST | `/runs` | `{data_version, config_id}` | `202` new, `200` existing, with `run_id` |
 | GET | `/runs/{id}` | — | status, stages, provenance, artifacts |
@@ -55,8 +56,9 @@ never renders a label, and never returns a raw engine type.
 The gateway owns `/profiles` and proxies `/catalog/*`, `/datasets/*`,
 `/inspect/candles`, and `/inspect/timeframes` to `qr-data`. `/inspect/events`
 computes a model, so the gateway forwards it to `qr-model`'s internal event-batch
-route; the data service never runs a model. A proxied response keeps its status,
-body, content type, and ETag; a closed upstream is `503 service.unavailable`.
+route; the data service never runs a model. The gateway also proxies
+`/model/compute` to `qr-model`. A proxied response keeps its status, body,
+content type, and ETag; a closed upstream is `503 service.unavailable`.
 The data service trusts the profile the gateway injects and never reads the
 profile table.
 
@@ -75,8 +77,8 @@ failed call is `unreachable`, never a stale healthy state.
 { "data_version": "sha256:…", "config_id": "cfg_…" }
 ```
 
-The gateway validates the config, computes `run_id`, writes `queued`, publishes
-`run.requested`, and returns:
+The evidence service validates the config, computes `run_id`, writes `queued`,
+publishes `run.requested`, and returns:
 
 ```json
 { "run_id": "sha256:…", "status": "queued" }
@@ -109,6 +111,12 @@ repeated message as a lookup.
 
 `elapsed_ms` is control-plane metadata and never appears inside an artifact.
 
+`provenance.model_version` in the run record is the model identity from the run
+config's `model_id`, such as `M1.3`. The model bundle manifest records the
+registry version (`2026-11-10.2`), and an artifact's `provenance.json` records
+the compiled package version (`1.1.0`). The three values are distinct; a
+comparison names the context it reads.
+
 ## 5. Error codes
 
 | Code | HTTP | Meaning |
@@ -119,11 +127,14 @@ repeated message as a lookup.
 | `dataset.not_found` | 404 | Unknown `data_version` |
 | `dataset.invalid` | 400 | Blank name, bad UTF-8, or a rejected candle |
 | `config.invalid` | 400 | Schema or cross-config rule failed |
+| `hypothesis.not_found` | 404 | Unknown hypothesis fingerprint |
+| `hypothesis.invalid` | 400 | A hypothesis failed validation |
 | `run.not_found` | 404 | Unknown run id |
 | `run.invalid` | 400 | Malformed run id or submission |
 | `run.conflict` | 409 | Cancel after completion |
 | `upload.too_large` | 413 | Over the configured limit |
 | `queue.unavailable` | 503 | Broker unreachable |
+| `service.unavailable` | 503 | A downstream service is unreachable or refused the proxied call |
 | `internal` | 500 | Unclassified; logged with a correlation id |
 | `simulation.not_found` | 404 | Unknown simulation run |
 | `simulation.mark_invalid` | 400 | Bar outside the window, or a schema violation |
@@ -175,7 +186,7 @@ Rules:
 | Rule | Value |
 |---|---|
 | Header | `X-QuantRule-Profile`, required on every request except `/health`, `/version`, and `/profiles` |
-| Default | `default`, created by the first migration |
+| Default profile | `default`, created by the first migration; a missing header is never defaulted |
 | Scope | Datasets, hypotheses, run submissions, simulation, memory, and config rows; a config file bundle is shared by content id |
 | Bytes | Shared and content-addressed; profiles never duplicate an object |
 | Security | **Not a boundary.** One principal; no isolation promise |

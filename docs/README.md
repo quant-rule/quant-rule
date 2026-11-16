@@ -25,7 +25,7 @@ Work-item documents use `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes fir
 | Port parity | Golden fixtures captured from a retired implementation, and the registry the gate checks. | `docs/port-parity/README.md`; `docs/port-parity/registry.json`; `docs/port-parity/<id>.golden.json` |
 | Changelog | The grouped release history: meaningful user-facing or developer-facing changes by release and type. | `CHANGELOG.md` |
 
-The tutorial kind is defined in `AGENTS.md`; the current M1.0 lab tutorial is
+The tutorial kind is defined in `AGENTS.md`; the current Shell HTTP tutorial is
 linked below.
 
 ## Current status
@@ -36,8 +36,8 @@ repeating a status.
 | Area | Status |
 |---|---|
 | Pipeline | Every stage is implemented: data, model, strategy, execution, portfolio, backtest, qualification, analytics. |
-| Surfaces | `v1.1.0` is a distributed platform with two clients: a Svelte browser client and a command shell, both on `quantrule.api/v1`, plus the Tauri desktop package over the gateway URL. The command shell is a thin gateway client with no engine dependency; the six services are packaged in one image and nine-container stack, and the desktop installer carries the same six sidecars on embedded backends. |
-| Command surface | 27 implemented commands on the v1.0.0 gateway-client surface in [command-surface.md](architecture/command-surface.md). The discovery gate passes for the implemented set. |
+| Surfaces | Product 1.1.0 is a distributed platform with two clients: a Svelte browser client and a command shell, both on `quantrule.api/v1`, plus the Tauri desktop package over the gateway URL. The command shell is a thin gateway client with no engine dependency; the six services are packaged in one image and nine-container stack, and the desktop installer carries the same six sidecars on embedded backends. |
+| Command surface | 27 implemented commands on the gateway-client surface in [command-surface.md](architecture/command-surface.md); the surface was released as v0.9.0 (prepared as v1.0.0) and is unchanged in v1.0.0. The discovery gate passes for the implemented set. |
 | Model | `M1.3` current; 49 indicators, 150 active events, 199 validation claims; accepted compression baselines; `M2.x` no edge; `M3.x` underpowered; `M4.x` no edge; `MR5.x` no edge; `MR6.x` no edge; `MR7.x` no edge. |
 | Strategy | No accepted strategy baseline; the tier is gated by an accepted model baseline. |
 | Portfolio | No accepted portfolio baseline; the tier is gated by an accepted strategy baseline. |
@@ -57,7 +57,7 @@ repeating a status.
 | Code module map | Current; crate, module, reading order, and where-to-add guide | `docs/architecture/module-map.md` |
 | The Trustworthy Backtest Kata | Current | `docs/architecture/kata.md` |
 | Architecture characteristics | Current | `docs/architecture/characteristics.md` |
-| Command surface | Current; v1.0.0 gateway-client registry and drift gate | `docs/architecture/command-surface.md` |
+| Command surface | Current; gateway-client registry and drift gate, released as v0.9.0 and unchanged in v1.0.0 | `docs/architecture/command-surface.md` |
 | S3.x command-surface plan | Approved 2026-11-06; all phases merged; human acceptance pending | `docs/execution-plans/2026-11-06/s3-command-surface.md` |
 
 ## Current course deliverables
@@ -98,7 +98,11 @@ repeating a status.
 | Qualification lab tutorial | Historical; v0.3.0 qualification | `docs/tutorials/2026-11-06/qualification-lab.md` |
 | Analytics lab tutorial | Historical; v0.3.0 analytics | `docs/tutorials/2026-11-06/analytics-lab.md` |
 | Pipeline lab tutorial | Historical; the v0.3.0 stage surface | `docs/tutorials/2026-11-06/pipeline-lab.md` |
-| Shell HTTP tutorial | Current; the v1.0.0 gateway client, profiles, runs, and simulation verbs | `docs/tutorials/2026-11-14/shell-http.md` |
+| Shell HTTP tutorial | Current; the 27-command gateway client, profiles, runs, and simulation verbs | `docs/tutorials/2026-11-14/shell-http.md` |
+| Run a backtest tutorial | Current; the distributed stack through the browser and `make` | `docs/tutorials/2026-11-12/01-run-a-backtest.md` |
+| Verify determinism tutorial | Current; the canonical digest and a repeat run | `docs/tutorials/2026-11-12/02-verify-determinism.md` |
+| Remote compute tutorial | Current; a second host and the gateway URL | `docs/tutorials/2026-11-12/03-remote-compute.md` |
+| Reviewer verification tutorial | Current; reproduce the data plane and compare the digest | `docs/tutorials/2026-11-15/reviewer-verification.md` |
 | Indicator verification matrix | Current; 49 rows, generated from the evidence map | `docs/model/2026-11-06/indicator-verification.md` |
 | Event verification matrix | Current; 150 rows, generated from the evidence map | `docs/model/2026-11-06/event-verification.md` |
 | Verification evidence map | Current; row/family/tool/n-a scope per class | `docs/registry/verification.json` |
@@ -107,11 +111,12 @@ repeating a status.
 
 | Contract | Status | Path |
 |---|---|---|
-| Run v3 and portfolio constraints | Current; `run v3`, data schema 3, model schema 4, `execution v2`, `portfolio v2` | `docs/config/2026-11-11/run-v3-and-portfolio-constraints.md` |
+| Run v4 and the strategy | Current; `run v4` binds the strategy to the run; data schema 3, model schema 4, `execution v2`, `portfolio v2` | `docs/config/2026-11-13/run-v4-strategy.md` |
+| Run v3 and portfolio constraints | Accepted for a model-only run; `run v3` must not carry a strategy | `docs/config/2026-11-11/run-v3-and-portfolio-constraints.md` |
 | Local research memory | Historical; the local SQLite module was removed on 2026-11-16; memory lives in the evidence service (#661) | `docs/config/2026-11-11/research-memory-v1.md` |
-| Client surfaces | `v1.1.0`: Svelte browser client, command shell, and a Tauri desktop package over the gateway URL | `docs/architecture/client.md` |
+| Client surfaces | Product 1.1.0: Svelte browser client, command shell, and a Tauri desktop package over the gateway URL | `docs/architecture/client.md` |
 | Distribution | Current; container image and GitHub Release assets. The static page was retired | `ADR-2026-11-12-08` |
-| Desktop profile | Current for v1.1.0: embedded SQLite/filesystem/durable-queue profile, six-sidecar supervisor, Linux and Windows installers, and server↔desktop parity verified. The release note keeps its `v1.1.0` heading; the current tag is `v1.0.0`. | [`apps/desktop-shell/README.md`](../apps/desktop-shell/README.md) |
+| Desktop profile | Current for product 1.1.0 (current tag `v1.0.0`): embedded SQLite/filesystem/durable-queue profile, six-sidecar supervisor, Linux and Windows installers, and server↔desktop parity verified. The release note keeps its `v1.1.0` heading. | [`apps/desktop-shell/README.md`](../apps/desktop-shell/README.md) |
 | Policy blueprint | Historical; superseded by run v3 | `docs/config/2026-10-30/policy-and-strategy.md` |
 | Config tree | Current; current, evidence, and historical directories | `config/README.md` |
 | Available timeframes | `quantrule.data/v3` | `docs/config/2026-10-30/data-v3.md` |
@@ -156,7 +161,7 @@ qualification criteria remain explicit command arguments.
 | M2.x model charter | Approved 2026-11-05; strategy tier closed | [`docs/governance/2026-11-05/M2-CHARTER.md`](governance/2026-11-05/M2-CHARTER.md) |
 | Current-surface audit verification | Merged in PR #496; per-row indicator/event matrix pending | [`docs/reports/2026-11-06/current-surface-audit-verification.md`](reports/2026-11-06/current-surface-audit-verification.md) |
 | Indicator/event verification evidence | Scope map: 33 row-level, 1410 family-level, 332 tool gates, 304 N/A | [`docs/reports/2026-11-06/indicator-event-verification.md`](reports/2026-11-06/indicator-event-verification.md) |
-| Workflow documentation reset verification | Released in `v0.6.0`; verification record current | [`docs/reports/2026-11-07/workflow-verification.md`](reports/2026-11-07/workflow-verification.md) |
+| Workflow documentation reset verification | Released as `v0.5.0` (prepared as `v0.6.0`); verification record current | [`docs/reports/2026-11-07/workflow-verification.md`](reports/2026-11-07/workflow-verification.md) |
 | 2018–2019 annotation zone analysis | Descriptive; EMA/Fibonacci zone profile and 2018 vs 2019 comparison | [`docs/reports/2026-11-10/annotation-zone-analysis.md`](reports/2026-11-10/annotation-zone-analysis.md) |
 | Simulation Batch 1 | SIM-01 no pattern, SIM-02 no pattern, SIM-03 no exit rescue; entry-first conclusion; no edge claim | [`docs/reports/2026-11-11/simulation-batch-1.md`](reports/2026-11-11/simulation-batch-1.md) |
 | Simulation Batch 2 | SIM-04/05/06 no pattern; six runs complete, five no_pattern and one no_exit_rescue; no edge claim | [`docs/reports/2026-11-11/simulation-batch-2.md`](reports/2026-11-11/simulation-batch-2.md) |
@@ -164,7 +169,7 @@ qualification criteria remain explicit command arguments.
 | Simulation data loss audit | Local store lost in worktree cleanup; finding `Verified`; residual nested-target false positive | [`docs/audits/2026-11-11/simulation-data-loss-audit.md`](audits/2026-11-11/simulation-data-loss-audit.md) |
 | Simulation store recovery | Store regenerated at `/home/zantgo/quant-rule-data/simulation`; committed numbers reproduced | [`docs/reports/2026-11-11/simulation-recovery.md`](reports/2026-11-11/simulation-recovery.md) |
 | Tauri Platform implementation verification | Phase 3 gate pass; P0–P3E; clean deb, offline, determinism, memory | [`docs/reports/2026-11-11/implementation-verification.md`](reports/2026-11-11/implementation-verification.md) |
-| Desktop 0.9.0 release readiness | Released; `v0.9.0` tag, assets, and checksums published | [`docs/reports/2026-11-11/release-readiness.md`](reports/2026-11-11/release-readiness.md) |
+| Desktop 0.9.0 release readiness | Released as `v0.8.0` (prepared as 0.9.0); assets and checksums published | [`docs/reports/2026-11-11/release-readiness.md`](reports/2026-11-11/release-readiness.md) |
 | Simulation campaign synthesis | Closed — no edge; ten runs; one candidate screen retired under the variant rule | [`docs/reports/2026-11-11/simulation-synthesis.md`](reports/2026-11-11/simulation-synthesis.md) |
 | SIM08-BULL-DIV hypothesis | Retired; variant of the failed divergence-at-pivot programme; no edge claim | [`docs/reports/2026-11-11/sim08-bull-divergence-hypothesis.md`](reports/2026-11-11/sim08-bull-divergence-hypothesis.md) |
 | SR10 EMA/Fibonacci exit study | Stopped early; 2018 primary failed; no candidate; 2024 closed | [`docs/improvement/2026-11-10/SR10.md`](improvement/2026-11-10/SR10.md) |
@@ -290,7 +295,7 @@ current-tag map is in [`docs/releases/README.md`](releases/README.md).
 | MR6.x model programme | Development `no_edge`; 15 cells; validation not opened | `docs/execution-plans/2026-11-08/mr6-programme.md`; `docs/improvement/2026-11-08/MR6-DEV-SWARM.md` |
 | MR7.x model programme | Development `no_edge`; 15 cells; validation not opened | `docs/execution-plans/2026-11-08/mr7-programme.md`; `docs/improvement/2026-11-08/MR7-DEV-SWARM.md` |
 | M2.x model programme | Closed at `no_edge`; legacy removal #463 complete | `docs/execution-plans/2026-11-05/410-m2-model-programme.md` |
-| Workflow documentation reset | Released in `v0.6.0` (PR #542) | `docs/execution-plans/2026-11-07/workflow-documentation-reset.md` |
+| Workflow documentation reset | Released as `v0.5.0` (prepared as `v0.6.0`; PR #542) | `docs/execution-plans/2026-11-07/workflow-documentation-reset.md` |
 | Simulation runs | Approved 2026-11-10; execution started | `docs/execution-plans/2026-11-10/simulation-runs.md` |
 
 ## Current architecture decisions

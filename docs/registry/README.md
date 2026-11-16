@@ -1,9 +1,9 @@
 # Indicator and Parameter Registry
 
 - Date: 2026-11-03 (UTC)
-- Updated: 2026-11-06 for the current-surface cleanup
-- Status: Populated 2026-11-03; CI check in `tools/check_registry.py`
-- Contract: [`docs/model/2026-11-05/model-m1.0.md`](../model/2026-11-05/model-m1.0.md)
+- Updated: 2026-11-16 for the M1.3 contract and the 100-parameter registry
+- Status: Current; populated 2026-11-03; CI check in `tools/check_registry.py`
+- Contract: [`docs/model/2026-11-10/model-m1.3.md`](../model/2026-11-10/model-m1.3.md)
 - ADR: [`docs/adr/2026-11-03/flat-indicator-event-model.md`](../adr/2026-11-03/flat-indicator-event-model.md)
 
 ## 1. Purpose

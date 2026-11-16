@@ -1,6 +1,6 @@
 # Operations
 
-- Status: Current; released v1.0.0 on 2026-11-15; approved 2026-11-12
+- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); unchanged in the v1.0.0 desktop release; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 
@@ -81,12 +81,11 @@ The object mirror uses the `mc` bundled in the pinned MinIO image. A replacement
 The archive contains candle data and is handled as sensitive; see
 [`data-lifecycle.md`](../workflows/data-lifecycle.md).
 
-The default stack starts six of the nine containers (see
-[`deployment.md`](deployment.md) section 2.1). Backup covers the durable stores
-regardless of which services are running; it cannot contain state that a
-missing `data`, `model`, or `simulation` binary never produced. The scripts stop
-every non-store service in the project, so the quiesce list stays correct when
-the split lands.
+The default stack starts all nine containers: the six services and the three
+stores (see [`deployment.md`](deployment.md) section 2.1). Backup covers the
+durable stores; it cannot contain state that a missing `data`, `model`, or
+`simulation` binary never produced. The scripts stop every non-store service in
+the project.
 
 Round trip: `tools/test_backup.sh` is opt-in and uses an isolated
 `quantrule-backup-test` project, so it needs port 8080 free and never touches

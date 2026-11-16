@@ -6,7 +6,7 @@ client, not a second client: the gateway computes, the Svelte client renders,
 and the package supplies the window and the processes.
 
 **Status:** the shell, the supervisor, the six-sidecar desktop wiring, and both
-installer files are implemented and released in v1.1.0. `QR_PROFILE=desktop`
+installer files are implemented and released as v1.0.0 (prepared as v1.1.0). `QR_PROFILE=desktop`
 selects SQLite, the filesystem CAS, and the durable in-process queue;
 `tools/parity_desktop.sh` runs the fixture and compares the desktop canonical
 digest with the server profile. The installers are unsigned and the Windows

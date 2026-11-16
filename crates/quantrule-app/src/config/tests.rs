@@ -440,7 +440,7 @@ fn the_example_config_loads_and_resolves() {
     let config = run::RunConfig::load(&path).expect("the example config is valid");
 
     assert_eq!(config.name, "btcusd-2024");
-    assert_eq!(config.model_id.as_deref(), Some("M1.0"));
+    assert_eq!(config.model_id.as_deref(), Some("M1.3"));
     assert_eq!(config.execution_id.as_deref(), Some("E1.0"));
     assert_eq!(config.portfolio_id.as_deref(), Some("P1.0"));
     assert_eq!(config.data.source_timeframe, Timeframe::M1);

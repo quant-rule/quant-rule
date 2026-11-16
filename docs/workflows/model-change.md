@@ -4,7 +4,7 @@
 - Status: Current
 - Scope: adding, changing, or retiring an indicator, event, state, reading, or model family
 - Owner: Quant Developer (implementation), Test Engineer (evidence), Quant Validator (behavior change)
-- Contract: [`docs/model/2026-11-05/model-m1.0.md`](../model/2026-11-05/model-m1.0.md), [`docs/registry/README.md`](../registry/README.md)
+- Contract: [`docs/model/2026-11-10/model-m1.3.md`](../model/2026-11-10/model-m1.3.md), [`docs/registry/README.md`](../registry/README.md)
 - Claim type: model implementation and registry process; no strategy or edge claim.
 
 ## 1. Purpose
@@ -157,7 +157,7 @@ Stop and request human direction when:
 
 - [`model-research.md`](model-research.md)
 - [`strategy-research.md`](strategy-research.md)
-- [`../model/2026-11-05/model-m1.0.md`](../model/2026-11-05/model-m1.0.md)
+- [`../model/2026-11-10/model-m1.3.md`](../model/2026-11-10/model-m1.3.md)
 - [`../model/2026-11-05/model-families.md`](../model/2026-11-05/model-families.md)
 - [`../registry/README.md`](../registry/README.md)
 - [`../../AGENTS.md`](../../AGENTS.md)

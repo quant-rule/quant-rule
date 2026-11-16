@@ -26,6 +26,16 @@ ALLOWED_STATUS = (
     "Proposed",
     "Superseded",
 )
+LINK = re.compile(r"\[[^\]]+\]\(([^)]+\.md)\)")
+HISTORY_WORDS = (
+    "historical",
+    "retired",
+    "superseded",
+    "no longer",
+    "not current",
+    "history",
+    "context",
+)
 
 
 def read(path: Path, root: Path) -> str:
@@ -44,6 +54,35 @@ def status_of(text: str) -> str | None:
 
 def has_heading(text: str, needle: str) -> bool:
     return any(needle.lower() in heading.lower() for heading in HEADING.findall(text))
+
+
+def historical_links(files: list[Path], root: Path) -> list[str]:
+    """Return Current workflows that send the reader to a Historical workflow.
+
+    A current procedure may mention a historical workflow for context, but a
+    bare "use this" link is a contradiction. The line must carry one of the
+    history words; the workflow index is not scanned because it intentionally
+    lists historical workflows.
+    """
+    statuses = {path.name: status_of(read(path, root)) for path in files}
+    problems: list[str] = []
+    for path in files:
+        if not (statuses.get(path.name) or "").startswith("Current"):
+            continue
+        for line_number, line in enumerate(read(path, root).splitlines(), 1):
+            if any(word in line.lower() for word in HISTORY_WORDS):
+                continue
+            for target in LINK.findall(line):
+                name = Path(target).name
+                target_status = statuses.get(name)
+                if target_status and target_status.startswith(
+                    ("Historical", "Deprecated", "Superseded")
+                ):
+                    problems.append(
+                        f"{path.name}:{line_number}: current workflow links historical "
+                        f"workflow {name}"
+                    )
+    return problems
 
 
 def check(root: Path) -> list[str]:
@@ -85,6 +124,8 @@ def check(root: Path) -> list[str]:
             problems.append(f"{name}: not listed in docs/workflows/README.md")
         if name not in global_text:
             problems.append(f"{name}: not listed in docs/README.md")
+
+    problems.extend(historical_links(files, root))
 
     if templates.is_dir():
         for path in sorted(templates.glob("*.md")):

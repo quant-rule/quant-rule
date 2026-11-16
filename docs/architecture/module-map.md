@@ -1,6 +1,6 @@
 # Code Module Map
 
-- Status: Current; released v1.0.0 on 2026-11-15; approved 2026-11-12
+- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); unchanged in the v1.0.0 desktop release; approved 2026-11-12
 - Part of: [`docs/architecture/README.md`](README.md)
 - Normative rules: [`AGENTS.md`](../../AGENTS.md) section 2
 - Claim type: Behaviour Claim

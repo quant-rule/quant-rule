@@ -253,6 +253,15 @@ describe("client parity", () => {
     }
   });
 
+  it("every control has a stable test id in its component", () => {
+    for (const command of COMMANDS) {
+      const source = readFileSync(new URL(`./${command.component}`, import.meta.url), "utf8");
+      expect(source, `${command.command} → ${command.component}`).toContain(
+        `data-testid="${command.testId}"`,
+      );
+    }
+  });
+
   it("a missing browser control is reported as a command gap", () => {
     const browser = COMMANDS.map((item) => item.command).filter(
       (name) => name !== "verify",

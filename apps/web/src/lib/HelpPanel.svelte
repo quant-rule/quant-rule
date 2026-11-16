@@ -15,7 +15,7 @@
     The command shell and this browser reach the same gateway contract. Each row
     names the command and the screen that reaches its use case here.
   </p>
-  <table>
+  <table data-testid="help-table">
     <thead>
       <tr><th>Command</th><th>Screen</th><th>Control</th></tr>
     </thead>

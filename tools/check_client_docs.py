@@ -31,6 +31,11 @@ COUNT = {
 SECTIONS_START = "export const SECTIONS = ["
 SECTIONS_END = "] as const;"
 LABEL = re.compile(r'label:\s*"([^"]+)"')
+COMMANDS_START = "export const COMMANDS"
+COMMANDS_END = "];"
+CAP_FIELD = re.compile(
+    r'(command|section|control|component|testId):\s*"([^"]*)"'
+)
 
 
 def table_rows(text: str, header: str) -> list[list[str]] | None:
@@ -56,6 +61,22 @@ def capability_labels(text: str) -> list[str] | None:
     if start == -1 or end == -1:
         return None
     return LABEL.findall(text[start:end])
+
+
+def capability_entries(text: str) -> list[dict[str, str]]:
+    """Return the COMMANDS entries keyed by their declared fields."""
+    start = text.find(COMMANDS_START)
+    end = text.find(COMMANDS_END, start + len(COMMANDS_START)) if start != -1 else -1
+    if start == -1 or end == -1:
+        return []
+    entries: list[dict[str, str]] = []
+    for line in text[start:end].splitlines():
+        if "command:" not in line:
+            continue
+        fields = dict(CAP_FIELD.findall(line))
+        if fields:
+            entries.append(fields)
+    return entries
 
 
 def unquote(cell: str) -> str:
@@ -101,7 +122,8 @@ def check(root: Path) -> list[str]:
     if not capabilities_path.is_file():
         problems.append(f"{capabilities_path}: the browser command map is missing")
     else:
-        labels = capability_labels(capabilities_path.read_text(encoding="utf-8"))
+        capabilities_text = capabilities_path.read_text(encoding="utf-8")
+        labels = capability_labels(capabilities_text)
         if labels is None:
             problems.append(f"{capabilities_path}: the SECTIONS table is missing")
         else:
@@ -110,6 +132,33 @@ def check(root: Path) -> list[str]:
                     problems.append(
                         f"{client_path}: navigation label {label!r} has no screen row"
                     )
+        entries = capability_entries(capabilities_text)
+        if not entries:
+            problems.append(f"{capabilities_path}: the COMMANDS table is missing")
+        for entry in entries:
+            missing = [
+                field
+                for field in ("command", "section", "control", "component", "testId")
+                if not entry.get(field)
+            ]
+            if missing:
+                problems.append(
+                    f"{capabilities_path}: {entry.get('command', '?')} is missing "
+                    + ", ".join(missing)
+                )
+                continue
+            component = entry["component"]
+            path = library / component
+            if not path.is_file():
+                problems.append(
+                    f"{capabilities_path}: {entry['command']} names missing component {component}"
+                )
+                continue
+            test_id = entry["testId"]
+            if f'data-testid="{test_id}"' not in path.read_text(encoding="utf-8"):
+                problems.append(
+                    f"{path}: {entry['command']} control {test_id!r} has no data-testid"
+                )
 
     registry_path = root / "docs" / "registry" / "indicators.json"
     readme_path = root / "docs" / "README.md"

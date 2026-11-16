@@ -1,15 +1,17 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { canSubmit } from "./configs";
+  import { canSubmit, findConfig } from "./configs";
   import { configs, load, submit } from "./configs.svelte";
   import { datasets, load as loadDatasets } from "./datasets.svelte";
   import { shortId } from "./runs";
+  import type { ConfigSummary } from "./types";
 
   let { onOpenRuns }: { onOpenRuns?: () => void } = $props();
 
   const view = $derived(configs());
   const data = $derived(datasets());
   let dataVersion = $state("");
+  let selected = $state<ConfigSummary | null>(null);
 
   onMount(() => {
     void (async () => {
@@ -25,6 +27,14 @@
       dataVersion = data.items[0]?.data_version ?? "";
     }
   });
+
+  function open(configId: string): void {
+    selected = findConfig(view.items, configId);
+  }
+
+  function closeDetail(): void {
+    selected = null;
+  }
 </script>
 
 <section class="stack">
@@ -68,7 +78,7 @@
   {:else if view.items.length === 0}
     <div class="notice">No configs on the server.</div>
   {:else}
-    <table>
+    <table data-testid="config-table">
       <thead>
         <tr>
           <th>Config</th>
@@ -89,8 +99,17 @@
               </span>
             </td>
             <td class="message">{item.message ?? ""}</td>
-            <td>
+            <td class="actions">
               <button
+                data-testid="config-detail-open"
+                aria-label="Details"
+                title={`Details for ${item.name}`}
+                onclick={() => open(item.config_id)}
+              >
+                Details
+              </button>
+              <button
+                data-testid="run-submit"
                 onclick={() => void submit(item.config_id, dataVersion)}
                 disabled={!canSubmit(item, dataVersion, view.submitting)}
                 aria-label={`Submit ${item.name}`}
@@ -103,6 +122,25 @@
         {/each}
       </tbody>
     </table>
+
+    {#if selected}
+      <section class="detail" data-testid="config-detail">
+        <div class="row">
+          <h3>Config detail</h3>
+          <button onclick={closeDetail}>Close</button>
+        </div>
+        <table>
+          <tbody>
+            <tr><th>Config id</th><td class="mono">{selected.config_id}</td></tr>
+            <tr><th>Name</th><td>{selected.name}</td></tr>
+            <tr><th>Origin</th><td>{selected.origin}</td></tr>
+            <tr><th>Valid</th><td>{selected.valid ? "yes" : "no"}</td></tr>
+            <tr><th>Config hash</th><td class="mono">{selected.config_hash ?? "none"}</td></tr>
+            <tr><th>Parser message</th><td class="message">{selected.message ?? "none"}</td></tr>
+          </tbody>
+        </table>
+      </section>
+    {/if}
   {/if}
 </section>
 

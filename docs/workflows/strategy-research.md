@@ -39,7 +39,6 @@ Do not use it when:
 - there is no accepted model baseline; the strategy tier is closed;
 - the change is an indicator or event: use Model Change;
 - the change is execution or portfolio mechanics: use Portfolio Research;
-- the change is a policy envelope: use Policy Change;
 - the change is a defect in the strategy engine: use the Audit Workflow.
 
 ## 3. Stages
@@ -143,11 +142,11 @@ post-hoc waiver.
 
 ```bash
 quantrule config list
-quantrule run submit --data-version <data_version> --config <config_id>
+quantrule run submit <data_version> <config_id>
 quantrule run status <run_id>
-quantrule run fetch <run_id> --out <dir>
+quantrule run fetch <run_id> <dir>
 python3 tools/improvement/feasibility.py --strategy <strategy.json> --data <data.json> --cost-bps <bps> --out <dir>
-quantrule inspect events --data-version <data_version> --timeframe <timeframe>
+quantrule inspect events <data_version> --timeframe <timeframe>
 quantrule verify <run_id>
 ```
 

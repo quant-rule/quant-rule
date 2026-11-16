@@ -76,6 +76,39 @@ class WorkflowCheckerTests(unittest.TestCase):
             problems = check_workflows.check(root)
             self.assertTrue(any("docs/README.md" in problem for problem in problems))
 
+    def test_a_current_workflow_linking_a_historical_one_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "docs" / "workflows"
+            write(root / "current.md", workflow_doc("Current"))
+            write(root / "old.md", workflow_doc("Historical"))
+            write(
+                root / "current.md",
+                workflow_doc("Current")
+                + "\nUse the [old process](old.md) when the envelope changes.\n",
+            )
+            problems = check_workflows.historical_links(
+                [root / "current.md", root / "old.md"], Path(temporary)
+            )
+            self.assertEqual(len(problems), 1, problems)
+            self.assertIn("old.md", problems[0])
+
+    def test_a_qualified_historical_reference_is_allowed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "docs" / "workflows"
+            write(root / "current.md", workflow_doc("Current"))
+            write(root / "old.md", workflow_doc("Historical"))
+            write(
+                root / "current.md",
+                workflow_doc("Current")
+                + "\nThe historical [old process](old.md) is retained for context.\n",
+            )
+            self.assertEqual(
+                check_workflows.historical_links(
+                    [root / "current.md", root / "old.md"], Path(temporary)
+                ),
+                [],
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

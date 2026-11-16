@@ -1,7 +1,8 @@
 # Improvement Run Contract
 
 - Date: 2026-11-01 (UTC)
-- Updated: 2026-11-07 for the S3 command surface and manifest v2
+- Updated: 2026-11-16 for the gateway execution path, the current run schema,
+  and manifest v2
 - Status: Current; `quantrule.improvement-run/v2` is current, v1 is historical,
   and no tiered run has used the contract yet
 - Scope: model, strategy, and portfolio runs
@@ -11,12 +12,12 @@
 
 A run is the unit of evidence for the [Improvement Workflow](improvement-workflow.md).
 This contract fixes its identity, its folder layout, its manifest, its index, its
-baselines, its holdout rule, and its invalidation policy, so two runs can be
+baselines, its holdout rule, and its invalidation rule, so two runs can be
 compared without reconstructing what happened from memory.
 
 The contract is deliberately narrow. A run records one tier, one partition, one
-hypothesis, and one frozen set of inputs. It does not contain a program fix, a
-policy change, or a second hypothesis.
+hypothesis, and one frozen set of inputs. It does not contain a program fix or a
+second hypothesis.
 
 ## Run identity
 
@@ -68,7 +69,7 @@ data/improvement/
   <YYYY-MM-DD>/
     <RUN-ID>/
       manifest.json             immutable run identity and provenance
-      config/                   exact configuration copied by run.py
+      config/                   exact configuration copied by the run-store process
         sources.json            source paths and copy status
         <run config and sibling JSON files>
       artifacts/                shell bundles and evidence
@@ -111,7 +112,7 @@ still recorded in the run folder.
 
 The manifest is the run's identity. It is written once, before the first
 artifact, and is not edited afterwards. The source file is staged outside the
-canonical run folder; `run_current.py` creates the run folder and copies the
+canonical run folder; the run-store process creates the run folder and copies the
 manifest into it unchanged. The schema is `quantrule.improvement-run/v2`; v1 is
 historical and is rejected for a new run.
 
@@ -145,8 +146,9 @@ historical and is rejected for a new run.
 | Strategy | `strategy` | `model`, `portfolio` |
 | Portfolio | `portfolio` | `model`, `strategy` |
 
-`frozen` lists the trading tiers held fixed. Data, policy, and analytics are
-always frozen by the contract and do not appear in `frozen`.
+`frozen` lists the trading tiers held fixed. Data and analytics are always
+frozen by the contract and do not appear in `frozen`; the policy layer is
+retired and is not a run input.
 
 The validator refuses a `changed` value that differs from `tier`, a `frozen` list
 that contains `changed`, a duplicate entry, an unknown tier, an undeclared
@@ -171,9 +173,9 @@ record is not valid evidence if the freeze cannot be traced.
   "changed": "strategy",
   "frozen": ["model", "portfolio"],
   "partition": "strategy_dev",
-  "run_config": "config/examples/btcusd-2024/run.json",
-  "strategy_config": "config/examples/btcusd-2024/strategy.json",
-  "qualification_criteria": "config/examples/btcusd-2024/qualification.json",
+  "run_config": "config/examples/btcusd-2024-strategy/run.json",
+  "strategy_config": "config/examples/btcusd-2024-strategy/strategy.json",
+  "qualification_criteria": "config/qualification/SR1-DEV.json",
   "command": "run submit",
   "analytics": true,
   "code_commit": "42307b7",
@@ -183,7 +185,7 @@ record is not valid evidence if the freeze cannot be traced.
     "max_drawdown": 0.20,
     "minimum_trades": 30,
     "costs": "0.1% commission, 2 bps slippage, funding as configured",
-    "rule": "validation return positive after costs and drawdown within policy"
+    "rule": "validation return positive after costs and drawdown within the portfolio limit"
   },
   "holdout_access": "none",
   "baseline": "STRATEGY-2026-10-31-01"
@@ -192,11 +194,13 @@ record is not valid evidence if the freeze cannot be traced.
 
 ## Run execution
 
-`run_current.py` is the current command that creates a run folder. It invokes the
-S3 command surface, not the retired `backtest` command. The historical `run.py`
-is retained for reproducibility only.
+The current execution path is the gateway: `run submit`, `run status`, and
+`run fetch`. The run-store process creates the run folder and records the
+evidence around that submission. The historical `run_current.py` and `run.py`
+are retained for pre-cutover reproducibility only; neither is a current
+execution path.
 
-It:
+The run-store process:
 
 1. validates the v2 manifest;
 2. refuses a non-empty output root;
@@ -208,9 +212,9 @@ It:
 6. submits the run through the gateway and fetches its artifacts:
 
    ```text
-   quantrule run submit --data-version <data_version> --config <config_id>
+   quantrule run submit <data_version> <config_id>
    quantrule run status <run_id>
-   quantrule run fetch <run_id> --out <root>/artifacts
+   quantrule run fetch <run_id> <root>/artifacts
    ```
 
    A strategy or portfolio run is submitted only after its model baseline is
@@ -366,7 +370,7 @@ matching verdict and reason.
 
 The run-store tooling lives in `tools/improvement/` and is written in Python. See
 [`tools/improvement/README.md`](../../tools/improvement/README.md) for the
-current adapter and the retained scripts. It does not replace the shell: the
+adapter history and the retained scripts. It does not replace the shell: the
 shell submits and fetches the gateway run, and the tooling records, validates,
 and indexes the evidence. `run_current.py` is the historical adapter for the
 pre-gateway local runner, when the shell still executed the pipeline stages; it
@@ -424,13 +428,14 @@ has no backwards-compatibility layer; see the
 - [Invalidation log](../improvement/INVALIDATIONS.md)
 - [Workflow reset execution plan](../execution-plans/2026-11-01/workflow-reset.md)
 
-## Distributed execution — v1.0.0
+## Distributed execution — v0.9.0 (prepared as v1.0.0)
 
 An **improvement run** is a research record. A **run** is one execution of the
 pipeline. The compound term is always written in full; a bare "run" always means
 the pipeline execution.
 
-From v1.0.0 an improvement run is produced by submitting a pipeline run:
+From the distributed release (v0.9.0, prepared as v1.0.0) an improvement run is
+produced by submitting a pipeline run:
 
 | Field | Source |
 |---|---|

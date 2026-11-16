@@ -406,6 +406,9 @@ test("creates a run and walks premise, mark, oracle, review, check, decision", a
   await expect(page.getByTestId("sim-status")).toHaveText("draft");
   await expect(page.getByTestId("sim-run-meta")).toContainText(premise);
   await expect(page.getByTestId("simulation-chart")).toBeVisible();
+  const download = page.waitForEvent("download");
+  await page.getByTestId("chart-export").click();
+  expect((await download).suggestedFilename()).toContain("window-");
   expect(server.created).toEqual({
     premise,
     bundle: DIGEST,

@@ -14,6 +14,7 @@
   } from "./chart/marks";
   import { arrowPath, diamondPath } from "./chart/paths";
   import { barAtPointer, barCenter, DEFAULT_LAYOUT, viewBoxX } from "./chart/scale";
+  import { downloadSvg, svgFilename, type SvgSurface } from "./chart/export";
   import { buildChartScene } from "./chart/scene";
   import type { ChartMark, ChartSeries } from "./chart/types";
   import { deleteMark, postMark } from "./simulation";
@@ -63,6 +64,16 @@
     const rect = element.getBoundingClientRect();
     const x = viewBoxX(event.clientX, rect.left, rect.width, area.width);
     return x === null ? null : barAtPointer(x, DEFAULT_LAYOUT, scene.barCount);
+  }
+
+  function exportChart(): void {
+    if (!surface) {
+      return;
+    }
+    downloadSvg(
+      surface as unknown as SvgSurface,
+      svgFilename(simulationId, series.chart),
+    );
   }
 
   function onPointerMove(event: PointerEvent): void {
@@ -218,6 +229,13 @@
       Bar {targetBar ?? "—"}
     </span>
     <button
+      data-testid="chart-export"
+      onclick={exportChart}
+      disabled={scene.barCount === 0}
+    >
+      Export SVG
+    </button>
+    <button
       onclick={() => void undo()}
       disabled={busy || locked || undoable === null}
       data-testid="mark-undo"
@@ -232,7 +250,7 @@
     </div>
   {/if}
 
-  <div class="toolbar" aria-label="Mark classes">
+  <div class="toolbar" data-testid="sim-mark" aria-label="Mark classes">
     {#each MARK_CLASSES as markClass (markClass.key)}
       <button
         class:selected={selectedKey === markClass.key}
