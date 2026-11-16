@@ -29,6 +29,8 @@ path never falls back to the client.
 Every screen is owned by one component. The browser and the command shell reach
 one HTTP contract; the shared fixture and both parity tests enforce that every
 registered command has a browser control (`tests/fixtures/client-parity/api.json`).
+The target Workbench, Backtests, Research, and Operations screens are in
+[stage-surface.md](stage-surface.md).
 
 ## 2. Stores
 
@@ -160,11 +162,8 @@ and the unsigned-artifact warning are in
 | Unit tests | the Vite test runner under Bun |
 | End-to-end | Playwright |
 
-Bun is the client toolchain only. The built assets are static and are served by
-the gateway; no Bun runtime exists in the image.
+Bun is the client toolchain only. The built assets are static and served by the gateway; no Bun runtime exists in the image.
 
 ## 12. Out of scope
 
-No offline mode, no native shell, no local file access beyond upload, no charting
-library, no client-side computation of a model value, no client-side check
-arithmetic.
+No offline mode, no native shell, no local file access beyond upload, no charting library, and no client-side model value or check arithmetic.

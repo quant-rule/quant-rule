@@ -18,8 +18,8 @@ security boundary ([`ADR-11`](../adr/2026-11-12/11-profiles.md)).
 | `gateway` | `qr-gateway` | HTTP boundary, static client, upload streaming, health aggregation, principal injection, proxy table | `gateway` schema (profiles) | compute a model value, read a candle, render a label |
 | `data` | `qr-data` | Ingestion, `data_version`, timeframe ladder, dataset and config catalog (including the read-only `config/` mount), read-only inspection | `catalog` schema, `datasets/` and `ladder/` objects | run a model, decide a signal |
 | `model` | `qr-model` | Readings, states, events, levels, progression, context, report | model objects | read strategy, execution, or portfolio |
-| `backtest` | `qr-backtest` | Run orchestration, strategy, execution, portfolio | artifact objects | own provenance or compute a digest |
-| `evidence` | `qr-evidence` | Provenance, canonical digest, run records, research memory, finalization | `runs` and `research` schemas, bundle objects | compute a reading or decide a trade |
+| `backtest` | `qr-backtest` | Run orchestration, strategy, execution, portfolio, diagnostic stage execution | artifact objects, stage worker | own provenance or compute a digest |
+| `evidence` | `qr-evidence` | Provenance, canonical digest, run records, research memory, stage lifecycle, finalization | `runs`, `research`, and `stage` schemas, bundle objects | compute a reading or decide a trade |
 | `simulation` | `qr-simulation` | Chart-first research: window selection, marks, oracle, review, check, decision | `simulation` schema, research objects | compute a model, write a run artifact, publish to the queue |
 
 ## 2. Dependency direction
@@ -110,7 +110,17 @@ server profile stays the default.
 A service calls the trait, never a client library directly. A second
 implementation must not require a use-case change; that is the test.
 
-## 8. The research plane
+## 8. Stage diagnostics
+
+`evidence` owns the `stage` schema. A stage submission is validated and
+content-addressed by `evidence`; the `backtest` worker claims it, dispatches to
+the model, strategy, or portfolio executor, publishes the content-addressed
+artifact, and records `stage.computed`. The gateway proxies `/stages/*`; the
+model service serves model-stage event reads. A stage artifact is diagnostic:
+`evidence: false`, no canonical run digest, no baseline, and TTL expiry. The
+coupled `run submit` remains the only evidence path.
+
+## 9. The research plane
 
 `simulation` is not a pipeline stage and not a run. It is a third plane:
 synchronous, interactive, and isolated.

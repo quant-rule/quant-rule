@@ -34,16 +34,16 @@ quantrule-simulation-service ──> quantrule-simulation
 | `quantrule-model` | Readings, states, levels, events, progression, context, report, spec | Files, strategy, fills, cash |
 | `quantrule-backtest` | Strategy, execution, portfolio, benchmark | Files, transport, rendering |
 | `quantrule-app` | Workspace, dataset, configuration, run orchestration, artifact I/O, shared use cases | Indicators, rules, fills, P&L, transport, research memory |
-| `quantrule-api` | Contract types, error envelope, state enum, version constants | Any engine dependency |
-| `quantrule-service-api` | `quantrule.internal/v1` records, bundles, run lifecycle, canonical digest | Any engine, runtime, or service dependency |
+| `quantrule-api` | Contract types, error envelope, state enum, stage types, version constants | Any engine dependency |
+| `quantrule-service-api` | `quantrule.internal/v1` records, bundles, run lifecycle, stage manifest, canonical digest | Any engine, runtime, or service dependency |
 | `quantrule-research` | Hypothesis evaluation: expectancy, significance, drawdown, comparison | I/O, clock, engine dependency |
 | `quantrule-simulation` | Research plane: deterministic windows, marks, oracle, check, exit lab | I/O, clock, run artifacts |
 | `quantrule-runtime` | Configuration, health, logging, shutdown, adapters, migrations, service client | An engine or `quantrule-app` |
 | `quantrule-gateway` | Profiles (`gateway` schema), static client, proxy table, health | Any app, engine, or domain service crate |
 | `quantrule-data-service` | `catalog` schema, ingest, datasets, configs, inspection, ladder | Another schema or a model run |
 | `quantrule-model-service` | Model compute and content-addressed model bundles | A strategy, execution, portfolio, or database schema |
-| `quantrule-backtest-service` | Worker orchestration, strategy, execution, portfolio, artifact objects | A catalog, run, or research schema |
-| `quantrule-evidence-service` | `runs` and `research` schemas, run records, provenance, digest, memory, hypotheses | An engine or `quantrule-app` |
+| `quantrule-backtest-service` | Worker orchestration, strategy, execution, portfolio, stage worker, artifact objects | A catalog, run, or research schema |
+| `quantrule-evidence-service` | `runs`, `research`, and `stage` schemas, run records, stage lifecycle, provenance, digest, memory, hypotheses | An engine or `quantrule-app` |
 | `quantrule-simulation-service` | `simulation` schema, research objects, eleven endpoints | A model, run artifact, strategy, or queue message |
 | `quantrule-shell` | Parsing, terminal rendering, HTTP calls | Domain logic, engine dependency |
 | `apps/web` | Svelte screens, stores, SVG chart, rendering | Domain logic, computation |
@@ -61,8 +61,8 @@ cannot read a strategy, write a run, publish to the queue, or compute a model.
 | `quantrule-gateway` | `src/server.rs` for the route and proxy table; `src/profile/` for `gateway.profiles`; `src/static_files.rs` for the SPA |
 | `quantrule-data-service` | `src/routes.rs`, `src/ingest.rs`, `src/catalog.rs`, `src/postgres.rs` |
 | `quantrule-model-service` | `src/routes.rs`, `src/bundle.rs`, `src/state.rs` |
-| `quantrule-backtest-service` | `src/backtest/worker.rs`, `src/backtest/workspace.rs`, `src/backtest/retry.rs` |
-| `quantrule-evidence-service` | `src/state.rs`, `src/postgres.rs`, `src/migrations.rs` |
+| `quantrule-backtest-service` | `src/backtest/worker.rs`, `src/backtest/workspace.rs`, `src/backtest/retry.rs`, `src/stage/` |
+| `quantrule-evidence-service` | `src/state.rs`, `src/postgres.rs`, `src/migrations.rs`, `src/stage/` |
 | `quantrule-simulation-service` | `src/routes/`, `src/postgres.rs`, `src/bundle.rs` |
 | `quantrule-runtime` | `src/config.rs`, `src/health.rs`, `src/adapters/`, `src/client.rs`, `src/migrations.rs` |
 
@@ -75,6 +75,8 @@ cannot read a strategy, write a run, publish to the queue, or compute a model.
 | Endpoint | `gateway/src/server.rs` | owner service, `quantrule-api`, `http-api.md`, client store, test |
 | Service responsibility | the owning `*-service` crate | `services.md`, `service_boundary.rs` |
 | Worker behaviour | `backtest-service/src/backtest/worker.rs` | `control-plane.md`, retry test |
+| Stage endpoint | `evidence-service/src/stage/` | `gateway/src/server.rs`, `quantrule-api`, `stage-surface.md`, test |
+| Stage execution | `backtest-service/src/stage/` | `quantrule-service-api`, retention, no-partial-publish test |
 | Client screen | `apps/web/src/lib/<Name>Panel.svelte` | store, `client.md`, Playwright test |
 | Command | `shell/src/command/<family>.rs` | `command-surface.md`, help, tutorial, checker |
 | Config field | `app/src/config/<file>.rs` | input type, provenance, docs, registry |

@@ -39,6 +39,7 @@ repeating a status.
 | Pipeline | Every stage is implemented: data, model, strategy, execution, portfolio, backtest, qualification, analytics. |
 | Surfaces | Product 1.2.0 is a distributed platform with two clients: a Svelte browser client and a command shell, both on `quantrule.api/v1`, plus the Tauri desktop package over the gateway URL. The command shell is a thin gateway client with no engine dependency; the six services are packaged in one image and nine-container stack, and the desktop installer carries the same six sidecars on embedded backends. |
 | Command surface | 27 implemented commands on the gateway-client surface in [command-surface.md](architecture/command-surface.md); the surface was released as v0.9.0 (prepared as v1.0.0) and is unchanged in v1.2.0. The discovery gate passes for the implemented set. |
+| Stage surface | Target; the stage contract, `stage` schema, and store are merged (#850); the worker, clients, and research surface land in #851–#858. Target: [stage-surface.md](architecture/stage-surface.md). |
 | Model | `M1.3` current; 49 indicators, 150 active events, 199 validation claims; accepted compression baselines; `M2.x` no edge; `M3.x` underpowered; `M4.x` no edge; `MR5.x` no edge; `MR6.x` no edge; `MR7.x` no edge. |
 | Strategy | No accepted strategy baseline; the tier is gated by an accepted model baseline. |
 | Portfolio | No accepted portfolio baseline; the tier is gated by an accepted strategy baseline. |

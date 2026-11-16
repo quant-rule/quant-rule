@@ -66,6 +66,8 @@ The analytics research engine was retired in P3. Historical research output cont
 
 The distributed platform's implementation status (prepared as v1.0.0, released as v0.9.0) is tracked by `DIST-000` and specified in `docs/architecture/`. The current tree implements the 27-command gateway surface in `docs/architecture/command-surface.md` section 3, which the shell `help` renders from the same registry: `health`; `dataset list`, `dataset show`, `dataset upload`; `config list`, `config show`; `run submit`, `run status`, `run list`, `run fetch`, `run cancel`; `inspect candles`, `inspect timeframes`, `inspect events`; `verify`; `profile list`, `profile create`, `profile use`; `simulation list`, `simulation create`, `simulation windows`, `simulation mark`, `simulation marks`, `simulation oracle`, `simulation check`, `simulation decide`; and `help`. The stage contract and the discovery gate are in the same document.
 
+The target stage and research surface is additive: `stage run model`, `stage run strategy`, `stage run portfolio`, `stage list`, `stage show`, `stage events`, `stage explain`, `stage fetch`, `stage cancel`, `stage delete`, `research create`, `research submit`, `research list`, `research show`, `research compare`, `research decide`, `baseline list`, `baseline show`, `invalidation list`, and the optional `run submit --model-artifact` flag. These rows are `Planned` in the command registry and are not implemented until their issue lands. The target architecture is [`docs/architecture/stage-surface.md`](docs/architecture/stage-surface.md).
+
 The decision stack above the pipeline is one-way:
 
 ```

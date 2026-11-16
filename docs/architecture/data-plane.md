@@ -91,7 +91,12 @@ hash verifies.
 
 Simulation is not a run. It reads a recorded bundle, marks with the future
 visible, and writes research records. It has no place in this order, no `run_id`,
-and no canonical digest. See [`services.md`](services.md) §7.
+and no canonical digest. See [`services.md`](services.md) §9.
+
+A diagnostic stage run is also not a run. It has a `stage_run_id`, a
+content-addressed artifact, and `evidence: false`; it has no canonical digest,
+no run record, and no baseline. The target surface is in
+[`stage-surface.md`](stage-surface.md).
 
 ## 8. Read-only inspection
 

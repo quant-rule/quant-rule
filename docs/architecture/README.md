@@ -50,6 +50,7 @@ agent interface. Both speak `quantrule.api/v1`.
 | [`operations.md`](operations.md) | Current; released as v0.9.0 (prepared as v1.0.0); unchanged through v1.2.0 | Running, backing up, recovering |
 | [`module-map.md`](module-map.md) | Current; released as v0.9.0 (prepared as v1.0.0); unchanged through v1.2.0 | Where code lives |
 | [`command-surface.md`](command-surface.md) | Current | Implemented commands and the retirement record |
+| [`stage-surface.md`](stage-surface.md) | Target | The target stage API, commands, services, and client screens |
 
 `Target` means the decision is accepted and the document is the implementation
 contract; the code does not exist yet. The status flips to `Current` at
