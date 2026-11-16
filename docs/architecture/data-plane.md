@@ -107,3 +107,7 @@ Inspection exists so a human or an agent can stop and look, without executing a
 partial pipeline. Candles and timeframes are data inspection; events compute a
 model, so the gateway forwards `/inspect/events` to the model service's internal
 event-batch route.
+
+> **Stage-run exception.** Diagnostic stage runs are defined by
+> [ADR-2026-11-16-01](../adr/2026-11-16/01-stage-execution-and-evidence-boundary.md).
+> They are a separate, expiring diagnostic path and never produce a run digest.

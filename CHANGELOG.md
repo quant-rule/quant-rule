@@ -18,6 +18,12 @@ history is in Git and the pull requests.
 
 ## [Unreleased]
 
+### Added
+
+- The stage execution and evidence-boundary ADR: diagnostic stage runs are
+  server-side and content-addressed, while the coupled backtest remains the only
+  evidence path and canonical-digest producer.
+
 ### Fixed
 
 - The shell's `simulation marks` usage error no longer advertises `--origin all`,
