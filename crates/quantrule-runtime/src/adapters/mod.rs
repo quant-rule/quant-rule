@@ -11,6 +11,7 @@
 
 pub mod filesystem;
 pub mod inprocess;
+pub mod memory;
 pub mod postgres;
 pub mod rabbitmq;
 pub mod s3;
