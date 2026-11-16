@@ -25,6 +25,8 @@ history is in Git and the pull requests.
   evidence path and canonical-digest producer.
 - The Engine Execution workflow: four stage runbooks, the diagnostic/evidence
   rule, model artifact reuse, and the strategy and portfolio recompute rule.
+- The Backtest workflow: the coupled evidence path from freeze and preflight
+  through fetch, verify, validate, record, and reproduce.
 
 ### Fixed
 

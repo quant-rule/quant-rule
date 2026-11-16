@@ -6,7 +6,7 @@
 - Owner: Quant Researcher (iteration), Quant Validator (evidence boundary), Implementation (commands)
 - Contract: [ADR-2026-11-16-01](../adr/2026-11-16/01-stage-execution-and-evidence-boundary.md), [stage execution plan](../execution-plans/2026-11-16/842-stage-execution-surface.md)
 - Claim type: Behaviour Claim
-- Related: Backtest Workflow (#846), [Run Contract](run-contract.md), [Improvement Workflow](improvement-workflow.md)
+- Related: [Backtest Workflow](backtest.md), [Run Contract](run-contract.md), [Improvement Workflow](improvement-workflow.md)
 
 ## 1. Purpose
 
@@ -16,7 +16,7 @@ stage is evidence?**
 
 It does not decide whether a rule has an edge. That is Strategy Research and the
 Improvement Workflow. It does not produce a canonical digest. That is the
-Backtest Workflow (#846).
+[Backtest Workflow](backtest.md).
 
 The workflow covers four stage runbooks — Data, Model, Strategy, Portfolio — and
 the evidence rule that binds them.
@@ -188,7 +188,7 @@ Stop and request human direction when:
 ## 11. Related documents
 
 - [ADR-2026-11-16-01](../adr/2026-11-16/01-stage-execution-and-evidence-boundary.md)
-- Backtest Workflow (#846)
+- [Backtest Workflow](backtest.md)
 - [Run Contract](run-contract.md)
 - [Improvement Workflow](improvement-workflow.md)
 - [Command surface](../architecture/command-surface.md)
