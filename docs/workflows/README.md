@@ -47,6 +47,7 @@ The remaining workflows keep their stages and gates.
 |---|---|---|---|---|
 | [`audit-workflow.md`](audit-workflow.md) | Is the program correct and consistent with its contracts? | Engineering assessment | Current | Yes |
 | [`refactor-workflow.md`](refactor-workflow.md) | Is the structure cheap to change and provable? | Engineering improvement | Current | Yes |
+| [`engine-execution.md`](engine-execution.md) | How is one engine run alone, and what does its output prove? | Execution diagnostic | Target | Commands land in #850–#854 |
 | [`improvement-workflow.md`](improvement-workflow.md) | Does a change improve the trading system? | Quant spine | Current | Yes; no tiered run yet |
 | [`run-contract.md`](run-contract.md) | What makes a run valid evidence? | Quant record | Current | Yes; v2 current |
 | [`research-swarm.md`](research-swarm.md) | How do pre-registered cells run concurrently? | Quant execution | Current | Yes; no active campaign |
@@ -69,6 +70,7 @@ The remaining workflows keep their stages and gates.
 |---|---|
 | A defect, contract drift, test gap, or documentation defect | [Audit Workflow](audit-workflow.md) |
 | A structural problem, coupling, file size, or duplication | [Refactor Workflow](refactor-workflow.md) |
+| Running one engine alone for diagnosis | [Engine Execution](engine-execution.md) |
 | A model measurement, event, or family hypothesis | [Model Research](model-research.md) |
 | An indicator, event, or model implementation change | [Model Change](model-change.md) |
 | A chart-first, hindsight-labeled hypothesis | [Simulation Research](simulation-research.md) |
@@ -87,18 +89,17 @@ The remaining workflows keep their stages and gates.
 
 ```text
 DATA (versioned, validated) --> MODEL RESEARCH --> MODEL CHANGE (if needed) --> MODEL BASELINE (human)
-                                      |
-                                      v
-                                 SIMULATION RESEARCH (exploration, no claim)
-                                      |
-                                      v
-                                 STRATEGY RESEARCH --> STRATEGY BASELINE (human)
-                                      |
-                                      v
-                                 PORTFOLIO RESEARCH (execution + portfolio) --> PORTFOLIO BASELINE (human)
-                                      |
-                                      v
-                                 QUALIFICATION / ANALYTICS (evidence, no verdict)
+                                                                                    |
+                                                                                    v
+ENGINE EXECUTION (diagnostic, never evidence) -----------------------------> STRATEGY RESEARCH --> STRATEGY BASELINE (human)
+                                                                                    |
+                                                                                    v
+                                                                          PORTFOLIO RESEARCH (execution + portfolio) --> PORTFOLIO BASELINE (human)
+                                                                                    |
+                                                                                    v
+                                                                          QUALIFICATION / ANALYTICS (evidence, no verdict)
+
+SIMULATION RESEARCH (chart-first exploration, no claim) --> a hypothesis for Model or Strategy Research
 
 Cross-cutting:
   Audit (defects) | Refactor (structure) | Requirements & Design (new capability)
