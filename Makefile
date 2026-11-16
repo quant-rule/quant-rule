@@ -55,8 +55,8 @@ scale: ## Scale model and backtest (make scale N=4)
 	if printf '%s\n' "$$active" | grep -qx model; then \
 		$(COMPOSE) up -d --no-deps --scale model=$(N) --scale backtest=$(N) model backtest; \
 	else \
-		echo "scale: the six-binaries profile is not available yet; qr-model and qr-data do not exist (#643)." >&2; \
-		echo "scale: nothing was scaled. When the profile is enabled, this target scales model and backtest to N." >&2; \
+		echo "scale: model/backtest are not in the active Compose services; nothing was scaled." >&2; \
+		echo "scale: this target scales model and backtest to N when the Compose profile exposes them." >&2; \
 		exit 1; \
 	fi
 

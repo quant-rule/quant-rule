@@ -20,7 +20,7 @@ closing. Candle data stays on the operator's machine; there are no accounts.
 Falsified by: two runs over identical inputs and the same image producing
 different artifact bytes.
 
-## First increment
+## First increment (historical; now released as v1.0.0)
 
 One user action, one observable result:
 
@@ -35,9 +35,16 @@ submit a rule over a dataset
 It crosses the real architecture boundary: client -> service -> engines, with the
 engines pure and the evidence written by one owner.
 
-Evidence: a printed-output client test, an integration test over fixture
-candles, and the bundle's provenance file. Limit: fixture data only; no
+Evidence: the printed-output client tests in
+`crates/quantrule-shell/tests/http_commands.rs`, the two-run comparison in
+`tools/verify.sh`, and a run's `provenance.json` carrying the data version,
+config hash, model identity, and image digest. Limit: fixture data only; no
 out-of-sample claim.
+
+**Non-goal:** no profitability or live-trading claim, and no tick, order-book,
+or machine-learning signal path. The product is a candles-only evidence machine.
+Released in v1.0.0; see
+[`docs/releases/2026-11-15/v1.1.0.md`](../../../releases/2026-11-15/v1.1.0.md).
 
 ## Pitch (45-60 seconds)
 
