@@ -203,6 +203,13 @@ distributed release (v0.9.0, prepared as v1.0.0).
 | `simulation decide` | Research | Record test, refine, or stop |
 | `help` | Shell | Show the command map and contracts |
 
+### Target stage and research surface
+
+The next surface is additive: `stage` commands for the model, strategy, and
+portfolio engines; `research` records; `baseline` and `invalidation` reads; and
+the optional `run submit --model-artifact` flag. It is not implemented yet. The
+target is [`docs/architecture/stage-surface.md`](docs/architecture/stage-surface.md).
+
 ## Principles
 
 - **Deterministic.** Same data version, config, and image digest produce the same

@@ -95,6 +95,29 @@ enforces the distinction.
 | `simulation check` | Implemented | `sim_id` | event-study table and verdict |
 | `simulation decide` | Implemented | `sim_id`, test/refine/stop, note | decision record |
 | `help` | Implemented | topic | the command map |
+| `stage run model` | Planned | `data_version`, `config_id` | `stage_run_id`, model artifact |
+| `stage run strategy` | Planned | `model_artifact_id`, `config_id` | `stage_run_id`, decisions artifact |
+| `stage run portfolio` | Planned | `decisions_artifact_id`, `config_id` | `stage_run_id`, fills and metrics |
+| `stage list` | Planned | kind, status, limit | stage summaries |
+| `stage show` | Planned | `stage_run_id` | stage detail and provenance |
+| `stage events` | Planned | `stage_run_id`, timeframe | model event batch |
+| `stage explain` | Planned | `stage_run_id`, bar | one decision explanation |
+| `stage fetch` | Planned | `stage_run_id`, directory | verified artifact set |
+| `stage cancel` | Planned | `stage_run_id` | new stage state |
+| `stage delete` | Planned | `stage_run_id` | deleted stage artifact |
+| `research create` | Planned | tier, hypothesis, partition, config, criteria | improvement record |
+| `research submit` | Planned | improvement run id | linked pipeline run |
+| `research list` | Planned | tier, verdict, limit | improvement records |
+| `research show` | Planned | improvement run id | one improvement record |
+| `research compare` | Planned | improvement run id, baseline | comparison table |
+| `research decide` | Planned | improvement run id, decision, note | decision record |
+| `baseline list` | Planned | — | accepted baselines |
+| `baseline show` | Planned | tier | one baseline |
+| `invalidation list` | Planned | — | invalidation tombstones |
+
+The planned rows are the target stage and research surface in
+[`stage-surface.md`](stage-surface.md). A planned command is not in `help`, the
+README table, or a tutorial until it is implemented and tested.
 
 Every command accepts `--profile <id>`, which sets `X-QuantRule-Profile`,
 `--token <token>`, which sets `Authorization: Bearer` and falls back to
