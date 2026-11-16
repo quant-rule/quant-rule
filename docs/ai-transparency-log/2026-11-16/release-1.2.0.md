@@ -3,7 +3,8 @@
 - Date: 2026-11-16 (UTC)
 - Tool: OpenCode with DeepSeek V4.1 Flash 1017.
 - Workflow: Release & Operations; release record for the 2026-11-16 version and
-  tag alignment.
+  tag alignment. The human accepted the release on 2026-11-16, and the plan moved
+  to `Verified`.
 - Intent: normalize the historical release notes and changelog to the current
   tags, cut `v1.1.0` on the current 1.1.0 tree, bump every version surface to
   `1.2.0`, and cut `v1.2.0`.
