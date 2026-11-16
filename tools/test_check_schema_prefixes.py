@@ -49,19 +49,40 @@ def migrations_text(baseline: str) -> str:
 def main_text(ledger: str) -> str:
     return (
         "async fn main() -> Result<(), RuntimeError> {\n"
-        "    if config.profile == DeploymentProfile::Desktop {\n"
-        "        let data_dir = config.data_dir.as_deref().ok_or(ConfigError::Missing {\n"
-        '            name: "QR_DATA_DIR",\n'
-        "        })?;\n"
-        "        let path = data_dir.join(DATABASE_FILE);\n"
-        "        let applied = apply_sqlite_migrations(\n"
-        "            &database,\n"
-        f'            "{ledger}",\n'
-        "            &crate::migrations::sqlite(),\n"
-        "        )\n"
-        "        .await;\n"
-        "    }\n"
+        "    let mut health = HealthRegistry::new();\n"
+        "    let opened = open_service_database(\n"
+        "        &config,\n"
+        f'        "{ledger}",\n'
+        f'        "{ledger}",\n'
+        "        &crate::migrations::sqlite(),\n"
+        "        &crate::migrations::available(),\n"
+        "        &mut health,\n"
+        "    )\n"
+        "    .await?;\n"
+        "    let store = match opened {\n"
+        "        Some(ServiceDatabase::Sqlite(database)) => Some(database),\n"
+        "        Some(ServiceDatabase::Postgres(database)) => Some(database),\n"
+        "        None => None,\n"
+        "    };\n"
         "    Ok(())\n"
+        "}\n"
+    )
+
+
+def runtime_text() -> str:
+    return (
+        "//! backends probe\n"
+        'const DATA_DIR: &str = "QR_DATA_DIR";\n'
+        "fn database_path(config: &Config) -> PathBuf {\n"
+        "    data_dir(config).expect(\"dir\").join(DATABASE_FILE)\n"
+        "}\n"
+        "async fn open_service_database(config: &Config, ledger: &str) {\n"
+        "    match config.profile {\n"
+        "        DeploymentProfile::Desktop => {\n"
+        "            apply_sqlite_migrations(&database, ledger, &[]).await;\n"
+        "        }\n"
+        "        DeploymentProfile::Server => {}\n"
+        "    }\n"
         "}\n"
     )
 
@@ -83,6 +104,7 @@ def store_text(tables: tuple[str, ...]) -> str:
 
 def write_valid_tree(root: Path) -> None:
     """Write the files the checker's inventory declares, and nothing else."""
+    write(root / "crates" / "quantrule-runtime" / "src" / "backends.rs", runtime_text())
     grouped: dict[str, list[check_schema_prefixes.Ledger]] = {}
     for ledger in check_schema_prefixes.LEDGERS:
         grouped.setdefault(ledger.crate, []).append(ledger)
@@ -215,8 +237,8 @@ class LedgerRowTests(GuardTestCase):
     def test_a_missing_ledger_row_is_reported(self) -> None:
         self.replace(
             "crates/quantrule-data-service/src/main.rs",
-            "apply_sqlite_migrations(",
-            "apply_something_else(",
+            "open_service_database(",
+            "open_something_else(",
         )
         self.assertIn("ledger-row", self.rules())
 
@@ -251,17 +273,17 @@ class LedgerRowTests(GuardTestCase):
 class ProfileBranchTests(GuardTestCase):
     def test_a_missing_data_directory_branch_is_reported(self) -> None:
         self.replace(
-            "crates/quantrule-gateway/src/bin/qr_gateway.rs",
-            '"QR_DATA_DIR",',
-            '"QR_PROFILE",',
+            "crates/quantrule-runtime/src/backends.rs",
+            '"QR_DATA_DIR"',
+            '"QR_PROFILE"',
         )
         self.assertIn("profile-branch", self.rules())
 
     def test_a_missing_single_file_open_is_reported(self) -> None:
         self.replace(
-            "crates/quantrule-data-service/src/main.rs",
-            "data_dir.join(DATABASE_FILE)",
-            "data_dir.join(PROBE_FILE)",
+            "crates/quantrule-runtime/src/backends.rs",
+            "DATABASE_FILE",
+            "PROBE_FILE",
         )
         self.assertIn("single-file", self.rules())
 

@@ -14,20 +14,14 @@
 
 use std::sync::Arc;
 
-use quantrule_runtime::adapters::postgres::{
-    PgDatabase, apply_migrations_in as apply_postgres_migrations,
-};
-use quantrule_runtime::adapters::sqlite::{
-    DATABASE_FILE, SqliteDatabase, apply_migrations_in as apply_sqlite_migrations,
-};
 use quantrule_runtime::adapters::{
-    Database, Message, MessageHandler, ObjectStore, Queue, QueueConsumer, QueueError,
+    Message, MessageHandler, ObjectStore, Queue, QueueConsumer, QueueError,
 };
-use quantrule_runtime::backends::{ControlQueue, Objects};
+use quantrule_runtime::backends::{ControlQueue, Objects, ServiceDatabase, open_service_database};
 use quantrule_runtime::client::{ClientError, DataClient, HttpServiceClient, Service};
 use quantrule_runtime::config::ConfigError;
 use quantrule_runtime::queue::{QUEUE_EVIDENCE, ROUTING_COMPUTED};
-use quantrule_runtime::{Config, DeploymentProfile, HealthRegistry, RuntimeError, logging};
+use quantrule_runtime::{Config, HealthRegistry, RuntimeError, logging};
 use quantrule_service_api::INTERNAL_API_VERSION;
 
 use quantrule_evidence_service::evidence::{EvidenceServices, finalize};
@@ -36,69 +30,43 @@ use quantrule_evidence_service::runs::RunStore;
 use quantrule_evidence_service::sqlite::{SqliteHypothesisStore, SqliteRunStore};
 use quantrule_evidence_service::{EvidenceState, router};
 
+/// The run store a route handler reads.
+type RunHandle = Arc<dyn RunStore>;
+/// The hypothesis store a route handler reads.
+type HypothesisHandle = Arc<dyn quantrule_evidence_service::research::HypothesisStore>;
+
 #[tokio::main]
 async fn main() -> Result<(), RuntimeError> {
     let config = Config::from_env()?;
     logging::init("info")?;
 
     let mut health = HealthRegistry::new();
-    let mut runs: Option<Arc<dyn RunStore>> = None;
-    let mut hypotheses: Option<Arc<dyn quantrule_evidence_service::research::HypothesisStore>> =
-        None;
-    // The queue shares the handle the desktop branch opens, so the queue and
-    // the run store use one connection on one file in this process.
-    let mut sqlite: Option<SqliteDatabase> = None;
-
-    if config.profile == DeploymentProfile::Desktop {
-        let data_dir = config.data_dir.as_deref().ok_or(ConfigError::Missing {
-            name: "QR_DATA_DIR",
-        })?;
-        let path = data_dir.join(DATABASE_FILE);
-        let database = SqliteDatabase::open(&path)
-            .map_err(|error| RuntimeError::Database(error.to_string()))?;
-        if config.migrate {
-            let applied = apply_sqlite_migrations(
-                &database,
-                "runs",
-                &quantrule_evidence_service::migrations::sqlite(),
-            )
-            .await
-            .map_err(|error| RuntimeError::Migrations(error.to_string()))?;
-            tracing::info!(applied, "run and research SQLite migrations applied");
-        }
-        runs = Some(Arc::new(SqliteRunStore::new(database.clone())));
-        hypotheses = Some(Arc::new(SqliteHypothesisStore::new(database.clone())));
-        sqlite = Some(database.clone());
-        health.register("sqlite", move || {
-            let database = database.clone();
-            async move { database.ping().await.map_err(|error| error.to_string()) }
-        });
-    } else {
-        match PgDatabase::connect(&config.database_url).await {
-            Ok(database) => {
-                if config.migrate {
-                    let applied = apply_postgres_migrations(
-                        database.pool(),
-                        "runs",
-                        &quantrule_evidence_service::migrations::available(),
-                    )
-                    .await
-                    .map_err(|error| RuntimeError::Migrations(error.to_string()))?;
-                    tracing::info!(applied, "run and research migrations applied");
-                }
-                runs = Some(Arc::new(PgRunStore::new(database.pool().clone())));
-                hypotheses = Some(Arc::new(PgHypothesisStore::new(database.pool().clone())));
-                health.register("postgres", move || {
-                    let database = database.clone();
-                    async move { database.ping().await.map_err(|error| error.to_string()) }
-                })
-            }
-            Err(error) => health.register("postgres", move || {
-                let message = error.to_string();
-                async move { Err(message) }
-            }),
-        }
-    }
+    let opened = open_service_database(
+        &config,
+        "runs",
+        "run and research",
+        &quantrule_evidence_service::migrations::sqlite(),
+        &quantrule_evidence_service::migrations::available(),
+        &mut health,
+    )
+    .await?;
+    // The queue shares the handle the desktop branch opens, so the queue and the
+    // run store use one connection on one file in this process.
+    let sqlite = match &opened {
+        Some(ServiceDatabase::Sqlite(database)) => Some(database.clone()),
+        Some(ServiceDatabase::Postgres(_)) | None => None,
+    };
+    let (runs, hypotheses): (Option<RunHandle>, Option<HypothesisHandle>) = match opened {
+        Some(ServiceDatabase::Sqlite(database)) => (
+            Some(Arc::new(SqliteRunStore::new(database.clone()))),
+            Some(Arc::new(SqliteHypothesisStore::new(database))),
+        ),
+        Some(ServiceDatabase::Postgres(database)) => (
+            Some(Arc::new(PgRunStore::new(database.pool().clone()))),
+            Some(Arc::new(PgHypothesisStore::new(database.pool().clone()))),
+        ),
+        None => (None, None),
+    };
 
     let backend = Objects::open(&config).await?;
     let objects: Arc<dyn ObjectStore> = Arc::new(backend.clone());

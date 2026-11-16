@@ -25,14 +25,20 @@ use std::sync::Arc;
 
 use crate::adapters::filesystem::FilesystemStore;
 use crate::adapters::inprocess::InProcessQueue;
+use crate::adapters::postgres::{PgDatabase, apply_migrations_in as apply_postgres_migrations};
 use crate::adapters::rabbitmq::RabbitQueue;
 use crate::adapters::s3::S3Store;
-use crate::adapters::sqlite::{DATABASE_FILE, SqliteDatabase};
+use crate::adapters::sqlite::{
+    DATABASE_FILE, SqliteDatabase, apply_migrations_in as apply_sqlite_migrations,
+};
 use crate::adapters::{
-    Backend, BoxFuture, MessageHandler, ObjectStore, Queue, QueueConsumer, QueueError, StoreError,
+    Backend, BoxFuture, Database, MessageHandler, ObjectStore, Queue, QueueConsumer, QueueError,
+    StoreError,
 };
 use crate::config::{Config, ConfigError, DeploymentProfile};
 use crate::error::RuntimeError;
+use crate::health::HealthRegistry;
+use crate::migrations::Migration;
 
 /// The object-store directory under `QR_DATA_DIR` on the desktop profile.
 pub const OBJECTS_DIR: &str = "objects";
@@ -84,6 +90,86 @@ pub fn open_database(config: &Config) -> Result<Option<SqliteDatabase>, RuntimeE
                 .map(Some)
                 .map_err(|error| RuntimeError::Database(error.to_string()))
         }
+    }
+}
+
+/// The database a service owns for its declared schema.
+#[derive(Clone)]
+pub enum ServiceDatabase {
+    /// The embedded SQLite file shared by the desktop processes.
+    Sqlite(SqliteDatabase),
+    /// Postgres, on the server profile.
+    Postgres(PgDatabase),
+}
+
+/// Opens the service's database, applies its ledger, and registers its health.
+///
+/// This is the one implementation of the profile branch every schema-owning
+/// service needs. The service still names its own ledger and migration sets;
+/// what it no longer repeats is the open, migrate, and health sequence.
+///
+/// `label` is the startup log's noun. It usually equals `ledger`, but the
+/// evidence service applies its `runs` ledger for both its run and research
+/// stores, so it passes "run and research".
+///
+/// Returns `Ok(None)` when the server profile cannot reach Postgres: the
+/// failure is registered as a health component so the service starts and
+/// reports degraded, exactly as it did before this helper existed.
+///
+/// # Errors
+///
+/// Returns [`RuntimeError::Database`] when SQLite cannot open the file, and
+/// [`RuntimeError::Migrations`] when either backend cannot apply its ledger.
+pub async fn open_service_database(
+    config: &Config,
+    ledger: &str,
+    label: &str,
+    sqlite_migrations: &[Migration],
+    postgres_migrations: &[Migration],
+    health: &mut HealthRegistry,
+) -> Result<Option<ServiceDatabase>, RuntimeError> {
+    match config.profile {
+        DeploymentProfile::Desktop => {
+            let path = database_path(config)?;
+            let database = SqliteDatabase::open(&path)
+                .map_err(|error| RuntimeError::Database(error.to_string()))?;
+            if config.migrate {
+                let applied = apply_sqlite_migrations(&database, ledger, sqlite_migrations)
+                    .await
+                    .map_err(|error| RuntimeError::Migrations(error.to_string()))?;
+                tracing::info!(applied, "{} SQLite migrations applied", label);
+            }
+            let ping = database.clone();
+            health.register("sqlite", move || {
+                let database = ping.clone();
+                async move { database.ping().await.map_err(|error| error.to_string()) }
+            });
+            Ok(Some(ServiceDatabase::Sqlite(database)))
+        }
+        DeploymentProfile::Server => match PgDatabase::connect(&config.database_url).await {
+            Ok(database) => {
+                if config.migrate {
+                    let applied =
+                        apply_postgres_migrations(database.pool(), ledger, postgres_migrations)
+                            .await
+                            .map_err(|error| RuntimeError::Migrations(error.to_string()))?;
+                    tracing::info!(applied, "{} migrations applied", label);
+                }
+                let ping = database.clone();
+                health.register("postgres", move || {
+                    let database = ping.clone();
+                    async move { database.ping().await.map_err(|error| error.to_string()) }
+                });
+                Ok(Some(ServiceDatabase::Postgres(database)))
+            }
+            Err(error) => {
+                health.register("postgres", move || {
+                    let message = error.to_string();
+                    async move { Err(message) }
+                });
+                Ok(None)
+            }
+        },
     }
 }
 
@@ -328,6 +414,31 @@ mod tests {
             .expect("desktop database")
             .expect("a handle");
         assert!(database.path().is_some_and(|path| path.is_file()));
+        std::fs::remove_dir_all(&directory).expect("cleanup");
+    }
+
+    #[tokio::test]
+    async fn the_desktop_service_database_applies_its_ledger_and_registers_health() {
+        let directory = std::env::temp_dir().join(format!(
+            "quantrule-backends-{}-service-database",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&directory);
+        let config = desktop(&directory.display().to_string());
+        let mut health = HealthRegistry::new();
+
+        let opened = open_service_database(&config, "catalog", "catalog", &[], &[], &mut health)
+            .await
+            .expect("the service database opens")
+            .expect("the desktop profile opens SQLite");
+
+        assert!(matches!(opened, ServiceDatabase::Sqlite(_)));
+        assert_eq!(health.names(), vec!["sqlite"]);
+        let report = health.report(None).await;
+        assert!(matches!(
+            report.services[0].state,
+            quantrule_api::ServiceState::Healthy
+        ));
         std::fs::remove_dir_all(&directory).expect("cleanup");
     }
 
