@@ -23,6 +23,8 @@ history is in Git and the pull requests.
 - The stage execution and evidence-boundary ADR: diagnostic stage runs are
   server-side and content-addressed, while the coupled backtest remains the only
   evidence path and canonical-digest producer.
+- The Engine Execution workflow: four stage runbooks, the diagnostic/evidence
+  rule, model artifact reuse, and the strategy and portfolio recompute rule.
 
 ### Fixed
 

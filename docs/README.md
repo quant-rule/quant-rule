@@ -190,6 +190,7 @@ of workflow status; this page does not repeat it.
 |---|---|
 | Audit | `docs/workflows/audit-workflow.md` |
 | Refactor | `docs/workflows/refactor-workflow.md` |
+| Engine execution | `docs/workflows/engine-execution.md` |
 | Improvement | `docs/workflows/improvement-workflow.md` |
 | Run contract | `docs/workflows/run-contract.md` |
 | Research swarm | `docs/workflows/research-swarm.md` |
