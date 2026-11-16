@@ -261,6 +261,17 @@ pub(crate) fn names() -> impl Iterator<Item = &'static str> {
     COMMANDS.iter().map(|command| command.name)
 }
 
+/// The usage line a command is registered with, if the registry has it.
+///
+/// The parser reads this instead of carrying a second copy, so a usage error
+/// and `help` cannot disagree about a command's arguments.
+pub(crate) fn usage(name: &str) -> Option<&'static str> {
+    COMMANDS
+        .iter()
+        .find(|command| command.name == name)
+        .map(|command| command.usage)
+}
+
 /// Renders the selected help topic.
 ///
 /// # Errors
