@@ -3,7 +3,7 @@
 - Date: 2026-11-03 (UTC)
 - Issue: [#347](https://github.com/quant-rule/quant-rule/issues/347)
 - Status: Implemented; active by default in `config/defaults/model.json`
-- Contract: [`docs/model/2026-11-05/model-m1.0.md`](../../model/2026-11-05/model-m1.0.md)
+- Contract: [`docs/model/2026-11-10/model-m1.3.md`](../../model/2026-11-10/model-m1.3.md)
 
 ## 1. Formula
 

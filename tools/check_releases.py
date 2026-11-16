@@ -29,6 +29,26 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 BASELINE = "2026-11-07"
+LIVING = (
+    "AGENTS.md",
+    "README.md",
+    "docs/README.md",
+    "docs/architecture",
+    "docs/workflows",
+)
+TAG_TOKEN = re.compile(r"v\d+\.\d+\.\d+")
+TAG_CONTEXT = (
+    "prepared as",
+    "renumbered",
+    "historical",
+    "retired",
+    "ready →",
+    "connected ·",
+    "product ",
+    "release note keeps",
+    "keeps its",
+    "docs/releases/",
+)
 DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 TAG = re.compile(r"^v(\d+)\.(\d+)\.(\d+)$")
 TAG_LINE = re.compile(r"^- Tag:\s*(.+)$", re.MULTILINE)
@@ -154,12 +174,43 @@ def resolve(root: Path, tag: str) -> Path:
     return root / "docs" / "releases" / relative
 
 
+def living_tag_claims(root: Path, tags: dict[str, str]) -> list[str]:
+    """Flag a living document that names a tag outside the current-tag map.
+
+    A living document may mention a retired tag only in an explicit history
+    phrase (``prepared as``, ``renumbered``, ``historical``, ``retired``) or a
+    product-output line that is not a tag claim. Release-note paths are allowed
+    because the note keeps its historical file name.
+    """
+    problems: list[str] = []
+    files: list[Path] = []
+    for entry in LIVING:
+        path = root / entry
+        if path.is_file():
+            files.append(path)
+        elif path.is_dir():
+            files.extend(sorted(path.rglob("*.md")))
+    for path in files:
+        for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if any(context in line.lower() for context in TAG_CONTEXT):
+                continue
+            for token in TAG_TOKEN.findall(line):
+                if token not in tags:
+                    problems.append(
+                        f"{path.relative_to(root)}:{line_number}: living document names "
+                        f"{token}, which is not a current tag"
+                    )
+    return problems
+
+
 def check(root: Path) -> list[str]:
     problems: list[str] = []
     notes = release_notes(root)
     changelog = changelog_releases(root)
-    _, map_problems = current_tags(root)
+    tags, map_problems = current_tags(root)
     problems.extend(map_problems)
+    if not map_problems:
+        problems.extend(living_tag_claims(root, tags))
 
     seen_tags: set[str] = set()
     for path in notes:

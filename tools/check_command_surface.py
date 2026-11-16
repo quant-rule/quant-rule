@@ -24,6 +24,7 @@ network, clock, or external data.
 from __future__ import annotations
 
 import re
+import shlex
 import sys
 from pathlib import Path
 
@@ -33,9 +34,35 @@ README = ROOT / "README.md"
 SURFACE = ROOT / "docs/architecture/command-surface.md"
 TUTORIALS = ROOT / "docs/tutorials"
 WORKFLOWS = ROOT / "docs/workflows"
+CONFIG = ROOT / "docs/config"
+ARCHITECTURE = ROOT / "docs/architecture"
 NORMATIVE = ROOT / "AGENTS.md"
 NORMATIVE_MARKER = "The current tree implements"
 COMMAND_SPAN = re.compile(r"`([a-z][a-z ]*)`")
+
+# The retired local surface. The command-surface document is the authority; keep
+# this list in step with its "Removed" section when a command is retired.
+RETIRED = (
+    "candles",
+    "candles-tolerant",
+    "timeframes",
+    "fetch",
+    "events",
+    "report model",
+    "strategy explain",
+    "strategy run",
+    "execution run",
+    "portfolio replay",
+    "backtest run",
+    "qualify",
+    "analytics evaluate",
+    "run check",
+    "memory",
+)
+RETIRED_SPAN = re.compile(
+    "`(" + "|".join(re.escape(name) for name in RETIRED) + ")`"
+)
+STATUS_LINE = re.compile(r"^- Status:\s*(\S+)", re.MULTILINE)
 
 ENTRY = re.compile(r"CommandHelp\s*\{")
 FIELD = re.compile(r'^\s*(name|usage|summary|output):\s*"([^"]*)",\s*$', re.MULTILINE)
@@ -231,6 +258,227 @@ def fenced_blocks(path: Path) -> list[str]:
     return blocks
 
 
+def usage_shape(usage: str, name: str) -> dict[str, object]:
+    """Return the positional range and the known options from one usage line.
+
+    The usage strings are regular enough to parse without a full grammar: a
+    bracketed token is optional, an angle token is a positional, and an option
+    is followed by an angle token when it takes a value. The check catches the
+    error class the docs actually drifted into — a flag that the shell does not
+    implement or a positional count that cannot be satisfied.
+    """
+    rest = usage[len(name) :].strip()
+    tokens: list[tuple[str, bool]] = []
+    current: list[str] = []
+    depth = 0
+    optional = False
+    for character in rest:
+        if character == "[":
+            depth += 1
+            current.append(character)
+            optional = True
+        elif character == "]":
+            current.append(character)
+            depth = max(0, depth - 1)
+        elif character.isspace():
+            if current:
+                tokens.append(("".join(current), optional))
+                current = []
+                optional = False
+        else:
+            if not current and depth > 0:
+                optional = True
+            current.append(character)
+    if current:
+        tokens.append(("".join(current), optional or depth > 0))
+
+    required_positionals = 0
+    optional_positionals = 0
+    required_options: set[str] = set()
+    optional_options: set[str] = set()
+    index = 0
+    while index < len(tokens):
+        raw, optional = tokens[index]
+        token = raw.strip("[]")
+        if token.startswith("--"):
+            option = token[2:].split("=", 1)[0]
+            next_token = (
+                tokens[index + 1][0].strip("[]") if index + 1 < len(tokens) else ""
+            )
+            takes_value = bool(next_token) and not next_token.startswith("--")
+            if optional:
+                optional_options.add(option)
+            else:
+                required_options.add(option)
+            if takes_value:
+                index += 2
+                continue
+        elif token.startswith("<") or "|" in token or token in {"all", "glossary", "workflows"}:
+            if optional:
+                optional_positionals += 1
+            else:
+                required_positionals += 1
+        index += 1
+
+    max_positionals = required_positionals + optional_positionals
+    # ``help`` accepts a two-word command name such as ``run submit`` even
+    # though the usage line shows one optional topic token.
+    if name == "help":
+        max_positionals = max(max_positionals, 2)
+
+    return {
+        "required_positionals": required_positionals,
+        "max_positionals": max_positionals,
+        "required_options": required_options,
+        "optional_options": optional_options,
+    }
+
+
+def invocation_errors(
+    commands: dict[str, dict[str, str]], files: list[Path]
+) -> list[str]:
+    """Validate documented ``quantrule`` invocations against the usage lines."""
+    problems: list[str] = []
+    global_value_options = {"profile", "token"}
+    global_flags = {"json"}
+    for path in files:
+        for block in fenced_blocks(path):
+            logical_lines: list[str] = []
+            pending = ""
+            for line in block.splitlines():
+                part = line.strip()
+                if pending:
+                    pending = f"{pending} {part}"
+                else:
+                    pending = part
+                if pending.endswith("\\"):
+                    pending = pending[:-1].rstrip()
+                    continue
+                logical_lines.append(pending)
+                pending = ""
+            if pending:
+                logical_lines.append(pending)
+            for stripped in logical_lines:
+                if not stripped.startswith("quantrule "):
+                    continue
+                try:
+                    words = shlex.split(stripped)
+                except ValueError as error:
+                    problems.append(f"{display(path)}: cannot parse {stripped!r}: {error}")
+                    continue
+                if len(words) < 2:
+                    continue
+                matched = next(
+                    (
+                        name
+                        for name in sorted(commands, key=len, reverse=True)
+                        if words[1 : 1 + len(name.split())] == name.split()
+                    ),
+                    None,
+                )
+                if matched is None:
+                    continue
+                shape = usage_shape(commands[matched]["usage"], matched)
+                args = words[1 + len(matched.split()) :]
+                positionals = 0
+                found_options: set[str] = set()
+                index = 0
+                while index < len(args):
+                    token = args[index]
+                    if token.startswith("--"):
+                        option = token[2:].split("=", 1)[0]
+                        if option in global_flags:
+                            index += 1
+                            continue
+                        if option in global_value_options:
+                            if "=" not in token:
+                                if index + 1 >= len(args):
+                                    problems.append(
+                                        f"{display(path)}: --{option} has no value in {stripped!r}"
+                                    )
+                                index += 2
+                            else:
+                                index += 1
+                            continue
+                        if option not in shape["required_options"] and option not in shape["optional_options"]:
+                            problems.append(
+                                f"{display(path)}: unknown option '--{option}' in {stripped!r}"
+                            )
+                            index += 1
+                            continue
+                        found_options.add(option)
+                        takes_value = (
+                            index + 1 < len(args)
+                            and not args[index + 1].startswith("--")
+                        )
+                        index += 2 if takes_value else 1
+                        continue
+                    positionals += 1
+                    index += 1
+                if positionals < shape["required_positionals"] or positionals > shape["max_positionals"]:
+                    problems.append(
+                        f"{display(path)}: {stripped!r} has {positionals} positional(s); "
+                        f"expected {shape['required_positionals']}..{shape['max_positionals']}"
+                    )
+                missing = shape["required_options"] - found_options
+                if missing:
+                    problems.append(
+                        f"{display(path)}: {stripped!r} is missing required option(s) "
+                        + ", ".join(f"--{name}" for name in sorted(missing))
+                    )
+    return problems
+
+
+def current_status(path: Path) -> bool:
+    """Whether a document is current rather than a historical record."""
+    text = read(path)
+    match = STATUS_LINE.search(text)
+    if match is None:
+        return True
+    return not match.group(1).startswith(("Historical", "Deprecated", "Superseded"))
+
+
+def retired_backticks(files: list[Path]) -> list[str]:
+    """Return retired command names backticked in current documents."""
+    problems: list[str] = []
+    for path in files:
+        if not current_status(path):
+            continue
+        for line_number, line in enumerate(read(path).splitlines(), 1):
+            for match in RETIRED_SPAN.finditer(line):
+                # A line that explicitly retires the name is a history note.
+                if any(
+                    word in line.lower()
+                    for word in ("removed", "retired", "not current", "historical")
+                ):
+                    continue
+                problems.append(
+                    f"{display(path)}:{line_number}: retired command {match.group(1)!r} in a current contract"
+                )
+    return problems
+
+
+def retired_config_commands() -> list[str]:
+    """Return retired command names backticked in a current config contract."""
+    if not CONFIG.is_dir():
+        return []
+    return retired_backticks(sorted(CONFIG.rglob("*.md")))
+
+
+def retired_architecture_commands() -> list[str]:
+    """Return retired command names backticked in a current architecture doc.
+
+    ``command-surface.md`` is the retirement record itself and ``client.md``
+    uses ``fetch`` as the browser API verb, so both are allowlisted. Every other
+    current architecture document must name the gateway surface.
+    """
+    if not ARCHITECTURE.is_dir():
+        return []
+    allowed = {"command-surface.md", "client.md"}
+    files = [path for path in sorted(ARCHITECTURE.glob("*.md")) if path.name not in allowed]
+    return retired_backticks(files)
+
+
 def invocations(commands: list[str]) -> dict[str, list[str]]:
     """Return the tutorials that invoke each command inside a code block."""
     found = {command: [] for command in commands}
@@ -270,11 +518,20 @@ def tutorial_unimplemented(commands: set[str]) -> list[str]:
 
 
 def current_documents() -> list[Path]:
-    """The normative entry point and every current workflow document."""
+    """The normative entry point, current workflows, and current config contracts."""
     files = [NORMATIVE]
     if WORKFLOWS.is_dir():
         files.extend(sorted(WORKFLOWS.glob("*.md")))
-    return [path for path in files if path.is_file()]
+    if CONFIG.is_dir():
+        files.extend(sorted(CONFIG.rglob("*.md")))
+    return [path for path in files if path.is_file() and current_status(path)]
+
+
+def current_tutorials() -> list[Path]:
+    """The current tutorial files, excluding historical labs."""
+    if not TUTORIALS.is_dir():
+        return []
+    return [path for path in sorted(TUTORIALS.rglob("*.md")) if current_status(path)]
 
 
 def document_unimplemented(
@@ -363,6 +620,19 @@ def main() -> int:
 
     for problem in document_unimplemented(implemented_names):
         fail(f"current document invokes an unimplemented command: {problem}")
+        ok = False
+
+    grammar_files = current_documents() + current_tutorials()
+    for problem in invocation_errors(implemented, grammar_files):
+        fail(f"documented invocation does not parse: {problem}")
+        ok = False
+
+    for problem in retired_config_commands():
+        fail(f"current contract names a retired command: {problem}")
+        ok = False
+
+    for problem in retired_architecture_commands():
+        fail(f"current architecture doc names a retired command: {problem}")
         ok = False
 
     if not ok:

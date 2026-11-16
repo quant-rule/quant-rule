@@ -1,7 +1,7 @@
 # Tutorial — Verify Determinism
 
 - Date: 2026-11-12
-- Status: Current; released v1.0.0 on 2026-11-15
+- Status: Current; released as v0.9.0 (prepared as v1.0.0); unchanged in v1.0.0
 - Audience: reviewer
 - Related: [`ADR-2026-11-12-07`](../../adr/2026-11-12/07-canonical-digest-and-claim-boundary.md)
 

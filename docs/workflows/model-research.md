@@ -39,7 +39,6 @@ Do not use it when:
 - the change is an implementation defect: use the Audit Workflow;
 - the change is an indicator or event implementation: use Model Change;
 - the change is a strategy rule: use Strategy Research;
-- the change is a policy envelope: use Policy Change;
 - the data is invalid: use Data Lifecycle before any model run.
 
 ## 3. Stages

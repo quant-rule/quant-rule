@@ -1,14 +1,14 @@
 # Indicator Coverage — 10 OHLCV Information Areas
 
 - Date: 2026-11-05 (UTC)
-- Status: **Implemented** — 49 indicators, 150 active events, 106 parameters; event codes 1–150; 37 checklist rows signed (36 event-producing indicators wired and spec-usable, 1 reading-only); spec v2 implemented; validation claims present (199), predictive evidence pending; the 49-row indicator and 150-row event matrices are the current verification target; `M1.3` adds the audit corrections to pivot sequence, Fibonacci, and horizontal-band structure
+- Status: **Implemented** — 49 indicators, 150 active events, 100 parameters; event codes 1–150; 37 checklist rows signed (36 event-producing indicators wired and spec-usable, 1 reading-only); spec v2 implemented; validation claims present (199), predictive evidence pending; the 49-row indicator and 150-row event matrices are the current verification target; `M1.3` adds the audit corrections to pivot sequence, Fibonacci, and horizontal-band structure
 - Scope: 10 information areas, 36 new indicators, 10 existing indicators
 - Epic: [#405](https://github.com/quant-rule/quant-rule/issues/405)
 - Plan: [`docs/execution-plans/2026-11-05/405-indicator-platform.md`](../../execution-plans/2026-11-05/405-indicator-platform.md)
 - Checklist: [`docs/improvement/2026-11-05/INDICATOR-VERIFICATION.md`](../../improvement/2026-11-05/INDICATOR-VERIFICATION.md)
 - Retrospective audit: [`docs/improvement/2026-11-05/INDICATOR-AUDIT.md`](../../improvement/2026-11-05/INDICATOR-AUDIT.md)
 - M2.x programme: [`docs/execution-plans/2026-11-05/410-m2-model-programme.md`](../../execution-plans/2026-11-05/410-m2-model-programme.md)
-- Contract: `AGENTS.md`, `docs/model/2026-11-05/model-m1.0.md`, `docs/registry/README.md`
+- Contract: `AGENTS.md`, `docs/model/2026-11-10/model-m1.3.md`, `docs/registry/README.md`
 - Claim type: registry and indicator contract; no edge claim
 
 The machine-checked formula registry is

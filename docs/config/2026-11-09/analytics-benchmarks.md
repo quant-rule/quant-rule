@@ -1,15 +1,15 @@
 # Analytics Benchmarks
 
 - Date: 2026-11-09 (UTC)
-- Status: Current
+- Status: Current; updated 2026-11-16 for the gateway run path
 - Owner: Quant Researcher (definition), Quant Developer (implementation), Quant Validator (reproduction)
 - Artifact: `analytics/benchmarks.csv` and the `benchmarks` object in `analytics/metrics.json`
-- Contract: [`docs/architecture/command-surface.md`](../../architecture/command-surface.md)
+- Contract: [`docs/architecture/command-surface.md`](../../architecture/command-surface.md), [`engine-artifacts.md`](../2026-11-06/engine-artifacts.md)
 - Claim type: evaluation; no strategy or edge claim.
 
 ## 1. Purpose
 
-`analytics evaluate` publishes two descriptive baselines for a completed
+The run's analytics stage publishes two descriptive baselines for a completed
 backtest:
 
 | Baseline | Question |
@@ -85,4 +85,4 @@ including the `assumptions` object (`initial_cash`, `commission_rate`,
 
 The random replay is seeded and iterates in a fixed order. The same backtest
 manifest, candles, trades, commission rate, and seed produce identical
-`benchmarks.csv` bytes. The command has a byte-determinism test.
+`benchmarks.csv` bytes. The analytics stage has a byte-determinism test.

@@ -1,10 +1,10 @@
 # Qualification Criteria — Evidence, Verdicts, and Human Acceptance
 
-- Status: Current; approved 2026-11-06; implemented 2026-11-06
-- Applies to: the Qualification Engine and the `qualify` command
+- Status: Current; approved 2026-11-06; implemented 2026-11-06; updated 2026-11-16 for the gateway run path
+- Applies to: the Qualification Engine in the run artifact set
 - Related: [`engine-artifacts.md`](engine-artifacts.md),
   [`command-surface.md`](../../architecture/command-surface.md),
-  [`policy-and-strategy.md`](../2026-10-30/policy-and-strategy.md),
+  [`run-v4-strategy.md`](../2026-11-13/run-v4-strategy.md),
   [`improvement-workflow.md`](../../workflows/improvement-workflow.md),
   [`run-contract.md`](../../workflows/run-contract.md),
   [`strategy-research.md`](../../workflows/strategy-research.md),
@@ -32,7 +32,7 @@ for human judgment.
 
 ## 2. Inputs
 
-The `qualify` command consumes two explicit inputs:
+The run's qualification stage consumes two explicit inputs:
 
 1. **Evidence bundle.** A backtest bundle, or an equivalent set of portfolio and
    analytics artifacts, with its manifest and provenance. The bundle must name
@@ -251,8 +251,9 @@ decision in a separate human-authored `decision.md` in the qualification folder:
 - Reason: ...
 ```
 
-The engine never writes this file. `qualify` prints the verdict and states that
-human acceptance is pending. A `pass` may be rejected for residual risk. A `fail`
+The engine never writes this file. The run's qualification stage publishes the
+verdict and states that human acceptance is pending. A `pass` may be rejected
+for residual risk. A `fail`
 is not accepted as an edge; it may close the hypothesis or lead to a new,
 pre-registered hypothesis. A `fail` is a valid research result, not a process
 failure.
@@ -295,5 +296,5 @@ The implementation is covered by:
   `human_decision: null` and that `decision.md` does not exist.
 - `the_strategy_input_exposes_only_identity_and_progression` forbids a
   qualification record, verdict, or analytics metric in the strategy input.
-- The command surface checker proves that `qualify` is listed only when the
-  command, help entry, README row, tutorial, and artifact contract all exist.
+- The run artifact checker proves that the qualification record is part of the
+  run artifact set and reachable through `run fetch`.

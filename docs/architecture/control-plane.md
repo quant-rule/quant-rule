@@ -1,6 +1,6 @@
 # Control Plane — Run Lifecycle
 
-- Status: Current; released v1.0.0 on 2026-11-15; approved 2026-11-12
+- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); unchanged in the v1.0.0 desktop release; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Decision: [`ADR-2026-11-12-02`](../adr/2026-11-12/02-two-plane-control-and-data.md)
 - Claim type: Behaviour Claim
@@ -19,11 +19,11 @@ queued ──► running ──► succeeded
 
 | State | Meaning | Set by |
 |---|---|---|
-| `queued` | Accepted, not started | gateway |
+| `queued` | Accepted, not started | evidence |
 | `running` | A worker holds the message | backtest |
 | `succeeded` | Artifact set complete and digest recorded | evidence |
 | `failed` | A stage failed or retries exhausted | backtest or evidence |
-| `cancelled` | Operator cancelled before completion | backtest |
+| `cancelled` | Operator cancelled before completion | evidence |
 
 There is no `rejected` state: invalid input is a `400` at submission and creates
 no run row.
@@ -36,9 +36,9 @@ no run row.
 
 | Type | Producer | Consumer | Payload |
 |---|---|---|---|
-| `run.requested` | gateway | backtest | run id only; the run row holds the inputs |
+| `run.requested` | evidence | backtest | run id only; the run row holds the inputs |
 | `run.computed` | backtest | evidence | run id only; the run row holds the manifest |
-| `run.cancelled` | gateway | backtest | run id only; the run row is authoritative |
+| `run.cancelled` | evidence | backtest | run id only; the run row is authoritative |
 | `run.failed` | backtest | none required | run id only; the run row holds the error |
 | `run.dead` | backtest | operator | run id only; the run row holds the error and attempts |
 
@@ -83,8 +83,7 @@ run_id = sha256(data_version ‖ config_hash ‖ model_version ‖ image_digest)
 
 | Setting | Meaning | Default |
 |---|---|---|
-| `BACKTEST_CONCURRENCY` | Runs this worker executes at once | 1 |
-| `MODEL_SHARDS` | Timeframe shards this worker executes at once | 1 |
+| `QR_BACKTEST_CONCURRENCY` | Runs this worker executes at once | 1 |
 | Prefetch | Messages held per worker | 1 |
 
 A run is never split across backtest workers. Scaling adds workers, not shards.

@@ -33,36 +33,41 @@ export interface CommandCapability {
   section: Section;
   /** The control a human uses. */
   control: string;
+  /** The component that owns the control. */
+  component: string;
+  /** The stable test id on the control. */
+  testId: string;
 }
 
 /** Every registered command, in the order the shell lists it. */
-export const COMMANDS: CommandCapability[] = [  { command: "health", section: "connection", control: "Health report and service table" },
-  { command: "dataset list", section: "datasets", control: "Dataset table" },
-  { command: "dataset show", section: "datasets", control: "Dataset record detail" },
-  { command: "dataset upload", section: "datasets", control: "Upload form" },
-  { command: "config list", section: "configs", control: "Config table" },
-  { command: "config show", section: "configs", control: "Config record detail" },
-  { command: "run submit", section: "configs", control: "Submit action" },
-  { command: "run status", section: "runs", control: "Run detail view" },
-  { command: "run list", section: "runs", control: "Runs table" },
-  { command: "run fetch", section: "runs", control: "Verified artifact download" },
-  { command: "run cancel", section: "runs", control: "Cancel action" },
-  { command: "inspect candles", section: "inspect", control: "Candles inspection" },
-  { command: "inspect timeframes", section: "inspect", control: "Timeframe ladder inspection" },
-  { command: "inspect events", section: "inspect", control: "Event batch inspection" },
-  { command: "verify", section: "runs", control: "Verify action" },
-  { command: "profile list", section: "profiles", control: "Profile table" },
-  { command: "profile create", section: "profiles", control: "Create profile form" },
-  { command: "profile use", section: "profiles", control: "Profile switcher" },
-  { command: "simulation list", section: "simulation", control: "Simulation table" },
-  { command: "simulation create", section: "simulation", control: "Create simulation form" },
-  { command: "simulation windows", section: "simulation", control: "Window table" },
-  { command: "simulation mark", section: "simulation", control: "Mark form" },
-  { command: "simulation marks", section: "simulation", control: "Marks table" },
-  { command: "simulation oracle", section: "simulation", control: "Oracle result" },
-  { command: "simulation check", section: "simulation", control: "Check action" },
-  { command: "simulation decide", section: "simulation", control: "Decision action" },
-  { command: "help", section: "help", control: "Command reference table" },
+export const COMMANDS: CommandCapability[] = [
+  { command: "health", section: "connection", control: "Health report and service table", component: "ConnectionPanel.svelte", testId: "health-report" },
+  { command: "dataset list", section: "datasets", control: "Dataset table", component: "DatasetsPanel.svelte", testId: "dataset-table" },
+  { command: "dataset show", section: "datasets", control: "Dataset record detail", component: "DatasetsPanel.svelte", testId: "dataset-detail" },
+  { command: "dataset upload", section: "datasets", control: "Upload form", component: "DatasetsPanel.svelte", testId: "dataset-upload" },
+  { command: "config list", section: "configs", control: "Config table", component: "ConfigsPanel.svelte", testId: "config-table" },
+  { command: "config show", section: "configs", control: "Config record detail", component: "ConfigsPanel.svelte", testId: "config-detail" },
+  { command: "run submit", section: "configs", control: "Submit action", component: "ConfigsPanel.svelte", testId: "run-submit" },
+  { command: "run status", section: "runs", control: "Run detail view", component: "RunDetail.svelte", testId: "run-status" },
+  { command: "run list", section: "runs", control: "Runs table", component: "RunsPanel.svelte", testId: "run-table" },
+  { command: "run fetch", section: "runs", control: "Verified artifact download", component: "RunDetail.svelte", testId: "run-fetch" },
+  { command: "run cancel", section: "runs", control: "Cancel action", component: "RunsPanel.svelte", testId: "run-cancel" },
+  { command: "inspect candles", section: "inspect", control: "Candles inspection", component: "InspectPanel.svelte", testId: "inspect-candles" },
+  { command: "inspect timeframes", section: "inspect", control: "Timeframe ladder inspection", component: "InspectPanel.svelte", testId: "inspect-timeframes" },
+  { command: "inspect events", section: "inspect", control: "Event batch inspection", component: "InspectPanel.svelte", testId: "inspect-events" },
+  { command: "verify", section: "runs", control: "Verify action", component: "RunDetail.svelte", testId: "run-verify" },
+  { command: "profile list", section: "profiles", control: "Profile table", component: "ProfilesPanel.svelte", testId: "profile-table" },
+  { command: "profile create", section: "profiles", control: "Create profile form", component: "ProfilesPanel.svelte", testId: "profile-create" },
+  { command: "profile use", section: "profiles", control: "Profile switcher", component: "ProfileSwitcher.svelte", testId: "profile-use" },
+  { command: "simulation list", section: "simulation", control: "Simulation table", component: "SimulationRunsPanel.svelte", testId: "simulation-table" },
+  { command: "simulation create", section: "simulation", control: "Create simulation form", component: "SimulationRunsPanel.svelte", testId: "simulation-create" },
+  { command: "simulation windows", section: "simulation", control: "Window table", component: "SimulationRunDetail.svelte", testId: "sim-windows" },
+  { command: "simulation mark", section: "simulation", control: "Mark form", component: "SimulationChart.svelte", testId: "sim-mark" },
+  { command: "simulation marks", section: "simulation", control: "Marks table", component: "SimulationRunDetail.svelte", testId: "sim-marks" },
+  { command: "simulation oracle", section: "simulation", control: "Oracle result", component: "SimulationRunDetail.svelte", testId: "sim-oracle" },
+  { command: "simulation check", section: "simulation", control: "Check action", component: "SimulationRunDetail.svelte", testId: "sim-check" },
+  { command: "simulation decide", section: "simulation", control: "Decision action", component: "SimulationRunDetail.svelte", testId: "sim-decision" },
+  { command: "help", section: "help", control: "Command reference table", component: "HelpPanel.svelte", testId: "help-table" },
 ];
 
 /**

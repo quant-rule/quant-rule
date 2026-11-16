@@ -111,6 +111,29 @@ test("a valid config submits the chosen dataset and opens the run list", async (
   await expect(page.getByText("No runs. Submit one from Configs.")).toBeVisible();
 });
 
+test("a config row opens its catalog record", async ({ page }) => {
+  await page.route("**/api/v1/**", async (route) => {
+    if (await shell(route)) {
+      return;
+    }
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace("/api/v1", "");
+    if (path === "/catalog/configs") {
+      return route.fulfill({ json: CONFIGS });
+    }
+    if (path === "/catalog/datasets") {
+      return route.fulfill({ json: [DATASET] });
+    }
+    return route.fulfill({ status: 500, json: {} });
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: /Configs/ }).click();
+  await page.getByTestId("config-table").getByRole("button", { name: "Details" }).first().click();
+  await expect(page.getByTestId("config-detail")).toContainText("cfg_valid");
+  await expect(page.getByTestId("config-detail")).toContainText(DIGEST);
+});
+
 test("without a dataset every submit is disabled", async ({ page }) => {
   await page.route("**/api/v1/**", async (route) => {
     if (await shell(route)) {

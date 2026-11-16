@@ -1,6 +1,6 @@
 # Command Surface — the Gateway Client
 
-- Status: Current; v1.0.0 distributed surface
+- Status: Current; gateway-client surface released as v0.9.0 (prepared as v1.0.0); unchanged in v1.0.0
 - Owner: Human
 - Part of: [`docs/architecture/README.md`](README.md)
 - Claim type: Behaviour Claim
@@ -99,8 +99,10 @@ enforces the distinction.
 Every command accepts `--profile <id>`, which sets `X-QuantRule-Profile`,
 `--token <token>`, which sets `Authorization: Bearer` and falls back to
 `QUANTRULE_TOKEN`, and `--json`, which prints the gateway JSON instead of the
-human rendering. With no profile flag, the shell uses the stored default and
-then `default`; with no token, it sends no `Authorization` header.
+human rendering. `profile use` is the one exception: it refuses an explicit
+`--profile` because the flag is a one-off selection and the command writes the
+local default. With no profile flag, the shell uses the stored default and then
+`default`; with no token, it sends no `Authorization` header.
 
 ## 4. Output and identity rule
 
@@ -184,9 +186,9 @@ contract change reserved to the human.
 | 6 | Qualification command and record | Merged |
 | 7 | Analytics evaluation command | Merged |
 | 8 | Independent stage verification and closure | Merged and verified locally; human acceptance pending |
-| 9 | v1.0.0 gateway client (this surface) | Implemented; parity and server dependencies tracked |
+| 9 | Gateway client released as v0.9.0 (prepared as v1.0.0; unchanged in v1.0.0) | Implemented; parity and server dependencies tracked |
 
-## 9. Removed in v1.0.0
+## 9. Removed in the distributed release (v0.9.0, prepared as v1.0.0)
 
 `candles`, `candles-tolerant`, `timeframes`, `fetch`, `events`, `report model`,
 `strategy explain`, `strategy run`, `execution run`, `portfolio replay`,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { canSubmit } from "./configs";
+import { canSubmit, findConfig } from "./configs";
 import type { ConfigSummary } from "./types";
 
 function config(valid: boolean): ConfigSummary {
@@ -12,6 +12,14 @@ function config(valid: boolean): ConfigSummary {
     config_hash: valid ? "sha256:" + "a".repeat(64) : null,
   };
 }
+
+describe("findConfig", () => {
+  it("returns the matching record or null", () => {
+    const item = config(true);
+    expect(findConfig([item], item.config_id)).toEqual(item);
+    expect(findConfig([item], "cfg_other")).toBeNull();
+  });
+});
 
 describe("canSubmit", () => {
   it("requires a valid config, a dataset, and no submission in flight", () => {

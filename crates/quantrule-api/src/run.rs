@@ -200,7 +200,8 @@ pub struct Provenance {
     pub data_version: Digest,
     /// The canonical configuration hash.
     pub config_hash: Digest,
-    /// The model registry version.
+    /// The model identity from the run configuration's `model_id`, such as
+    /// `M1.3`; the model bundle manifest records the registry version instead.
     pub model_version: String,
     /// The image digest that executed the run.
     pub image_digest: Digest,

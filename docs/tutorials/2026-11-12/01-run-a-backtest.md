@@ -1,7 +1,7 @@
 # Tutorial — Run a Backtest on the Distributed Stack
 
 - Date: 2026-11-12
-- Status: Current; released v1.0.0 on 2026-11-15
+- Status: Current; released as v0.9.0 (prepared as v1.0.0); unchanged in v1.0.0
 - Audience: operator, reviewer
 - Related: [`deployment.md`](../../architecture/deployment.md), [`user-journey.md`](../../architecture/user-journey.md)
 

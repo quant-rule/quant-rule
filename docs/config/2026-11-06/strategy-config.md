@@ -1,11 +1,11 @@
 # Strategy Configuration and Decisions
 
-- Status: Current; implemented 2026-11-06; updated 2026-11-09 for the `vol_regime` and `structure_state` states
+- Status: Current; implemented 2026-11-06; updated 2026-11-16 for the gateway run path; updated 2026-11-09 for the `vol_regime` and `structure_state` states
 - Schema: `quantrule.strategy/v1`
-- Commands: `strategy explain`, `strategy run`
+- Commands: `run submit`, `run status`, `run fetch`
 - Related: [`engine-artifacts.md`](engine-artifacts.md),
   [`command-surface.md`](../../architecture/command-surface.md),
-  [`policy-and-strategy.md`](../2026-10-30/policy-and-strategy.md),
+  [`run-v4-strategy.md`](../2026-11-13/run-v4-strategy.md),
   [`strategy-research.md`](../../workflows/strategy-research.md)
 - Claim type: strategy configuration and decision artifact; no edge or
   profitability claim.
@@ -14,14 +14,14 @@
 
 The strategy file is human-owned. It names the thesis as a deterministic rule over
 published model measurements, and it never contains an indicator formula, a
-statistic, a fill price, a fee, cash, equity, or P&L. The strategy command reads a
-completed model bundle and writes decisions; execution and portfolio are later
-stages, reached through `execution run`, `portfolio replay`, or the coupled
-`backtest run`. The research process is
+statistic, a fill price, a fee, cash, equity, or P&L. The run's strategy stage
+reads the published model bars and writes decisions; execution and portfolio run
+in the same submitted pipeline. The research process is
 [`strategy-research.md`](../../workflows/strategy-research.md).
 
-The file is separate from `run.json`. The run schema stays `quantrule.run/v2`,
-and the strategy command takes the strategy file explicitly.
+A full run uses `quantrule.run/v4` and names `strategy.json` alongside the four
+engine files. `quantrule.run/v3` remains accepted for a model-only run and
+rejects a `strategy` field. The strategy file is not a separate command.
 
 ## 2. Schema
 
@@ -65,7 +65,7 @@ and the strategy command takes the strategy file explicitly.
 | `schema` | Exactly `quantrule.strategy/v1`. |
 | `id` | Optional non-empty human label. It is recorded in the summary. |
 | `engine` | `event_composite` or `compression_bracket`. |
-| `execution_timeframe` | `1m`, `5m`, `15m`, or `1h`; the model ceiling is `1h`. In a coupled `backtest run`, it must equal the run's `execution.fill_timeframe`; the runner rejects a mismatch. |
+| `execution_timeframe` | `1m`, `5m`, `15m`, or `1h`; the model ceiling is `1h`. In a submitted run, it must equal the run's `execution.fill_timeframe`; the loader rejects a mismatch. |
 | `context_timeframes` | Optional unique timeframes, ascending, different from the execution timeframe, and published by the model bundle. |
 | `event_window_bars` | Event-composite only; positive integer, default `1`. The window is in execution bars. |
 | `time_stop_bars` | Maximum holding period in execution bars; `0` disables it for the event-composite engine. A bracket requires a positive value. |
@@ -156,22 +156,35 @@ chooses the side when a boundary fills. The strategy does not know the side in
 advance. The bracket event must be the registered compression-range identity
 `(3,8,5)`; an unregistered, diagnostic, or other event identity is rejected.
 
-`strategy explain` supports the bracket engine for one decision. `strategy run`
-refuses it with a clear error because a standalone decision sequence cannot know
-which side execution will fill. The full `backtest run` supplies the executed
-position and is the intended path for a bracket strategy.
+The bracket engine is supported by the run's strategy stage. The run supplies
+the executed position and execution chooses the side when a boundary fills; the
+strategy does not know the side in advance.
 
-## 5. Commands
+## 5. Gateway path and decision artifact
 
-### `strategy explain`
+The strategy is part of a submitted run. There is no standalone strategy
+command.
 
 ```bash
-quantrule strategy explain --model target/report/model \
-  --strategy crates/quantrule-shell/tests/fixtures/strategy/event-composite.json \
-  --bar 21
+quantrule run submit <data_version> <config_id>
+quantrule run status <run_id>
+quantrule run fetch <run_id> <dir>
 ```
 
-It prints one JSON object:
+`run submit` accepts a valid `quantrule.run/v4` config and returns the `run_id`.
+The run's strategy stage writes `<out>/strategy/` into the artifact set:
+
+| File | Contents |
+|---|---|
+| `decisions.ndjson` | One decision record per execution bar, in ascending order. |
+| `summary.txt` | Counts by decision, side, and reason; data version; config identities; period. |
+| `provenance.json` | `quantrule.stage-provenance/v1` with the model source artifact and the strategy config identity. |
+
+`run fetch` downloads that artifact set and verifies each artifact against the
+run record. A rejected entry in execution does not re-run the strategy; the run
+supplies the actual position on the next bar.
+
+A decision record carries:
 
 | Field | Meaning |
 |---|---|
@@ -191,26 +204,6 @@ It prints one JSON object:
 
 The record carries no fill, quantity, fee, cash, equity, or P&L.
 
-### `strategy run`
-
-```bash
-quantrule strategy run --model target/report/model \
-  --strategy crates/quantrule-shell/tests/fixtures/strategy/event-composite.json \
-  --out target/report
-```
-
-It writes `<out>/strategy/`:
-
-| File | Contents |
-|---|---|
-| `decisions.ndjson` | One decision record per execution bar, in ascending order. |
-| `summary.txt` | Counts by decision, side, and reason; data version; config identities; period. |
-| `provenance.json` | `quantrule.stage-provenance/v1` with the model source artifact and the strategy config identity. |
-
-The command refuses a non-empty target. A standalone run starts flat and tracks
-the position intended by its own decisions. A rejected entry in execution does
-not re-run the strategy; the full backtest runner supplies the actual position.
-
 ## 6. Determinism and causality
 
 - The model bundle is read in bar order; every collection is a `BTreeMap` or a
@@ -227,10 +220,9 @@ not re-run the strategy; the full backtest runner supplies the actual position.
 
 - Parser tests cover both engines, unknown fields, duplicate contexts, and
   engine-incompatible fields.
-- Shell tests generate a real `report model` bundle, then assert the explain
-  output, the decisions bundle, byte determinism, the non-empty-target refusal,
-  and the bracket-run refusal.
-- A boundary test asserts the printed decision carries no fill, quantity, fee,
+- Run tests load a v4 config with `strategy.json`, assert the strategy artifact
+  is present in the fetched set, and compare the decision bytes across runs.
+- A boundary test asserts a decision record carries no fill, quantity, fee,
   cash, equity, or P&L.
-- The model bundle reader reads only `readings.csv`, `events.csv`, and
-  `provenance.json`; it does not re-run the model or read a candle.
+- The model bundle reader reads only the published model artifacts; it does not
+  re-run the model or read a candle.

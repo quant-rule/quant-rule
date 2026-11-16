@@ -166,7 +166,7 @@ release or a dated addendum in the next release. The changelog starts at the
 - [`docs/refactors/README.md`](../refactors/README.md)
 - [`docs/improvement/README.md`](../improvement/README.md)
 
-## Distributed records — v1.0.0
+## Distributed records — v0.9.0 (prepared as v1.0.0)
 
 | Record | ID form | Owner |
 |---|---|---|

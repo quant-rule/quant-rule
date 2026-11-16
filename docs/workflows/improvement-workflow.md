@@ -40,9 +40,9 @@ not start while an earlier tier has no accepted baseline.
 
 | Tier | Question | Changed | Frozen | Development data | Validation data | Promotion gate |
 |---|---|---|---|---|---|---|
-| Model Run | Does the measurement improve without breaking causality or determinism? | Model implementation and model configuration | Data, policy, strategy, execution, portfolio, analytics | `model_dev` | `model_validation` | Contract, causality, determinism, availability, coverage, and descriptive review pass; no D; grades recorded. A/B may be standalone signals; C must be an explicit strategy hypothesis. Human accepts the model baseline |
-| Strategy Run | Does the rule produce a cost-inclusive edge from the accepted model? | Strategy rule, strategy configuration, and strategy thesis | Data, policy, accepted model baseline, execution, portfolio, analytics | `strategy_dev` | `strategy_validation` | Pre-registered green criteria met on the one-shot validation; Quant Validator record; human accepts the strategy baseline |
-| Portfolio Run | Do execution and portfolio mechanics improve the account outcome from the accepted strategy? | Execution and portfolio configuration | Data, policy, accepted model baseline, accepted strategy baseline, analytics | `portfolio_dev` | `portfolio_holdout` | Pre-registered green criteria met on the one-shot holdout; Quant Validator record; human accepts the portfolio baseline |
+| Model Run | Does the measurement improve without breaking causality or determinism? | Model implementation and model configuration | Data, strategy, execution, portfolio, analytics | `model_dev` | `model_validation` | Contract, causality, determinism, availability, coverage, and descriptive review pass; no D; grades recorded. A/B may be standalone signals; C must be an explicit strategy hypothesis. Human accepts the model baseline |
+| Strategy Run | Does the rule produce a cost-inclusive edge from the accepted model? | Strategy rule, strategy configuration, and strategy thesis | Data, accepted model baseline, execution, portfolio, analytics | `strategy_dev` | `strategy_validation` | Pre-registered green criteria met on the one-shot validation; Quant Validator record; human accepts the strategy baseline |
+| Portfolio Run | Do execution and portfolio mechanics improve the account outcome from the accepted strategy? | Execution and portfolio configuration | Data, accepted model baseline, accepted strategy baseline, analytics | `portfolio_dev` | `portfolio_holdout` | Pre-registered green criteria met on the one-shot holdout; Quant Validator record; human accepts the portfolio baseline |
 
 ### Tier runbooks
 
@@ -78,7 +78,6 @@ hash.
 | Component | Model Run | Strategy Run | Portfolio Run |
 |---|---|---|---|
 | Data | Frozen | Frozen | Frozen |
-| Policy | Frozen | Frozen | Frozen |
 | Model | **Changed** | Frozen at the accepted baseline | Frozen at the accepted baseline |
 | Strategy | Frozen at the accepted baseline or a fixed control | **Changed** | Frozen at the accepted baseline |
 | Execution | Frozen | Frozen | **Changed** |
@@ -88,9 +87,9 @@ hash.
 - **Data is never a tier.** A data defect is fixed through the Audit Workflow and
   gets a new data version; every affected baseline is then re-established. The
   data process is [`data-lifecycle.md`](data-lifecycle.md).
-- **Policy is human-owned.** A policy change is not an improvement run; it
-  changes the envelope and requires a new baseline sequence. The process is
-  [`policy-change.md`](policy-change.md).
+- **Portfolio constraints are part of the portfolio config.** A change to
+  sizing, costs, leverage, or drawdown is a Portfolio Run; it is not a separate
+  workflow.
 - **Analytics is measurement, never a performance lever.** If the measurement is
   wrong, fix it under the Audit Workflow before the run or invalidate the run.
 - **A change that spans tiers is split.** If a hypothesis needs a model and a
@@ -136,7 +135,7 @@ acceptance.
 | Write `review.md` and propose a decision | May | — |
 | Update the generated index | May | — |
 | Accept or replace a baseline | May propose only | **Accepts** |
-| Change policy or strategy | No | **Owns** |
+| Change strategy or portfolio constraints | No | **Owns** |
 | Change a partition, cost assumption, threshold, or green criterion after seeing a result | No | **New pre-registration** |
 | Open the portfolio holdout | May execute the approved one-shot access | **Approves the protocol**; a second access needs a new decision |
 | Declare an edge from one run | No | **Decides acceptance** |
@@ -157,7 +156,7 @@ Every tier requires:
 - realistic fees, slippage, funding, and commission;
 - an out-of-sample or validation result that was not used for tuning;
 - the minimum trade count and exposure recorded before the run;
-- drawdown within the policy envelope;
+- drawdown within the portfolio drawdown limit;
 - stability across the pre-registered cells;
 - deterministic, byte-identical artifacts on a rerun;
 - no open Critical or Major audit finding on the changed path;
@@ -239,8 +238,8 @@ into a green one.
 
 The run-store tooling lives in `tools/improvement/` and is written in Python. It
 validates manifests, runs the current shell commands, extracts evidence, and
-generates the index. `run_current.py` is the current adapter; `run.py` is the
-historical adapter for the retired `backtest` command. The tooling never
+generates the index. `run_current.py` and `run.py` are historical adapters for
+the retired local commands. The tooling never
 computes a signal. Baseline acceptance and invalidation are recorded in the
 committed registry by the reviewer and the human; the tooling does not accept
 them.
@@ -253,7 +252,6 @@ them.
 - [Strategy research](strategy-research.md)
 - [Portfolio research](portfolio-research.md)
 - [Research swarm](research-swarm.md)
-- [Policy change](policy-change.md)
 - [Data lifecycle](data-lifecycle.md)
 - [Audit Workflow](audit-workflow.md)
 - [Refactor Workflow](refactor-workflow.md)

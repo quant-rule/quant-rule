@@ -6,7 +6,7 @@
 > [the shell tutorial](../2026-11-14/shell-http.md) for the current surface.
 
 - Date: 2026-11-07 (UTC)
-- Status: Current
+- Status: Historical
 - Scope: the workflow index, the current run adapter, and the stage commands
 - Claim type: tutorial; no model, strategy, or edge claim.
 

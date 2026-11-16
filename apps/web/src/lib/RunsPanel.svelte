@@ -62,7 +62,7 @@
     {:else if view.items.length === 0}
       <div class="notice">No runs. Submit one from Configs.</div>
     {:else}
-      <table aria-busy={view.loading}>
+      <table data-testid="run-table" aria-busy={view.loading}>
         <thead>
           <tr>
             <th>Run</th>
@@ -94,6 +94,7 @@
               <td>
                 {#if isActive(item.status)}
                   <button
+                    data-testid="run-cancel"
                     onclick={() => void stop(item.run_id)}
                     disabled={cancelling === item.run_id}
                     aria-label={`Cancel ${item.run_id}`}

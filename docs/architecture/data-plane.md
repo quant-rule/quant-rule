@@ -1,6 +1,6 @@
 # Data Plane — The Deterministic Run
 
-- Status: Current; released v1.0.0 on 2026-11-15; approved 2026-11-12
+- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); unchanged in the v1.0.0 desktop release; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Decision: [`ADR-2026-11-12-02`](../adr/2026-11-12/02-two-plane-control-and-data.md)
 - Claim type: Behaviour Claim
@@ -33,8 +33,8 @@ Every intermediate and final object is stored under the SHA-256 of its bytes.
 
 | Object | Key |
 |---|---|
-| Candle series | `candles/{data_version}` |
-| Timeframe ladder | `ladder/{data_version}/{config_hash}/{timeframe}` |
+| Candle series | `datasets/{data_version-hex}` |
+| Timeframe ladder | `ladder/{data_version-hex}/full/{timeframe}` |
 | Model output | `model/{data_version}/{config_hash}/{model_version}/{ladder}.json` |
 | Artifact blobs | `artifacts/{sha256}` |
 | Run manifest | `runs/{run_id}/manifest.json` |
@@ -71,9 +71,9 @@ A run's output is a pure function of:
 (data_version, config_hash, model_version, image_digest)
 ```
 
-Anything else that influences output is a defect. The set is exactly what
-[`http-api.md`](http-api.md) requires for a submission and exactly what
-provenance records.
+Anything else that influences output is a defect. A client submits
+`{data_version, config_id}`; the server derives `config_hash`, `model_version`,
+and `image_digest` and records them in provenance.
 
 ## 6. Failure semantics
 

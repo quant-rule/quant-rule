@@ -78,7 +78,7 @@ and an event-driven control plane. Each service is coarse-grained and owns its
 data. The data plane is synchronous and deterministic; the control plane is
 asynchronous.
 
-**Quantum.** Five deployables, one database instance with schema-per-service, one
+**Quantum.** Six services, one database instance with schema-per-service, one
 object store. The set is one quantum for the operator because it deploys
 together and shares one image; each service is a separate failure and scaling
 unit.
@@ -120,4 +120,4 @@ Reproducibility, Temporal integrity, Auditability, or Detachability.
 - A second source of truth for provenance or run status.
 - A stage that is sharded where the merge is order-dependent.
 - A client path or timestamp entering an artifact.
-- A sixth service.
+- A service that reads another service's schema.

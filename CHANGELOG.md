@@ -30,6 +30,12 @@ history is in Git and the pull requests.
 - The release workflow validates the current-tag map before it resolves a
   release note, and the desktop supervisor exports a package digest computed
   over the installed sidecars.
+- The browser reaches `dataset show` and `config show` through record detail
+  views, and a simulation chart exports its rendered SVG. The capability table
+  and parity test now verify a control test id, not only a command name.
+- The checker gate parses documented shell invocations, scans Current config
+  contracts for retired commands, rejects a Current workflow link to a
+  Historical workflow, and rejects a living-doc tag outside the current-tag map.
 
 ### Changed
 
@@ -49,6 +55,12 @@ history is in Git and the pull requests.
 - Release tags were renumbered on 2026-11-15 to a continuous `v0.1.0`–`v1.0.0`
   history. Commits, images, and published artifacts are unchanged; historical
   release notes keep their original version headings.
+- The Current runbooks and config contracts now name the 27-command gateway
+  surface and the run v4 path; the retired policy layer is removed from the
+  Current workflows, and the living release/status docs use the current tags.
+- The storage, HTTP, control-plane, deployment, operations, and characteristics
+  docs match `datasets/`, the evidence-side submission path, the pinned MinIO
+  image, the nine-container stack, and the six services.
 
 ### Fixed
 
@@ -60,6 +72,11 @@ history is in Git and the pull requests.
   refuses an unordered version set.
 - `verify` resolves a run's recorded digest, and an artifact whose bytes do not
   match the run record is refused rather than saved.
+- The current runbooks use the positional shell grammar; the retired local-stage
+  command names no longer appear as Current contract instructions. The model
+  docs point to M1.3 and the 100-parameter registry, and the `model_version`
+  rustdoc distinguishes the run-config identity, registry version, and package
+  version.
 
 ### Removed
 

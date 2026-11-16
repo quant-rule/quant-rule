@@ -124,6 +124,30 @@ class ReleaseCheckerTests(unittest.TestCase):
             self.assertTrue(any("vMAJOR.MINOR.PATCH" in problem for problem in problems))
 
 
+class LivingTagTests(unittest.TestCase):
+    def test_a_retired_tag_as_a_current_claim_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            write(
+                root / "docs" / "architecture" / "example.md",
+                "The desktop profile was released in v1.1.0.\n",
+            )
+            problems = check_releases.living_tag_claims(root, {"v1.0.0": "note.md"})
+            self.assertEqual(len(problems), 1, problems)
+            self.assertIn("v1.1.0", problems[0])
+
+    def test_a_prepared_as_context_is_allowed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            write(
+                root / "docs" / "architecture" / "example.md",
+                "Released as v1.0.0 (prepared as v1.1.0).\n",
+            )
+            self.assertEqual(
+                check_releases.living_tag_claims(root, {"v1.0.0": "note.md"}), []
+            )
+
+
 class CurrentTagMapTests(unittest.TestCase):
     def test_a_renumbered_tag_resolves_to_its_historical_note(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

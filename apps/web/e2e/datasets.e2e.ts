@@ -98,3 +98,52 @@ test("a tolerant upload shows the skipped rows", async ({ page }) => {
   await expect(page.getByText(/line 4/)).toBeVisible();
   expect(tolerant).toBe(true);
 });
+
+test("a dataset row opens its stored record", async ({ page }) => {
+  await page.route("**/api/v1/**", async (route) => {
+    if (await shell(route)) {
+      return;
+    }
+    const request = route.request();
+    const path = decodeURIComponent(new URL(request.url()).pathname).replace("/api/v1", "");
+    if (path === "/catalog/datasets" && request.method() === "GET") {
+      return route.fulfill({
+        json: [
+          {
+            data_version: DATA,
+            name: "candles.csv",
+            candles: 4,
+            first_bar: 1_704_067_200,
+            last_bar: 1_704_067_200,
+            bytes: 128,
+          },
+        ],
+      });
+    }
+    if (path === `/catalog/datasets/${DATA}` && request.method() === "GET") {
+      return route.fulfill({
+        json: {
+          summary: {
+            data_version: DATA,
+            name: "candles.csv",
+            candles: 4,
+            first_bar: 1_704_067_200,
+            last_bar: 1_704_067_200,
+            bytes: 128,
+          },
+          object_key: "datasets/bbb",
+          sha256: DATA,
+          quality: null,
+          created_at: "2026-11-13T00:00:00Z",
+        },
+      });
+    }
+    return route.fulfill({ status: 500, json: {} });
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: /Datasets/ }).click();
+  await page.getByTestId("dataset-table").getByRole("button", { name: "Details" }).click();
+  await expect(page.getByTestId("dataset-detail")).toContainText("datasets/bbb");
+  await expect(page.getByTestId("dataset-detail")).toContainText("2026-11-13T00:00:00Z");
+});

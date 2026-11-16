@@ -1,6 +1,6 @@
 # Service Catalog
 
-- Status: Current; released v1.0.0 on 2026-11-15; approved 2026-11-12
+- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); unchanged in the v1.0.0 desktop release; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Decision: [`ADR-2026-11-12-01`](../adr/2026-11-12/01-adopt-distributed-service-based-architecture.md)
 - Claim type: Behaviour Claim
@@ -16,7 +16,7 @@ security boundary ([`ADR-11`](../adr/2026-11-12/11-profiles.md)).
 | Service | Binary | Responsibility | Owns | Must never |
 |---|---|---|---|---|
 | `gateway` | `qr-gateway` | HTTP boundary, static client, upload streaming, health aggregation, principal injection, proxy table | `gateway` schema (profiles) | compute a model value, read a candle, render a label |
-| `data` | `qr-data` | Ingestion, `data_version`, timeframe ladder, dataset and config catalog (including the read-only `config/` mount), read-only inspection | `catalog` schema, `candles/` objects | run a model, decide a signal |
+| `data` | `qr-data` | Ingestion, `data_version`, timeframe ladder, dataset and config catalog (including the read-only `config/` mount), read-only inspection | `catalog` schema, `datasets/` and `ladder/` objects | run a model, decide a signal |
 | `model` | `qr-model` | Readings, states, events, levels, progression, context, report | model objects | read strategy, execution, or portfolio |
 | `backtest` | `qr-backtest` | Run orchestration, strategy, execution, portfolio | artifact objects | own provenance or compute a digest |
 | `evidence` | `qr-evidence` | Provenance, canonical digest, run records, research memory, finalization | `runs` and `research` schemas, bundle objects | compute a reading or decide a trade |
@@ -96,12 +96,12 @@ a fold over time. Claiming otherwise would be false.
 
 ## 7. Backend adapters
 
-Database, object store, and queue sit behind traits. v1.0.0 ships one
-implementation of each: Postgres, S3, RabbitMQ. The v1.1 desktop profile adds a
+Database, object store, and queue sit behind traits. v0.9.0 ships one
+implementation of each: Postgres, S3, RabbitMQ. The v1.0.0 desktop profile adds a
 second implementation of each and selects the set once from `QR_PROFILE`; the
 server profile stays the default.
 
-| Trait | v1.0.0 | v1.1 desktop profile |
+| Trait | v0.9.0 server profile | v1.0.0 desktop profile |
 |---|---|---|
 | Database | Postgres | SQLite |
 | Object store | S3 API | filesystem CAS |

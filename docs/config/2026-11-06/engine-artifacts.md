@@ -1,11 +1,11 @@
 # Engine Artifacts — Stage Inputs, Outputs, and Provenance
 
-- Status: Current; approved 2026-11-06
-- Applies to: the current stage commands and the existing data and model commands
+- Status: Current; approved 2026-11-06; updated 2026-11-16 for the gateway run path
+- Applies to: the artifact set a submitted run writes and the data inspection commands
 - Related: [`command-surface.md`](../../architecture/command-surface.md),
   [`qualification-criteria.md`](qualification-criteria.md),
-  [`policy-and-strategy.md`](../2026-10-30/policy-and-strategy.md),
-  [`model-m1.0.md`](../../model/2026-11-05/model-m1.0.md),
+  [`run-v4-strategy.md`](../2026-11-13/run-v4-strategy.md),
+  [`model-m1.3.md`](../../model/2026-11-10/model-m1.3.md),
   [`model-research.md`](../../workflows/model-research.md),
   [`strategy-research.md`](../../workflows/strategy-research.md),
   [`portfolio-research.md`](../../workflows/portfolio-research.md)
@@ -16,11 +16,10 @@
 An artifact is the handoff between two stages. It is data, not a decision that
 belongs to another stage.
 
-1. **One bundle per run.** A stage command that writes output writes one
-   directory with its data files and a `provenance.json`. A rerun writes a new
-   target and refuses a non-empty target. The default target, when `--out` is
-   omitted, is fixed by the phase that implements the command and documented in
-   help; it is never inferred from the clock or a temporary directory.
+1. **One artifact set per run.** A submitted run writes one content-addressed
+   artifact set; each stage contributes its own directory and `provenance.json`.
+   A duplicate submission returns the existing run. The target is owned by the
+   run, never inferred from the clock or a client path.
 2. **Records and identity are separate.** The data files carry records; the
    provenance file carries the data version, configuration identity, code
    revision, source artifacts, and seed.
@@ -93,15 +92,14 @@ ordering, and gap handling. It does not know about indicators or strategies.
 
 | Command | Artifact | Shape |
 |---|---|---|
-| `candles` | Retained candle window on stdout | One JSON object per candle: `series_index`, `window_index`, `datetime`, `open`, `high`, `low`, `close`, `volume`. |
-| `candles-tolerant` | Retained candles and quality report | NDJSON candles on stdout; rejected counts and gap records on stderr. |
-| `timeframes` | Per-timeframe candle series and aggregation report | NDJSON candles per timeframe on stdout; partial-bucket and gap records on stderr. |
-| `fetch` | Source CSV | The provider range written as a CSV at the requested path, with accepted and rejected counts on stdout. |
+| `dataset upload` | Dataset record | The content-addressed `data_version`, candle count, coverage, quality, and object identity. |
+| `inspect candles` | Coverage summary | Counts, first and last bar, and gaps for one `data_version`. |
+| `inspect timeframes` | Ladder summary | Bars and partial buckets per timeframe for one `data_version`. |
 
 The data stage's provenance is the run configuration's `data_version`, source
-path, instrument, source timeframe, and requested period. `fetch` writes a CSV
-without a sidecar; the caller records the data version when it creates the run
-configuration. A `data` bundle is not written until a stage command needs one.
+path, instrument, source timeframe, and requested period. The gateway owns the
+dataset object; the client sends a `data_version`, never a path. A data artifact
+is not written outside the run.
 
 The candle record is the only data shape every later stage may assume. Timeframe
 construction is a data-engine responsibility; a later stage does not aggregate a
@@ -114,8 +112,8 @@ numbers, nulls, and stable codes.
 
 | Command | Artifact | Shape |
 |---|---|---|
-| `events` | Event records on stdout | One JSON object per event, grouped by timeframe and availability order. |
-| `report model` | Model bundle | `<out>/model/` with the files below. |
+| `run submit` | Model bundle in the run artifact set | The run's `model/` directory with the files below. |
+| `inspect events` | Event batch | One JSON event record per line, in availability order, for one dataset and timeframe. |
 
 The model bundle contains:
 
@@ -161,23 +159,21 @@ The strategy stage consumes the model bundle, a strategy configuration, and its
 own position state. It publishes a decision and the as-of evidence that justified
 it. It does not know the fill price, quantity, fee, cash, or P&L.
 
-### 5.1 Commands
+### 5.1 Gateway path
 
 | Command | Input | Output |
 |---|---|---|
-| `strategy explain` | `--model <model-bundle> --strategy <strategy.json> --bar <index> [--position flat\|long\|short]` | One decision record and its as-of evidence on stdout. |
-| `strategy run` | `--model <model-bundle> --strategy <strategy.json> [--out <dir>] [--json]` | `<out>/strategy/` decisions bundle. |
+| `run submit` | `data_version`, `config_id` | A queued run that computes the strategy stage. |
+| `run status` | `run_id` | Stage states and provenance. |
+| `run fetch` | `run_id`, directory | The run artifact set, including `<artifact>/strategy/`. |
 
-`strategy explain` is read-only. `strategy run` writes the bundle and refuses a
-non-empty target. Without an execution artifact, `strategy run` tracks the
-strategy's intended position from its own decisions and starts flat; it is a
-decision preview, not a fill simulation. The full `backtest run` supplies the
-position execution actually holds. A standalone `strategy run` supports the
-event-composite engine; the compression-bracket engine needs the fill side from
-execution and is explain-only until the backtest runner supplies it.
+The v4 run config names `strategy.json`; the run's strategy stage supplies the
+position execution actually holds. The compression-bracket engine needs the fill
+side from execution, so it is supported by the run rather than by a standalone
+decision preview.
 
 The strategy config schema is `quantrule.strategy/v1`; its contract is in
-[`strategy-config.md`](strategy-config.md). This document fixes the command and
+[`strategy-config.md`](strategy-config.md). This document fixes the run path and
 the decisions artifact, not the rule language itself.
 
 ### 5.2 Decisions bundle
@@ -198,7 +194,7 @@ the decisions artifact, not the rule language itself.
 | `bar_index` | The zero-based execution bar. |
 | `open_time` | The bar's UTC open time in Unix seconds. |
 | `available_bar_index` | The first bar on which every input used by the decision was knowable. It is never later than the decision bar. |
-| `position_before` | `flat`, `long`, or `short`. In a standalone strategy run this is the position intended by the decision sequence; in a backtest bundle it is the position execution actually holds. |
+| `position_before` | `flat`, `long`, or `short`; the position execution actually holds at the decision bar. |
 | `position_after` | The intended position after the decision: `flat`, `long`, or `short`. |
 | `decision` | `hold`, `enter`, `enter_bracket`, or `exit`. |
 | `side` | `long`, `short`, or `null` for a hold. |
@@ -232,12 +228,11 @@ range event. A boundary test shows that a diagnostic event in the input cannot
 satisfy a registered condition. The strategy input carries no raw indicator, fill,
 position, cash, or P&L.
 
-The standalone and coupled strategy paths consume the same merged event set
-(`all_events()`), including the core and extended events. The bundle reader
-re-sorts the evidence rows by event code for display; the engines match by
-identity and are order-independent. The event-composite language names only the
-base subtypes `1..=7`; the compression bracket names the registered range event
-`(3,8,5)`.
+The run's strategy stage consumes the merged event set (`all_events()`),
+including the core and extended events. The bundle reader re-sorts the evidence
+rows by event code for display; the engines match by identity and are
+order-independent. The event-composite language names only the base subtypes
+`1..=7`; the compression bracket names the registered range event `(3,8,5)`.
 
 `summary.txt` carries the counts by decision, side, and reason, the data version,
 the config identity, and the model source. It carries no fill or P&L.
@@ -249,37 +244,26 @@ and the candles needed to resolve an order. It publishes orders, fills, and
 rejections. It does not decide direction, quantity, or risk; the decision and the
 portfolio sizing supply those.
 
-Execution needs a quantity for every entry. The execution command is the caller:
-it computes the quantity with the portfolio sizing rule from the run
-configuration's portfolio block at the decision-bar close, then passes it to the
-execution engine. The execution engine never chooses direction or sizing, and the
-portfolio engine still owns cash and equity. A standalone execution run sizes
-from the run's initial cash; the full backtest run sizes from the ledger's
-current equity. The execution provenance records the portfolio config identity,
-the sizing basis, and the fixed sizing equity when the basis is initial cash.
+Execution needs a quantity for every entry. The run's execution stage computes
+the quantity with the portfolio sizing rule from the run configuration's
+portfolio block at the decision-bar close, then passes it to the execution
+engine. The execution engine never chooses direction or sizing, and the
+portfolio engine owns cash and equity. The run sizes from the ledger's current
+equity. The execution provenance records the portfolio config identity, the
+sizing basis, and the fixed sizing equity when the basis is initial cash.
 
-### 6.1 Command
+### 6.1 Run stage
 
-```text
-execution run --decisions <strategy-bundle> --config <run.json> [--out <dir>] [--json]
-```
-
-The run configuration supplies the data source, the execution timeframe, and the
-execution configuration. The decisions bundle supplies the decision records,
+The run's orchestration supplies the data source, the execution timeframe, and
+the execution configuration. The strategy stage supplies the decision records,
 including the decision-bar ATR(14) that execution needs for an ATR-based stop.
-The command refuses a decision artifact whose stage or schema is unsupported, a
+The run refuses a decision artifact whose stage or schema is unsupported, a
 decision whose timeframe is not the run's execution timeframe, and a decisions
 data version that does not match the run's.
 
-A standalone execution run also refuses an `enter_bracket` decision: the bracket
-quantity depends on the side execution will fill, and the full runner must size
-it. The event-composite decisions produced by `strategy run` do not contain one.
-
-A standalone execution run replays a fixed decision sequence. A rejected entry
-does not re-run the strategy; the next decision still sees the position the
-strategy intended. The full `backtest run` supplies the position execution
-actually holds and re-decides on the next bar. Use `backtest run` when the
-strategy depends on the executed position.
+A bracket entry is sized only after execution chooses the fill side. A rejected
+entry does not re-run the strategy; the next bar sees the position execution
+actually holds.
 
 ### 6.2 Fills bundle
 
@@ -312,16 +296,12 @@ the marks needed to value an open position. It publishes positions, trades,
 equity, funding, risk events, and performance metrics. It does not decide a
 signal.
 
-### 7.1 Command
-
-```text
-portfolio replay --fills <execution-bundle> --config <run.json> [--out <dir>] [--json]
-```
+### 7.1 Run stage
 
 The run configuration supplies the data source, the portfolio configuration, and
-the mark-to-market rule. The fills bundle supplies the executed trades. The
-command refuses a fills artifact whose stage or schema is unsupported, and it
-refuses a fills data version that does not match the run's. It marks each
+the mark-to-market rule. The execution stage supplies the executed trades. The
+run refuses a fills artifact whose stage or schema is unsupported, and it refuses
+a fills data version that does not match the run's. It marks each
 execution-timeframe close and records one equity point per UTC date.
 
 ### 7.2 Portfolio bundle
@@ -350,24 +330,25 @@ A metric that is undefined is `null`: win rate with no trades, profit factor wit
 no losses, and exposure with no marks are not zero. A monthly return with no
 equity point or a zero prior equity is absent or `null`, never zero.
 
-## 8. Backtest orchestration
+## 8. Run orchestration
 
-- Status: Implemented 2026-11-06.
+- Status: Implemented 2026-11-06; gateway path since 2026-11-13.
 
-`backtest run` is an orchestration command, not a sixth engine. It runs the data
-and model stages, then interleaves the strategy, execution, and portfolio
-engines so the strategy sees the position execution actually holds. It writes the
-same stage bundles as the standalone commands and preserves each one. It adds no
-domain logic and hides no stage. The coupled execution sizes each entry from the
-ledger's current equity and records `sizing_basis: ledger_current` in the
-execution bundle.
+`run submit` is the orchestration path, not a sixth engine. It runs the data and
+model stages, then interleaves the strategy, execution, and portfolio engines so
+the strategy sees the position execution actually holds. The run writes one
+artifact set and preserves each stage. It adds no domain logic and hides no
+stage. The execution sizes each entry from the ledger's current equity and
+records `sizing_basis: ledger_current` in the execution bundle.
 
 ```text
-backtest run --config <run.json> --strategy <strategy.json> [--out <dir>] [--json]
+run submit <data_version> <config_id>
+run status <run_id>
+run fetch <run_id> <directory>
 ```
 
 ```text
-<out>/backtest/
+<artifact>/backtest/
   manifest.json
   model/
   strategy/
@@ -379,11 +360,11 @@ backtest run --config <run.json> --strategy <strategy.json> [--out <dir>] [--jso
 `manifest.json` uses `quantrule.backtest-manifest/v1` and records the run name,
 the data version, the config identity, the code revision, the seed, the stage
 order, the path and content hash of every stage provenance, and the strategy
-config identity. It carries no clock timestamp. The model bundle is the same
-bundle `report model` writes; the strategy, execution, and portfolio bundles are
-the same bundles their stage commands write. The manifest's `stages` array
-records each stage, its relative path, its provenance path, and its FNV content
-hash. The backtest provenance lists the four stage source artifacts.
+config identity. It carries no clock timestamp. The model, strategy, execution,
+and portfolio directories are the stage artifacts in the same run set. The
+manifest's `stages` array records each stage, its relative path, its provenance
+path, and its FNV content hash. The run provenance lists the four stage source
+artifacts.
 
 ## 9. Qualification stage
 
@@ -394,11 +375,11 @@ qualification criteria. It publishes a qualification record. It does not write
 the human's acceptance decision. The criteria fingerprint is the stage
 `config_id`; the backtest manifest hash is the evidence identity.
 
-### 9.1 Command
+### 9.1 Run stage
 
-```text
-qualify --evidence <backtest-bundle> --criteria <qualification.json> [--out <dir>] [--json]
-```
+The run's qualification stage consumes the evidence bundle and the criteria named
+by the run configuration. It writes the qualification artifact into the same run
+set. There is no standalone qualification command.
 
 ### 9.2 Qualification bundle
 
@@ -444,11 +425,10 @@ and evaluation tables. It does not produce a verdict or a strategy decision. The
 shared backtest-bundle reader validates the manifest and every stage provenance
 hash before a metric is read.
 
-### 10.1 Command
+### 10.1 Run stage
 
-```text
-analytics evaluate --evidence <backtest-bundle> [--out <dir>] [--json]
-```
+The run's analytics stage consumes the result artifacts and writes the analytics
+artifact into the same run set. There is no standalone analytics command.
 
 ### 10.2 Analytics bundle
 
@@ -500,7 +480,7 @@ therefore does not drift in the last digit.
 | Strategy | Model bundle, strategy config, position state | The model bundle schema or stage is unsupported, or a referenced event/state is not published. | Model bundle, data version, strategy config identity. |
 | Execution | Decisions bundle, run config, execution and portfolio sizing configs | The decision schema or stage is unsupported, the timeframe is not the execution timeframe, a candle is missing, or the sizing rule rejects the entry. | Decisions bundle, data version, execution config identity, sizing config identity, sizing equity. |
 | Portfolio | Fills bundle, run config, portfolio config | The fills schema or stage is unsupported, a fill is malformed, or a mark is missing. | Fills bundle, data version, portfolio config identity. |
-| Backtest | Run config, strategy config | Any stage above refuses, or a stage writes an artifact it did not declare. | All stage artifacts and their hashes. |
+| Run | Run config, strategy config | Any stage above refuses, or a stage writes an artifact it did not declare. | All stage artifacts and their hashes. |
 | Qualification | Backtest bundle, qualification criteria | The backtest manifest is missing, a criterion names absent evidence, or a mandatory criterion has no evidence. | Backtest manifest, criteria identity, data version, partitions, costs, seed. |
 | Analytics | Backtest bundle | The evidence schema or stage is unsupported, or a required table is absent. | Evidence bundle, data version, config identity. |
 
@@ -513,14 +493,14 @@ upstream verdict into its own artifact.
   by this contract. New bundles use `quantrule.stage-provenance/v1`.
 - Every new artifact has a schema version. A consumer rejects an unsupported
   schema with an error that names the artifact and the expected schema.
-- A stage command test writes the bundle and asserts the file list, the header
-  order, the row order, and the provenance fields.
-- A determinism test runs the command twice over the same input and compares
-  every artifact byte for byte.
+- A run-stage test asserts the artifact file list, the header order, the row
+  order, and the provenance fields.
+- A determinism test runs the same submission twice and compares every artifact
+  byte for byte.
 - A boundary test proves a later stage cannot read a field that belongs to an
   earlier stage's private state, and that the strategy configuration/engine
   rejects a diagnostic identity; the strategy input carries no raw indicator,
   statistical value, fill, position, cash, or P&L.
-- The command surface checker proves that every implemented command that writes
-  a bundle has a documented artifact, and that no planned command is listed as
+- The run artifact checker proves that every stage artifact is documented and
+  reachable through `run fetch`, and that no retired local command is listed as
   available.

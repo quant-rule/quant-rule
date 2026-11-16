@@ -6,7 +6,7 @@
 > [the shell tutorial](../2026-11-14/shell-http.md) for the current surface.
 
 - Date: 2026-11-06 (UTC)
-- Status: Current
+- Status: Historical
 - Scope: `qualify` over a backtest evidence bundle and human-owned criteria
 - Claim type: procedural stage lab; no edge or acceptance claim.
 

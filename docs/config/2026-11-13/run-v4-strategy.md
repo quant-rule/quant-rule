@@ -16,7 +16,7 @@ than only its data, model, execution, and portfolio inputs.
 {
   "schema": "quantrule.run/v4",
   "name": "btcusd-2024-strategy",
-  "model_id": "M1.0",
+  "model_id": "M1.3",
   "data": "data.json",
   "model": "model.json",
   "execution": "execution.json",

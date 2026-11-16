@@ -32,6 +32,11 @@ CAPABILITIES = """export const SECTIONS = [
   { id: "connection", label: "Connection", hint: "Gateway" },
   { id: "runs", label: "Runs", hint: "Runs" },
 ] as const;
+
+export const COMMANDS = [
+  { command: "health", section: "connection", control: "Health", component: "ConnectionPanel.svelte", testId: "health-report" },
+  { command: "run list", section: "runs", control: "Runs table", component: "RunsPanel.svelte", testId: "run-table" },
+];
 """
 
 README = (
@@ -59,8 +64,14 @@ def seed(root: Path) -> None:
     )
     library = root / "apps" / "web" / "src" / "lib"
     write(library / "capabilities.ts", CAPABILITIES)
-    write(library / "ConnectionPanel.svelte", "<section></section>\n")
-    write(library / "RunsPanel.svelte", "<section></section>\n")
+    write(
+        library / "ConnectionPanel.svelte",
+        '<section data-testid="health-report"></section>\n',
+    )
+    write(
+        library / "RunsPanel.svelte",
+        '<section data-testid="run-table"></section>\n',
+    )
     write(library / "runs.svelte.ts", "export const runs = {};\n")
 
 
@@ -124,6 +135,19 @@ class ClientDocumentTests(unittest.TestCase):
             problems = check_client_docs.check(root)
             self.assertTrue(
                 any("navigation label 'Help' has no screen row" in p for p in problems)
+            )
+
+    def test_a_capability_without_a_test_id_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            seed(root)
+            write(
+                root / "apps" / "web" / "src" / "lib" / "ConnectionPanel.svelte",
+                "<section></section>\n",
+            )
+            problems = check_client_docs.check(root)
+            self.assertTrue(
+                any("health-report" in problem and "data-testid" in problem for problem in problems)
             )
 
     def test_a_missing_store_is_reported(self) -> None:

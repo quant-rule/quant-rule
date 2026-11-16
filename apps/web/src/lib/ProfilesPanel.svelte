@@ -41,7 +41,7 @@
   {:else if view.items.length === 0}
     <div class="notice">No profiles. Create one.</div>
   {:else}
-    <table>
+    <table data-testid="profile-table">
       <thead>
         <tr>
           <th>Profile</th>
@@ -68,7 +68,7 @@
     </table>
   {/if}
 
-  <form class="row" onsubmit={(event) => void submit(event)}>
+  <form class="row" data-testid="profile-create" onsubmit={(event) => void submit(event)}>
     <input
       bind:value={profileId}
       placeholder="profile-id"

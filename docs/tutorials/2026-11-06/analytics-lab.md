@@ -6,7 +6,7 @@
 > [the shell tutorial](../2026-11-14/shell-http.md) for the current surface.
 
 - Date: 2026-11-06 (UTC)
-- Status: Current
+- Status: Historical
 - Scope: `analytics evaluate` over a completed backtest bundle
 - Claim type: procedural stage lab; no verdict, edge, or acceptance claim.
 

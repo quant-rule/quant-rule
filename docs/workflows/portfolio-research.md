@@ -4,7 +4,7 @@
 - Status: Current
 - Scope: execution mechanics, portfolio accounting, costs, sizing, and the final holdout
 - Owner: Quant Researcher (mechanics hypothesis), Quant Developer (implementation), Quant Validator (independent reproduction)
-- Contract: [`improvement-workflow.md`](improvement-workflow.md), [`run-contract.md`](run-contract.md), [`docs/config/2026-10-30/policy-and-strategy.md`](../config/2026-10-30/policy-and-strategy.md)
+- Contract: [`improvement-workflow.md`](improvement-workflow.md), [`run-contract.md`](run-contract.md), [`run-v3-and-portfolio-constraints.md`](../config/2026-11-11/run-v3-and-portfolio-constraints.md), [`engine-artifacts.md`](../config/2026-11-06/engine-artifacts.md)
 - Qualification: [`docs/config/2026-11-06/qualification-criteria.md`](../config/2026-11-06/qualification-criteria.md)
 - Claim type: execution and portfolio research process; no edge claim.
 
@@ -15,7 +15,7 @@ execution and portfolio mechanics improve the account outcome of an accepted
 strategy without changing the strategy's decisions?**
 
 It is the portfolio tier of the Improvement Workflow. It changes execution and
-portfolio together, freezes the model, strategy, data, policy, and analytics,
+portfolio together, freezes the model, strategy, data, and analytics,
 runs on `portfolio_dev`, freezes the candidate, and opens the one-shot
 `portfolio_holdout` only after human approval.
 
@@ -30,7 +30,7 @@ Use it when:
 - an accepted strategy baseline exists;
 - the hypothesis is about fills, slippage, fees, funding, sizing, leverage,
   position limits, drawdown halts, exposure, or accounting;
-- the policy envelope and prop-firm rules are declared;
+- the portfolio constraints (sizing, costs, leverage, and drawdown) are declared;
 - the candidate can be frozen before the holdout.
 
 Do not use it when:
@@ -38,7 +38,6 @@ Do not use it when:
 - there is no accepted strategy baseline; the portfolio tier is closed;
 - the change is a strategy rule: use Strategy Research;
 - the change is a model measurement: use Model Research or Model Change;
-- the change is a policy envelope: use Policy Change;
 - the change is a defect in the execution or portfolio engine: use the Audit
   Workflow.
 
@@ -51,7 +50,7 @@ Hypothesis -> Design -> Implement -> Development -> Freeze -> Holdout -> Accept/
 | Stage | Question | Owner | Output | Gate |
 |---|---|---|---|---|
 | 1. Hypothesis | Which mechanic is claimed to improve the account outcome? | Quant Researcher | Hypothesis note | Human accepts the premise |
-| 2. Design | What changes, what stays frozen, and what is the cost model? | Quant Researcher + Quant Developer | Mechanics design | Strategy baseline accepted; policy declared |
+| 2. Design | What changes, what stays frozen, and what is the cost model? | Quant Researcher + Quant Developer | Mechanics design | Strategy baseline accepted; portfolio constraints declared |
 | 3. Implement | Do the execution and portfolio configs parse and run? | Quant Developer | Config bundle and tests | `run submit` reaches `succeeded` with execution and portfolio artifacts; `run fetch` retrieves them |
 | 4. Development | Does the mechanic improve the account outcome on `portfolio_dev`? | Quant Developer | Backtest, qualification | Green criteria on the development partition |
 | 5. Freeze | Is the candidate frozen by config hash? | Quant Researcher | Frozen candidate | No post-hoc change |
@@ -64,9 +63,9 @@ A portfolio run may start only when:
 
 - a strategy baseline is accepted in
   [`docs/improvement/baselines.md`](../improvement/baselines.md);
-- the strategy, model, data, policy, and analytics are frozen;
+- the strategy, model, data, and analytics are frozen;
 - the execution and portfolio configurations are declared;
-- the policy envelope and prop-firm limits are declared;
+- the portfolio constraints (sizing, costs, leverage, and drawdown) are declared;
 - the cost model names commission, slippage, funding, and any other charge;
 - the candidate can be frozen before the holdout;
 - the human approves the one-shot holdout access.
@@ -76,7 +75,6 @@ A portfolio run may start only when:
 | Component | Portfolio run |
 |---|---|
 | Data | Frozen |
-| Policy | Frozen |
 | Model | Frozen at the accepted baseline |
 | Strategy | Frozen at the accepted baseline |
 | Execution | **Changed** |
@@ -84,8 +82,8 @@ A portfolio run may start only when:
 | Analytics | Frozen |
 
 A change that spans strategy and portfolio is two runs with two gates, not one
-confounded run. A policy change is not a portfolio run; it is a Policy Change
-and a re-baseline.
+confounded run. A change to a portfolio constraint is a portfolio run and a
+re-baseline, not a separate workflow.
 
 ## 6. Mechanics and accounting
 
@@ -110,7 +108,7 @@ and a re-baseline.
 - `final_equity = initial_cash + net_pnl` must hold.
 
 The contracts are
-[`docs/config/2026-10-30/policy-and-strategy.md`](../config/2026-10-30/policy-and-strategy.md)
+[`docs/config/2026-11-11/run-v3-and-portfolio-constraints.md`](../config/2026-11-11/run-v3-and-portfolio-constraints.md)
 and
 [`docs/config/2026-11-06/engine-artifacts.md`](../config/2026-11-06/engine-artifacts.md).
 
@@ -134,9 +132,9 @@ and
 
 ```bash
 quantrule config list
-quantrule run submit --data-version <data_version> --config <config_id>
+quantrule run submit <data_version> <config_id>
 quantrule run status <run_id>
-quantrule run fetch <run_id> --out <dir>
+quantrule run fetch <run_id> <dir>
 quantrule verify <run_id>
 ```
 
@@ -166,21 +164,19 @@ A portfolio run is green when:
 - no open Critical or Major audit finding is on the changed path;
 - the human accepts the portfolio baseline.
 
-## 10. Prop-firm limits
+## 10. Portfolio constraints
 
-The policy envelope and the qualification criteria map the intended account
-rules:
+The portfolio configuration and the qualification criteria map the intended
+account rules:
 
-- daily loss;
-- maximum loss;
-- profit target;
-- consistency rule;
-- time limit;
-- leverage and position limits;
-- drawdown ceiling and halt behavior.
+- initial cash and currency;
+- sizing (`fixed_notional` or `equity_fraction`);
+- leverage and maximum open positions;
+- commission and funding;
+- maximum drawdown and halt behavior.
 
-A prop-firm limit is a policy constraint and a qualification criterion. It is
-not a strategy signal and it does not enter the model.
+A portfolio constraint is an execution/accounting input and a qualification
+criterion. It is not a strategy signal and it does not enter the model.
 
 ## 11. Roles and boundaries
 
@@ -189,7 +185,7 @@ not a strategy signal and it does not enter the model.
 | Quant Researcher | Mechanics hypothesis, costs, metrics, split | No production code; no post-hoc threshold |
 | Quant Developer | Execution/portfolio config, engine change, tests | No strategy change; no validation claim |
 | Quant Validator | Independent reproduction and verdict | Read-only; no repair |
-| Human | Strategy and policy ownership, holdout access, baseline acceptance | Sole final authority |
+| Human | Strategy and portfolio-config ownership, holdout access, baseline acceptance | Sole final authority |
 
 ## 12. Human gates
 
@@ -220,7 +216,7 @@ not a strategy signal and it does not enter the model.
 Stop and record the reason when:
 
 - there is no accepted strategy baseline;
-- the policy envelope or prop-firm rules are undeclared;
+- the portfolio constraints are undeclared;
 - the execution or portfolio engine is defective;
 - the candidate is not green on `portfolio_dev`;
 - the one-shot holdout fails;
@@ -245,8 +241,7 @@ different cost, sizing, leverage, stop, or holdout window.
 - [`improvement-workflow.md`](improvement-workflow.md)
 - [`run-contract.md`](run-contract.md)
 - [`strategy-research.md`](strategy-research.md)
-- [`policy-change.md`](policy-change.md)
-- [`../config/2026-10-30/policy-and-strategy.md`](../config/2026-10-30/policy-and-strategy.md)
+- [`../config/2026-11-11/run-v3-and-portfolio-constraints.md`](../config/2026-11-11/run-v3-and-portfolio-constraints.md)
 - [`../config/2026-11-06/qualification-criteria.md`](../config/2026-11-06/qualification-criteria.md)
 - [`../config/2026-11-06/engine-artifacts.md`](../config/2026-11-06/engine-artifacts.md)
 - [`../../AGENTS.md`](../../AGENTS.md)

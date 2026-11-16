@@ -28,8 +28,9 @@ history is in [`CHANGELOG.md`](../../CHANGELOG.md).
 
 ## Distributed target
 
-The v1.0.0 platform is recorded in `docs/architecture/` and executed by the
-`DIST-*` issue tree. Four workflows change at v1.0.0:
+The distributed platform (released as v0.9.0, prepared as v1.0.0) is recorded in
+`docs/architecture/` and executed by the `DIST-*` issue tree. Four workflows
+change at v0.9.0:
 
 | Workflow | Change |
 |---|---|

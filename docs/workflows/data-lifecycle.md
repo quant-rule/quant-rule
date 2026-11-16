@@ -33,7 +33,6 @@ Do not use it when:
 
 - the change is a model formula: use Model Change;
 - the change is a strategy rule: use Strategy Research;
-- the change is a policy envelope: use Policy Change;
 - the change is a defect in the data engine: use the Audit Workflow.
 
 ## 3. Stages
@@ -185,14 +184,12 @@ Stop and request human direction when:
 - [`model-research.md`](model-research.md)
 - [`strategy-research.md`](strategy-research.md)
 - [`portfolio-research.md`](portfolio-research.md)
-- [`policy-change.md`](policy-change.md)
 - [`../config/2026-10-30/data-v3.md`](../config/2026-10-30/data-v3.md)
-- [`../config/2026-10-30/policy-and-strategy.md`](../config/2026-10-30/policy-and-strategy.md)
 - [`../../data/README.md`](../../data/README.md)
 - [`../../data/partitions.json`](../../data/partitions.json)
 - [`../../AGENTS.md`](../../AGENTS.md)
 
-## Distributed ingestion — v1.0.0
+## Distributed ingestion — v0.9.0 (prepared as v1.0.0)
 
 Candles enter through `POST /catalog/datasets`. The `data` service owns the
 boundary; no other service reads a source file.
@@ -201,8 +198,8 @@ boundary; no other service reads a source file.
 |---|---|
 | Upload | Size limit from `QR_UPLOAD_LIMIT_BYTES`; schema validated before storage |
 | Identity | `data_version = sha256(normalized bytes)`; the client never supplies it |
-| Duplicate | Identical bytes return the existing `data_version` with `409` |
-| Storage | Objects under `candles/{data_version}` in the operator's object store |
+| Duplicate | Identical bytes return the existing `data_version` with `200`; the upload is idempotent |
+| Storage | Objects under `datasets/{data_version-hex}` and ladders under `ladder/{data_version-hex}/full/{timeframe}` in the operator's object store |
 | Retention | A dataset is never mutated; a correction is a new `data_version` |
 | Provenance | Every run records the `data_version` it consumed |
 

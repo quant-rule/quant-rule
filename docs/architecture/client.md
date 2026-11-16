@@ -18,13 +18,13 @@ path never falls back to the client.
 |---|---|---|---|
 | Connection | `ConnectionPanel.svelte` | Gateway state, version, image digest, service health, bearer token | `unreachable` or `token required` with a retry |
 | Profiles | `ProfilesPanel.svelte` | Profile list, counts, create; the top-bar `ProfileSwitcher.svelte` selects the active profile | "No profiles. Create one." |
-| Datasets | `DatasetsPanel.svelte` | `data_version`, candles, first and last bar, upload | "No datasets. Upload a CSV." |
-| Configs | `ConfigsPanel.svelte` | Name, origin (repo or uploaded), validity, parser message, submit | "No configs on the server." |
+| Datasets | `DatasetsPanel.svelte` | `data_version`, candles, first and last bar, upload, record detail with object key, hash, quality, and created time | "No datasets. Upload a CSV." |
+| Configs | `ConfigsPanel.svelte` | Name, origin (repo or uploaded), validity, parser message, submit, record detail with config id and hash | "No configs on the server." |
 | Runs | `RunsPanel.svelte` | Status, id, config, data version, submitted, duration, cancel | "No runs. Submit one from Configs." |
 | Run detail | `RunDetail.svelte` | Stages, provenance, canonical digest with Verify, artifacts with verified download | Only for a known run |
 | Inspect | `InspectPanel.svelte` | Candles, timeframe ladder, and event batch for one dataset; read-only | "No datasets to inspect." |
 | Simulation | `SimulationRunsPanel.svelte` | `sim_id`, premise, bundle, windows, marked/unmarked, status | "No simulation runs." |
-| Simulation run | `SimulationRunDetail.svelte` | Window navigator, chart, mark toolbar, marks table, review, check, decision | Only for a known run |
+| Simulation run | `SimulationRunDetail.svelte` | Window navigator, chart with a deterministic SVG export, mark toolbar, marks table, review, check, decision | Only for a known run |
 | Help | `HelpPanel.svelte` | The 27 registered commands and the screen that reaches each use case | — |
 
 Every screen is owned by one component. The browser and the command shell reach
