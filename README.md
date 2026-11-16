@@ -5,18 +5,20 @@ evidence — and keeps that evidence auditable after the client that submitted i
 has closed. It is candles-only, rule-based, and deterministic. There is no
 account, no cloud provider, and no live trading.
 
-> **Status.** The current release tag is **v1.0.0**, the desktop release: the
-> distributed single-operator platform plus the self-contained desktop package.
-> One image and six services serve the server profile; one installer starts the
-> same six sidecars on embedded SQLite, a filesystem CAS, and a durable
-> in-process queue for the desktop profile. The browser client, command shell,
-> and desktop shell share one `quantrule.api/v1` contract. The tag was
-> renumbered on 2026-11-15 from the version prepared as v1.1.0; the historical
-> release note is
-> [`docs/releases/2026-11-15/v1.1.0.md`](docs/releases/2026-11-15/v1.1.0.md),
-> and the mapping is in
-> [`docs/releases/README.md`](docs/releases/README.md). The architecture is
-> specified in [`docs/architecture/`](docs/architecture/README.md).
+> **Status.** The current release tag is **v1.2.0** (2026-11-16), the final
+> version-alignment release: the distributed single-operator platform plus the
+> self-contained desktop package. One image and six services serve the server
+> profile; one installer starts the same six sidecars on embedded SQLite, a
+> filesystem CAS, and a durable in-process queue for the desktop profile. The
+> browser client, command shell, and desktop shell share one
+> `quantrule.api/v1` contract. The previous tag, **v1.1.0**, is the 1.1.0
+> alignment release; **v1.0.0** is the desktop release. Current note:
+> [`docs/releases/2026-11-16/v1.2.0.md`](docs/releases/2026-11-16/v1.2.0.md);
+> previous note:
+> [`docs/releases/2026-11-16/v1.1.0.md`](docs/releases/2026-11-16/v1.1.0.md);
+> mapping: [`docs/releases/README.md`](docs/releases/README.md). The
+> architecture is specified in
+> [`docs/architecture/`](docs/architecture/README.md).
 
 ## Why it is distributed
 
@@ -44,7 +46,7 @@ make up
 `make up` builds the image, starts the stack, waits for health, and prints:
 
 ```text
-QuantRule v1.1.0 ready → http://localhost:8080
+QuantRule v1.2.0 ready → http://localhost:8080
 ```
 
 `make` is the Linux and macOS path. Windows runs the same Compose file directly,
@@ -119,8 +121,8 @@ Docker requirement, no engine in the shell, and no local data read by the shell;
 the server remains the same stack and the same HTTP contract. The packaged
 desktop profile and the server profile both reproduce canonical digest
 `sha256:453c90b4442dd049074e126bb46b400b6f61baa986443c97fa27c3edd41c1daa` for
-the verification fixture. The desktop release is `v1.0.0`; `v0.9.0` is the
-previous (distributed platform) release.
+the verification fixture. The current release is `v1.2.0`; `v1.0.0` is the
+desktop release and `v0.9.0` the distributed platform release.
 Details: [`apps/desktop-shell/README.md`](apps/desktop-shell/README.md) and
 [ADR-12](docs/adr/2026-11-12/12-desktop-distribution.md).
 
@@ -163,7 +165,7 @@ Details: [`services.md`](docs/architecture/services.md),
 [`control-plane.md`](docs/architecture/control-plane.md),
 [`http-api.md`](docs/architecture/http-api.md).
 
-## Commands (v1.0.0 surface)
+## Commands (v1.2.0 surface)
 
 The shell is a thin client over `quantrule.api/v1`; every command makes one
 gateway call. It depends only on the contract crate and its HTTP transport, and

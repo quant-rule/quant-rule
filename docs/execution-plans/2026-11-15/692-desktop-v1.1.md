@@ -28,7 +28,7 @@ server profile.
 
 | Area | Observed | Evidence |
 |---|---|---|
-| Release | v1.0.0 released 2026-11-15 from `6a714ba3`; v1.1 is the next programme | [release note](../../releases/2026-11-15/v1.0.0.md) |
+| Release | v1.0.0 released 2026-11-15 from `6a714ba3`; v1.1 is the next programme | [release note](../../releases/2026-11-15/v0.9.0.md) |
 | Topology | Six services, six binaries, one image; nine containers in Compose | [services](../../architecture/services.md), `compose.yaml` |
 | Adapter traits | `Database`, `ObjectStore`, `Queue`, `QueueConsumer`; only Postgres, S3, RabbitMQ are implemented | [adapters](../../../crates/quantrule-runtime/src/adapters/mod.rs) |
 | Database trait | `Database` is a liveness probe plus a backend name; it exposes no query | `crates/quantrule-runtime/src/adapters/mod.rs` |

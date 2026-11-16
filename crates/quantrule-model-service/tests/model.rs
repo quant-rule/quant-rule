@@ -14,14 +14,14 @@ use tower::ServiceExt;
 /// fixture. It is the regression oracle for the move: the public model object
 /// must stay byte-identical.
 ///
-/// The oracle was regenerated for `1.1.0`. The object carries the compiled
+/// The oracle was regenerated for `1.2.0`. The object carries the compiled
 /// product version in `flat_report`'s sibling `model_version` field, so the
 /// version bump changes exactly that field: the two objects are 66,022 bytes
-/// each and differ in two bytes, and a semantic diff reports only
-/// `.model_version` (`1.0.0` to `1.1.0`). No reading, event, or report value
+/// each and differ in one byte, and a semantic diff reports only
+/// `.model_version` (`1.1.0` to `1.2.0`). No reading, event, or report value
 /// changed.
 const BASELINE_SHA256: &str =
-    "sha256:d3ed28f8a944de50bd9df986424f14bc6c5a89d8fd346f7895cd5f3914b16c6f";
+    "sha256:73e2fe4f4f0bffe5ee8cc30f24e7773952fad4ffad300ec717352868d2b62de7";
 const BASELINE_BYTES: u64 = 66_022;
 
 async fn compute(

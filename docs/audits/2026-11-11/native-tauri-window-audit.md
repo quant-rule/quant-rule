@@ -490,5 +490,5 @@ reproducible.
 - Parent Tauri plan: [`588-tauri-platform.md`](../../execution-plans/2026-11-11/588-tauri-platform.md)
 - Command surface: [`command-surface.md`](../../architecture/command-surface.md)
 - Memory contract: [`research-memory-v1.md`](../../config/2026-11-11/research-memory-v1.md)
-- v0.9.0 release: [`v0.9.0.md`](../../releases/2026-11-11/v0.9.0.md)
+- v0.9.0 release: [`v0.9.0.md`](../../releases/2026-11-11/v0.8.0.md)
 - Release readiness: [`release-readiness.md`](../../reports/2026-11-11/release-readiness.md)

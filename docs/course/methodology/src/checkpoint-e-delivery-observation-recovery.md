@@ -12,15 +12,17 @@
 
 ## Delivery
 
-- Released as v1.0.0: one image, six binaries, one digest, nine containers.
+- Released as v1.2.0: one image, six binaries, one digest, nine containers.
 - One command: `make up` -> healthy -> a URL.
 - One published port.
 - A self-contained desktop package installs from a release asset, starts the
   same six sidecars on SQLite/filesystem CAS/in-process queue, and reads no
   local engine data.
-- Release record: [`docs/releases/2026-11-15/v1.1.0.md`](../../../releases/2026-11-15/v1.1.0.md)
-  (current tag `v1.0.0`). It records 2,134 passing tests; the earlier
-  distributed-platform note (now `v0.9.0`) recorded 1,995.
+- Release record: [`docs/releases/2026-11-16/v1.2.0.md`](../../../releases/2026-11-16/v1.2.0.md)
+  (current tag `v1.2.0`). It records the v1.2.0 gate: 2,118 passing tests, 0
+  failed, 14 ignored, and 24 checkers. The desktop note (now `v1.0.0`) records
+  2,134 passing tests; the earlier distributed-platform note (now `v0.9.0`)
+  recorded 1,995.
 
 ## Observation
 
@@ -55,8 +57,9 @@ runs on the release host, and the packaged parity smokes, not a second day.
 
 ## Decision
 
-Shipped in v1.0.0: the server platform and the self-contained desktop package
-share the same six services and the same canonical digest; the server profile
+Shipped in v1.0.0 and current in v1.2.0: the server platform and the
+self-contained desktop package share the same six services and the same
+canonical digest; the server profile
 remains the default and the oracle. The thin shell, profiles, and desktop are
 released, not deferred.
 

@@ -22,7 +22,8 @@ One control is not a test: contract versioning plus the review rule.
   (`crates/quantrule-model/tests/hardening.rs`) and
   `every_prefix_matches_the_full_series`
   (`crates/quantrule-model/tests/progression_golden.rs`) pass in the
-  2026-11-16 gate. The v1.0.0 release gate (2026-11-15) passed 2,134 tests.
+  2026-11-16 gate. The v1.2.0 gate (2026-11-16) passed 2,118 tests; the
+  v1.0.0 release gate (2026-11-15) passed 2,134.
 
 Command: `cargo test -p quantrule-model` (causality and prefix tests).
 

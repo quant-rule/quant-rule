@@ -1,16 +1,16 @@
 # Checkpoint D - Architecture and Changeability
 
-- Status: Released v1.0.0; updated 2026-11-16
-- Release: [`docs/releases/2026-11-15/v1.1.0.md`](../../../releases/2026-11-15/v1.1.0.md) (current tag `v1.0.0`)
+- Status: Released v1.2.0; updated 2026-11-16
+- Release: [`docs/releases/2026-11-16/v1.2.0.md`](../../../releases/2026-11-16/v1.2.0.md) (current tag `v1.2.0`)
 
-**Claim.** For one researcher, the released v1.0.0 architecture keeps one rule
+**Claim.** For one researcher, the released v1.2.0 architecture keeps one rule
 in and one reproducible bundle out while a service, adapter, reading, or client
 screen changes without touching the engines.
 
 ## Architecture
 
 Service-Based, domain-partitioned, six services, one image, nine containers.
-The current v1.0.0 release covers the server profile and the self-contained
+The current v1.2.0 release covers the server profile and the self-contained
 desktop package; the distributed server platform itself was released as v0.9.0
 (prepared as v1.0.0).
 
@@ -72,7 +72,7 @@ record actually shows; an unmeasured target is not presented as observed.
 
 | Characteristic | Target / good means | Observed evidence | Status |
 |---|---|---|---|
-| Testability | every reading and event has causality, determinism, and golden evidence; fast suite <= 5 min | 49 indicators and 150 active events have registry/evidence rows; v1.0.0 release gate passed 2,134 tests; current main gate passed 2,118; 24 checkers | Coverage observed; 5-minute target not measured |
+| Testability | every reading and event has causality, determinism, and golden evidence; fast suite <= 5 min | 49 indicators and 150 active events have registry/evidence rows; the v1.2.0 gate passed 2,118 tests; the v1.0.0 release gate passed 2,134; 24 checkers | Coverage observed; 5-minute target not measured |
 | Modularity | 6 services, 0 cycles, gateway imports 0 engine symbols | Six service crates; service-boundary guard; service catalog | Observed |
 | Maintainability | a rule change touches <= 1 crate and <= 3 modules; no file over 1,000 lines | Add-a-reading trace touches one model crate, registry, parser, writer, and fixture; file-size checker passes | Structural trace observed; no timed metric |
 | Deployability | clean clone to healthy <= 10 min; one published port | `make up` starts nine containers and one published port; release note records the local image and `/health` | Path observed; 10-minute target not measured |
@@ -107,7 +107,7 @@ the desktop profile already uses the filesystem CAS instead.
 ## Consistency
 
 Eight requirements -> eight characteristics -> six services -> twelve decisions ->
-one released v1.0.0 tree. One increment throughout: one rule in, one
+one released v1.2.0 tree. One increment throughout: one rule in, one
 reproducible bundle out.
 
 ## Likely questions

@@ -2,7 +2,7 @@
 
 - Date: 2026-11-07 (UTC)
 - Status: Released in `v0.6.0`; CI green
-- Release: [`v0.6.0`](../../releases/2026-11-07/v0.6.0.md)
+- Release: [`v0.6.0`](../../releases/2026-11-07/v0.5.0.md)
 - Pull request: [#542](https://github.com/quant-rule/quant-rule/pull/542)
 - Plan: [`docs/execution-plans/2026-11-07/workflow-documentation-reset.md`](../../execution-plans/2026-11-07/workflow-documentation-reset.md)
 - Audit: [`docs/audits/2026-11-07/workflow-status-audit.md`](../../audits/2026-11-07/workflow-status-audit.md)

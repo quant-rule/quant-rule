@@ -20,7 +20,7 @@ closing. Candle data stays on the operator's machine; there are no accounts.
 Falsified by: two runs over identical inputs and the same image producing
 different artifact bytes.
 
-## First increment (historical; now released as v1.0.0)
+## First increment (historical; now released as v1.2.0)
 
 One user action, one observable result:
 
@@ -43,8 +43,8 @@ out-of-sample claim.
 
 **Non-goal:** no profitability or live-trading claim, and no tick, order-book,
 or machine-learning signal path. The product is a candles-only evidence machine.
-Released in v1.0.0; see
-[`docs/releases/2026-11-15/v1.1.0.md`](../../../releases/2026-11-15/v1.1.0.md).
+Released in v1.0.0 and current in v1.2.0; see
+[`docs/releases/2026-11-16/v1.2.0.md`](../../../releases/2026-11-16/v1.2.0.md).
 
 ## Pitch (45-60 seconds)
 
