@@ -1,7 +1,7 @@
 # Cohesion Refactor — Cycle 5
 
 - Date: 2026-11-16 (UTC)
-- Status: **In Progress** (human approved 2026-11-16; four cycles implemented, review gate pending)
+- Status: **Verified** (human approved 2026-11-16; PRs #836–#840 merged; verification pass recorded)
 - Claim type: **Behaviour Claim** (structure changes; commands, artifacts, and client behaviour stay byte-identical)
 - Owner: Human
 - Workflow: [Execution Plan](../../workflows/execution-plan.md) + [Refactor Workflow](../../workflows/refactor-workflow.md)
@@ -168,13 +168,13 @@ Limitation: the fast tier does not start the Compose stack. The composed tier an
 | V11 | P3 health | Health names and log text are unchanged | `cargo test -p quantrule-data-service -p quantrule-evidence-service -p quantrule-gateway -p quantrule-simulation-service` | All pass | 349 passed, 0 failed, 5 ignored across the four services | Pass | Implementer | 2026-11-16 | Health names `sqlite`, `postgres`; gateway log field `gateway` becomes `applied` |
 | V12 | P4 client | The component is under 400 lines | `wc -l apps/web/src/lib/SimulationRunDetail.svelte` | < 400 | 344 | Pass | Implementer | 2026-11-16 | Store plus three child components |
 | V13 | P4 client tests | Web unit and e2e behaviour is unchanged | `cd apps/web && bun run check && bun test`; full Playwright suite | All pass | check 0 errors; 121 unit tests; 41 e2e tests | Pass | Implementer | 2026-11-16 | — |
-| V14 | Equivalence | No artifact or fixture byte changed | `find crates -path '*/fixtures/*' -type f \| sort \| xargs sha256sum \| sha256sum`; `sha256sum tests/fixtures/client-parity/*.json` | `325d0c4a…`; `0b960a3e…`; `e94e9d2b…` | — | Pending | Verifier | — | After every cycle merge |
-| V15 | Equivalence | No dependency or schema change | `git diff --stat 439a0639 -- Cargo.toml Cargo.lock 'crates/*/migrations/*'` | Empty | — | Pending | Verifier | — | A change here stops the cycle |
-| V16 | Equivalence | No test removed or weakened | `git diff 439a0639 -- '*tests*'` review; test count | Count ≥ V2; no skipped test | — | Pending | Verifier | — | — |
-| V17 | Gate | The full gate is green after each merge | `bash tools/gate.sh` | Exit 0 | — | Pending | Verifier | — | Per cycle |
-| V18 | Metric | Each named metric moved in the expected direction | V5 commands | 1 / 0 / 0 / < 400 | — | Pending | Verifier | — | At campaign end |
-| V19 | Docs | The documents match the changed structure | `bash tools/checkers.sh` | All pass | — | Pending | Verifier | — | `module-map.md` read-first rows updated if a path moves |
-| V20 | Closure | Findings are `Refactored`, then `Verified` or returned | Assessment status column | 4 `Verified` or returned with evidence | — | Pending | Verifier | — | Only the Verifier writes `Verified` |
+| V14 | Equivalence | No artifact or fixture byte changed | `find crates -path '*/fixtures/*' -type f \| sort \| xargs sha256sum \| sha256sum`; `sha256sum tests/fixtures/client-parity/*.json` | `325d0c4a…`; `0b960a3e…`; `e94e9d2b…` | `325d0c4a…`; `0b960a3e…`; `e94e9d2b…` | Pass | Verifier | 2026-11-16 | Unchanged after the merge |
+| V15 | Equivalence | No dependency or schema change | `git diff --stat 439a0639 -- Cargo.toml Cargo.lock 'crates/*/migrations/*'` | Empty | Empty diff against `439a0639` | Pass | Verifier | 2026-11-16 | No dependency or migration change |
+| V16 | Equivalence | No test removed or weakened | `git diff 439a0639 -- '*tests*'` review; test count | Count ≥ V2; no skipped test | 2,122 passed (baseline 2,118); no test removed or skipped | Pass | Verifier | 2026-11-16 | — |
+| V17 | Gate | The full gate is green after each merge | `bash tools/gate.sh` | Exit 0 | Exit 0; 2,122 passed; 24 checkers | Pass | Verifier | 2026-11-16 | Merged `main` at `9324a581` |
+| V18 | Metric | Each named metric moved in the expected direction | V5 commands | 1 / 0 / 0 / < 400 | 1 / 0 / 0 / 344 | Pass | Verifier | 2026-11-16 | All four moved as planned |
+| V19 | Docs | The documents match the changed structure | `bash tools/checkers.sh` | All pass | 24 checkers pass; web check 0 errors; `client.md` names the new files | Pass | Verifier | 2026-11-16 | No module-map row changed |
+| V20 | Closure | Findings are `Refactored`, then `Verified` or returned | Assessment status column | 4 `Verified` or returned with evidence | REF-01, -02, -03, -07 `Verified` | Pass | Verifier | 2026-11-16 | Sequential pass, not independent review |
 
 ## 9. Risks and recovery
 
