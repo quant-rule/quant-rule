@@ -1,7 +1,7 @@
 # Cohesion Refactor — Cycle 5
 
 - Date: 2026-11-16 (UTC)
-- Status: **Approved** (human, 2026-11-16); implementation in progress
+- Status: **In Progress** (human approved 2026-11-16; four cycles implemented, review gate pending)
 - Claim type: **Behaviour Claim** (structure changes; commands, artifacts, and client behaviour stay byte-identical)
 - Owner: Human
 - Workflow: [Execution Plan](../../workflows/execution-plan.md) + [Refactor Workflow](../../workflows/refactor-workflow.md)
