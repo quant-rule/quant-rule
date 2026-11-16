@@ -156,8 +156,8 @@ Limitation: the fast tier does not start the Compose stack. The composed tier an
 | V3 | Baseline gate | The full gate is green before the first seam | `bash tools/gate.sh` | Exit 0 | Exit 0; fmt, clippy, test, doc, 24 checkers | Pass | Planner | 2026-11-16 | Uses `target/gate` inside the worktree |
 | V4 | Baseline fixtures | Fixture bytes are recorded | `find crates -path '*/fixtures/*' -type f \| sort \| xargs sha256sum \| sha256sum` | `325d0c4a…` | `325d0c4a…` | Pass | Planner | 2026-11-16 | 135 files |
 | V5 | Baseline metrics | The four named metrics are recorded | `rg -c 'pub struct MemoryObjects' crates`; usage-literal count; `rg -c 'DeploymentProfile::Desktop'` binaries; `wc -l SimulationRunDetail.svelte` | 5 / 25 / 4 / 762 | 5 / 25 / 4 / 762 | Pass | Planner | 2026-11-16 | Commands in the assessment |
-| V6 | P1 shared fake | One definition; five suites import it | `rg 'pub struct MemoryObjects' crates` | 1 | — | Pending | Implementer | — | — |
-| V7 | P1 tests | The suites still prove their behaviour | `cargo test --workspace` | All pass; count ≥ V2 | — | Pending | Implementer | — | — |
+| V6 | P1 shared fake | One definition; five suites import it | `rg 'pub struct MemoryObjects' crates` | 1 | 1 (`runtime/src/adapters/memory.rs`) | Pass | Implementer | 2026-11-16 | Five common modules re-export it |
+| V7 | P1 tests | The suites still prove their behaviour | `cargo test --workspace` | All pass; count ≥ V2 | 2,120 passed, 0 failed, 14 ignored (baseline 2,118) | Pass | Implementer | 2026-11-16 | Two new runtime unit tests |
 | V8 | P2 usage source | No duplicated usage literal in the parser | `rg -c '"usage: ' crates/quantrule-shell/src/command/parse.rs` | 0 command literals | — | Pending | Implementer | — | Grouped family usages are derived too |
 | V9 | P2 output | The shell prints the same bytes | `cargo test -p quantrule-shell` | All pass | — | Pending | Implementer | — | Command tests assert printed text |
 | V10 | P3 bootstrap | No binary branches on the profile | `rg -c 'DeploymentProfile::Desktop' crates/*/src/main.rs crates/*/src/bin/*.rs` | 0 | — | Pending | Implementer | — | One helper in `backends.rs` |

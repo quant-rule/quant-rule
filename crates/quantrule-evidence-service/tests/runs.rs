@@ -452,7 +452,8 @@ async fn finished_run_named(
     };
     objects
         .store(&RunManifest::blob_key(&artifact.sha256), bytes.clone())
-        .await;
+        .await
+        .expect("store the artifact");
     let digest = Digest::sha256(b"canonical");
     runs.computed(
         id.clone(),
@@ -586,7 +587,10 @@ async fn a_changed_artifact_blob_is_refused() {
     let (id, _digest, _bytes) = finished_run(&runs, &objects).await;
     use quantrule_service_api::RunManifest;
     let key = RunManifest::blob_key(&Digest::sha256(b"{\"profit\":1}"));
-    objects.store(&key, b"{\"profit\":9}".to_vec()).await;
+    objects
+        .store(&key, b"{\"profit\":9}".to_vec())
+        .await
+        .expect("store the forged artifact");
     let response = router(state_with(runs, objects))
         .oneshot(
             Request::get(format!("/runs/{id}/artifacts/results.json"))
