@@ -50,7 +50,16 @@
   architecture). The generated text contains `v1.2.0` in the overview, the
   checkpoint evidence, the deployment example, and the user-journey example;
   page counts are unchanged.
-- Both tag runs are recorded after they run; this log does not pre-claim them.
+- `v1.1.0` is an annotated tag object `c13cfe2276474c7143ddaaca93624ed476edee7d`
+  targeting `a734e7fb` on `main`; tag run `43889152217` succeeded and published
+  registry digest `sha256:d5ce83da06ae8a5c8018c91582ed78e3c5905b5285ce447b677321ac60911751`
+  with `QuantRule_1.1.0_amd64.AppImage` and `QuantRule_1.1.0_x64-setup.exe`.
+- `v1.2.0` is an annotated tag object `00387d4143bb46a1be958fa16daf2be57641977d`
+  targeting `231c1395` on `main`; tag run `43889152059` succeeded and published
+  registry digest `sha256:26350916267cee482a8e4a847e347afb297a733a0f11a8104e80404b1d0eae68`
+  with `QuantRule_1.2.0_amd64.AppImage` and `QuantRule_1.2.0_x64-setup.exe`.
+- The GitHub releases at `v1.1.0` and `v1.2.0` carry both assets; the release
+  bodies record the registry digests and artifact names.
 
 ## Learning
 
