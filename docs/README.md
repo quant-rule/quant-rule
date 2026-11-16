@@ -315,6 +315,7 @@ current-tag map is in [`docs/releases/README.md`](releases/README.md).
 | One-way timeframe ladder and trade-intent boundary | Accepted 2026-10-30 | `docs/adr/2026-10-30/one-way-timeframe-ladder.md` |
 | Trustworthy backtest kata and architecture characteristics | Accepted 2026-10-31 | `docs/adr/2026-10-31/adopt-architecture-baseline.md` |
 | One program, two first-class surfaces | Accepted 2026-11-11 | `docs/adr/2026-11-11/one-program-first-class-desktop.md` |
+| Stage execution and evidence boundary | Accepted 2026-11-16 | `docs/adr/2026-11-16/01-stage-execution-and-evidence-boundary.md` |
 
 ## Reading a work item
 

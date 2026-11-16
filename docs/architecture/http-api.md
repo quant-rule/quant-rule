@@ -198,3 +198,8 @@ Rules:
 - No endpoint returns a human-readable label for a numeric code.
 - No endpoint returns a value that depends on the wall clock inside a payload.
 - No endpoint executes a single pipeline stage.
+
+> **Stage-run exception.** Diagnostic stage runs are defined by
+> [ADR-2026-11-16-01](../adr/2026-11-16/01-stage-execution-and-evidence-boundary.md).
+> They are never evidence, and the coupled run remains the only canonical-digest
+> producer.
