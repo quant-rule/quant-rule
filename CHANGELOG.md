@@ -29,6 +29,9 @@ history is in Git and the pull requests.
   through fetch, verify, validate, record, and reproduce.
 - The End-to-End Verification workflow: the clean-stack procedure from health
   and upload through a verified canonical digest, owned by Release & Operations.
+- The `docs/manual` user-manual kind and its 12-chapter skeleton; the status
+  index now names the accepted model baselines and no strategy or portfolio
+  baseline.
 
 ### Fixed
 

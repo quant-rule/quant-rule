@@ -183,6 +183,7 @@ When principles appear to conflict, follow the project's explicit architectural 
   - `docs/governance/<YYYY-MM-DD>/<file>.md` — the improvement charter, green criteria, autonomy, and stop conditions.
   - `docs/workflows/<file>.md` — the living workflow contracts, indexed in [`docs/workflows/README.md`](docs/workflows/README.md): Audit, Refactor, Engine Execution, Backtest, End-to-End Verification, Improvement, Run Contract, Research Swarm, Model Research, Model Change, Strategy Research, Portfolio Research, Data Lifecycle, Requirements & Design, Release & Operations, Deprecation & Retirement, and Recordkeeping.
   - `docs/workflows/templates/<file>.md` — the workflow and record templates. The workflow template is the skeleton for a new workflow document; the record templates are data, release, deprecation, and requirements records.
+  - `docs/manual/<file>.md` — the living user manual: one chapter per journey, command and GUI reference, glossary, and troubleshooting.
   - `docs/releases/README.md` — the release index and tag rule; `docs/releases/<YYYY-MM-DD>/<tag>.md` is the release note for one tagged release.
   - `docs/improvement/<file>.md` — the committed improvement registry: run index, baselines, invalidation tombstones, and the run record template.
   - `docs/port-parity/README.md`, `docs/port-parity/registry.json`, `docs/port-parity/<id>.golden.json` — the port-parity tier's registry, fixture layout, and evidence, checked by `tools/check_port_parity.py`.
