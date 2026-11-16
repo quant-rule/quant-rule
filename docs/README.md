@@ -192,6 +192,7 @@ of workflow status; this page does not repeat it.
 | Refactor | `docs/workflows/refactor-workflow.md` |
 | Engine execution | `docs/workflows/engine-execution.md` |
 | Backtest | `docs/workflows/backtest.md` |
+| End-to-end verification | `docs/workflows/end-to-end-verification.md` |
 | Improvement | `docs/workflows/improvement-workflow.md` |
 | Run contract | `docs/workflows/run-contract.md` |
 | Research swarm | `docs/workflows/research-swarm.md` |

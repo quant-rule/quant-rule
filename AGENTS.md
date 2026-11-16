@@ -8,7 +8,7 @@ QuantRule ships as a distributed, single-operator research platform reached by t
 
 The system is deterministic. Given the same input data and the same configuration, it must produce the same output every time. Any behavior that depends on wall-clock time, unseeded randomness, or iteration order of unordered collections is a defect, not a limitation. See section 12.
 
-The system is improved through explicit workflows, indexed in [`docs/workflows/README.md`](docs/workflows/README.md): a human-owned strategy blueprint, an Engine Execution Workflow (diagnostic stage runs), a Backtest Workflow (coupled evidence), an Improvement Workflow (run, results, review, new hypothesis), tier runbooks for model research, model change, strategy research, and portfolio/execution research, an Audit Workflow (audit, remediation plan, execution, verification), a Refactor Workflow (structural assessment, refactor plan, behavior-neutral execution, equivalence verification), a Data Lifecycle Workflow, Requirements & Design, Release & Operations, Deprecation & Retirement, Recordkeeping, an Engineering Swarm, and a Quant Swarm. The human remains at the highest abstraction level; the workflows never replace human acceptance. The Improvement Workflow may conclude "no edge" and stop. The change history is recorded in [`CHANGELOG.md`](CHANGELOG.md).
+The system is improved through explicit workflows, indexed in [`docs/workflows/README.md`](docs/workflows/README.md): a human-owned strategy blueprint, an Engine Execution Workflow (diagnostic stage runs), a Backtest Workflow (coupled evidence), an End-to-End Verification Workflow (deployment proof), an Improvement Workflow (run, results, review, new hypothesis), tier runbooks for model research, model change, strategy research, and portfolio/execution research, an Audit Workflow (audit, remediation plan, execution, verification), a Refactor Workflow (structural assessment, refactor plan, behavior-neutral execution, equivalence verification), a Data Lifecycle Workflow, Requirements & Design, Release & Operations, Deprecation & Retirement, Recordkeeping, an Engineering Swarm, and a Quant Swarm. The human remains at the highest abstraction level; the workflows never replace human acceptance. The Improvement Workflow may conclude "no edge" and stop. The change history is recorded in [`CHANGELOG.md`](CHANGELOG.md).
 
 ## 2. Architecture and Data Flow
 
@@ -181,7 +181,7 @@ When principles appear to conflict, follow the project's explicit architectural 
   - `docs/audits/<YYYY-MM-DD>/<scope>-audit.md` — read-only findings, evidence, and remediation options. `docs/audits/README.md` is the index/template.
   - `docs/refactors/<YYYY-MM-DD>/<scope>-refactor.md` — read-only structural findings, evidence, and refactor options. `docs/refactors/README.md` is the index/template.
   - `docs/governance/<YYYY-MM-DD>/<file>.md` — the improvement charter, green criteria, autonomy, and stop conditions.
-  - `docs/workflows/<file>.md` — the living workflow contracts, indexed in [`docs/workflows/README.md`](docs/workflows/README.md): Audit, Refactor, Engine Execution, Backtest, Improvement, Run Contract, Research Swarm, Model Research, Model Change, Strategy Research, Portfolio Research, Data Lifecycle, Requirements & Design, Release & Operations, Deprecation & Retirement, and Recordkeeping.
+  - `docs/workflows/<file>.md` — the living workflow contracts, indexed in [`docs/workflows/README.md`](docs/workflows/README.md): Audit, Refactor, Engine Execution, Backtest, End-to-End Verification, Improvement, Run Contract, Research Swarm, Model Research, Model Change, Strategy Research, Portfolio Research, Data Lifecycle, Requirements & Design, Release & Operations, Deprecation & Retirement, and Recordkeeping.
   - `docs/workflows/templates/<file>.md` — the workflow and record templates. The workflow template is the skeleton for a new workflow document; the record templates are data, release, deprecation, and requirements records.
   - `docs/releases/README.md` — the release index and tag rule; `docs/releases/<YYYY-MM-DD>/<tag>.md` is the release note for one tagged release.
   - `docs/improvement/<file>.md` — the committed improvement registry: run index, baselines, invalidation tombstones, and the run record template.
@@ -893,6 +893,7 @@ The workflow index is [`docs/workflows/README.md`](docs/workflows/README.md). Ch
 | A structural problem, coupling, file size, or duplication | [Refactor Workflow](docs/workflows/refactor-workflow.md) |
 | Running one engine alone for diagnosis | [Engine Execution](docs/workflows/engine-execution.md) |
 | Producing a coupled backtest or an evidence run | [Backtest Workflow](docs/workflows/backtest.md) |
+| Verifying a clean deployment or a release candidate | [End-to-End Verification](docs/workflows/end-to-end-verification.md) |
 | A model measurement, event, or family hypothesis | [Model Research](docs/workflows/model-research.md) |
 | An indicator, event, or model implementation change | [Model Change](docs/workflows/model-change.md) |
 | A strategy hypothesis | [Strategy Research](docs/workflows/strategy-research.md) |
