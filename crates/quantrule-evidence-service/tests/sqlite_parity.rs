@@ -34,7 +34,9 @@ const HYPOTHESIS_PROFILE: &str =
     "crates/quantrule-evidence-service/migrations/0008_hypothesis_profile.sql";
 const SUBMISSIONS: &str = "crates/quantrule-evidence-service/migrations/0009_run_submissions.sql";
 const ATTEMPTS: &str = "crates/quantrule-evidence-service/migrations/0013_run_attempts.sql";
+const STAGE: &str = "crates/quantrule-evidence-service/migrations/0014_stage.sql";
 const SQLITE: &str = "crates/quantrule-evidence-service/migrations/sqlite/0001_runs_research.sql";
+const SQLITE_STAGE: &str = "crates/quantrule-evidence-service/migrations/sqlite/0002_stage.sql";
 const FIXTURE: &str = include_str!("fixtures/run_parity.json");
 
 fn root() -> PathBuf {
@@ -144,6 +146,15 @@ fn expected_tables() -> Vec<(&'static str, Vec<(String, String)>)> {
             create_table_columns(SUBMISSIONS, "runs.submissions"),
         ),
         ("research__hypotheses", hypotheses),
+        ("stage__runs", create_table_columns(STAGE, "stage.runs")),
+        (
+            "stage__submissions",
+            create_table_columns(STAGE, "stage.submissions"),
+        ),
+        (
+            "stage__artifacts",
+            create_table_columns(STAGE, "stage.artifacts"),
+        ),
     ]
 }
 
@@ -213,14 +224,33 @@ async fn the_evidence_baseline_matches_the_postgres_tables() {
             "{table} does not cascade from the run row"
         );
     }
+    for table in ["stage__submissions", "stage__artifacts"] {
+        assert_eq!(
+            foreign_keys(&database, table).await,
+            vec![(
+                "stage__runs".to_owned(),
+                "stage_run_id".to_owned(),
+                "stage_run_id".to_owned(),
+                "CASCADE".to_owned()
+            )],
+            "{table} does not cascade from the stage row"
+        );
+    }
 
-    let baseline = statements(&read(SQLITE));
+    let baseline = format!(
+        "{}\n{}",
+        statements(&read(SQLITE)),
+        statements(&read(SQLITE_STAGE))
+    );
     for table in [
         "runs__runs",
         "runs__stages",
         "runs__artifacts",
         "runs__submissions",
         "research__hypotheses",
+        "stage__runs",
+        "stage__submissions",
+        "stage__artifacts",
     ] {
         assert!(baseline.contains(table), "{table} is missing");
     }
@@ -292,6 +322,23 @@ async fn the_evidence_baseline_matches_the_postgres_tables() {
             .iter()
             .any(|(name, unique)| name == "runs__status_submitted_idx" && *unique == 0),
         "the run status index is missing"
+    );
+
+    let stage_indexes: Vec<(String, i64)> = database
+        .call(|connection| {
+            let mut statement = connection.prepare("PRAGMA index_list(stage__runs)")?;
+            let rows = statement.query_map([], |row| {
+                Ok((row.get::<_, String>(1)?, row.get::<_, i64>(2)?))
+            })?;
+            rows.collect::<rusqlite::Result<Vec<_>>>()
+        })
+        .await
+        .expect("the stage index list");
+    assert!(
+        stage_indexes
+            .iter()
+            .any(|(name, unique)| name == "stage__status_submitted_idx" && *unique == 0),
+        "the stage status index is missing"
     );
 }
 
@@ -573,7 +620,7 @@ async fn the_baseline_is_idempotent_and_a_changed_body_is_refused() {
         apply_migrations_in(&database, "runs", &migrations::sqlite())
             .await
             .expect("the first apply"),
-        1
+        2
     );
     assert_eq!(
         apply_migrations_in(&database, "runs", &migrations::sqlite())
@@ -600,22 +647,22 @@ async fn the_baseline_is_idempotent_and_a_changed_body_is_refused() {
 async fn a_database_ahead_or_an_unknown_applied_version_is_refused() {
     let ahead = SqliteDatabase::open_in_memory().expect("the database opens");
     baseline(&ahead).await;
-    insert_ledger_row(&ahead, 2).await;
+    insert_ledger_row(&ahead, 3).await;
     assert_eq!(
         apply_migrations_in(&ahead, "runs", &migrations::sqlite())
             .await
             .expect_err("the database is ahead"),
         MigrationError::DatabaseAhead {
-            applied: 2,
-            available: 1
+            applied: 3,
+            available: 2
         }
     );
 
     let unknown = SqliteDatabase::open_in_memory().expect("the database opens");
     baseline(&unknown).await;
-    insert_ledger_row(&unknown, 2).await;
+    insert_ledger_row(&unknown, 3).await;
     let probe = Migration {
-        version: 3,
+        version: 4,
         name: "probe",
         sql: "CREATE TABLE probe_version (id TEXT PRIMARY KEY) STRICT;",
     };
@@ -625,7 +672,7 @@ async fn a_database_ahead_or_an_unknown_applied_version_is_refused() {
         apply_migrations_in(&unknown, "runs", &available)
             .await
             .expect_err("the unknown applied version"),
-        MigrationError::UnknownApplied(2)
+        MigrationError::UnknownApplied(3)
     );
     assert!(
         !table_exists(&unknown, "probe_version").await,
@@ -636,10 +683,15 @@ async fn a_database_ahead_or_an_unknown_applied_version_is_refused() {
         checksum(include_str!("../migrations/sqlite/0001_runs_research.sql")),
         "the baseline checksum is not the checked-in body"
     );
+    assert_eq!(
+        checksum(migrations::sqlite()[1].sql),
+        checksum(include_str!("../migrations/sqlite/0002_stage.sql")),
+        "the stage migration checksum is not the checked-in body"
+    );
 }
 
 #[tokio::test]
-async fn the_ledger_holds_only_the_evidence_baseline() {
+async fn the_ledger_holds_only_the_evidence_migrations() {
     let database = SqliteDatabase::open_in_memory().expect("the database opens");
     baseline(&database).await;
     let rows: Vec<(String, i64, String)> = database
@@ -659,7 +711,10 @@ async fn the_ledger_holds_only_the_evidence_baseline() {
         .expect("the ledger rows");
     assert_eq!(
         rows,
-        vec![("runs".to_owned(), 1, "runs-research".to_owned())],
+        vec![
+            ("runs".to_owned(), 1, "runs-research".to_owned()),
+            ("runs".to_owned(), 2, "stage".to_owned()),
+        ],
         "the evidence ledger holds another service's rows"
     );
 }

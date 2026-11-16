@@ -110,9 +110,14 @@ def write_valid_tree(root: Path) -> None:
         grouped.setdefault(ledger.crate, []).append(ledger)
     for crate, rows in grouped.items():
         base = root / "crates" / crate
-        tables = tuple(table for row in rows for table in row.tables)
         baselines = sorted({row.baseline for row in rows if row.baseline})
         for baseline in baselines:
+            tables = tuple(
+                table
+                for row in rows
+                if row.baseline == baseline
+                for table in row.tables
+            )
             write(base / baseline, baseline_text(tables))
         if baselines:
             write(
@@ -123,6 +128,9 @@ def write_valid_tree(root: Path) -> None:
         for row in rows:
             if row.main is not None:
                 write(base / row.main, main_text(ledgers[0]))
+            tables = tuple(
+                table for other in rows if other.store == row.store for table in other.tables
+            )
             write(base / row.store, store_text(tables))
 
 

@@ -20,6 +20,7 @@ pub mod profile;
 pub mod run;
 pub mod sha256;
 pub mod simulation;
+pub mod stage;
 pub mod version;
 
 pub use catalog::{
@@ -41,6 +42,10 @@ pub use sha256::{sha256, sha256_hex};
 pub use simulation::{
     CreateSimulationRequest, Mark, MarkAction, MarkOrigin, MarkQuality, Side, SimulationId,
     SimulationStatus, SimulationSummary,
+};
+pub use stage::{
+    StageArtifact, StageArtifactError, StageInput, StageKind, StageProvenance, StageRunDetail,
+    StageRunId, StageRunRequest, StageRunSummary, StageState,
 };
 pub use version::{
     API_VERSION, BUNDLE_CONTRACT, DATASET_CONTRACT, DEPLOY_CONTRACT, LABELS_CONTRACT,

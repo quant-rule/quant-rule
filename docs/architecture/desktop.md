@@ -49,11 +49,12 @@ QR_DATA_DIR/
   synchronous commits, and WAL. A filesystem that refuses WAL is refused at
   startup rather than run in rollback mode.
 - One shared `schema_migrations` table carries a `ledger` column. Each service
-  owns one forward-only SQLite baseline starting at version 1 and records it
-  under its own ledger name; a changed body, an unknown version, and a database
-  ahead of the binary are refused. The baseline and its ledger row commit in one
-  immediate transaction. The queue creates its two tables outside that ledger,
-  which is why its adapter owns the DDL.
+  owns one forward-only SQLite ledger starting at version 1 and records every
+  baseline under its own ledger name; a changed body, an unknown version, and a
+  database ahead of the binary are refused. The baseline and its ledger row
+  commit in one immediate transaction. A new table family is an additive
+  migration, not a rewrite of an applied baseline. The queue creates its two
+  tables outside that ledger, which is why its adapter owns the DDL.
 - `model` and `backtest` own no schema and add no ledger.
 
 ## 3. Service, ledger, and prefix
@@ -64,11 +65,14 @@ QR_DATA_DIR/
 | `data` | `catalog` | `catalog` | `catalog__datasets`, `catalog__configs`, `catalog__config_bundles` | `0001_catalog.sql` |
 | `evidence` | `runs` | `runs` | `runs__runs`, `runs__stages`, `runs__artifacts`, `runs__submissions` | `0001_runs_research.sql` |
 | `evidence` | `runs` | `research` | `research__hypotheses` | `0001_runs_research.sql` |
+| `evidence` | `runs` | `stage` | `stage__runs`, `stage__submissions`, `stage__artifacts` | `0002_stage.sql` |
 | `simulation` | `simulation` | `simulation` | `simulation__runs`, `simulation__marks` | `0001_simulation.sql` |
 | runtime queue | none | `queue` | `queue__dead_letter`, `queue__messages` | adapter-owned DDL |
 
-Evidence owns two prefixes and one ledger and one baseline, so its history stays
-forward-only. The runtime queue has no service ledger and no binary of its own:
+Evidence owns three prefixes and one ledger, so its history stays forward-only.
+The run and research tables share the version-1 baseline; the stage tables are an
+additive version-2 migration, so an existing desktop database keeps its rows. The
+runtime queue has no service ledger and no binary of its own:
 `InProcessQueue` owns two idempotent `CREATE TABLE` statements in
 `src/adapters/inprocess.rs`, because the queue is runtime infrastructure rather
 than a service schema. The guard records that exception and still checks its
@@ -101,7 +105,7 @@ The inventory lives in the checker, not in a second list, so a migration, a tabl
 rename, or a new ledger that is not declared fails the gate. The guard scans
 service sources outside their `#[cfg(test)]` modules: a test may name another
 prefix to prove it is refused, and the runtime's shared `Schema` mapping may name
-all six.
+all seven.
 
 ## 6. Start and stop
 

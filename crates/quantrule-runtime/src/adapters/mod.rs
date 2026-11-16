@@ -69,6 +69,8 @@ pub enum Schema {
     Catalog,
     /// Runs, stages, artifacts, and submissions.
     Runs,
+    /// Diagnostic stage runs, submissions, and artifacts.
+    Stage,
     /// Sealed hypotheses.
     Research,
     /// The simulation research plane.
@@ -82,10 +84,11 @@ impl Schema {
     ///
     /// The order is the order the migrations are applied so a reader can walk
     /// the list; no schema has a cross-schema foreign key.
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 7] = [
         Self::Gateway,
         Self::Catalog,
         Self::Runs,
+        Self::Stage,
         Self::Research,
         Self::Simulation,
         Self::Queue,
@@ -98,6 +101,7 @@ impl Schema {
             Self::Gateway => "gateway",
             Self::Catalog => "catalog",
             Self::Runs => "runs",
+            Self::Stage => "stage",
             Self::Research => "research",
             Self::Simulation => "simulation",
             Self::Queue => "queue",
