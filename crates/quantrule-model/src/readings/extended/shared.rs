@@ -6,7 +6,11 @@ pub(super) fn mean_volume(candles: &[Candle], bar: usize, window: usize) -> Opti
         return None;
     }
     let start = bar + 1 - window;
-    let total: f64 = candles[start..=bar].iter().map(volume).sum();
+    let mut total = 0.0;
+    for candle in &candles[start..=bar] {
+        let volume = candle.volume()?;
+        total += volume;
+    }
     Some(total / window as f64)
 }
 
@@ -14,6 +18,10 @@ pub(super) fn typical_price(candle: &Candle) -> f64 {
     (candle.high() + candle.low() + candle.close()) / 3.0
 }
 
-pub(super) fn volume(candle: &Candle) -> f64 {
-    candle.volume().unwrap_or(0.0)
+/// The candle volume, or `None` when the source did not supply one.
+///
+/// A missing volume is not a zero volume: callers must leave the reading
+/// unavailable rather than substituting a value the market never produced.
+pub(super) fn volume(candle: &Candle) -> Option<f64> {
+    candle.volume()
 }

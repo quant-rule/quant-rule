@@ -35,7 +35,7 @@ server profile.
 | Repositories | Six repository types in four services take `PgPool` directly and use `sqlx` Postgres | `crates/quantrule-{data,evidence,simulation,gateway}-service/src/postgres.rs` |
 | SQL surface | About 55 statement sites, 13 migration files, five schemas, 11 `jsonb` uses, 13 `timestamptz` uses, `to_char`, `now()`, `FOR UPDATE`, `ON CONFLICT`, a PL/pgSQL trigger, and advisory locks | migration directories and the Postgres repositories |
 | Schema owners | `gateway`, `data` (catalog), `evidence` (runs and research), `simulation`; `model` and `backtest` own no schema | [services](../../architecture/services.md) section 1 |
-| SQLite precedent | The application memory is SQLite through bundled `rusqlite`, with `STRICT` tables, `PRAGMA user_version`, triggers, and deterministic ordering | [memory module](../../../crates/quantrule-app/src/memory/mod.rs) |
+| SQLite precedent | The application memory was SQLite through bundled `rusqlite`, with `STRICT` tables, `PRAGMA user_version`, triggers, and deterministic ordering; the module was removed on 2026-11-16 (`AUD-2026-11-16-13`) | `crates/quantrule-app/src/memory/mod.rs` (historical) |
 | Backend selection | No profile selector; every service unconditionally connects Postgres, S3, and RabbitMQ | `crates/quantrule-runtime/src/config.rs`, service `main.rs` files |
 | Desktop shell | Tauri 2 window over the gateway; no IPC command, no plugin, no local file read, no engine; AppImage and NSIS matrix exists; artifacts unsigned | [desktop shell](../../../apps/desktop-shell/README.md) |
 | Test tiers | Fast gate wired; `tools/test_tiers.sh composed` exits 2 because the composed suite is not wired (#643/#644) | `tools/test_tiers.sh` |

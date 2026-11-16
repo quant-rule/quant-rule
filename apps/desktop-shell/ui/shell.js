@@ -17,9 +17,9 @@ import {
   DEFAULT_GATEWAY_URL,
   GATEWAY_STORAGE_KEY,
   gatewayCandidates,
-  launchPlan,
   normalizeGatewayUrl,
   probeCandidates,
+  resolveLaunch,
   SHELL_VERSION,
   UPDATE_TIMEOUT_MS,
 } from "./shell-lib.js";
@@ -174,13 +174,11 @@ async function evaluate() {
     return;
   }
 
-  const reachable = reachableAt !== null;
-  const target = reachableAt ?? candidate;
   const updateAvailable = update.status === "available";
-  const plan = launchPlan({
-    reachable,
+  const { target, plan } = resolveLaunch({
+    candidate,
+    reachableAt,
     updateAvailable,
-    gatewayUrl: candidate,
   });
 
   if (plan.showUpdate) {
@@ -195,6 +193,12 @@ async function evaluate() {
     showOffline(candidate);
   }
 
+  // The configured URL is what is persisted. A supervisor fallback is this
+  // session's address, not a new setting: the next launch probes again. The
+  // resolved target is retained even when an update keeps the page visible, so
+  // Continue opens the address that answered.
+  gateway = target;
+
   if (!plan.open) {
     if (updateAvailable) {
       setStatus(
@@ -205,9 +209,6 @@ async function evaluate() {
     return;
   }
 
-  // The configured URL is what is persisted. A supervisor fallback is this
-  // session's address, not a new setting: the next launch probes again.
-  gateway = target;
   openGateway();
 }
 
@@ -231,7 +232,7 @@ function boot() {
     void evaluate();
   });
   elements.useDefault.addEventListener("click", useDefault);
-  elements.continueToGateway.addEventListener("click", connect);
+  elements.continueToGateway.addEventListener("click", openGateway);
 
   void evaluate();
 }

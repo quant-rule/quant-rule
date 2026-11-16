@@ -301,6 +301,37 @@ fn zero_volume_publishes_no_volume_weighted_readings() {
 }
 
 #[test]
+fn missing_volume_publishes_no_volume_weighted_readings() {
+    let candles: Vec<Candle> = (0..40)
+        .map(|index| {
+            let close = 100.0 + index as f64 * 0.1;
+            Candle::new(
+                index,
+                index as i64,
+                close,
+                close + 0.5,
+                close - 0.5,
+                close,
+                None,
+            )
+            .expect("the generated candle is valid")
+        })
+        .collect();
+    let readings = Readings::compute(&candles);
+    let extended = ExtendedReadings::compute(&candles, &readings, &ExtendedConfig::DEFAULT);
+    assert_extended_safe(&extended);
+    assert_eq!(extended.vwap.get(39), None);
+    assert_eq!(extended.poc.get(39), None);
+    assert_eq!(extended.rvol_fast.get(39), None);
+    assert_eq!(extended.rvol_ratio.get(39), None);
+    assert_eq!(extended.volume_oscillator.get(39), None);
+    assert_eq!(extended.obv.get(39), None);
+    assert_eq!(extended.ad_line.get(39), None);
+    assert_eq!(extended.cmf.get(39), None);
+    assert_eq!(extended.mfi.get(39), None);
+}
+
+#[test]
 fn equal_highs_and_lows_are_handled() {
     let candles = flat_series(40, 10.0);
     let readings = Readings::compute(&candles);

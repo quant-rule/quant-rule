@@ -125,7 +125,8 @@ pub(crate) async fn submit_run(
                 model_version,
                 image_digest,
                 owner: profile.as_str().to_owned(),
-                submitted_at: clock::now_utc(),
+                submitted_at: clock::now_utc()
+                    .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?,
             },
         )
         .await

@@ -23,7 +23,6 @@ use crate::csv::{SourceError, TolerantWindow};
 use crate::dataset::{Dataset, DatasetSummary};
 use crate::error::AppError;
 use crate::export;
-use crate::memory::{MemoryError, NewConfig, NewDataset, NewRun, NewWorkspace, ResearchMemory};
 use crate::pipeline::{self, WindowMode};
 use crate::stages::analytics::{self, AnalyticsOutcome, AnalyticsRequest, AnalyticsRunError};
 use crate::stages::backtest::{self, BacktestOutcome, BacktestRequest, BacktestRunError};
@@ -157,117 +156,6 @@ impl AppService {
             run: RunSummary::from_config(&config),
             model,
             summary,
-        })
-    }
-
-    /// Records one validated run in the local research memory.
-    ///
-    /// The service writes the workspace, dataset, configuration, and run in one
-    /// call. Metrics, claims, and notes are added separately through the
-    /// memory. The caller supplies every timestamp and the stable run key. The
-    /// three parent writes are idempotent; a duplicate run key leaves them in
-    /// place for the next successful record.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`AppError::Config`] for an invalid run, [`AppError::Dataset`]
-    /// when the source is missing, [`AppError::Source`] when it is not a valid
-    /// M1 source, and [`AppError::Memory`] when the memory rejects a record.
-    pub fn record_run(
-        &self,
-        memory: &ResearchMemory,
-        config: impl AsRef<Path>,
-        run_key: &str,
-        status: &str,
-        started_at: i64,
-        finished_at: Option<i64>,
-    ) -> Result<RecordedRun, AppError> {
-        self.record_run_with_model(
-            memory,
-            RecordRunInput {
-                config: config.as_ref(),
-                run_key,
-                status,
-                started_at,
-                finished_at,
-                model: None,
-            },
-        )
-    }
-
-    /// Records one validated run together with its computed model counts.
-    ///
-    /// The model summary is additive in the run's `summary_json`; the run and
-    /// its parents are still written in one call. A caller that has not
-    /// computed the model uses [`Self::record_run`].
-    ///
-    /// # Errors
-    ///
-    /// Returns the same errors as [`Self::record_run`].
-    pub fn record_run_with_model(
-        &self,
-        memory: &ResearchMemory,
-        input: RecordRunInput<'_>,
-    ) -> Result<RecordedRun, AppError> {
-        let run = self.load_run(input.config)?;
-        let summary = RunSummary::from_config(&run);
-        let dataset = Dataset::open(&summary.data_source)?.summary()?;
-        let root = self.workspace.root().to_string_lossy();
-        let workspace_name = self.workspace.name();
-        let workspace_id = memory.upsert_workspace(NewWorkspace {
-            root: &root,
-            name: &workspace_name,
-            created_at: input.started_at,
-        })?;
-        let dataset_path = dataset.path.to_string_lossy();
-        let candles = i64::try_from(dataset.candles).map_err(|_| {
-            AppError::Memory(MemoryError::InvalidRecord(String::from(
-                "dataset candle count does not fit i64",
-            )))
-        })?;
-        let dataset_id = memory.upsert_dataset(NewDataset {
-            workspace_id,
-            name: &dataset.name,
-            path: &dataset_path,
-            data_version: &summary.data_version,
-            instrument: &summary.instrument,
-            candles,
-            first_open_time: dataset.first_open_time,
-            last_open_time: dataset.last_open_time,
-            created_at: input.started_at,
-        })?;
-        let config_path =
-            fs::canonicalize(&run.paths.run).unwrap_or_else(|_| run.paths.run.clone());
-        let config_path = config_path.to_string_lossy();
-        let config_id = memory.upsert_config(NewConfig {
-            workspace_id,
-            name: &summary.name,
-            path: &config_path,
-            config_hash: &summary.config_hash,
-            schema_version: &run.schema_version,
-            created_at: input.started_at,
-        })?;
-        let mut summary_value = export::run_summary_json(&summary);
-        if let Some(model) = input.model {
-            summary_value["model"] = export::model_summary_json(model);
-        }
-        let summary_json = serde_json::to_string(&summary_value).map_err(MemoryError::Json)?;
-        let run_id = memory.insert_run(NewRun {
-            workspace_id,
-            config_id: Some(config_id),
-            run_key: input.run_key,
-            data_version: &summary.data_version,
-            config_hash: &summary.config_hash,
-            status: input.status,
-            started_at: input.started_at,
-            finished_at: input.finished_at,
-            summary_json: &summary_json,
-        })?;
-        Ok(RecordedRun {
-            workspace_id,
-            dataset_id,
-            config_id,
-            run_id,
         })
     }
 
@@ -516,36 +404,6 @@ impl RunSummary {
     }
 }
 
-/// One run to record, optionally with its computed model counts.
-#[derive(Debug, Clone, Copy)]
-pub struct RecordRunInput<'a> {
-    /// The run configuration path.
-    pub config: &'a Path,
-    /// The caller-supplied stable run key.
-    pub run_key: &'a str,
-    /// The run status code.
-    pub status: &'a str,
-    /// The caller-supplied UTC Unix start second.
-    pub started_at: i64,
-    /// The caller-supplied UTC Unix finish second.
-    pub finished_at: Option<i64>,
-    /// The computed model counts, when the caller has run the model.
-    pub model: Option<&'a ModelRunSummary>,
-}
-
-/// The stable IDs written by [`AppService::record_run`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RecordedRun {
-    /// The workspace row.
-    pub workspace_id: i64,
-    /// The dataset row.
-    pub dataset_id: i64,
-    /// The configuration row.
-    pub config_id: i64,
-    /// The run row.
-    pub run_id: i64,
-}
-
 /// A completed model run and the adapter-facing views of it.
 #[derive(Debug)]
 pub struct ModelRunOutcome {
@@ -610,7 +468,6 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     use super::AppService;
-    use crate::config::RUN_SCHEMA_V3;
 
     fn fixture_run() -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -651,131 +508,6 @@ mod tests {
                 .timeframes
                 .windows(2)
                 .all(|pair| pair[0].timeframe_secs < pair[1].timeframe_secs)
-        );
-    }
-
-    #[test]
-    fn recording_a_run_writes_every_record() {
-        let memory = crate::memory::ResearchMemory::open_in_memory().expect("the memory opens");
-        let recorded = workspace()
-            .record_run(
-                &memory,
-                fixture_run(),
-                "run-1",
-                "complete",
-                1_763_000_000,
-                Some(1_763_000_060),
-            )
-            .expect("the run is recorded");
-        let expected_name = workspace().workspace().name();
-        let workspace = memory
-            .workspace(recorded.workspace_id)
-            .expect("the workspace is read")
-            .expect("the workspace exists");
-        assert_eq!(workspace.name, expected_name);
-        assert_ne!(workspace.name, "fixture");
-        let datasets = memory
-            .datasets(recorded.workspace_id)
-            .expect("the datasets are read");
-        assert_eq!(datasets.len(), 1);
-        assert_eq!(datasets[0].data_version, "test:v1");
-        assert!(datasets[0].candles > 0);
-        let configs = memory
-            .configs(recorded.workspace_id)
-            .expect("the configs are read");
-        assert_eq!(configs.len(), 1);
-        assert_eq!(configs[0].schema_version, RUN_SCHEMA_V3);
-        let run = memory
-            .run(recorded.run_id)
-            .expect("the run is read")
-            .expect("the run exists");
-        assert_eq!(run.run_key, "run-1");
-        assert_eq!(run.status, "complete");
-        assert!(run.summary_json.contains("\"fixture\""));
-    }
-
-    #[test]
-    fn recording_a_model_run_stores_the_model_summary() {
-        let memory = crate::memory::ResearchMemory::open_in_memory().expect("the memory opens");
-        let service = workspace();
-        let outcome = service.run_model(fixture_run()).expect("the model runs");
-        let config = fixture_run();
-        let recorded = service
-            .record_run_with_model(
-                &memory,
-                super::RecordRunInput {
-                    config: &config,
-                    run_key: "model-run-1",
-                    status: "complete",
-                    started_at: 1,
-                    finished_at: Some(2),
-                    model: Some(&outcome.summary),
-                },
-            )
-            .expect("the model run is recorded");
-        let run = memory
-            .run(recorded.run_id)
-            .expect("the run is read")
-            .expect("the run exists");
-        let summary: serde_json::Value =
-            serde_json::from_str(&run.summary_json).expect("the summary is JSON");
-        assert_eq!(summary["model"]["events"], outcome.summary.events);
-        assert_eq!(
-            summary["model"]["timeframes"]
-                .as_array()
-                .expect("the model timeframes are an array")
-                .len(),
-            outcome.summary.timeframes.len()
-        );
-    }
-
-    #[test]
-    fn the_workspace_name_is_the_root_name() {
-        let memory = crate::memory::ResearchMemory::open_in_memory().expect("the memory opens");
-        let service = workspace();
-        let expected_name = service.workspace().name();
-        let recorded = service
-            .record_run(&memory, fixture_run(), "name-1", "complete", 1, None)
-            .expect("the run is recorded");
-        let workspace = memory
-            .workspace(recorded.workspace_id)
-            .expect("the workspace is read")
-            .expect("the workspace exists");
-        assert_eq!(workspace.name, expected_name);
-        assert_ne!(workspace.name, "fixture");
-    }
-
-    #[test]
-    fn the_same_workspace_root_is_recorded_once() {
-        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let first = AppService::open(&root).expect("the absolute root opens");
-        let second = AppService::open(root.join(".")).expect("the dotted root opens");
-        let memory = crate::memory::ResearchMemory::open_in_memory().expect("the memory opens");
-        first
-            .record_run(&memory, fixture_run(), "canonical-1", "complete", 1, None)
-            .expect("the first run is recorded");
-        second
-            .record_run(&memory, fixture_run(), "canonical-2", "complete", 2, None)
-            .expect("the second run is recorded");
-        let workspaces = memory.workspaces().expect("the workspaces are read");
-        assert_eq!(workspaces.len(), 1);
-        let workspace = workspaces[0].id;
-        assert_eq!(memory.datasets(workspace).expect("datasets").len(), 1);
-        assert_eq!(memory.configs(workspace).expect("configs").len(), 1);
-        assert_eq!(memory.runs(workspace).expect("runs").len(), 2);
-    }
-
-    #[test]
-    fn recording_the_same_run_key_twice_is_rejected() {
-        let memory = crate::memory::ResearchMemory::open_in_memory().expect("the memory opens");
-        let service = workspace();
-        service
-            .record_run(&memory, fixture_run(), "run-1", "complete", 1, None)
-            .expect("the first run is recorded");
-        assert!(
-            service
-                .record_run(&memory, fixture_run(), "run-1", "complete", 2, None)
-                .is_err()
         );
     }
 

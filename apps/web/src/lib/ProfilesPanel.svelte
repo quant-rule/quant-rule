@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { create, load, profiles } from "./profiles.svelte";
+  import { switchProfile } from "./profileScope.svelte";
 
   const view = $derived(profiles());
   let profileId = $state("");
@@ -15,9 +16,11 @@
     if (profileId.trim() === "" || name.trim() === "") {
       return;
     }
-    if (await create(profileId.trim(), name.trim())) {
+    const id = profileId.trim();
+    if (await create(id, name.trim())) {
       profileId = "";
       name = "";
+      await switchProfile(id);
     }
   }
 </script>

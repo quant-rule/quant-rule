@@ -18,6 +18,21 @@ let current = $state<Datasets>({
   lastQuality: null,
 });
 
+/** A counter that makes an in-flight read from a previous profile stale. */
+let generation = 0;
+
+/** Drop every row; the next read belongs to the active profile. */
+export function reset(): void {
+  generation += 1;
+  current = {
+    items: [],
+    loading: false,
+    uploading: false,
+    error: null,
+    lastQuality: null,
+  };
+}
+
 /** Read the current datasets state. */
 export function datasets(): Datasets {
   return current;
@@ -25,24 +40,41 @@ export function datasets(): Datasets {
 
 /** Load the profile's datasets. A failure shows the code and drops stale rows. */
 export async function load(): Promise<void> {
+  const at = generation;
   current = { ...current, loading: true, error: null, lastQuality: null };
   try {
     const items = await call<DatasetSummary[]>("/catalog/datasets");
+    if (at !== generation) {
+      return;
+    }
     current = { ...current, items, loading: false };
   } catch (error) {
+    if (at !== generation) {
+      return;
+    }
     current = { ...current, items: [], loading: false, error: errorText(error) };
   }
 }
 
 /** Upload one CSV, then reload the list so the server's record is what shows. */
 export async function upload(file: File, tolerant = false): Promise<void> {
+  const at = generation;
   current = { ...current, uploading: true, error: null, lastQuality: null };
   try {
     const record = await uploadDataset(file, { tolerant });
+    if (at !== generation) {
+      return;
+    }
     current = { ...current, uploading: false };
     await load();
+    if (at !== generation) {
+      return;
+    }
     current = { ...current, lastQuality: record.quality };
   } catch (error) {
+    if (at !== generation) {
+      return;
+    }
     current = { ...current, uploading: false, error: errorText(error) };
   }
 }

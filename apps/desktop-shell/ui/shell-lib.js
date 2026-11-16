@@ -198,6 +198,29 @@ export function launchPlan({ reachable, updateAvailable, gatewayUrl }) {
 }
 
 /**
+ * Resolve a probe result into the address this session opens.
+ *
+ * The configured candidate is what the human typed and what is persisted. The
+ * reachable fallback is this session's address: storing it as a setting would
+ * hide the supervisor's port walk from the next launch. The resolved target is
+ * returned separately so "Continue" uses the address that answered even when a
+ * newer release keeps the bootstrap page visible.
+ *
+ * @param {{candidate: string, reachableAt: string | null, updateAvailable: boolean}} state
+ * @returns {{target: string, plan: {open: boolean, showUpdate: boolean, showOffline: boolean}}}
+ */
+export function resolveLaunch({ candidate, reachableAt, updateAvailable }) {
+  return {
+    target: reachableAt ?? candidate,
+    plan: launchPlan({
+      reachable: reachableAt !== null,
+      updateAvailable,
+      gatewayUrl: candidate,
+    }),
+  };
+}
+
+/**
  * Parse a release tag into its numeric parts.
  *
  * @param {unknown} tag

@@ -14,12 +14,16 @@
   onMount(() => {
     void (async () => {
       await loadDatasets();
-      const items = datasets().items;
-      if (dataVersion === "" && items.length > 0) {
-        dataVersion = items[0].data_version;
-      }
       await load();
     })();
+  });
+
+  // A profile switch replaces the dataset list; the old selection must not
+  // survive as the dataset a submitted run would name.
+  $effect(() => {
+    if (!data.items.some((item) => item.data_version === dataVersion)) {
+      dataVersion = data.items[0]?.data_version ?? "";
+    }
   });
 </script>
 

@@ -95,7 +95,8 @@ pub(crate) async fn create_mark(
     };
     let mut mark =
         research::build_mark(&run, &loaded, draft, MarkOrigin::Human).map_err(research_failure)?;
-    mark.created_at = clock::now_utc();
+    mark.created_at =
+        clock::now_utc().map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
     let stored = store(&state)?
         .put_mark(profile.clone(), sim_id.clone(), mark)
         .await
@@ -180,7 +181,8 @@ pub(crate) async fn run_oracle(
     let loaded = bundle::load(objects, &run.bundle)
         .await
         .map_err(bundle_failure)?;
-    let created_at = clock::now_utc();
+    let created_at =
+        clock::now_utc().map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
     let mut marks = research::oracle_marks(&run, &loaded).map_err(research_failure)?;
     for mark in &mut marks {
         mark.created_at.clone_from(&created_at);

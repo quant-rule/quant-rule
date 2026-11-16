@@ -279,6 +279,9 @@ start_stack() {
   start_stdin_holder "$fifo"
 
   say "$label: starting the packaged supervisor on $base with a fresh data directory"
+  # The supervisor passes an explicit QR_IMAGE_DIGEST through unchanged, so this
+  # package records the server oracle's digest. Without it the supervisor would
+  # export the digest of the six sidecars in this AppImage.
   QR_PROFILE=desktop QR_DATA_DIR="$data_dir" QR_IMAGE_DIGEST="$image_digest" \
     DOCKER_HOST="unix:///nonexistent/quantrule-package-smoke.sock" \
     "$supervisor" \

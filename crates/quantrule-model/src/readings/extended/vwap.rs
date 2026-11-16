@@ -17,13 +17,16 @@ pub(super) fn vwap_series(
         let start = bar + 1 - window;
         let mut weighted = 0.0;
         let mut total = 0.0;
+        let mut complete = true;
         for candle in &candles[start..=bar] {
-            let price = typical_price(candle);
-            let volume = volume(candle);
-            weighted += price * volume;
+            let Some(volume) = volume(candle) else {
+                complete = false;
+                break;
+            };
+            weighted += typical_price(candle) * volume;
             total += volume;
         }
-        if total <= 0.0 {
+        if !complete || total <= 0.0 {
             continue;
         }
         let center = weighted / total;

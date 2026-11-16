@@ -42,12 +42,12 @@ repeating a status.
 | Strategy | No accepted strategy baseline; the tier is gated by an accepted model baseline. |
 | Portfolio | No accepted portfolio baseline; the tier is gated by an accepted strategy baseline. |
 | Data partitions | `model_dev` 2018–2020, `model_validation` 2021–2022, `strategy_dev` 2018–2022, `strategy_validation` 2024, `portfolio_dev` 2024, `portfolio_holdout` 2025; 2023 excluded. A dense Binance BTCUSDT cross-venue source exists outside the partitions. |
-| Improvement workflow | Current; the S3 surface is implemented; the SR1/SR2 strategy runs, the SR3 feature programme, the SR4 multi-instrument fade, the SR5 absorption count gate, the SR6 VWAP rejection run, the SR7 BTC+ETH H3 cross-section, the SR8 2023 buffer test, the SR8-A 2023 archive data rejection, the SR9 15m structure campaign, and the Binance BTCUSDT cross-venue check are recorded; no baseline accepted; human acceptance pending. |
+| Improvement workflow | Current; the run store is implemented; the SR1/SR2 strategy runs, the SR3 feature programme, the SR4 multi-instrument fade, the SR5 absorption count gate, the SR6 VWAP rejection run, the SR7 BTC+ETH H3 cross-section, the SR8 2023 buffer test, the SR8-A 2023 archive data rejection, the SR9 15m structure campaign, and the Binance BTCUSDT cross-venue check are recorded; no baseline accepted; human acceptance pending. |
 | Run contract | Current; `quantrule.improvement-run/v2` is current, v1 is historical. |
 | Research swarm | Current contract; no active campaign. |
 | Release tags | `v1.0.0` is the latest published release (2026-11-15), the desktop release; the tag was renumbered from the version prepared as `v1.1.0`, with image digest `sha256:a133ff14…` and both desktop assets. `v0.9.0` is the previous (distributed platform) release, with image digest `sha256:1250438f…`; the tag mapping is in `docs/releases/README.md`. |
 | Changelog | Grouped release history; `1.1.0` is the current section, keeping its original heading after the 2026-11-15 tag renumbering. |
-| Tooling | The shell is the agent command path; it makes one gateway call per command. `tools/improvement/run_current.py` remains the research path. `tools/gate.sh` runs the workspace gate. The distributed stack adds `make` targets and six services, specified in [deployment.md](architecture/deployment.md). The `simulation` service and the browser client own chart-first research; the Python simulation, chart, oracle, and trade tools are retired by DIST-105. Python is confined to repository governance; the product image carries none ([ADR-10](adr/2026-11-12/10-python-boundary.md)). |
+| Tooling | The shell is the agent command path; it makes one gateway call per command. The improvement run store records evidence; the gateway `run submit` is the current execution path. `tools/gate.sh` runs the workspace gate. The distributed stack adds `make` targets and six services, specified in [deployment.md](architecture/deployment.md). The `simulation` service and the browser client own chart-first research; the Python simulation, chart, oracle, and trade tools are retired by DIST-105. Python is confined to repository governance; the product image carries none ([ADR-10](adr/2026-11-12/10-python-boundary.md)). |
 
 ## Current architecture
 
@@ -99,8 +99,8 @@ repeating a status.
 | Analytics lab tutorial | Historical; v0.3.0 analytics | `docs/tutorials/2026-11-06/analytics-lab.md` |
 | Pipeline lab tutorial | Historical; the v0.3.0 stage surface | `docs/tutorials/2026-11-06/pipeline-lab.md` |
 | Shell HTTP tutorial | Current; the v1.0.0 gateway client, profiles, runs, and simulation verbs | `docs/tutorials/2026-11-14/shell-http.md` |
-| Indicator verification matrix | Current; 46 rows, generated from the evidence map | `docs/model/2026-11-06/indicator-verification.md` |
-| Event verification matrix | Current; 143 rows, generated from the evidence map | `docs/model/2026-11-06/event-verification.md` |
+| Indicator verification matrix | Current; 49 rows, generated from the evidence map | `docs/model/2026-11-06/indicator-verification.md` |
+| Event verification matrix | Current; 150 rows, generated from the evidence map | `docs/model/2026-11-06/event-verification.md` |
 | Verification evidence map | Current; row/family/tool/n-a scope per class | `docs/registry/verification.json` |
 
 ## Current run contracts
@@ -108,10 +108,10 @@ repeating a status.
 | Contract | Status | Path |
 |---|---|---|
 | Run v3 and portfolio constraints | Current; `run v3`, data schema 3, model schema 4, `execution v2`, `portfolio v2` | `docs/config/2026-11-11/run-v3-and-portfolio-constraints.md` |
-| Local research memory | Historical; local SQLite removed in v1.0.0; memory moves to the evidence service (#661) | `docs/config/2026-11-11/research-memory-v1.md` |
+| Local research memory | Historical; the local SQLite module was removed on 2026-11-16; memory lives in the evidence service (#661) | `docs/config/2026-11-11/research-memory-v1.md` |
 | Client surfaces | `v1.1.0`: Svelte browser client, command shell, and a Tauri desktop package over the gateway URL | `docs/architecture/client.md` |
 | Distribution | Current; container image and GitHub Release assets. The static page was retired | `ADR-2026-11-12-08` |
-| Desktop profile | Current for v1.1.0: embedded SQLite/filesystem/durable-queue profile, six-sidecar supervisor, Linux and Windows installers, and server↔desktop parity verified. `v1.1.0` is the latest release record; the tag is created after the release PR merges. | [`apps/desktop-shell/README.md`](../apps/desktop-shell/README.md) |
+| Desktop profile | Current for v1.1.0: embedded SQLite/filesystem/durable-queue profile, six-sidecar supervisor, Linux and Windows installers, and server↔desktop parity verified. The release note keeps its `v1.1.0` heading; the current tag is `v1.0.0`. | [`apps/desktop-shell/README.md`](../apps/desktop-shell/README.md) |
 | Policy blueprint | Historical; superseded by run v3 | `docs/config/2026-10-30/policy-and-strategy.md` |
 | Config tree | Current; current, evidence, and historical directories | `config/README.md` |
 | Available timeframes | `quantrule.data/v3` | `docs/config/2026-10-30/data-v3.md` |
@@ -210,7 +210,7 @@ of workflow status; this page does not repeat it.
 | Quant Validator | [Quant Validator Manual](roles/2026-10-29/quant-validator-manual.md) | Historical pre-M1.0 manual; the role definition in `AGENTS.md` section 10 remains normative |
 | Statistical Methodologist | `AGENTS.md` section 10 (Quant Researcher specialization) | Current; MR7 power/MDE and multiple-testing worksheet |
 | All three | [Quant roles overview](roles/2026-10-29/quant-roles.md) | Current role map and handoff chain |
-| Improvement Workflow | [Improvement Workflow roles](roles/2026-10-30/improvement-workflow-roles.md) | Current; the S3 surface is implemented, no tiered run has used it yet |
+| Improvement Workflow | [Improvement Workflow roles](roles/2026-10-30/improvement-workflow-roles.md) | Current; the run store is implemented, no tiered run has used it yet |
 | Audit Workflow | [Audit Workflow roles](roles/2026-10-30/audit-workflow-roles.md) | Current |
 | Refactor Workflow | [Refactor Workflow roles](roles/2026-11-06/refactor-workflow-roles.md) | Current |
 | Data Steward | `AGENTS.md` section 10 | Current; owns the data input boundary |
@@ -219,7 +219,7 @@ of workflow status; this page does not repeat it.
 
 `data/` is a local workspace. Only its README files and `partitions.json` are
 committed; candles, reports, and run artifacts stay local. The shell stores only
-its default profile under `QUANTRULE_HOME`; research memory moves to the
+its default profile under `QUANTRULE_HOME`; research memory lives in the
 evidence service.
 
 ## Developer tools
@@ -238,13 +238,15 @@ evidence service.
 | Changelog checker | Checks the grouped release structure, allowed types, and release order. | `tools/check_changelog.py` |
 | Release checker | Checks release notes, tag names, dates, and changelog alignment. | `tools/check_releases.py` |
 | Partition checker | Checks canonical instruments, aliases, partitions, and config references. | `tools/check_partitions.py` |
-| Command-surface checker | Fails when `help.rs`, the README command table, the command registry, or a tutorial disagree; keeps planned commands out of the available surface. | `tools/check_command_surface.py` |
+| Command-surface checker | Fails when `help.rs`, the README command table, the command registry, a tutorial, a current workflow, or the `AGENTS.md` surface list disagree; keeps planned commands out of the available surface. | `tools/check_command_surface.py` |
+| Client-doc checker | Checks the client screen and store tables, the navigation labels, and the indicator/event counts. | `tools/check_client_docs.py` |
+| Composed tier | Checks a running Compose stack's gateway, then submits two equivalent runs and compares their canonical digest. | `tools/composed.sh` |
 | Structural fitness checker | Enforces module docs, engine purity, data allowlist, workflow indexing, dated docs directories, and naming rules; reports size, surface, and layout metrics. | `tools/check_structure.py` |
 
 The historical experiment matrix runner and research model-cell runner are
 retained for reproducibility and are not current tools. The improvement run store
-has a current adapter (`run_current.py`) and historical scripts (`run.py` and the
-earlier harnesses). The boundary is recorded in
+retains its historical adapters (`run_current.py` and `run.py`) for reproducing
+pre-cutover runs. The boundary is recorded in
 [`tools/improvement/README.md`](../tools/improvement/README.md),
 [`tools/experiment/README.md`](../tools/experiment/README.md), and
 [`tools/research/README.md`](../tools/research/README.md).
@@ -254,19 +256,21 @@ earlier harnesses). The boundary is recorded in
 | Release | Tag | Notes |
 |---|---|---|
 | Release index and tag rule | — | [`docs/releases/README.md`](releases/README.md) |
-| Desktop profile | `v1.1.0` | [`docs/releases/2026-11-15/v1.1.0.md`](releases/2026-11-15/v1.1.0.md) |
-| Distributed platform | `v1.0.0` | [`docs/releases/2026-11-15/v1.0.0.md`](releases/2026-11-15/v1.0.0.md) |
-| Tauri Platform | `v0.9.0` | [`docs/releases/2026-11-11/v0.9.0.md`](releases/2026-11-11/v0.9.0.md) |
-| Last pre-Tauri release | `v0.8.0` | [`docs/releases/2026-11-11/v0.8.0.md`](releases/2026-11-11/v0.8.0.md) |
-| Model states, session coverage, and SR9 | `v0.7.0` | [`docs/releases/2026-11-09/v0.7.0.md`](releases/2026-11-09/v0.7.0.md) |
-| Workflow documentation reset | `v0.6.0` | [`docs/releases/2026-11-07/v0.6.0.md`](releases/2026-11-07/v0.6.0.md) |
-| Workflow reset baseline | `v0.5.0` | [`docs/releases/2026-11-01/v0.5.0.md`](releases/2026-11-01/v0.5.0.md) |
+| Desktop profile | `v1.0.0` | [`docs/releases/2026-11-15/v1.1.0.md`](releases/2026-11-15/v1.1.0.md) |
+| Distributed platform | `v0.9.0` | [`docs/releases/2026-11-15/v1.0.0.md`](releases/2026-11-15/v1.0.0.md) |
+| Tauri Platform | `v0.8.0` | [`docs/releases/2026-11-11/v0.9.0.md`](releases/2026-11-11/v0.9.0.md) |
+| Last pre-Tauri release | `v0.7.0` | [`docs/releases/2026-11-11/v0.8.0.md`](releases/2026-11-11/v0.8.0.md) |
+| Model states, session coverage, and SR9 | `v0.6.0` | [`docs/releases/2026-11-09/v0.7.0.md`](releases/2026-11-09/v0.7.0.md) |
+| Workflow documentation reset | `v0.5.0` | [`docs/releases/2026-11-07/v0.6.0.md`](releases/2026-11-07/v0.6.0.md) |
+| Workflow reset baseline | `v0.4.0` | [`docs/releases/2026-11-01/v0.5.0.md`](releases/2026-11-01/v0.5.0.md) |
 | Lab Summary and Help | `v0.3.0` | [`docs/releases/2026-10-30/v0.3.0.md`](releases/2026-10-30/v0.3.0.md) |
-| MVP v1 | `v0.2.0` | [`docs/releases/2026-10-28/v0.2.0.md`](releases/2026-10-28/v0.2.0.md) |
+| MVP v1 | `v0.1.0` | [`docs/releases/2026-10-28/v0.2.0.md`](releases/2026-10-28/v0.2.0.md) |
 
 These releases describe surfaces that the P3 cutover later removed. They remain the
-record of what was released. Historical tags `v0.4.0-exp-baseline` and
-`audit-closure-2026-10-30` are retained as markers; they are not releases.
+record of what was released. The historical markers `v0.4.0-exp-baseline` and
+`audit-closure-2026-10-30` were renumbered to `v0.4.0` and `v0.2.0`; the latter
+shares the `v0.3.0` note, which records that date. The authoritative
+current-tag map is in [`docs/releases/README.md`](releases/README.md).
 
 ## Current programs
 

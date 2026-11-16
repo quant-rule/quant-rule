@@ -265,7 +265,7 @@ async fn conformance(store: &dyn SimulationStore) {
     assert_eq!(
         listed
             .iter()
-            .map(|row| row.sim_id.as_str())
+            .map(|row| row.sim_id.to_string())
             .collect::<Vec<_>>(),
         vec!["sim_conformance_2", "sim_conformance_1"]
     );

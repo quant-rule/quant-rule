@@ -513,11 +513,11 @@ pub fn simulate(
 /// Aggregate the per-entry results by side and rule.
 #[must_use]
 pub fn aggregate(rows: &[EntryResult], label: &str) -> Vec<Aggregate> {
-    let mut groups: BTreeMap<(&str, &str), Vec<&RuleResult>> = BTreeMap::new();
+    let mut groups: BTreeMap<(Side, &str), Vec<&RuleResult>> = BTreeMap::new();
     for row in rows {
         for (rule, result) in &row.results {
             groups
-                .entry((row.side.as_str(), rule.as_str()))
+                .entry((row.side, rule.as_str()))
                 .or_default()
                 .push(result);
         }
@@ -532,7 +532,7 @@ pub fn aggregate(rows: &[EntryResult], label: &str) -> Vec<Aggregate> {
                 .collect();
             Aggregate {
                 set: label.to_owned(),
-                side: Side::parse(side).expect("stored schema word"),
+                side,
                 rule: rule.to_owned(),
                 n: results.len(),
                 mean_return: mean(&returns).unwrap_or(0.0),

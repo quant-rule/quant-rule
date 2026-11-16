@@ -8,6 +8,10 @@ fn candle(index: u64, open: f64, high: f64, low: f64, close: f64, volume: f64) -
     Candle::new(index, index as i64, open, high, low, close, Some(volume)).expect("valid candle")
 }
 
+fn candle_with_optional_volume(index: u64, volume: Option<f64>) -> Candle {
+    Candle::new(index, index as i64, 10.0, 10.5, 9.5, 10.0, volume).expect("valid candle")
+}
+
 fn readings(candles: &[Candle]) -> Readings {
     Readings::compute_with_config(candles, &ReadingsConfig::DEFAULT)
 }
@@ -42,6 +46,43 @@ fn vwap_is_null_without_volume() {
     let readings = readings(&candles);
     let extended = ExtendedReadings::compute(&candles, &readings, &config);
     assert_eq!(extended.vwap.get(1), None);
+}
+
+#[test]
+fn vwap_requires_every_volume_in_the_window() {
+    let candles = [
+        candle_with_optional_volume(0, Some(1.0)),
+        candle_with_optional_volume(1, None),
+        candle_with_optional_volume(2, Some(3.0)),
+        candle_with_optional_volume(3, Some(4.0)),
+    ];
+    let config = ExtendedConfig {
+        vwap_window: 2,
+        ..ExtendedConfig::DEFAULT
+    };
+    let extended = ExtendedReadings::compute(&candles, &readings(&candles), &config);
+    assert_eq!(extended.vwap.get(1), None);
+    assert_eq!(extended.vwap.get(2), None);
+    assert_eq!(extended.vwap.get(3), Some(10.0));
+}
+
+#[test]
+fn profile_requires_every_volume_in_the_window() {
+    let candles = [
+        candle_with_optional_volume(0, Some(1.0)),
+        candle_with_optional_volume(1, None),
+        candle_with_optional_volume(2, Some(3.0)),
+        candle_with_optional_volume(3, Some(4.0)),
+    ];
+    let config = ExtendedConfig {
+        profile_window: 2,
+        profile_bins: 2,
+        ..ExtendedConfig::DEFAULT
+    };
+    let extended = ExtendedReadings::compute(&candles, &readings(&candles), &config);
+    assert_eq!(extended.poc.get(1), None);
+    assert_eq!(extended.poc.get(2), None);
+    assert!(extended.poc.get(3).is_some());
 }
 
 #[test]
@@ -226,6 +267,96 @@ fn obv_accumulates_signed_volume() {
     assert_eq!(extended.obv.get(0), Some(0.0));
     assert_eq!(extended.obv.get(1), Some(2.0));
     assert_eq!(extended.obv.get(2), Some(-1.0));
+}
+
+#[test]
+fn cumulative_flow_is_null_after_a_missing_volume() {
+    let candles = [
+        candle_with_optional_volume(0, Some(1.0)),
+        candle_with_optional_volume(1, None),
+        candle_with_optional_volume(2, Some(3.0)),
+        candle_with_optional_volume(3, Some(4.0)),
+    ];
+    let extended =
+        ExtendedReadings::compute(&candles, &readings(&candles), &ExtendedConfig::DEFAULT);
+    assert_eq!(extended.obv.get(0), Some(0.0));
+    assert_eq!(extended.obv.get(1), None);
+    assert_eq!(extended.obv.get(2), None);
+    assert_eq!(extended.obv.get(3), None);
+    assert_eq!(extended.ad_line.get(0), Some(0.0));
+    assert_eq!(extended.ad_line.get(1), None);
+    assert_eq!(extended.ad_line.get(2), None);
+    assert_eq!(extended.ad_line.get(3), None);
+}
+
+#[test]
+fn cumulative_flow_has_no_seed_when_the_first_volume_is_missing() {
+    let candles = [
+        candle_with_optional_volume(0, None),
+        candle_with_optional_volume(1, Some(1.0)),
+    ];
+    let extended =
+        ExtendedReadings::compute(&candles, &readings(&candles), &ExtendedConfig::DEFAULT);
+    assert_eq!(extended.obv.get(0), None);
+    assert_eq!(extended.obv.get(1), None);
+    assert_eq!(extended.ad_line.get(0), None);
+    assert_eq!(extended.ad_line.get(1), None);
+}
+
+#[test]
+fn cmf_and_mfi_require_complete_volume_windows() {
+    let candles = [
+        candle_with_optional_volume(0, Some(1.0)),
+        candle_with_optional_volume(1, None),
+        candle_with_optional_volume(2, Some(3.0)),
+        candle_with_optional_volume(3, Some(4.0)),
+    ];
+    let config = ExtendedConfig {
+        flow_window: 2,
+        mfi_window: 2,
+        ..ExtendedConfig::DEFAULT
+    };
+    let extended = ExtendedReadings::compute(&candles, &readings(&candles), &config);
+    assert_eq!(extended.cmf.get(1), None);
+    assert_eq!(extended.cmf.get(2), None);
+    assert_eq!(extended.cmf.get(3), Some(0.0));
+    assert_eq!(extended.mfi.get(2), None);
+}
+
+#[test]
+fn participation_requires_a_complete_volume_window() {
+    let candles = [
+        candle_with_optional_volume(0, Some(10.0)),
+        candle_with_optional_volume(1, None),
+        candle_with_optional_volume(2, Some(10.0)),
+        candle_with_optional_volume(3, Some(10.0)),
+    ];
+    let config = ExtendedConfig {
+        rvol_fast: 2,
+        rvol_slow: 2,
+        volume_oscillator: 2,
+        ..ExtendedConfig::DEFAULT
+    };
+    let extended = ExtendedReadings::compute(&candles, &readings(&candles), &config);
+    assert_eq!(extended.rvol_fast.get(1), None);
+    assert_eq!(extended.rvol_fast.get(2), None);
+    assert_eq!(extended.rvol_fast.get(3), Some(1.0));
+    assert_eq!(extended.volume_oscillator.get(2), None);
+}
+
+#[test]
+fn a_measured_zero_volume_against_a_positive_baseline_is_zero() {
+    let candles = [
+        candle_with_optional_volume(0, Some(10.0)),
+        candle_with_optional_volume(1, Some(10.0)),
+        candle_with_optional_volume(2, Some(0.0)),
+    ];
+    let config = ExtendedConfig {
+        rvol_fast: 2,
+        ..ExtendedConfig::DEFAULT
+    };
+    let extended = ExtendedReadings::compute(&candles, &readings(&candles), &config);
+    assert_eq!(extended.rvol_fast.get(2), Some(0.0));
 }
 
 #[test]

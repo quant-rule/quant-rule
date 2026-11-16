@@ -92,6 +92,35 @@ class RetiredLabelTests(unittest.TestCase):
             )
             self.assertEqual(check_legacy.check(root), [])
 
+    def test_a_retired_label_in_a_current_workflow_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            write(
+                root / "docs" / "workflows" / "example.md",
+                "The model v3 contract applies here.\n",
+            )
+            errors = check_legacy.check(root)
+            self.assertEqual(len(errors), 1, errors)
+            self.assertIn("docs/workflows/example.md:1", errors[0])
+            self.assertIn("retired label", errors[0])
+
+    def test_a_retired_label_in_agents_md_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            write(root / "AGENTS.md", "The current surface is model v3.\n")
+            errors = check_legacy.check(root)
+            self.assertEqual(len(errors), 1, errors)
+            self.assertIn("AGENTS.md:1", errors[0])
+
+    def test_a_retired_label_in_history_is_exempt(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            write(
+                root / "docs" / "audits" / "2026-11-10" / "example.md",
+                "The auditor found model v3 in the tree.\n",
+            )
+            self.assertEqual(check_legacy.check(root), [])
+
 
 if __name__ == "__main__":
     unittest.main()

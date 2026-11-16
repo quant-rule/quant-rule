@@ -616,6 +616,7 @@ fn simulation_create(
     let request = CreateSimulationRequest {
         premise: premise.to_owned(),
         bundle: bundle.clone(),
+        inputs: String::new(),
         seed,
         criteria: criteria.to_owned(),
     };

@@ -13,7 +13,6 @@ use std::path::PathBuf;
 use crate::config::ConfigError;
 use crate::csv::SourceError;
 use crate::date::DateRangeError;
-use crate::memory::MemoryError;
 use crate::pipeline::PipelineError;
 
 /// The application service could not complete the request.
@@ -27,8 +26,6 @@ pub enum AppError {
     Date(DateRangeError),
     /// The configured model run failed.
     Pipeline(PipelineError),
-    /// The local research memory failed.
-    Memory(MemoryError),
     /// A dataset is missing or is not a file.
     Dataset {
         /// The supplied dataset path.
@@ -59,7 +56,6 @@ impl fmt::Display for AppError {
             Self::Source(error) => write!(formatter, "{error}"),
             Self::Date(error) => write!(formatter, "{error}"),
             Self::Pipeline(error) => write!(formatter, "{error}"),
-            Self::Memory(error) => write!(formatter, "{error}"),
             Self::Dataset { path, reason } => {
                 write!(formatter, "dataset error: {}: {reason}", path.display())
             }
@@ -80,7 +76,6 @@ impl std::error::Error for AppError {
             Self::Source(error) => Some(error),
             Self::Date(error) => Some(error),
             Self::Pipeline(error) => Some(error),
-            Self::Memory(error) => Some(error),
             Self::Io { source, .. } => Some(source),
             Self::Dataset { .. } | Self::Workspace { .. } => None,
         }
@@ -108,11 +103,5 @@ impl From<DateRangeError> for AppError {
 impl From<PipelineError> for AppError {
     fn from(error: PipelineError) -> Self {
         Self::Pipeline(error)
-    }
-}
-
-impl From<MemoryError> for AppError {
-    fn from(error: MemoryError) -> Self {
-        Self::Memory(error)
     }
 }

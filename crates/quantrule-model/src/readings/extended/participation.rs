@@ -35,10 +35,12 @@ pub(super) fn participation_series(
     let mut absorption_strength = vec![None; len];
 
     for bar in 0..len {
+        let Some(volume) = volume(&candles[bar]) else {
+            continue;
+        };
         let Some(fast_mean) = mean_volume(candles, bar, config.rvol_fast) else {
             continue;
         };
-        let volume = volume(&candles[bar]);
         if fast_mean <= 0.0 {
             continue;
         }

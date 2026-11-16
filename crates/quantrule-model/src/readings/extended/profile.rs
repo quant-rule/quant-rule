@@ -50,8 +50,12 @@ impl ProfileSeries {
             let width = (high - low) / bins as f64;
             let mut buckets = vec![0.0; bins];
             let mut total = 0.0;
+            let mut complete = true;
             for candle in &candles[start..=bar] {
-                let volume = volume(candle);
+                let Some(volume) = volume(candle) else {
+                    complete = false;
+                    break;
+                };
                 if volume <= 0.0 {
                     continue;
                 }
@@ -59,7 +63,7 @@ impl ProfileSeries {
                 buckets[index] += volume;
                 total += volume;
             }
-            if total <= 0.0 {
+            if !complete || total <= 0.0 {
                 continue;
             }
             let mut poc_index = 0;

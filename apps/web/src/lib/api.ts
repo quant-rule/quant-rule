@@ -122,6 +122,23 @@ export async function callVoid(path: string, init: RequestInit = {}): Promise<vo
 }
 
 /**
+ * Call one endpoint that answers with bytes.
+ *
+ * Artifact downloads are not JSON, so they cannot go through [`call`]. The
+ * response is still checked for the shared error envelope.
+ */
+export async function fetchBytes(path: string, init: RequestInit = {}): Promise<ArrayBuffer> {
+  const response = await fetch(`${API_BASE}${path}`, {
+    ...init,
+    headers: requestHeaders(init.headers),
+  });
+  if (!response.ok) {
+    throw await failure(response);
+  }
+  return response.arrayBuffer();
+}
+
+/**
  * Upload a CSV as a dataset.
  *
  * The `File` is the request body, so the browser streams it and the client never

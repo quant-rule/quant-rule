@@ -10,14 +10,20 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 
 import { DEFAULT_PROFILE, call, currentProfile, setProfile } from "./api";
+import { downloadArtifact, sha256Hex } from "./artifacts";
+import { COMMANDS, SECTIONS, missingCommands } from "./capabilities";
+import { inspectCandles, inspectEvents, inspectTimeframes, verifyRun } from "./inspect";
 import type {
   ConfigSummary,
   DatasetRecord,
   DatasetSummary,
   HealthReport,
+  InspectEvents,
   ProfileSummary,
   RunDetail,
+  RunDigest,
   RunSummary,
+  TimeframeInspection,
 } from "./types";
 
 interface ParityResponses {
@@ -27,6 +33,10 @@ interface ParityResponses {
   configs: ConfigSummary[];
   runs: RunSummary[];
   run: RunDetail;
+  candles: DatasetSummary;
+  timeframes: TimeframeInspection;
+  events: InspectEvents;
+  digest: RunDigest;
   profiles: ProfileSummary[];
 }
 
@@ -35,6 +45,14 @@ interface ApiFixture {
   dataset_id: string;
   config_id: string;
   run_id: string;
+  timeframe: string;
+  commands: string[];
+  artifact: {
+    name: string;
+    body: string;
+    bytes: number;
+    sha256: string;
+  };
   responses: ParityResponses;
 }
 
@@ -92,6 +110,24 @@ function install(fixture: ApiFixture): Seen[] {
     if (path === `/runs/${fixture.run_id}`) {
       return respond(fixture.responses.run);
     }
+    if (path === `/runs/${fixture.run_id}/digest`) {
+      return respond(fixture.responses.digest);
+    }
+    if (path === `/runs/${fixture.run_id}/artifacts/${fixture.artifact.name}`) {
+      return new Response(new TextEncoder().encode(fixture.artifact.body), {
+        status: 200,
+        headers: { "content-type": "application/octet-stream" },
+      });
+    }
+    if (path === "/inspect/candles") {
+      return respond(fixture.responses.candles);
+    }
+    if (path === "/inspect/timeframes") {
+      return respond(fixture.responses.timeframes);
+    }
+    if (path === "/inspect/events") {
+      return respond(fixture.responses.events);
+    }
     if (path === "/profiles") {
       return respond(fixture.responses.profiles);
     }
@@ -107,6 +143,7 @@ function install(fixture: ApiFixture): Seen[] {
 async function browserView(fixture: ApiFixture): Promise<View> {
   setProfile(fixture.profile);
 
+  const commands = COMMANDS.map((item) => item.command);
   const health = await call<HealthReport>("/health");
   const datasets = await call<DatasetSummary[]>("/catalog/datasets");
   const dataset = await call<DatasetRecord>(`/catalog/datasets/${fixture.dataset_id}`);
@@ -119,8 +156,24 @@ async function browserView(fixture: ApiFixture): Promise<View> {
     throw new Error(`the fixture carries no config ${fixture.config_id}`);
   }
 
+  const candles = await inspectCandles(fixture.dataset_id);
+  const timeframes = await inspectTimeframes(fixture.dataset_id);
+  const events = await inspectEvents(fixture.dataset_id, fixture.timeframe);
+  const digest = await verifyRun(fixture.run_id);
+  const reference = run.artifacts[0];
+  if (reference === undefined) {
+    throw new Error("the fixture run carries no artifact");
+  }
+  const bytes = await downloadArtifact(fixture.run_id, reference);
+  const artifact = {
+    name: reference.name,
+    bytes: bytes.byteLength,
+    sha256: await sha256Hex(bytes),
+  };
+
   return {
     profile: currentProfile(),
+    commands,
     health,
     datasets,
     dataset,
@@ -128,6 +181,11 @@ async function browserView(fixture: ApiFixture): Promise<View> {
     config,
     runs,
     run,
+    candles,
+    timeframes,
+    events,
+    digest,
+    artifact,
     profiles,
   };
 }
@@ -161,7 +219,7 @@ describe("client parity", () => {
     const view = await browserView(API);
 
     expect(difference(view, EXPECTED)).toBeNull();
-    expect(seen).toHaveLength(7);
+    expect(seen).toHaveLength(12);
     expect(seen.map((request) => request.path)).toEqual([
       "/health",
       "/catalog/datasets",
@@ -170,10 +228,59 @@ describe("client parity", () => {
       "/runs",
       `/runs/${API.run_id}`,
       "/profiles",
+      "/inspect/candles",
+      "/inspect/timeframes",
+      "/inspect/events",
+      `/runs/${API.run_id}/digest`,
+      `/runs/${API.run_id}/artifacts/${API.artifact.name}`,
     ]);
     for (const request of seen) {
       expect(request.profile).toBe(API.profile);
     }
+  });
+
+  it("every shell command has exactly one browser control", () => {
+    const commands = COMMANDS.map((item) => item.command);
+    expect(commands).toEqual(API.commands);
+    expect(missingCommands(commands, API.commands)).toEqual([]);
+    expect(new Set(commands).size).toBe(commands.length);
+  });
+
+  it("every command names a screen that exists", () => {
+    const sections = new Set(SECTIONS.map((section) => section.id));
+    for (const command of COMMANDS) {
+      expect(sections.has(command.section)).toBe(true);
+    }
+  });
+
+  it("a missing browser control is reported as a command gap", () => {
+    const browser = COMMANDS.map((item) => item.command).filter(
+      (name) => name !== "verify",
+    );
+    expect(missingCommands(browser, API.commands)).toEqual(["verify"]);
+  });
+
+  it("the fixture artifact matches its recorded size and digest", async () => {
+    const bytes = new TextEncoder().encode(API.artifact.body);
+    expect(bytes.byteLength).toBe(API.artifact.bytes);
+    expect(await sha256Hex(bytes)).toBe(API.artifact.sha256);
+    expect(API.responses.run.artifacts[0]?.sha256).toBe(API.artifact.sha256);
+    expect(API.responses.run.artifacts[0]?.bytes).toBe(API.artifact.bytes);
+  });
+
+  it("a substituted artifact fails the download check", async () => {
+    const seeded: ApiFixture = {
+      ...API,
+      artifact: { ...API.artifact, body: "{\"ok\":false}\n" },
+    };
+    install(seeded);
+    setProfile(seeded.profile);
+
+    const run = await call<RunDetail>(`/runs/${seeded.run_id}`);
+    const reference = run.artifacts[0]!;
+    await expect(downloadArtifact(seeded.run_id, reference)).rejects.toThrow(
+      "does not match the run record",
+    );
   });
 
   it("a seeded fixture divergence fails the comparison", async () => {

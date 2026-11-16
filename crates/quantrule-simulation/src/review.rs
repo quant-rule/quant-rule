@@ -166,7 +166,7 @@ pub fn pairs(marks: &[Mark]) -> Vec<Pair> {
         }
     }
     let mut pairs = Vec::new();
-    for ((chart, side, quality), (entries, exits)) in groups {
+    for ((chart, _, _), (entries, exits)) in groups {
         if entries.is_empty() || exits.is_empty() {
             continue;
         }
@@ -182,8 +182,8 @@ pub fn pairs(marks: &[Mark]) -> Vec<Pair> {
             .unwrap_or(exits[0]);
         pairs.push(Pair {
             chart: chart.clone(),
-            side: Side::parse(side).expect("stored schema word"),
-            quality: MarkQuality::parse(quality).expect("stored schema word"),
+            side: entry.side,
+            quality: entry.quality,
             entry_bar: entry.bar,
             exit_bar: exit.bar,
         });
@@ -296,7 +296,7 @@ fn table(
     }
     groups
         .into_iter()
-        .map(|((quality, side), group)| {
+        .map(|((quality, _side), group)| {
             let returns: Vec<Option<f64>> = group.iter().map(|row| row.return_pct).collect();
             let detail_rows: Vec<&Detail> = group
                 .iter()
@@ -331,8 +331,8 @@ fn table(
                 }
             }
             TableRow {
-                quality: MarkQuality::parse(quality).expect("stored schema word"),
-                side: Side::parse(side).expect("stored schema word"),
+                quality: group[0].pair.quality,
+                side: group[0].pair.side,
                 n: group.len(),
                 mean_return: mean_or_none(&returns),
                 mean_mfe: mean_or_none(&mfes),
@@ -358,7 +358,7 @@ fn context_table(
     }
     groups
         .into_iter()
-        .map(|((quality, side), group)| {
+        .map(|((_quality, _side), group)| {
             let contexts: Vec<Context> = group
                 .iter()
                 .map(|row| context(bundle, row.pair.entry_bar, catalog))
@@ -381,8 +381,8 @@ fn context_table(
                 .sort_by(|left, right| right.1.cmp(&left.1).then_with(|| left.0.cmp(&right.0)));
             top_events.truncate(6);
             Ok(ContextRow {
-                quality: MarkQuality::parse(quality).expect("stored schema word"),
-                side: Side::parse(side).expect("stored schema word"),
+                quality: group[0].pair.quality,
+                side: group[0].pair.side,
                 stacks: stacks.into_iter().collect(),
                 zones: zones.into_iter().collect(),
                 mean_rsi: mean_or_none(&contexts.iter().map(|row| row.rsi).collect::<Vec<_>>()),

@@ -3,14 +3,17 @@
 
 The source of truth is ``crates/quantrule-shell/src/command/help.rs``. The
 checker reads its ``CommandHelp`` entries, the README command table, the command
-registry table in ``docs/architecture/command-surface.md``, and the fenced code
-blocks under ``docs/tutorials``. It fails when:
+registry table in ``docs/architecture/command-surface.md``, the fenced code
+blocks under ``docs/tutorials``, and the command list in the ``AGENTS.md``
+current-surface paragraph. It fails when:
 
 - an implemented command is missing from ``help.rs``, the README, or a tutorial;
 - a README row or an ``Implemented`` registry row names a command that
   ``help.rs`` does not have;
 - a command marked ``Planned`` appears in ``help.rs`` or the README;
-- a tutorial invokes a command that is not implemented;
+- a tutorial, workflow, or ``AGENTS.md`` block invokes a command that is not
+  implemented;
+- the ``AGENTS.md`` current-surface list differs from the implemented set;
 - a ``CommandHelp`` entry has an empty usage, summary, or output contract, or a
   usage line that does not start with the command name.
 
@@ -29,9 +32,21 @@ HELP = ROOT / "crates/quantrule-shell/src/command/help.rs"
 README = ROOT / "README.md"
 SURFACE = ROOT / "docs/architecture/command-surface.md"
 TUTORIALS = ROOT / "docs/tutorials"
+WORKFLOWS = ROOT / "docs/workflows"
+NORMATIVE = ROOT / "AGENTS.md"
+NORMATIVE_MARKER = "The current tree implements"
+COMMAND_SPAN = re.compile(r"`([a-z][a-z ]*)`")
 
 ENTRY = re.compile(r"CommandHelp\s*\{")
 FIELD = re.compile(r'^\s*(name|usage|summary|output):\s*"([^"]*)",\s*$', re.MULTILINE)
+
+
+def display(path: Path) -> str:
+    """Render a path relative to the repository when it lives inside it."""
+    try:
+        return path.relative_to(ROOT).as_posix()
+    except ValueError:
+        return str(path)
 
 
 def fail(message: str) -> None:
@@ -254,6 +269,52 @@ def tutorial_unimplemented(commands: set[str]) -> list[str]:
     return problems
 
 
+def current_documents() -> list[Path]:
+    """The normative entry point and every current workflow document."""
+    files = [NORMATIVE]
+    if WORKFLOWS.is_dir():
+        files.extend(sorted(WORKFLOWS.glob("*.md")))
+    return [path for path in files if path.is_file()]
+
+
+def document_unimplemented(
+    commands: set[str], files: list[Path] | None = None
+) -> list[str]:
+    """Return command invocations in the current documents that are retired.
+
+    The tutorials are checked separately because each implemented command must
+    also be demonstrated there. The workflows and ``AGENTS.md`` carry the
+    normative procedure, so a command they invoke must be in the registry.
+    """
+    problems: list[str] = []
+    pattern = re.compile(r"(?<![\w-])quantrule\s+(.+)", re.MULTILINE)
+    paths = current_documents() if files is None else files
+    for path in paths:
+        for block in fenced_blocks(path):
+            for match in pattern.finditer(block):
+                rest = match.group(1).strip()
+                if rest == "quit" or rest.startswith("quit "):
+                    continue
+                if not any(
+                    rest == command or rest.startswith(command + " ")
+                    for command in commands
+                ):
+                    problems.append(f"{display(path)}: {rest!r}")
+    return problems
+
+
+def normative_commands(path: Path = NORMATIVE) -> set[str]:
+    """Return the command list in the ``AGENTS.md`` current-surface paragraph."""
+    text = read(path)
+    start = text.find(NORMATIVE_MARKER)
+    if start < 0:
+        fail(f"{path} has no current-surface paragraph")
+        return set()
+    end = text.find("\n\n", start)
+    paragraph = text[start:] if end < 0 else text[start:end]
+    return set(COMMAND_SPAN.findall(paragraph))
+
+
 def compare(label: str, expected: set[str], actual: set[str]) -> bool:
     ok = True
     for name in sorted(expected - actual):
@@ -277,6 +338,7 @@ def main() -> int:
         fail(f"README.md documents '{name}' twice")
         ok = False
     ok = compare("README.md", implemented_names, set(readme)) and ok
+    ok = compare("AGENTS.md", implemented_names, normative_commands()) and ok
 
     registry_implemented = {name for name, status in registry.items() if status == "Implemented"}
     registry_planned = {name for name, status in registry.items() if status == "Planned"}
@@ -297,6 +359,10 @@ def main() -> int:
 
     for problem in tutorial_unimplemented(implemented_names):
         fail(f"tutorial invokes an unimplemented command: {problem}")
+        ok = False
+
+    for problem in document_unimplemented(implemented_names):
+        fail(f"current document invokes an unimplemented command: {problem}")
         ok = False
 
     if not ok:

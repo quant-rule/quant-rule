@@ -82,6 +82,32 @@ release note is [`v1.1.0`](2026-11-15/v1.1.0.md). The previous tag is `v0.9.0`,
 the distributed platform, whose historical note is
 [`v1.0.0`](2026-11-15/v1.0.0.md).
 
+The map below is authoritative: a current tag resolves to exactly one note, and
+the release workflow and `tools/check_releases.py` both read it. Paths are
+relative to this directory. The map must name every tag in the renumbering table
+above; the checker fails when the two drift.
+
+<!-- current-tags:start -->
+```json
+{
+  "v0.1.0": "2026-10-28/v0.2.0.md",
+  "v0.2.0": "2026-10-30/v0.3.0.md",
+  "v0.3.0": "2026-10-30/v0.3.0.md",
+  "v0.4.0": "2026-11-01/v0.5.0.md",
+  "v0.5.0": "2026-11-07/v0.6.0.md",
+  "v0.6.0": "2026-11-09/v0.7.0.md",
+  "v0.7.0": "2026-11-11/v0.8.0.md",
+  "v0.8.0": "2026-11-11/v0.9.0.md",
+  "v0.9.0": "2026-11-15/v1.0.0.md",
+  "v1.0.0": "2026-11-15/v1.1.0.md"
+}
+```
+<!-- current-tags:end -->
+
+`v0.2.0` is the 2026-10-30 audit-closure commit. No separate note was written
+for it, so it resolves to the `v0.3.0` note that records the release of that
+date. `v0.3.0` is the release commit itself and resolves to the same note.
+
 ## 4. Historical tags
 
 The pre-renumbering markers `v0.4.0-exp-baseline`, the duplicate `v0.5.0`

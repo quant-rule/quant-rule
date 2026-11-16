@@ -35,6 +35,13 @@ pub struct Applied {
 pub enum MigrationError {
     /// Two migrations share a version.
     DuplicateVersion(i64),
+    /// A migration list is not in strictly increasing version order.
+    UnorderedVersion {
+        /// The version that follows a higher one.
+        version: i64,
+        /// The version before it.
+        previous: i64,
+    },
     /// A recorded checksum does not match the compiled migration.
     ChecksumMismatch {
         /// The version whose SQL changed.
@@ -59,6 +66,10 @@ impl std::fmt::Display for MigrationError {
             Self::DuplicateVersion(version) => {
                 write!(formatter, "migration {version} is defined twice")
             }
+            Self::UnorderedVersion { version, previous } => write!(
+                formatter,
+                "migration {version} follows {previous}: input must be in version order"
+            ),
             Self::ChecksumMismatch { version } => write!(
                 formatter,
                 "migration {version} changed after it was applied"
@@ -91,22 +102,44 @@ pub fn checksum(sql: &str) -> String {
     format!("{hash:016x}")
 }
 
+/// Validate that versions are strictly increasing.
+///
+/// The planner reads the highest version from the end of each slice and walks
+/// both in order, so an unsorted input would produce a wrong "database ahead"
+/// answer or miss a duplicate. Rejecting the input once is cheaper than sorting
+/// and keeps the compiled-in order, which is the order the caller applied.
+fn check_order(versions: impl Iterator<Item = i64>) -> Result<(), MigrationError> {
+    let mut previous: Option<i64> = None;
+    for version in versions {
+        if let Some(prior) = previous {
+            if version == prior {
+                return Err(MigrationError::DuplicateVersion(version));
+            }
+            if version < prior {
+                return Err(MigrationError::UnorderedVersion {
+                    version,
+                    previous: prior,
+                });
+            }
+        }
+        previous = Some(version);
+    }
+    Ok(())
+}
+
 /// Decide what to apply.
 ///
 /// # Errors
 ///
-/// Returns [`MigrationError`] when a version repeats, a recorded checksum
-/// differs, the database knows a migration this binary does not, or the
-/// database is ahead.
+/// Returns [`MigrationError`] when a version repeats, a list is not in version
+/// order, a recorded checksum differs, the database knows a migration this
+/// binary does not, or the database is ahead.
 pub fn plan<'a>(
     applied: &[Applied],
     available: &'a [Migration],
 ) -> Result<Vec<&'a Migration>, MigrationError> {
-    for pair in available.windows(2) {
-        if pair[0].version == pair[1].version {
-            return Err(MigrationError::DuplicateVersion(pair[0].version));
-        }
-    }
+    check_order(available.iter().map(|migration| migration.version))?;
+    check_order(applied.iter().map(|record| record.version))?;
 
     let highest_available = available.last().map_or(0, |migration| migration.version);
     let highest_applied = applied.last().map_or(0, |record| record.version);
@@ -230,6 +263,31 @@ mod tests {
         assert_eq!(
             plan(&[], &available),
             Err(MigrationError::DuplicateVersion(1))
+        );
+    }
+
+    #[test]
+    fn an_unsorted_available_list_is_refused() {
+        let available = [migration(2, "SELECT 2"), migration(1, "SELECT 1")];
+        assert_eq!(
+            plan(&[], &available),
+            Err(MigrationError::UnorderedVersion {
+                version: 1,
+                previous: 2
+            })
+        );
+    }
+
+    #[test]
+    fn an_unsorted_applied_list_is_refused() {
+        let available = [migration(1, "SELECT 1"), migration(2, "SELECT 2")];
+        let recorded = vec![applied(&available[1]), applied(&available[0])];
+        assert_eq!(
+            plan(&recorded, &available),
+            Err(MigrationError::UnorderedVersion {
+                version: 1,
+                previous: 2
+            })
         );
     }
 

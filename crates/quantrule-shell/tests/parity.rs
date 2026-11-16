@@ -9,7 +9,9 @@ mod support;
 
 use std::process::Output;
 
-use support::{Fixture, canonical_digest, config_hash, data_version, digest, image_digest, run_id};
+use support::{
+    Fixture, canonical_digest, client_parity_api, config_hash, data_version, image_digest, run_id,
+};
 
 fn stdout(output: &Output) -> String {
     String::from_utf8(output.stdout.clone()).expect("stdout is UTF-8")
@@ -25,6 +27,8 @@ fn the_shell_prints_the_browser_run_detail_fixture() {
         String::from_utf8_lossy(&output.stderr)
     );
 
+    let api = client_parity_api();
+    let artifact = &api["artifact"];
     let expected = format!(
         "run_id: {run_id}\n\
          status: succeeded\n\
@@ -39,14 +43,19 @@ fn the_shell_prints_the_browser_run_detail_fixture() {
          stage backtest: done 3600ms\n\
          stage evidence: done 120ms\n\
          artifacts: 1\n\
-         artifact results.json: bytes=2048 sha256={artifact}\n\
+         artifact results.json: bytes={bytes} sha256={artifact}\n\
          digest: {digest}\n\
          error: none\n",
         run_id = run_id(),
         data = data_version(),
         config = config_hash(),
         image = image_digest(),
-        artifact = digest('f'),
+        bytes = artifact["bytes"]
+            .as_u64()
+            .expect("the fixture artifact size"),
+        artifact = artifact["sha256"]
+            .as_str()
+            .expect("the fixture artifact digest"),
         digest = canonical_digest(),
     );
     assert_eq!(stdout(&output), expected);

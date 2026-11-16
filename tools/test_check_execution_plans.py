@@ -86,6 +86,36 @@ class ExecutionPlanCheckerTests(unittest.TestCase):
     def test_verified_plan_with_pass_passes(self) -> None:
         self.assertEqual(self.check(plan_doc(status="Verified")), [])
 
+    def test_bold_verified_plan_with_pending_is_reported(self) -> None:
+        row = (
+            "| V1 | Example | It passes | `true` | Pass | Pending | Pending | Reviewer "
+            "| 2026-11-11 | |"
+        )
+        problems = self.check(plan_doc(status="**Verified**", rows=[row]))
+        self.assertTrue(any("Verified plan row V1" in problem for problem in problems))
+
+    def test_annotated_verified_plan_with_pending_is_reported(self) -> None:
+        row = (
+            "| V1 | Example | It passes | `true` | Pass | Pending | Pending | Reviewer "
+            "| 2026-11-11 | |"
+        )
+        problems = self.check(
+            plan_doc(status="**Verified** — approved 2026-11-11", rows=[row])
+        )
+        self.assertTrue(any("Verified plan row V1" in problem for problem in problems))
+
+    def test_bold_verified_plan_with_pass_passes(self) -> None:
+        self.assertEqual(self.check(plan_doc(status="**Verified** (human)")), [])
+
+    def test_unknown_plan_status_is_reported(self) -> None:
+        problems = self.check(plan_doc(status="Completed"))
+        self.assertTrue(any("unknown plan status" in problem for problem in problems))
+
+    def test_annotated_in_progress_is_accepted(self) -> None:
+        self.assertEqual(
+            self.check(plan_doc(status="In Progress — started 2026-11-11")), []
+        )
+
     def test_escaped_pipe_in_evidence_passes(self) -> None:
         row = (
             '| V1 | Example | It passes | `rg "a\\|b"` | Pass | Pass | Pass '

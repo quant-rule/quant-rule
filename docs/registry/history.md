@@ -2,7 +2,8 @@
 
 - Date: 2026-11-05 (UTC)
 - Updated: 2026-11-08 for the MR5 research-family aliases; 2026-11-15 for the
-  DIST-105 tooling retirement
+  DIST-105 tooling retirement; 2026-11-16 for the local research-memory
+  retirement
 - Status: Current boundary; P0.1–P8 complete; M3 preflight underpowered; M4 no edge; MR5 planned
 - Freeze commit: `32e6fb2`
 - Manifest commit: `8acf857`
@@ -179,6 +180,17 @@ lives under `docs/port-parity/`. The run folders under `data/simulation/` are
 local data and were not removed. The oracle's regeneration path is gone; the
 fixtures are now read-only evidence compared by the Rust tests, not regenerated
 by a shipped tool.
+
+### 3.9 Local research memory
+
+The SQLite research memory was removed from `quantrule-app` on 2026-11-16
+(`AUD-2026-11-16-13`, decision D3=A). The evidence service owns research
+memory; `docs/config/2026-11-11/research-memory-v1.md` is kept as history.
+
+| Path | Replaced by | Evidence |
+|---|---|---|
+| `crates/quantrule-app/src/memory/**` | The evidence service `runs` and `research` schemas | `AUDIT-2026-11-11-app-service-memory`; `docs/config/2026-11-11/research-memory-v1.md` |
+| `AppService::record_run`, `record_run_with_model` | Gateway `run submit` and `run fetch` | The 27-command surface in `docs/architecture/command-surface.md` |
 
 ## 4. Keep as history
 

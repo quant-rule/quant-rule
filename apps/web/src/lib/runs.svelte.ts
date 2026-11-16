@@ -21,6 +21,22 @@ let current = $state<Runs>({
   detailLoading: false,
 });
 
+/** A counter that makes an in-flight read from a previous profile stale. */
+let generation = 0;
+
+/** Drop every row and the open detail; the next read belongs to the active profile. */
+export function reset(): void {
+  generation += 1;
+  current = {
+    items: [],
+    loading: false,
+    error: null,
+    selected: null,
+    detail: null,
+    detailLoading: false,
+  };
+}
+
 /** Read the current runs state. */
 export function runs(): Runs {
   return current;
@@ -28,23 +44,37 @@ export function runs(): Runs {
 
 /** Read the server's list; a failure drops the rows rather than showing stale ones. */
 export async function load(): Promise<void> {
+  const at = generation;
   const first = current.items.length === 0;
   current = { ...current, loading: first, error: null };
   try {
     const items = await call<RunSummary[]>("/runs?limit=100");
+    if (at !== generation) {
+      return;
+    }
     current = { ...current, items, loading: false, error: null };
   } catch (error) {
+    if (at !== generation) {
+      return;
+    }
     current = { ...current, items: [], loading: false, error: errorText(error) };
   }
 }
 
 /** Read one run's detail. */
 export async function loadDetail(runId: string): Promise<void> {
+  const at = generation;
   current = { ...current, detailLoading: true, error: null };
   try {
     const detail = await call<RunDetail>(`/runs/${encodeURIComponent(runId)}`);
+    if (at !== generation) {
+      return;
+    }
     current = { ...current, detail, detailLoading: false, error: null };
   } catch (error) {
+    if (at !== generation) {
+      return;
+    }
     current = { ...current, detail: null, detailLoading: false, error: errorText(error) };
   }
 }
@@ -98,13 +128,20 @@ export function startPolling(): () => void {
 
 /** Cancel an active run, then read the server's new state. */
 export async function cancel(runId: string): Promise<void> {
+  const at = generation;
   try {
     await call(`/runs/${encodeURIComponent(runId)}/cancel`, { method: "POST" });
+    if (at !== generation) {
+      return;
+    }
     await load();
     if (current.selected === runId) {
       await loadDetail(runId);
     }
   } catch (error) {
+    if (at !== generation) {
+      return;
+    }
     current = { ...current, error: errorText(error) };
   }
 }

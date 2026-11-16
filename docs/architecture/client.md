@@ -1,6 +1,6 @@
 # Web Client
 
-- Status: Current; released v1.0.0 on 2026-11-15; approved 2026-11-12
+- Status: Current; product 1.1.0, current tag `v1.0.0`; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Decision: [`ADR-2026-11-12-05`](../adr/2026-11-12/05-svelte-only-web-client.md)
 - Claim type: Behaviour Claim
@@ -14,26 +14,34 @@ path never falls back to the client.
 
 ## 1. Screens
 
-| Screen | Shows | Empty state |
-|---|---|---|
-| Connection | Mode, URL, health, version, image digest | `unreachable` with a retry |
-| Profile switcher | Active profile, profile list, create | `default` selected |
-| Datasets | `data_version`, candles, first and last bar, upload | "No datasets. Upload a CSV." |
-| Configs | Name, origin (repo or uploaded), validity, parser message, submit | "No configs on the server." |
-| Runs | Status, id, config, data version, submitted, duration, cancel | "No runs. Submit one from Configs." |
-| Run detail | Stages, provenance, artifacts, digest, result | Only for a known run |
-| Memory | Runs, metrics, claims, notes | "Nothing recorded yet." |
-| Simulation runs | `sim_id`, premise, bundle, windows, marked/unmarked, status | "No simulation runs." |
-| Simulation run | Window navigator, chart, mark toolbar, marks table, review, check, decision | Only for a known run |
-| Settings | Connection, upload limit, workspace | — |
+| Screen | Component | Shows | Empty state |
+|---|---|---|---|
+| Connection | `ConnectionPanel.svelte` | Gateway state, version, image digest, service health, bearer token | `unreachable` or `token required` with a retry |
+| Profiles | `ProfilesPanel.svelte` | Profile list, counts, create; the top-bar `ProfileSwitcher.svelte` selects the active profile | "No profiles. Create one." |
+| Datasets | `DatasetsPanel.svelte` | `data_version`, candles, first and last bar, upload | "No datasets. Upload a CSV." |
+| Configs | `ConfigsPanel.svelte` | Name, origin (repo or uploaded), validity, parser message, submit | "No configs on the server." |
+| Runs | `RunsPanel.svelte` | Status, id, config, data version, submitted, duration, cancel | "No runs. Submit one from Configs." |
+| Run detail | `RunDetail.svelte` | Stages, provenance, canonical digest with Verify, artifacts with verified download | Only for a known run |
+| Inspect | `InspectPanel.svelte` | Candles, timeframe ladder, and event batch for one dataset; read-only | "No datasets to inspect." |
+| Simulation | `SimulationRunsPanel.svelte` | `sim_id`, premise, bundle, windows, marked/unmarked, status | "No simulation runs." |
+| Simulation run | `SimulationRunDetail.svelte` | Window navigator, chart, mark toolbar, marks table, review, check, decision | Only for a known run |
+| Help | `HelpPanel.svelte` | The 27 registered commands and the screen that reaches each use case | — |
+
+Every screen is owned by one component. The browser and the command shell reach
+one HTTP contract; the shared fixture and both parity tests enforce that every
+registered command has a browser control (`tests/fixtures/client-parity/api.json`).
 
 ## 2. Stores
 
 | Store | Holds | Polling |
 |---|---|---|
-| `transport.svelte.ts` | mode, URL, health, version | 30 s idle |
-| `runs.svelte.ts` | list, selected run, polling state | 2 s active, 30 s idle |
-| `catalog.svelte.ts` | datasets, configs, artifacts | on demand |
+| `connection.svelte.ts` | gateway state, version, health, token presence | on demand |
+| `profiles.svelte.ts` | profile list and active id | on demand |
+| `datasets.svelte.ts` | profile datasets | on demand |
+| `configs.svelte.ts` | profile configs and the last submission | on demand |
+| `runs.svelte.ts` | profile run list, selected run, and detail | 2 s active, 30 s idle |
+| `simulation.svelte.ts` | profile simulation summaries | on demand |
+| `profileScope.svelte.ts` | the switch, clear, and reload boundary for the four profile stores | — |
 | `labels.generated.ts` | numeric code → word | static, generated |
 
 Each store has one server resource. No store caches a result for offline use.
@@ -43,24 +51,31 @@ Each store has one server resource. No store caches a result for offline use.
 One function keeps the existing shape:
 
 ```ts
-call<T>(path: string, body?: unknown): Promise<T>
+call<T>(path: string, init?: RequestInit): Promise<T>
 ```
+
+`callVoid` covers a `204`, and `fetchBytes` returns an artifact body after the
+same error-envelope check. The profile header is attached in one place.
 
 - Production: `fetch` against `/api/v1`.
 - Test: an HTTP fixture router keyed by path and method; no socket.
 - The mock backend is the only test seam and must not diverge from the contract.
 
-## 4. Disconnection
+## 4. Disconnection and profile scope
 
-When the gateway is unreachable:
+Selecting a profile, or losing the gateway, clears every profile-scoped row
+before the next read starts: datasets, configs, runs, and simulation runs.
 
-- The connection pill turns red.
+- The connection pill turns red on `unreachable`, `unauthorized`, or `mismatch`.
 - The runs list shows `disconnected`, not stale rows.
+- An open run detail, an open simulation, and an inspection result are cleared.
 - Submission is disabled.
 - No result is read from local storage.
 
-A tool whose value is "these bytes are the truth" must not present stale
-evidence. Only connection settings persist locally.
+Each store carries a generation counter, so a read that started under the
+previous profile is dropped when it returns. A tool whose value is "these bytes
+are the truth" must not present stale evidence. Only connection settings persist
+locally.
 
 ## 5. Numbers, not labels
 

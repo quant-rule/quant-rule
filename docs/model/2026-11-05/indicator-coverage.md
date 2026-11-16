@@ -48,6 +48,9 @@ covered. The registry never invents a meaningless event to fill a cell.
 - `p` — the previous confirmed major pivot bar.
 - `RV5, RV20, RV50` — `V/mean(V,n)`.
 - Division by zero or a missing denominator publishes `null`, never zero.
+- A missing candle volume makes every volume-weighted reading whose window
+  contains it unavailable (`null`); a measured zero volume is a value. A
+  cumulative line publishes `null` from the first bar whose volume is missing.
 
 ## 3. Area 1 — Volume-weighted price (10/10)
 

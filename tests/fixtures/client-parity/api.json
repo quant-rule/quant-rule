@@ -3,6 +3,42 @@
   "dataset_id": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
   "config_id": "cfg_abc",
   "run_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "timeframe": "5m",
+  "commands": [
+    "health",
+    "dataset list",
+    "dataset show",
+    "dataset upload",
+    "config list",
+    "config show",
+    "run submit",
+    "run status",
+    "run list",
+    "run fetch",
+    "run cancel",
+    "inspect candles",
+    "inspect timeframes",
+    "inspect events",
+    "verify",
+    "profile list",
+    "profile create",
+    "profile use",
+    "simulation list",
+    "simulation create",
+    "simulation windows",
+    "simulation mark",
+    "simulation marks",
+    "simulation oracle",
+    "simulation check",
+    "simulation decide",
+    "help"
+  ],
+  "artifact": {
+    "name": "results.json",
+    "body": "{\"ok\":true}\n",
+    "bytes": 12,
+    "sha256": "sha256:e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
+  },
   "responses": {
     "health": {
       "v": "quantrule.api/v1",
@@ -86,12 +122,40 @@
       "artifacts": [
         {
           "name": "results.json",
-          "bytes": 2048,
-          "sha256": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          "bytes": 12,
+          "sha256": "sha256:e5f1eb4d806641698a35efe20e098efd20d7d57a9b90ee69079d5bb650920726"
         }
       ],
       "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "error": null
+    },
+    "candles": {
+      "data_version": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "name": "candles.csv",
+      "candles": 3,
+      "first_bar": 1704067200,
+      "last_bar": 1704067320,
+      "bytes": 96
+    },
+    "timeframes": {
+      "data_version": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "timeframes": [
+        { "timeframe": "1m", "bars": 3, "partial_buckets": 0, "first_bar": 1704067200, "last_bar": 1704067320 },
+        { "timeframe": "5m", "bars": 1, "partial_buckets": 1, "first_bar": 1704067200, "last_bar": 1704067200 },
+        { "timeframe": "15m", "bars": 0, "partial_buckets": 1, "first_bar": null, "last_bar": null }
+      ]
+    },
+    "events": {
+      "data_version": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "timeframe": "5m",
+      "events": [
+        { "type": 1, "source": 2, "bar": 10 },
+        { "type": 2, "source": 3, "bar": 11 }
+      ]
+    },
+    "digest": {
+      "run_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     },
     "profiles": [
       {

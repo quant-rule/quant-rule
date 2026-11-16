@@ -11,6 +11,7 @@ from pathlib import Path
 
 from worktree_cleanup import (
     CleanupError,
+    _verify_archive,
     archive_worktree,
     inspect_worktree,
     remove_worktree,
@@ -129,9 +130,48 @@ class WorktreeCleanupTest(unittest.TestCase):
             )
             self.assertEqual(result["status"], "removed")
             self.assertFalse(worktree.exists())
-            self.assertTrue((root / "archive" / "worktree" / result["archive"]["archived_utc"]).is_dir())
+            archived = (
+                root
+                / "archive"
+                / "worktree"
+                / result["archive"]["archived_utc"]
+                / "data"
+                / "local.txt"
+            )
+            self.assertTrue(archived.is_file())
+            self.assertEqual(archived.read_text(encoding="utf-8"), "keep me\n")
             branches = git(repo, "branch", "--list", "feat/task")
             self.assertEqual(branches.strip(), "")
+
+    def test_a_tampered_archive_is_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo = make_repo(root)
+            worktree = add_worktree(repo, root)
+            (worktree / "data" / "local.txt").write_text("keep me\n", encoding="utf-8")
+            manifest = archive_worktree(worktree, root / "archive", "task")
+            archived = Path(manifest["destination"]) / "data" / "local.txt"
+            archived.write_text("changed\n", encoding="utf-8")
+            with self.assertRaises(CleanupError):
+                _verify_archive(manifest)
+
+    def test_a_failed_archive_leaves_the_worktree_in_place(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo = make_repo(root)
+            worktree = add_worktree(repo, root)
+            (worktree / "data" / "broken").symlink_to(worktree / "data" / "missing")
+            with self.assertRaises(CleanupError):
+                remove_worktree(
+                    worktree,
+                    "feat/task",
+                    root / "archive",
+                    main_branch="main",
+                    yes=True,
+                )
+            self.assertTrue(worktree.is_dir())
+            branches = git(repo, "branch", "--list", "feat/task")
+            self.assertNotEqual(branches.strip(), "")
 
 
 if __name__ == "__main__":

@@ -4,7 +4,10 @@
 Every active indicator and event must have all evidence classes. A ``row``
 scope must name the row's indicator or event in the test name. A ``family``
 scope may name a family test. A ``tool`` scope must name a known repository
-gate. ``n/a`` carries no test.
+gate. ``n/a`` carries no test, and it is rejected for the four classes every
+active indicator and event must carry: causality, determinism, golden, and
+edge. Those classes prove the model-layer evidence contract, so an inapplicable
+scope would let a row claim coverage without a test.
 
 Usage:
     python3 tools/check_verification.py
@@ -36,6 +39,7 @@ CLASSES = [
     "emitter",
 ]
 SCOPES = {"row", "family", "tool", "n/a"}
+REQUIRED_CLASSES = ("causality", "determinism", "golden", "edge")
 
 
 def load(path: Path) -> dict[str, object]:
@@ -45,10 +49,15 @@ def load(path: Path) -> dict[str, object]:
         raise SystemExit(f"error: cannot read {path}: {error}") from None
 
 
-def main() -> int:
-    registry = load(REGISTRY)
-    manifest = load(MANIFEST)
-    rust_functions = rust_function_names()
+def check(root: Path, rust_functions: set[str] | None = None) -> list[str]:
+    """Return every problem in the verification manifest under ``root``.
+
+    ``rust_functions`` lets a test supply the known test names instead of
+    scanning the repository.
+    """
+    registry = load(root / "docs/registry/indicators.json")
+    manifest = load(root / "docs/registry/verification.json")
+    functions = rust_function_names() if rust_functions is None else rust_functions
     errors: list[str] = []
     if manifest.get("schema") != "quantrule.verification/v1":
         errors.append("manifest schema must be quantrule.verification/v1")
@@ -89,6 +98,8 @@ def main() -> int:
                     errors.append(f"{ident}.{name}: tests must be a non-empty string array")
                     continue
                 if scope == "n/a":
+                    if name in REQUIRED_CLASSES:
+                        errors.append(f"{ident}.{name}: {name} evidence cannot be n/a")
                     if tests:
                         errors.append(f"{ident}.{name}: n/a must not carry tests")
                     continue
@@ -97,7 +108,7 @@ def main() -> int:
                     if unknown:
                         errors.append(f"{ident}.{name}: unknown tool gate {unknown}")
                     continue
-                missing = [test for test in tests if test.rsplit("::", 1)[-1] not in rust_functions]
+                missing = [test for test in tests if test.rsplit("::", 1)[-1] not in functions]
                 if missing:
                     errors.append(f"{ident}.{name}: missing Rust test {missing}")
                 if scope == "row":
@@ -111,10 +122,16 @@ def main() -> int:
         if extra:
             errors.append(f"{kind} unknown entries: {', '.join(extra[:10])}")
 
+    return errors
+
+
+def main() -> int:
+    errors = check(ROOT)
     if errors:
         for error in errors:
             print(f"error: {error}", file=sys.stderr)
         return 1
+    manifest = load(MANIFEST)
     scopes = {scope: 0 for scope in SCOPES}
     for kind in ("indicators", "events"):
         for entry in manifest[kind]:
@@ -123,7 +140,8 @@ def main() -> int:
     print(
         "verification ok: "
         f"{len(manifest['indicators'])} indicators, {len(manifest['events'])} events; "
-        f"row={scopes['row']} family={scopes['family']} tool={scopes['tool']} n/a={scopes['n/a']}"
+        f"row={scopes['row']} family={scopes['family']} tool={scopes['tool']} n/a={scopes['n/a']}; "
+        f"required={'/'.join(REQUIRED_CLASSES)}"
     )
     return 0
 

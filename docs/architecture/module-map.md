@@ -33,7 +33,7 @@ quantrule-simulation-service ──> quantrule-simulation
 | `quantrule-data` | Candle validation, bounded window, timeframe construction, gaps, UTC | Files, indicators, events, strategy |
 | `quantrule-model` | Readings, states, levels, events, progression, context, report, spec | Files, strategy, fills, cash |
 | `quantrule-backtest` | Strategy, execution, portfolio, benchmark | Files, transport, rendering |
-| `quantrule-app` | Workspace, dataset, configuration, run orchestration, artifact I/O, memory, shared use cases | Indicators, rules, fills, P&L, transport |
+| `quantrule-app` | Workspace, dataset, configuration, run orchestration, artifact I/O, shared use cases | Indicators, rules, fills, P&L, transport, research memory |
 | `quantrule-api` | Contract types, error envelope, state enum, version constants | Any engine dependency |
 | `quantrule-service-api` | `quantrule.internal/v1` records, bundles, run lifecycle, canonical digest | Any engine, runtime, or service dependency |
 | `quantrule-research` | Hypothesis evaluation: expectancy, significance, drawdown, comparison | I/O, clock, engine dependency |

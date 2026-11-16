@@ -14,6 +14,7 @@ import {
   probeCandidates,
   probeGateway,
   releaseSummary,
+  resolveLaunch,
   SHELL_VERSION,
 } from "../ui/shell-lib.js";
 
@@ -205,6 +206,32 @@ describe("launch plan", () => {
   });
 });
 
+describe("resolved launch", () => {
+  const candidate = "http://localhost:8080";
+  const fallback = "http://127.0.0.1:8083";
+
+  it("opens the reachable fallback even when an update keeps the page visible", () => {
+    const { target, plan } = resolveLaunch({
+      candidate,
+      reachableAt: fallback,
+      updateAvailable: true,
+    });
+    expect(target).toBe(fallback);
+    expect(plan).toEqual({ open: false, showUpdate: true, showOffline: false });
+  });
+
+  it("keeps the typed candidate when nothing answered", () => {
+    const { target, plan } = resolveLaunch({
+      candidate,
+      reachableAt: null,
+      updateAvailable: false,
+    });
+    expect(target).toBe(candidate);
+    expect(plan.open).toBe(false);
+    expect(plan.showOffline).toBe(true);
+  });
+});
+
 describe("release version", () => {
   it("parses a tagged version", () => {
     expect(parseVersion("v1.2.3")).toEqual({
@@ -350,6 +377,29 @@ describe("shell boundary", () => {
     );
     expect(cargo).not.toMatch(/tauri[-_]plugin/);
     expect(cargo).not.toMatch(/path\s*=\s*"\.\./);
+  });
+
+  it("continues to the probed target and keeps the typed URL", () => {
+    const shell = read("ui/shell.js");
+    expect(shell).toContain(
+      'elements.continueToGateway.addEventListener("click", openGateway);',
+    );
+    expect(shell).not.toContain(
+      'elements.continueToGateway.addEventListener("click", connect);',
+    );
+
+    const evaluate = shell.slice(
+      shell.indexOf("async function evaluate()"),
+      shell.indexOf("function useDefault()"),
+    );
+    const rememberAt = evaluate.indexOf("rememberGateway(candidate);");
+    const probeAt = evaluate.indexOf("probeCandidates(");
+    const assignAt = evaluate.indexOf("gateway = target;");
+    const earlyReturnAt = evaluate.indexOf("if (!plan.open)");
+    expect(rememberAt).toBeGreaterThan(-1);
+    expect(rememberAt).toBeLessThan(probeAt);
+    expect(assignAt).toBeGreaterThan(-1);
+    expect(assignAt).toBeLessThan(earlyReturnAt);
   });
 
   it("starts exactly one packaged supervisor, from the resource directory", () => {

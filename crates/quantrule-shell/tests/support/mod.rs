@@ -186,7 +186,12 @@ impl Fixture {
     pub fn start_parity() -> Self {
         let fixture = client_parity_api();
         let run_detail = fixture["responses"]["run"].clone();
-        Self::start_with(run_detail, Vec::new(), Some(fixture))
+        let artifact_bytes = fixture["artifact"]["body"]
+            .as_str()
+            .expect("the fixture artifact body")
+            .as_bytes()
+            .to_vec();
+        Self::start_with(run_detail, artifact_bytes, Some(fixture))
     }
 
     fn start_with(run_detail: Value, artifact_bytes: Vec<u8>, parity: Option<Value>) -> Self {
@@ -319,6 +324,11 @@ impl Fixture {
             .expect("the fixture lock")
             .requests
             .clone()
+    }
+
+    /// A directory inside the fixture's temporary home for `run fetch`.
+    pub fn fetch_directory(&self) -> PathBuf {
+        self.home.join("fetch")
     }
 
     /// The last captured request.
@@ -572,7 +582,18 @@ fn parity_route(state: &FixtureState, request: &Request, segments: &[&str]) -> O
         ["catalog", "configs"] => "configs",
         ["runs"] => "runs",
         ["runs", id] if Some(*id) == fixture["run_id"].as_str() => "run",
+        ["runs", id, "digest"] if Some(*id) == fixture["run_id"].as_str() => "digest",
+        ["inspect", "candles"] => "candles",
+        ["inspect", "timeframes"] => "timeframes",
+        ["inspect", "events"] => "events",
         ["profiles"] => "profiles",
+        ["runs", id, "artifacts", ..] if Some(*id) == fixture["run_id"].as_str() => {
+            return Some(Response::bytes(
+                200,
+                "application/octet-stream",
+                state.artifact_bytes.clone(),
+            ));
+        }
         _ => return None,
     };
     responses.get(key).map(|value| Response::json(200, value))
@@ -776,6 +797,8 @@ fn handle(state: &mut FixtureState, request: &Request) -> Response {
                     "status": "marking",
                     "windows": 4,
                     "marks": 2,
+                    "bundle": image_digest(),
+                    "marked_windows": 2,
                 },
                 {
                     "sim_id": "sim-1",
@@ -783,6 +806,8 @@ fn handle(state: &mut FixtureState, request: &Request) -> Response {
                     "status": "draft",
                     "windows": 3,
                     "marks": 0,
+                    "bundle": image_digest(),
+                    "marked_windows": 0,
                 }
             ]),
         ),

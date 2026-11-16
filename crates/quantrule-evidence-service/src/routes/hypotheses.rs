@@ -28,7 +28,7 @@ pub(crate) async fn create_hypothesis(
         .as_ref()
         .ok_or_else(|| failure(ErrorCode::Internal, "no hypothesis store is configured"))?;
     let sealed = draft
-        .seal(clock::now_utc())
+        .seal(clock::now_utc().map_err(|error| failure(ErrorCode::Internal, error.to_string()))?)
         .map_err(|error| failure(ErrorCode::HypothesisInvalid, error.to_string()))?;
     store
         .insert(profile, sealed.clone())

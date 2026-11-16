@@ -90,7 +90,7 @@ the split lands.
 
 Round trip: `tools/test_backup.sh` is opt-in and uses an isolated
 `quantrule-backup-test` project, so it needs port 8080 free and never touches
-the default project. It creates a dataset, config, and memory row through the
+the default project. It creates a dataset, config, and hypothesis row through the
 gateway, seeds a run with artifact blobs, checks the refusals, wipes the
 volumes, restores, and compares every row digest and object hash. Record the
 archive digest in the run note for a long campaign.

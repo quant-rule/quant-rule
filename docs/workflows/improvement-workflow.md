@@ -1,8 +1,8 @@
 # Improvement Workflow
 
 - Date: 2026-11-01 (UTC)
-- Updated: 2026-11-07 for the S3 command surface and the tier runbooks
-- Status: Current; the S3 command surface is implemented, no tiered run has used
+- Updated: 2026-11-16 for the gateway command surface and the tier runbooks
+- Status: Current; the gateway command surface is implemented, no tiered run has used
   it yet, and human acceptance of the surface is pending
 - Scope: model, strategy, and portfolio improvement runs
 

@@ -45,7 +45,7 @@ permissions:
 
 concurrency:
   # A tag push and a manual recovery for the same tag share one group.
-  group: release-${{ inputs.release_tag || github.ref }}
+  group: release-${{ inputs.release_tag || github.ref_name }}
   cancel-in-progress: false
 
 env:
@@ -99,9 +99,9 @@ jobs:
             echo "::error::$tag is not on main" >&2
             exit 1
           fi
-          note="$(find docs/releases -type f -name "$tag.md" -print -quit)"
+          note="$(python3 tools/check_releases.py --note "$tag")"
           if [ -z "$note" ]; then
-            echo "::error::missing release note docs/releases/<YYYY-MM-DD>/$tag.md" >&2
+            echo "::error::$tag is not in the current-tag map" >&2
             exit 1
           fi
           echo "$tag is annotated, on main, and has $note"
@@ -221,8 +221,6 @@ jobs:
               --tag "$REF" \
               --tag "$IMAGE:$sha_tag" \
               .
-            docker push "$REF"
-            docker push "$IMAGE:$sha_tag"
           else
             docker build --platform linux/amd64 --tag "$REF" .
           fi
@@ -248,6 +246,18 @@ jobs:
           fi
           echo "the image reports quantrule-server $reported"
 
+      # Push only after both image checks pass: a rejected image must not be
+      # visible in the registry, where a deployment could pull it.
+      - name: Push the verified image
+        if: steps.reference.outputs.publish == 'true'
+        env:
+          IMAGE: ${{ steps.reference.outputs.image }}
+          REF: ${{ steps.reference.outputs.ref }}
+        run: |
+          sha_tag="sha-$(git rev-parse HEAD)"
+          docker push "$REF"
+          docker push "$IMAGE:$sha_tag"
+
       - name: Capture the image digest
         id: digest
         env:
@@ -268,6 +278,9 @@ jobs:
             echo "- Digest: \`$digest\`"
             echo "- Digest source: $source"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Install the pinned toolchain
+        run: rustup show
 
       - name: Verify the digest in /health
         env:
@@ -303,6 +316,7 @@ jobs:
             echo "::error::the default stack started $running containers, expected 9" >&2
             exit 1
           fi
+          bash tools/test_tiers.sh composed
 
   desktop:
     name: Desktop (${{ matrix.os }})
@@ -537,9 +551,9 @@ jobs:
           DIGEST: ${{ needs.image.outputs.digest }}
           SOURCE: ${{ needs.image.outputs.source }}
         run: |
-          note="$(find docs/releases -type f -name "$RELEASE_TAG.md" -print -quit)"
+          note="$(python3 tools/check_releases.py --note "$RELEASE_TAG")"
           if [ -z "$note" ]; then
-            echo "::error::missing release note docs/releases/<YYYY-MM-DD>/$RELEASE_TAG.md" >&2
+            echo "::error::$RELEASE_TAG is not in the current-tag map" >&2
             exit 1
           fi
           appimage="$(find desktop -maxdepth 1 -type f -name '*.AppImage' -print -quit)"
