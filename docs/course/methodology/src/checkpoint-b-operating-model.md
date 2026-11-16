@@ -11,7 +11,7 @@
 - The platform may iterate freely. A hypothesis may not: after it runs, a change
   is a new, separately recorded hypothesis.
 
-Release evidence: [`docs/releases/2026-11-15/v1.1.0.md`](../../../releases/2026-11-15/v1.1.0.md)
+Release evidence: [`docs/releases/2026-11-15/v1.0.0.md`](../../../releases/2026-11-15/v1.0.0.md)
 (current tag `v1.0.0`).
 
 **Observed:** the pipeline, the bundle contract, the gate, and the distributed

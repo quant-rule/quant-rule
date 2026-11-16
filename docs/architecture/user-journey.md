@@ -1,6 +1,6 @@
 # User Journey
 
-- Status: Current; released as v1.0.0 on 2026-11-15 (prepared as v1.1.0); approved 2026-11-12
+- Status: Current; released as v1.0.0 on 2026-11-15 (prepared as v1.1.0); current in v1.1.0; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Claim type: Outcome Claim
 

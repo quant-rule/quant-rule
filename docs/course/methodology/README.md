@@ -4,7 +4,7 @@
 - Course: CM0639 Development Methodologies
 - Claim type: Outcome Claim
 - Plan: [`docs/execution-plans/2026-11-12/dist-000-distributed-platform.md`](../../execution-plans/2026-11-12/dist-000-distributed-platform.md)
-- Release: [`docs/releases/2026-11-15/v1.1.0.md`](../../releases/2026-11-15/v1.1.0.md) (current tag `v1.0.0`)
+- Release: [`docs/releases/2026-11-15/v1.0.0.md`](../../releases/2026-11-15/v1.0.0.md) (current tag `v1.0.0`)
 
 ## Sources and deliverables
 

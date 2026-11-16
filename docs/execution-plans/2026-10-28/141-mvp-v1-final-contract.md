@@ -1,7 +1,7 @@
 # MVP v1 — Final Execution Plan
 
 - Date: 2026-10-28 (UTC)
-- Status: **Delivered — 2026-10-28; `v0.2.0` tagged on `main`; release notes in [`docs/releases/2026-10-28/v0.2.0.md`](../../releases/2026-10-28/v0.2.0.md)**
+- Status: **Delivered — 2026-10-28; `v0.2.0` tagged on `main`; release notes in [`docs/releases/2026-10-28/v0.1.0.md`](../../releases/2026-10-28/v0.1.0.md)**
 - Program issue: [#141](https://github.com/quant-rule/quant-rule/issues/141)
 - Plan of record after C0: `docs/execution-plans/2026-10-28/141-mvp-v1-final-contract.md`
 - AI transparency log: `docs/ai-transparency-log/2026-10-28/141-mvp-v1-final-contract.md`
@@ -1116,7 +1116,7 @@ unresolved criteria are named.
 - Set `[workspace.package] version = "0.2.0"`; update `Cargo.lock`.
 - Search for hardcoded `0.1.0` assertions and update them deliberately. Do not
   weaken an assertion.
-- Add `docs/releases/2026-10-28/v0.2.0.md`: commands, configs, reports, accounting
+- Add `docs/releases/2026-10-28/v0.1.0.md`: commands, configs, reports, accounting
   rules, verification evidence, and the MVP v1 title.
 - Update `docs/README.md`, the program plan status, the old plan and ADR notes,
   README, and help.
@@ -1397,7 +1397,7 @@ test ! -e data/reports-portfolio-only/analytical
 - Tag creation and push are the final gated operation and are authorized by the
   original instruction to release and tag at the end of the update.
 
-Release notes file: `docs/releases/2026-10-28/v0.2.0.md`.
+Release notes file: `docs/releases/2026-10-28/v0.1.0.md`.
 
 Contents: the five commands, the seven config files, the five bundles, the
 accounting rules, the verification evidence, and the known limits (one

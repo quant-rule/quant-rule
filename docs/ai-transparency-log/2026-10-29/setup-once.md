@@ -3,7 +3,7 @@
 - Date: 2026-10-29 (UTC)
 - Tool: OpenCode, DeepSeek V4.1 Flash Free
 - Work item: post-release documentation; no issue
-- Related: [`v0.2.0` release notes](../../releases/2026-10-28/v0.2.0.md)
+- Related: [`v0.2.0` release notes](../../releases/2026-10-28/v0.1.0.md)
 - Branch/worktree: `docs/setup-once` in `quant-rule--setup-docs`
 - PR: [#194](https://github.com/quant-rule/quant-rule/pull/194), follow-up [#195](https://github.com/quant-rule/quant-rule/pull/195)
 - Status: #194 merged; #195 open, merge after checks pass.

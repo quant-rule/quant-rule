@@ -54,12 +54,14 @@ The date is the UTC release date. The tag is `vMAJOR.MINOR.PATCH`.
 - A local tag that was never pushed may be deleted before publication.
 - Protect `v*` tags in GitHub if the repository settings allow it.
 
-### Renumbering (2026-11-15)
+### Renumbering (2026-11-15 and 2026-11-16)
 
 The release tags were renumbered on 2026-11-15 so the history reads `v0.1.0`
-through `v1.0.0` without gaps. Commits, images, and published artifacts are
-unchanged; release notes and changelog sections keep their original version
-headings as historical records.
+through `v1.0.0` without gaps. On 2026-11-16 the release-note filenames and
+changelog headings were normalized to those current tags, and the next two
+releases were cut as `v1.1.0` and `v1.2.0`. Commits, images, and published
+artifacts are unchanged for the historical releases; each note keeps its
+historical heading and records the prepared version in a tag note.
 
 | Current tag | Commit | Was |
 |---|---|---|
@@ -73,14 +75,16 @@ headings as historical records.
 | `v0.8.0` | `57f5663f` | `v0.9.0` |
 | `v0.9.0` | `748355f7` | `v1.0.0` |
 | `v1.0.0` | `6373c293` | `v1.1.0` |
+| `v1.1.0` | tag target on `main` | new 2026-11-16 (current 1.1.0 tree) |
 
 The GitHub release pages follow the current tag names; published asset and image
-names keep their original build versions.
+names keep their original build versions. The `v1.0.0` desktop release was built
+as `1.1.0`, so its installers keep that name; its `v1.1.0` registry tag was
+reassigned to the 2026-11-16 release, and its digest is the stable reference.
 
-The current release tag is `v1.0.0`, the desktop release; its historical
-release note is [`v1.1.0`](2026-11-15/v1.1.0.md). The previous tag is `v0.9.0`,
-the distributed platform, whose historical note is
-[`v1.0.0`](2026-11-15/v1.0.0.md).
+The current release tag is `v1.1.0` (2026-11-16), the version-alignment release;
+its note is [`v1.1.0`](2026-11-16/v1.1.0.md). The previous tag is `v1.0.0`, the
+desktop release, whose note is [`v1.0.0`](2026-11-15/v1.0.0.md).
 
 The map below is authoritative: a current tag resolves to exactly one note, and
 the release workflow and `tools/check_releases.py` both read it. Paths are
@@ -90,16 +94,17 @@ above; the checker fails when the two drift.
 <!-- current-tags:start -->
 ```json
 {
-  "v0.1.0": "2026-10-28/v0.2.0.md",
+  "v0.1.0": "2026-10-28/v0.1.0.md",
   "v0.2.0": "2026-10-30/v0.3.0.md",
   "v0.3.0": "2026-10-30/v0.3.0.md",
-  "v0.4.0": "2026-11-01/v0.5.0.md",
-  "v0.5.0": "2026-11-07/v0.6.0.md",
-  "v0.6.0": "2026-11-09/v0.7.0.md",
-  "v0.7.0": "2026-11-11/v0.8.0.md",
-  "v0.8.0": "2026-11-11/v0.9.0.md",
-  "v0.9.0": "2026-11-15/v1.0.0.md",
-  "v1.0.0": "2026-11-15/v1.1.0.md"
+  "v0.4.0": "2026-11-01/v0.4.0.md",
+  "v0.5.0": "2026-11-07/v0.5.0.md",
+  "v0.6.0": "2026-11-09/v0.6.0.md",
+  "v0.7.0": "2026-11-11/v0.7.0.md",
+  "v0.8.0": "2026-11-11/v0.8.0.md",
+  "v0.9.0": "2026-11-15/v0.9.0.md",
+  "v1.0.0": "2026-11-15/v1.0.0.md",
+  "v1.1.0": "2026-11-16/v1.1.0.md"
 }
 ```
 <!-- current-tags:end -->
@@ -116,9 +121,9 @@ renumbering. Their evidence remains in Git history; the current tags are the
 mapping in section 3.
 
 The first post-baseline release note is
-[`v0.6.0`](2026-11-07/v0.6.0.md) on 2026-11-07; after the renumbering its tag
-is `v0.5.0`. Release notes keep their original filenames and headings, so use
-the mapping to find the note for a current tag.
+[`v0.5.0`](2026-11-07/v0.5.0.md) on 2026-11-07. The 2026-11-16 normalization
+renamed the note files and changelog headings to the current tags; each note
+keeps its historical heading and states the prepared version in a tag note.
 
 ## 5. Changelog alignment
 
@@ -131,6 +136,8 @@ the mapping to find the note for a current tag.
   backfilled.
 - A correction to a released section is a new release or a dated addendum in the
   next release.
+- The current release section is `1.1.0`; `1.0.0` is the desktop release and
+  `0.9.0` is the distributed platform.
 
 ## 6. Release note template
 

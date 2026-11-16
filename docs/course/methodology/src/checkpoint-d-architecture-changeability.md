@@ -1,7 +1,7 @@
 # Checkpoint D - Architecture and Changeability
 
 - Status: Released v1.0.0; updated 2026-11-16
-- Release: [`docs/releases/2026-11-15/v1.1.0.md`](../../../releases/2026-11-15/v1.1.0.md) (current tag `v1.0.0`)
+- Release: [`docs/releases/2026-11-15/v1.0.0.md`](../../../releases/2026-11-15/v1.0.0.md) (current tag `v1.0.0`)
 
 **Claim.** For one researcher, the released v1.0.0 architecture keeps one rule
 in and one reproducible bundle out while a service, adapter, reading, or client

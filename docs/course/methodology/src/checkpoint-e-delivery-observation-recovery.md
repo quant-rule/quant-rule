@@ -18,7 +18,7 @@
 - A self-contained desktop package installs from a release asset, starts the
   same six sidecars on SQLite/filesystem CAS/in-process queue, and reads no
   local engine data.
-- Release record: [`docs/releases/2026-11-15/v1.1.0.md`](../../../releases/2026-11-15/v1.1.0.md)
+- Release record: [`docs/releases/2026-11-15/v1.0.0.md`](../../../releases/2026-11-15/v1.0.0.md)
   (current tag `v1.0.0`). It records 2,134 passing tests; the earlier
   distributed-platform note (now `v0.9.0`) recorded 1,995.
 

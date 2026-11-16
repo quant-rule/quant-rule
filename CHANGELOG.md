@@ -10,11 +10,23 @@ release notes are in [`docs/releases/`](docs/releases/), and the detailed change
 history is in Git and the pull requests.
 
 > Release tags were renumbered on 2026-11-15 so the history reads `v0.1.0`
-> through `v1.0.0`. The sections below keep their original version headings as
-> historical records; the current tag is `v1.0.0`. See
+> through `v1.0.0`. On 2026-11-16 the release-note filenames and the sections
+> below were normalized to those current tags, and the next two releases were
+> cut as `v1.1.0` and `v1.2.0`. Each release note keeps its historical heading
+> and records the version it was prepared as. The current tag is `v1.1.0`. See
 > [`docs/releases/README.md`](docs/releases/README.md) for the mapping.
 
 ## [Unreleased]
+
+## [1.1.0] - 2026-11-16
+
+The 1.1.0 alignment release. The existing 1.1.0 tree is published under the
+corrected tag sequence, and the release history is normalized so the note
+filenames, changelog headings, and current tags agree. The server platform and
+the desktop package are unchanged; the browser client gains the remaining
+inspection and verification surface, the composed test tier and the release
+checks land, and the missing-volume and artifact-verification fixes are
+included. No model, strategy, execution, or portfolio behavior changed.
 
 ### Added
 
@@ -83,7 +95,7 @@ history is in Git and the pull requests.
 - The retired local SQLite research memory and its `rusqlite` dependency were
   removed from `quantrule-app`; research memory lives in the evidence service.
 
-## [1.1.0] - 2026-11-15
+## [1.0.0] - 2026-11-15
 
 The desktop release. The same six services, HTTP contracts, and deterministic
 output now run from one installer with no Docker: SQLite replaces Postgres, a
@@ -219,7 +231,7 @@ digest `sha256:453c90b4…`. The v1.0.0 distributed platform remains the baselin
   filename error. The logical key, the byte-address check, immutable publish,
   and idempotent republish are unchanged.
 
-## [1.0.0] - 2026-11-15
+## [0.9.0] - 2026-11-15
 
 The first distributed release. One image digest carries six service binaries and
 the built browser client; the default Compose stack runs nine containers behind
@@ -716,7 +728,7 @@ a Windows NSIS installer.
 - `docs/architecture/` now separates current decisions from target contracts;
   every target document carries `Status: Target v1.0.0`.
 
-## [0.9.0] - 2026-11-11
+## [0.8.0] - 2026-11-11
 
 ### Added
 
@@ -764,7 +776,7 @@ a Windows NSIS installer.
 - The current `policy.json`, policy loader, `policy check` command, and policy
   cross-config checks. Historical `run/v2` evidence remains read-only.
 
-## [0.8.0] - 2026-11-11
+## [0.7.0] - 2026-11-11
 
 ### Added
 
@@ -859,7 +871,7 @@ a Windows NSIS installer.
 - Trade charts now draw the exit marker and label the exit action (`SELL` for a
   long, `BUY` for a short); previously only the entry marker was visible.
 
-## [0.7.0] - 2026-11-09
+## [0.6.0] - 2026-11-09
 
 ### Added
 
@@ -989,7 +1001,7 @@ a Windows NSIS installer.
   every execution bar. The selected events are unchanged; a one-year 1-minute
   cell no longer spends its runtime in a quadratic scan.
 
-## [0.6.0] - 2026-11-07
+## [0.5.0] - 2026-11-07
 
 ### Added
 

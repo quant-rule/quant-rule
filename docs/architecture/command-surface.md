@@ -1,6 +1,6 @@
 # Command Surface — the Gateway Client
 
-- Status: Current; gateway-client surface released as v0.9.0 (prepared as v1.0.0); unchanged in v1.0.0
+- Status: Current; gateway-client surface released as v0.9.0 (prepared as v1.0.0); unchanged through v1.1.0
 - Owner: Human
 - Part of: [`docs/architecture/README.md`](README.md)
 - Claim type: Behaviour Claim
@@ -186,7 +186,7 @@ contract change reserved to the human.
 | 6 | Qualification command and record | Merged |
 | 7 | Analytics evaluation command | Merged |
 | 8 | Independent stage verification and closure | Merged and verified locally; human acceptance pending |
-| 9 | Gateway client released as v0.9.0 (prepared as v1.0.0; unchanged in v1.0.0) | Implemented; parity and server dependencies tracked |
+| 9 | Gateway client released as v0.9.0 (prepared as v1.0.0; unchanged through v1.1.0) | Implemented; parity and server dependencies tracked |
 
 ## 9. Removed in the distributed release (v0.9.0, prepared as v1.0.0)
 

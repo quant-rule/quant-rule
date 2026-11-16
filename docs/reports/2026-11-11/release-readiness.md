@@ -3,7 +3,7 @@
 - Date: 2026-11-11 (UTC)
 - Release: `v0.9.0` at `57f5663`
 - Status: Released
-- Release note: [`docs/releases/2026-11-11/v0.9.0.md`](../../releases/2026-11-11/v0.9.0.md)
+- Release note: [`docs/releases/2026-11-11/v0.8.0.md`](../../releases/2026-11-11/v0.8.0.md)
 - Claim type: release readiness record; no edge or profitability claim.
 
 ## Scope
@@ -57,14 +57,14 @@ bundles; the GitHub release carries the same files and checksums.
 | GitHub release | [Published](https://github.com/quant-rule/quant-rule/releases/tag/v0.9.0); not draft or prerelease |
 | Assets | `.deb`, `.AppImage`, and `checksums.txt` attached |
 | Checksum check | Downloaded `checksums.txt` matches `site/checksums.txt` byte for byte |
-| Release note | `docs/releases/2026-11-11/v0.9.0.md` is the release body |
+| Release note | `docs/releases/2026-11-11/v0.8.0.md` is the release body |
 | Changelog | `## [0.9.0] - 2026-11-11` |
 
 ## Tag preconditions
 
 - [x] Full gate passes on the release commit.
 - [x] `CHANGELOG.md` has `## [0.9.0] - 2026-11-11`.
-- [x] `docs/releases/2026-11-11/v0.9.0.md` exists with the tag, commit, scope,
+- [x] `docs/releases/2026-11-11/v0.8.0.md` exists with the tag, commit, scope,
       verification, risks, rollback, and changelog link.
 - [x] No Critical audit finding is open on the changed path.
 - [x] The human authorizes the annotated tag.
