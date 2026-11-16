@@ -60,10 +60,11 @@ CREATE_RELATION = re.compile(
     re.IGNORECASE,
 )
 PREFIXED_TABLE = re.compile(r"(?<![A-Za-z0-9_])([a-z][a-z0-9_]*)__([a-z][a-z0-9_]*)")
-SQL_APPLY = re.compile(
-    r"apply_sqlite_migrations\s*\(\s*&database\s*,\s*\"([a-z][a-z0-9_]*)\"\s*,",
+SERVICE_DATABASE = re.compile(
+    r"open_service_database\s*\(\s*&config\s*,\s*\"([a-z][a-z0-9_]*)\"",
     re.DOTALL,
 )
+RUNTIME_BACKENDS = "crates/quantrule-runtime/src/backends.rs"
 
 
 @dataclass(frozen=True)
@@ -479,6 +480,8 @@ def check_crate(root: Path, crate: str, rows: list[Ledger]) -> list[Violation]:
             same_store = [other for other in rows if other.store == row.store]
             violations.extend(check_store(root, store, same_store))
 
+    violations.extend(check_runtime_branch(root))
+
     store_paths = {row.store for row in rows}
     for path in sorted((base / "src").glob("**/*.rs")):
         if relative(base, path) in store_paths:
@@ -494,16 +497,55 @@ def check_crate(root: Path, crate: str, rows: list[Ledger]) -> list[Violation]:
 def check_profile_branch(
     root: Path, main: Path, rows: list[Ledger]
 ) -> list[Violation]:
-    """Prove `<service> main` branches on the profile and applies its ledger."""
+    """Prove `<service> main` names its ledger and both store backends."""
     text = main.read_text(encoding="utf-8")
     violations: list[Violation] = []
-    for token in ("DeploymentProfile::Desktop", ".data_dir", '"QR_DATA_DIR"'):
+    for token in (
+        "open_service_database(",
+        "migrations::sqlite()",
+        "ServiceDatabase::Sqlite",
+        "ServiceDatabase::Postgres",
+    ):
         if token not in text:
             violations.append(
                 file_violation(
                     "profile-branch",
                     root,
                     main,
+                    f"the service database does not name {token}",
+                )
+            )
+    expected = sorted({row.name for row in rows})
+    found = sorted(set(SERVICE_DATABASE.findall(text)))
+    if found != expected:
+        detail = f"expected {', '.join(expected)}; found {', '.join(found) or 'none'}"
+        violations.append(
+            file_violation("ledger-row", root, main, f"the ledger row is wrong: {detail}")
+        )
+    return violations
+
+
+def check_runtime_branch(root: Path) -> list[Violation]:
+    """Prove the shared helper still branches on the profile and opens one file."""
+    path = root / RUNTIME_BACKENDS
+    if not path.is_file():
+        return [
+            file_violation(
+                "profile-branch",
+                root,
+                path,
+                "the shared service-database helper is missing",
+            )
+        ]
+    text = path.read_text(encoding="utf-8")
+    violations: list[Violation] = []
+    for token in ("DeploymentProfile::Desktop", '"QR_DATA_DIR"'):
+        if token not in text:
+            violations.append(
+                file_violation(
+                    "profile-branch",
+                    root,
+                    path,
                     f"the desktop branch does not name {token}",
                 )
             )
@@ -512,25 +554,18 @@ def check_profile_branch(
             file_violation(
                 "single-file",
                 root,
-                main,
+                path,
                 "the desktop branch does not open the shared quantrule.sqlite file",
             )
         )
-    if "migrations::sqlite()" not in text:
+    if "apply_sqlite_migrations(" not in text or "ledger," not in text:
         violations.append(
             file_violation(
-                "baseline-wired",
+                "ledger-applied",
                 root,
-                main,
-                "the desktop branch does not apply the service's SQLite baseline",
+                path,
+                "the shared helper does not apply the caller's ledger",
             )
-        )
-    expected = sorted({row.name for row in rows})
-    found = sorted(set(SQL_APPLY.findall(text)))
-    if found != expected:
-        detail = f"expected {', '.join(expected)}; found {', '.join(found) or 'none'}"
-        violations.append(
-            file_violation("ledger-row", root, main, f"the ledger row is wrong: {detail}")
         )
     return violations
 

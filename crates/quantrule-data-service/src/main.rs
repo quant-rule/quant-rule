@@ -13,19 +13,18 @@
 
 use std::sync::Arc;
 
-use quantrule_runtime::adapters::Database;
 use quantrule_runtime::adapters::ObjectStore;
-use quantrule_runtime::adapters::postgres::{PgDatabase, apply_migrations_in};
-use quantrule_runtime::adapters::sqlite::{
-    DATABASE_FILE, SqliteDatabase, apply_migrations_in as apply_sqlite_migrations,
-};
-use quantrule_runtime::backends::Objects;
-use quantrule_runtime::config::ConfigError;
-use quantrule_runtime::{Config, DeploymentProfile, HealthRegistry, RuntimeError, logging, serve};
+use quantrule_runtime::backends::{Objects, ServiceDatabase, open_service_database};
+use quantrule_runtime::{Config, HealthRegistry, RuntimeError, logging, serve};
 
 use quantrule_data_service::postgres::{PgConfigStore, PgDatasetCatalog};
 use quantrule_data_service::sqlite::{SqliteConfigStore, SqliteDatasetCatalog};
 use quantrule_data_service::{DataServices, DataState};
+
+/// The catalog a route handler reads.
+type CatalogHandle = Arc<dyn quantrule_data_service::DatasetCatalog>;
+/// The config catalog a route handler reads.
+type ConfigHandle = Arc<dyn quantrule_data_service::ConfigCatalog>;
 
 #[tokio::main]
 async fn main() -> Result<(), RuntimeError> {
@@ -33,58 +32,26 @@ async fn main() -> Result<(), RuntimeError> {
     logging::init("info")?;
 
     let mut health = HealthRegistry::new();
-    let mut catalog: Option<Arc<dyn quantrule_data_service::DatasetCatalog>> = None;
-    let mut configs: Option<Arc<dyn quantrule_data_service::ConfigCatalog>> = None;
-
-    if config.profile == DeploymentProfile::Desktop {
-        let data_dir = config.data_dir.as_deref().ok_or(ConfigError::Missing {
-            name: "QR_DATA_DIR",
-        })?;
-        let path = data_dir.join(DATABASE_FILE);
-        let database = SqliteDatabase::open(&path)
-            .map_err(|error| RuntimeError::Database(error.to_string()))?;
-        if config.migrate {
-            let applied = apply_sqlite_migrations(
-                &database,
-                "catalog",
-                &quantrule_data_service::migrations::sqlite(),
-            )
-            .await
-            .map_err(|error| RuntimeError::Migrations(error.to_string()))?;
-            tracing::info!(applied, "catalog SQLite migrations applied");
-        }
-        catalog = Some(Arc::new(SqliteDatasetCatalog::new(database.clone())));
-        configs = Some(Arc::new(SqliteConfigStore::new(database.clone())));
-        health.register("sqlite", move || {
-            let database = database.clone();
-            async move { database.ping().await.map_err(|error| error.to_string()) }
-        });
-    } else {
-        match PgDatabase::connect(&config.database_url).await {
-            Ok(database) => {
-                if config.migrate {
-                    let applied = apply_migrations_in(
-                        database.pool(),
-                        "catalog",
-                        &quantrule_data_service::migrations::available(),
-                    )
-                    .await
-                    .map_err(|error| RuntimeError::Migrations(error.to_string()))?;
-                    tracing::info!(applied, "catalog migrations applied");
-                }
-                catalog = Some(Arc::new(PgDatasetCatalog::new(database.pool().clone())));
-                configs = Some(Arc::new(PgConfigStore::new(database.pool().clone())));
-                health.register("postgres", move || {
-                    let database = database.clone();
-                    async move { database.ping().await.map_err(|error| error.to_string()) }
-                })
-            }
-            Err(error) => health.register("postgres", move || {
-                let message = error.to_string();
-                async move { Err(message) }
-            }),
-        }
-    }
+    let opened = open_service_database(
+        &config,
+        "catalog",
+        "catalog",
+        &quantrule_data_service::migrations::sqlite(),
+        &quantrule_data_service::migrations::available(),
+        &mut health,
+    )
+    .await?;
+    let (catalog, configs): (Option<CatalogHandle>, Option<ConfigHandle>) = match opened {
+        Some(ServiceDatabase::Sqlite(database)) => (
+            Some(Arc::new(SqliteDatasetCatalog::new(database.clone()))),
+            Some(Arc::new(SqliteConfigStore::new(database))),
+        ),
+        Some(ServiceDatabase::Postgres(database)) => (
+            Some(Arc::new(PgDatasetCatalog::new(database.pool().clone()))),
+            Some(Arc::new(PgConfigStore::new(database.pool().clone()))),
+        ),
+        None => (None, None),
+    };
 
     let backend = Objects::open(&config).await?;
     let objects: Arc<dyn ObjectStore> = Arc::new(backend.clone());

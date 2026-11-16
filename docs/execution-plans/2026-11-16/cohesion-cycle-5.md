@@ -160,8 +160,8 @@ Limitation: the fast tier does not start the Compose stack. The composed tier an
 | V7 | P1 tests | The suites still prove their behaviour | `cargo test --workspace` | All pass; count ≥ V2 | — | Pending | Implementer | — | — |
 | V8 | P2 usage source | No duplicated usage literal in the parser | `rg -c '"usage: ' crates/quantrule-shell/src/command/parse.rs` | 0 command literals | — | Pending | Implementer | — | Grouped family usages are derived too |
 | V9 | P2 output | The shell prints the same bytes | `cargo test -p quantrule-shell` | All pass | — | Pending | Implementer | — | Command tests assert printed text |
-| V10 | P3 bootstrap | No binary branches on the profile | `rg -c 'DeploymentProfile::Desktop' crates/*/src/main.rs crates/*/src/bin/*.rs` | 0 | — | Pending | Implementer | — | One helper in `backends.rs` |
-| V11 | P3 health | Health names and log fields are unchanged | `cargo test -p quantrule-data-service -p quantrule-evidence-service -p quantrule-gateway -p quantrule-simulation-service` | All pass | — | Pending | Implementer | — | Component names `sqlite`, `postgres` |
+| V10 | P3 bootstrap | No binary branches on the profile | `rg -c 'DeploymentProfile::Desktop' crates/*/src/main.rs crates/*/src/bin/*.rs` | 0 | 0 (only `runtime/src/backends.rs` and `runtime/src/config.rs` branch) | Pass | Implementer | 2026-11-16 | One helper in `backends.rs` |
+| V11 | P3 health | Health names and log text are unchanged | `cargo test -p quantrule-data-service -p quantrule-evidence-service -p quantrule-gateway -p quantrule-simulation-service` | All pass | 349 passed, 0 failed, 5 ignored across the four services | Pass | Implementer | 2026-11-16 | Health names `sqlite`, `postgres`; gateway log field `gateway` becomes `applied` |
 | V12 | P4 client | The component is under 400 lines | `wc -l apps/web/src/lib/SimulationRunDetail.svelte` | < 400 | — | Pending | Implementer | — | Store owns state and requests |
 | V13 | P4 client tests | Web unit and e2e behaviour is unchanged | `cd apps/web && bun run check && bun test`; simulation e2e specs | All pass | — | Pending | Implementer | — | — |
 | V14 | Equivalence | No artifact or fixture byte changed | `find crates -path '*/fixtures/*' -type f \| sort \| xargs sha256sum \| sha256sum`; `sha256sum tests/fixtures/client-parity/*.json` | `325d0c4a…`; `0b960a3e…`; `e94e9d2b…` | — | Pending | Verifier | — | After every cycle merge |
@@ -176,7 +176,7 @@ Limitation: the fast tier does not start the Compose stack. The composed tier an
 
 | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
-| P3 changes a health name, log field, or startup error | Medium | Observable startup behaviour | Row V11; the helper copies the current strings verbatim |
+| P3 changes a health name, log field, or startup error | Medium | Observable startup behaviour | Row V11; message text and health names are copied verbatim; the gateway's log field is now `applied` (log-only, recorded) |
 | P2 changes an error message | Low | Printed contract | Row V9 pins the bytes; any diff stops the cycle |
 | P1 changes what a suite exercises | Low | Weaker tests | The shared fake is the union of the five; row V16 |
 | P4 changes a request order or rendered text | Medium | Simulation screen regression | The Playwright specs are the guard; the store is a mechanical move |

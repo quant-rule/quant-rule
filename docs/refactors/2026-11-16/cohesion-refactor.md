@@ -39,7 +39,7 @@ bash tools/checkers.sh
 | ID | Impact | Area | Finding | Evidence | Principle | Options | Recommended | Verification | Status | Links |
 |---|---|---|---|---|---|---|---|---|---|---|
 | REF-2026-11-16-01 | Medium | tests | Five service test suites copy the same in-memory object store | `rg -n 'pub struct MemoryObjects' crates` returns 5 copies, 57-69 lines each, 0.89-0.96 similar | duplication, testability | A / B / C | A | one definition; five suites import it; test count unchanged | Open | plan P1 |
-| REF-2026-11-16-02 | Medium | runtime, services | Four service binaries repeat the profile database bootstrap | `data-service/src/main.rs:39`, `evidence-service/src/main.rs:52`, `gateway/src/bin/qr_gateway.rs:36`, `simulation-service/src/main.rs:38`; `backtest-service/src/main.rs:38` already calls `backends::open_database` | duplication, coupling | A / B / C | A | one branch in runtime; four binaries call one helper; health tests pass | Open | plan pending |
+| REF-2026-11-16-02 | Medium | runtime, services | Four service binaries repeat the profile database bootstrap | `data-service/src/main.rs:39`, `evidence-service/src/main.rs:52`, `gateway/src/bin/qr_gateway.rs:36`, `simulation-service/src/main.rs:38`; `backtest-service/src/main.rs:38` already calls `backends::open_database` | duplication, coupling | A / B / C | A | one branch in runtime; four binaries call one helper; health tests pass | Refactored | plan P3 |
 | REF-2026-11-16-03 | Medium | shell | Command usage text is duplicated between the help registry and the parser | 25 of 27 `help.rs` usages are byte-identical literals in `parse.rs`; example `help.rs:51` vs `parse.rs:319` | duplication, coupling | A / B / C | A | 0 duplicated usage literals; shell output tests unchanged | Open | plan pending |
 | REF-2026-11-16-04 | Low | app | The timeframe code is mapped in three places | `artifact/labels.rs:8` (hand-written), `artifact/model_bundle/bundle.rs:278` and `stages/analytics/metrics.rs:323` (both from `Timeframe::ALL`) | duplication | A / B / C | A | one lookup; report and metrics tests unchanged | Open | plan pending |
 | REF-2026-11-16-05 | Low | app | Stage artifact writers duplicate the engine-code mappings | `sizing_label` at `execution/run.rs:561` and `portfolio/run.rs:513`; `summary_number` at 604 and 528; `collect` at `backtest.rs:556` and `execution/run.rs:357` | duplication | A / B | A | one definition each; bundle bytes identical | Open | plan pending |
@@ -177,6 +177,12 @@ print the same bytes; a new test maps each command to its registry usage.
 
 #### Links
 Plan pending.
+
+- Revision (2026-11-16, P3): the helper copies the startup message text and the
+  `sqlite`/`postgres` health names. The gateway's structured log field was
+  `gateway`; it is now `applied` for all four services. Logs are operational
+  output, not a command or artifact contract; no test or document asserts the
+  field name.
 
 ### REF-2026-11-16-04 — Three timeframe label mappings
 
