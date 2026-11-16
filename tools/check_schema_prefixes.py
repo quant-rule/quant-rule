@@ -92,11 +92,12 @@ class Violation:
         return f"{self.rule}: {self.path}: {self.message}"
 
 
-# The complete SQLite inventory. `runs` and `research` share one ledger and one
-# baseline because the evidence service owns both prefixes and one forward-only
-# history; the row is still written per prefix so the table set is explicit.
-# `queue` has no baseline and no binary: the runtime adapter owns its two
-# tables, so `baseline` and `main` are `None` on purpose, not an omission.
+# The complete SQLite inventory. `runs`, `research`, and `stage` share one
+# ledger and one forward-only history, written as two baselines: the run and
+# research tables start at version 1, and the diagnostic stage tables are the
+# additive version 2. The table set is written per prefix so it stays explicit.
+# `queue` has no baseline and no binary: the runtime adapter owns its two tables,
+# so `baseline` and `main` are `None` on purpose, not an omission.
 LEDGERS = (
     Ledger(
         name="gateway",
@@ -141,6 +142,19 @@ LEDGERS = (
         tables=("research__hypotheses",),
         baseline="migrations/sqlite/0001_runs_research.sql",
         store="src/sqlite/mod.rs",
+        main="src/main.rs",
+    ),
+    Ledger(
+        name="runs",
+        crate="quantrule-evidence-service",
+        prefix="stage",
+        tables=(
+            "stage__artifacts",
+            "stage__runs",
+            "stage__submissions",
+        ),
+        baseline="migrations/sqlite/0002_stage.sql",
+        store="src/stage/sqlite.rs",
         main="src/main.rs",
     ),
     Ledger(

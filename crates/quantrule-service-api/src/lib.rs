@@ -1,9 +1,10 @@
 //! The `quantrule.internal/v1` contract between services.
 //!
 //! This crate defines what one service sends another: the run lifecycle, the
-//! config bundle, the dataset object reference, the model bundle manifest, and
-//! the canonical digest over a run's artifacts. It carries references, never a
-//! candle, a reading, or a payment payload.
+//! config bundle, the dataset object reference, the model bundle manifest, the
+//! diagnostics stage lifecycle and manifest, and the canonical digest over a
+//! run's artifacts. It carries references, never a candle, a reading, or a
+//! payment payload.
 //!
 //! The crate depends on [`quantrule_api`] for the shared digest and run
 //! vocabulary and on no engine, no runtime, and no service crate. A service
@@ -13,6 +14,7 @@
 
 pub mod manifest;
 pub mod run;
+pub mod stage;
 pub mod storage;
 
 pub use manifest::{
@@ -21,6 +23,11 @@ pub use manifest::{
 pub use run::{
     MAX_ATTEMPTS, NewRun, RunCancelOutcome, RunClaimOutcome, RunClaimRequest, RunComputed,
     RunFailed, RunRecord, derive_run_id,
+};
+pub use stage::{
+    NewStageRun, STAGE_MANIFEST_SCHEMA, StageCancelOutcome, StageClaim, StageClaimOutcome,
+    StageComputed, StageFailed, StageManifest, StageManifestError, StageRecord,
+    derive_stage_run_id,
 };
 pub use storage::{ConfigBundle, DatasetObject, MODEL_BUNDLE_SCHEMA, ModelBundleManifest};
 

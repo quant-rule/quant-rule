@@ -1,17 +1,19 @@
-//! The `runs` migration ledger.
+//! The evidence migration ledger.
 //!
-//! Evidence owns two schemas: `runs` and `research`. The plan gives both one
-//! ledger, so this list is the only place a run or hypothesis migration is
-//! applied. A SQL file is inert until it is listed here; the retry-budget
-//! migration (`0013_run_attempts.sql`) was parked with #646 and is registered
-//! here because the run store reads the column it adds. Versions are local to
-//! the ledger and keep their historical numbers.
+//! Evidence owns three schemas: `runs`, `research`, and the diagnostic `stage`
+//! schema. The plan gives the first two one ledger, so this list is the only
+//! place a run, hypothesis, or stage migration is applied. A SQL file is inert
+//! until it is listed here; the retry-budget migration (`0013_run_attempts.sql`)
+//! was parked with #646 and is registered here because the run store reads the
+//! column it adds. Versions are local to the ledger and keep their historical
+//! numbers.
 //!
 //! The SQLite list is the baseline for the embedded desktop profile, not a
 //! translation of the Postgres history: a desktop database starts at v1.1 and
-//! has no earlier rows to migrate. It writes the same two schemas under the
-//! `runs__` and `research__` table prefixes and starts at version 1 in the
-//! same `runs` ledger.
+//! has no earlier rows to migrate. It writes the same schemas under the
+//! `runs__`, `research__`, and `stage__` table prefixes and starts at version 1
+//! in the same `runs` ledger. The stage tables are an additive migration so an
+//! existing desktop database keeps its rows.
 
 use quantrule_runtime::migrations::Migration;
 
@@ -49,6 +51,11 @@ pub fn available() -> Vec<Migration> {
             name: "run-attempts",
             sql: include_str!("../migrations/0013_run_attempts.sql"),
         },
+        Migration {
+            version: 14,
+            name: "stage",
+            sql: include_str!("../migrations/0014_stage.sql"),
+        },
     ];
     migrations.sort_by_key(|migration| migration.version);
     migrations
@@ -57,14 +64,22 @@ pub fn available() -> Vec<Migration> {
 /// The SQLite baseline for the embedded desktop profile, in version order.
 ///
 /// The ledger starts at 1 and lives in the shared `schema_migrations` table
-/// under the `runs` ledger name.
+/// under the `runs` ledger name. Version 2 is additive: it adds the diagnostic
+/// stage tables without touching the run or research rows.
 #[must_use]
 pub fn sqlite() -> Vec<Migration> {
-    vec![Migration {
-        version: 1,
-        name: "runs-research",
-        sql: include_str!("../migrations/sqlite/0001_runs_research.sql"),
-    }]
+    vec![
+        Migration {
+            version: 1,
+            name: "runs-research",
+            sql: include_str!("../migrations/sqlite/0001_runs_research.sql"),
+        },
+        Migration {
+            version: 2,
+            name: "stage",
+            sql: include_str!("../migrations/sqlite/0002_stage.sql"),
+        },
+    ]
 }
 
 #[cfg(test)]
@@ -101,7 +116,7 @@ mod tests {
         let pending = plan(&applied, &available).expect("plan");
         assert_eq!(
             pending.iter().map(|m| m.version).collect::<Vec<_>>(),
-            vec![4, 5, 8, 9, 13]
+            vec![4, 5, 8, 9, 13, 14]
         );
     }
 
@@ -120,7 +135,7 @@ mod tests {
             .iter()
             .map(|migration| migration.version)
             .collect();
-        assert_eq!(versions, vec![2, 4, 5, 8, 9, 13]);
+        assert_eq!(versions, vec![2, 4, 5, 8, 9, 13, 14]);
     }
 
     #[test]
@@ -138,7 +153,27 @@ mod tests {
     }
 
     #[test]
-    fn the_list_owns_only_runs_and_research() {
+    fn the_stage_migration_is_registered() {
+        let available = available();
+        let migration = available
+            .iter()
+            .find(|migration| migration.version == 14)
+            .expect("migration 14");
+        assert_eq!(migration.name, "stage");
+        for table in ["stage.runs", "stage.submissions", "stage.artifacts"] {
+            assert!(
+                migration.sql.contains(table),
+                "migration 14 must create {table}"
+            );
+        }
+        assert!(
+            migration.sql.contains("CREATE SCHEMA IF NOT EXISTS stage"),
+            "migration 14 must create the stage schema"
+        );
+    }
+
+    #[test]
+    fn the_list_owns_only_the_evidence_schemas() {
         for migration in available() {
             for forbidden in ["catalog.", "simulation.", "gateway."] {
                 assert!(
@@ -162,20 +197,45 @@ mod tests {
     #[test]
     fn the_sqlite_baseline_starts_at_one_and_is_complete() {
         let baseline = sqlite();
-        assert_eq!(baseline.len(), 1);
+        assert_eq!(baseline.len(), 2);
         assert_eq!(baseline[0].version, 1);
-        assert_eq!(plan(&[], &baseline).expect("plan").len(), 1);
+        assert_eq!(baseline[1].version, 2);
+        assert_eq!(plan(&[], &baseline).expect("plan").len(), 2);
+    }
+
+    #[test]
+    fn the_sqlite_stage_migration_is_additive() {
+        let stage = &sqlite()[1];
+        assert_eq!(stage.name, "stage");
+        assert!(
+            !stage.sql.contains("runs__runs"),
+            "the stage migration must not rewrite the run table"
+        );
+        assert!(
+            !stage.sql.contains("research__hypotheses"),
+            "the stage migration must not rewrite the hypothesis table"
+        );
+        for table in ["stage__runs", "stage__submissions", "stage__artifacts"] {
+            assert!(stage.sql.contains(table), "{table} is missing");
+        }
     }
 
     #[test]
     fn the_sqlite_baseline_uses_the_double_prefixes_and_sqlite_types() {
-        let sql = statements(sqlite()[0].sql);
+        let sql = sqlite()
+            .iter()
+            .map(|migration| statements(migration.sql))
+            .collect::<Vec<_>>()
+            .join("\n");
         for table in [
             "runs__runs",
             "runs__stages",
             "runs__artifacts",
             "runs__submissions",
             "research__hypotheses",
+            "stage__runs",
+            "stage__submissions",
+            "stage__artifacts",
         ] {
             assert!(sql.contains(table), "{table} is missing");
         }

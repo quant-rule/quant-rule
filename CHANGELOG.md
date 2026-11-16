@@ -20,6 +20,11 @@ history is in Git and the pull requests.
 
 ### Added
 
+- The stage resource contract and schema: `quantrule.api/v1` stage kinds,
+  states, input references, artifact bundles, and provenance;
+  `quantrule.stage-manifest/v1` with a computed bundle digest and
+  `evidence: false`; and the evidence service's profile-scoped `stage` schema
+  with Postgres and SQLite migrations and a content-addressed stage store.
 - The stage execution and evidence-boundary ADR: diagnostic stage runs are
   server-side and content-addressed, while the coupled backtest remains the only
   evidence path and canonical-digest producer.
