@@ -63,10 +63,10 @@ export const COMMANDS: CommandCapability[] = [
   { command: "simulation create", section: "simulation", control: "Create simulation form", component: "SimulationRunsPanel.svelte", testId: "simulation-create" },
   { command: "simulation windows", section: "simulation", control: "Window table", component: "SimulationRunDetail.svelte", testId: "sim-windows" },
   { command: "simulation mark", section: "simulation", control: "Mark form", component: "SimulationChart.svelte", testId: "sim-mark" },
-  { command: "simulation marks", section: "simulation", control: "Marks table", component: "SimulationRunDetail.svelte", testId: "sim-marks" },
+  { command: "simulation marks", section: "simulation", control: "Marks table", component: "SimulationMarksTable.svelte", testId: "sim-marks" },
   { command: "simulation oracle", section: "simulation", control: "Oracle result", component: "SimulationRunDetail.svelte", testId: "sim-oracle" },
-  { command: "simulation check", section: "simulation", control: "Check action", component: "SimulationRunDetail.svelte", testId: "sim-check" },
-  { command: "simulation decide", section: "simulation", control: "Decision action", component: "SimulationRunDetail.svelte", testId: "sim-decision" },
+  { command: "simulation check", section: "simulation", control: "Check action", component: "SimulationCheckPanel.svelte", testId: "sim-check" },
+  { command: "simulation decide", section: "simulation", control: "Decision action", component: "SimulationDecisionPanel.svelte", testId: "sim-decision" },
   { command: "help", section: "help", control: "Command reference table", component: "HelpPanel.svelte", testId: "help-table" },
 ];
 

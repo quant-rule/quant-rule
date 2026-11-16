@@ -13,7 +13,7 @@ use std::sync::{Arc, Mutex};
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use quantrule_api::{Digest, MarkOrigin, PROFILE_HEADER, ProfileId, SimulationStatus};
-use quantrule_runtime::adapters::{Backend, BoxFuture, ObjectStore, StoreError};
+use quantrule_runtime::adapters::BoxFuture;
 use quantrule_runtime::{Config, HealthRegistry};
 use quantrule_simulation::{CheckRecord, Selection};
 use quantrule_simulation_service::bundle::SIMULATION_BUNDLE_SCHEMA;
@@ -26,77 +26,11 @@ use quantrule_simulation_service::{SimulationServices, SimulationState, router};
 use serde_json::json;
 use tower::ServiceExt;
 
-/// An object store that keeps bytes in memory.
-#[derive(Clone, Default)]
-pub struct MemoryObjects {
-    inner: Arc<Mutex<BTreeMap<String, Vec<u8>>>>,
-}
-
-impl MemoryObjects {
-    /// Store one object.
-    pub async fn store(&self, key: &str, bytes: Vec<u8>) {
-        <Self as ObjectStore>::put(self, key, bytes)
-            .await
-            .expect("put");
-    }
-
-    /// Read one object, or `None`.
-    pub fn read(&self, key: &str) -> Option<Vec<u8>> {
-        self.inner.lock().expect("object lock").get(key).cloned()
-    }
-
-    /// Every key currently stored.
-    pub fn keys(&self) -> Vec<String> {
-        self.inner
-            .lock()
-            .expect("object lock")
-            .keys()
-            .cloned()
-            .collect()
-    }
-}
-
-impl ObjectStore for MemoryObjects {
-    fn backend(&self) -> Backend {
-        Backend::Filesystem
-    }
-
-    fn put(&self, key: &str, bytes: Vec<u8>) -> BoxFuture<Result<(), StoreError>> {
-        let inner = Arc::clone(&self.inner);
-        let key = key.to_owned();
-        Box::pin(async move {
-            inner
-                .lock()
-                .map_err(|_| StoreError("the object lock is poisoned".to_owned()))?
-                .insert(key, bytes);
-            Ok(())
-        })
-    }
-
-    fn get(&self, key: &str) -> BoxFuture<Result<Vec<u8>, StoreError>> {
-        let inner = Arc::clone(&self.inner);
-        let key = key.to_owned();
-        Box::pin(async move {
-            inner
-                .lock()
-                .map_err(|_| StoreError("the object lock is poisoned".to_owned()))?
-                .get(&key)
-                .cloned()
-                .ok_or_else(|| StoreError(format!("{key} is absent")))
-        })
-    }
-
-    fn exists(&self, key: &str) -> BoxFuture<Result<bool, StoreError>> {
-        let inner = Arc::clone(&self.inner);
-        let key = key.to_owned();
-        Box::pin(async move {
-            Ok(inner
-                .lock()
-                .map_err(|_| StoreError("the object lock is poisoned".to_owned()))?
-                .contains_key(&key))
-        })
-    }
-}
+/// The in-memory object store from `quantrule_runtime`.
+// Each integration target compiles this module separately, and not every
+// target exercises the object store.
+#[allow(unused_imports)]
+pub use quantrule_runtime::adapters::memory::MemoryObjects;
 
 #[derive(Default)]
 struct Inner {
@@ -586,6 +520,6 @@ pub async fn store_bundle(objects: &MemoryObjects, events: usize) -> Fixture {
     .expect("bundle json");
     let digest = Digest::sha256(&body);
     let key = quantrule_simulation_service::bundle::bundle_key(&digest);
-    objects.store(&key, body).await;
+    objects.store(&key, body).await.expect("store the bundle");
     Fixture { digest }
 }

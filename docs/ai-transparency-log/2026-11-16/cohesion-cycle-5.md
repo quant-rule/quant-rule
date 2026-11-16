@@ -48,3 +48,45 @@ the recorded options, the campaign scope, and final acceptance.
   review rather than removing the copy.
 - Recorded that the Structure Auditor, Planner, and (later) Implementer passes
   are performed by the same agent; no independent review is claimed.
+
+### 2026-11-16 — P1 shared object store
+
+- Implemented: `runtime::adapters::memory::MemoryObjects`; the five service
+  test-support modules re-export it. 350 lines removed, 168 added.
+- Verification: full `tools/gate.sh` exit 0; 2,120 passed, 0 failed, 14 ignored
+  (baseline 2,118).
+- Commit: `ad8e4fc1`.
+
+### 2026-11-16 — P2 usage source
+
+- Implemented: `help::usage`, a parser helper that formats the registry line,
+  and a parity test over every registered command. 25 command literals removed.
+- Learned: the parity test found that the `simulation marks` error advertised
+  `--origin human|oracle|all` while the parser accepts `human|oracle`. The human
+  approved correcting the hint; it is the one changed printed line and has a
+  changelog entry.
+- Verification: full `tools/gate.sh` exit 0; 2,119 passed; shell tests 85
+  passed.
+- Commit: `ac17287a`.
+
+### 2026-11-16 — P3 database bootstrap
+
+- Implemented: `backends::open_service_database` and four binaries matching one
+  result; `check_schema_prefixes.py` now checks the helper and the call site.
+- Trade-off recorded: the gateway's structured log field becomes `applied`;
+  message text and health names are unchanged.
+- Verification: full `tools/gate.sh` exit 0; 2,119 passed; the four services 349
+  passed.
+- Commit: `3c74e953`.
+
+### 2026-11-16 — P4 simulation screen
+
+- Implemented: `simulationRun.svelte.ts`, `SimulationMarksTable`,
+  `SimulationCheckPanel`, and `SimulationDecisionPanel`; the screen is 344
+  lines. The chart gained `onMarksChanged` and `onMarkPosted` callbacks.
+- Learned: the Playwright suite found a lost update in the first store draft,
+  where an object spread across an `await` overwrote marks fetched while the run
+  read was pending. The store now awaits before spreading.
+- Verification: `bun run check` 0 errors; 121 unit tests; 41 e2e tests; full
+  `tools/gate.sh` exit 0.
+- Commit: `6c0e4917`.

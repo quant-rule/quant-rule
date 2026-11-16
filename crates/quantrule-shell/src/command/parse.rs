@@ -10,9 +10,19 @@ use quantrule_api::{
     Digest, MarkAction, MarkOrigin, MarkQuality, RunState, Side, SimulationStatus,
 };
 
-use super::help::is_command;
+use super::help::{is_command, usage as registered_usage};
 use super::types::{Command, GlobalOptions, HelpTopic, Invocation, ParseError};
 use crate::token::BearerToken;
+
+/// The `usage: ...` line for a registered command.
+///
+/// The line comes from the help registry, which is the checked command
+/// contract; the parser keeps no second copy. A name the registry does not list
+/// is a parser defect, and the fallback still names the command rather than
+/// panicking the client.
+fn usage(name: &str) -> String {
+    format!("usage: {}", registered_usage(name).unwrap_or(name))
+}
 
 /// Parse an already-split argv, after the binary name.
 ///
@@ -264,12 +274,16 @@ fn parse_command(rest: &[String]) -> Result<Command, ParseError> {
         .split_first()
         .ok_or_else(|| ParseError::Usage(String::from("no command; type help")))?;
     match name.as_str() {
-        "health" => no_arguments(args, "usage: health").map(|()| Command::Health),
+        "health" => {
+            let line = usage("health");
+            no_arguments(args, line.as_str()).map(|()| Command::Health)
+        }
         "dataset" => parse_dataset(args),
         "config" => parse_config(args),
         "run" => parse_run(args),
         "inspect" => parse_inspect(args),
-        "verify" => single(args, "verify <run_id>").map(|run_id| Command::Verify { run_id }),
+        "verify" => single(args, registered_usage("verify").unwrap_or("verify"))
+            .map(|run_id| Command::Verify { run_id }),
         "profile" => parse_profile(args),
         "simulation" => parse_simulation(args),
         "help" => parse_help(args).map(Command::Help),
@@ -314,13 +328,18 @@ fn parse_dataset(args: &[String]) -> Result<Command, ParseError> {
         .split_first()
         .ok_or_else(|| ParseError::Usage(String::from(FAMILY)))?;
     match name.as_str() {
-        "list" => no_arguments(rest, "usage: dataset list").map(|()| Command::DatasetList),
+        "list" => {
+            let line = usage("dataset list");
+            no_arguments(rest, line.as_str()).map(|()| Command::DatasetList)
+        }
         "show" => {
-            let usage = "usage: dataset show <data_version>";
+            let line = usage("dataset show");
+            let usage = line.as_str();
             single(rest, usage).map(|data_version| Command::DatasetShow { data_version })
         }
         "upload" => {
-            let usage = "usage: dataset upload <csv-path> [--name <name>] [--tolerant]";
+            let line = usage("dataset upload");
+            let usage = line.as_str();
             let options = parse_options(rest, usage, &["name"], &["tolerant"])?;
             options.expect_positionals(1, usage)?;
             Ok(Command::DatasetUpload {
@@ -341,9 +360,13 @@ fn parse_config(args: &[String]) -> Result<Command, ParseError> {
         .split_first()
         .ok_or_else(|| ParseError::Usage(String::from(FAMILY)))?;
     match name.as_str() {
-        "list" => no_arguments(rest, "usage: config list").map(|()| Command::ConfigList),
+        "list" => {
+            let line = usage("config list");
+            no_arguments(rest, line.as_str()).map(|()| Command::ConfigList)
+        }
         "show" => {
-            let usage = "usage: config show <config_id>";
+            let line = usage("config show");
+            let usage = line.as_str();
             single(rest, usage).map(|config_id| Command::ConfigShow { config_id })
         }
         other => Err(ParseError::Usage(format!(
@@ -359,18 +382,21 @@ fn parse_run(args: &[String]) -> Result<Command, ParseError> {
         .ok_or_else(|| ParseError::Usage(String::from(FAMILY)))?;
     match name.as_str() {
         "submit" => {
-            let usage = "usage: run submit <data_version> <config_id>";
+            let line = usage("run submit");
+            let usage = line.as_str();
             pair(rest, usage).map(|(data_version, config_id)| Command::RunSubmit {
                 data_version,
                 config_id,
             })
         }
         "status" => {
-            let usage = "usage: run status <run_id>";
+            let line = usage("run status");
+            let usage = line.as_str();
             single(rest, usage).map(|run_id| Command::RunStatus { run_id })
         }
         "list" => {
-            let usage = "usage: run list [--status <state>] [--limit <n>]";
+            let line = usage("run list");
+            let usage = line.as_str();
             let options = parse_options(rest, usage, &["status", "limit"], &[])?;
             options.expect_positionals(0, usage)?;
             let status = options
@@ -384,14 +410,16 @@ fn parse_run(args: &[String]) -> Result<Command, ParseError> {
             Ok(Command::RunList { status, limit })
         }
         "fetch" => {
-            let usage = "usage: run fetch <run_id> <directory>";
+            let line = usage("run fetch");
+            let usage = line.as_str();
             pair(rest, usage).map(|(run_id, directory)| Command::RunFetch {
                 run_id,
                 directory: directory.into(),
             })
         }
         "cancel" => {
-            let usage = "usage: run cancel <run_id>";
+            let line = usage("run cancel");
+            let usage = line.as_str();
             single(rest, usage).map(|run_id| Command::RunCancel { run_id })
         }
         other => Err(ParseError::Usage(format!(
@@ -407,15 +435,18 @@ fn parse_inspect(args: &[String]) -> Result<Command, ParseError> {
         .ok_or_else(|| ParseError::Usage(String::from(FAMILY)))?;
     match name.as_str() {
         "candles" => {
-            let usage = "usage: inspect candles <data_version>";
+            let line = usage("inspect candles");
+            let usage = line.as_str();
             single(rest, usage).map(|data_version| Command::InspectCandles { data_version })
         }
         "timeframes" => {
-            let usage = "usage: inspect timeframes <data_version>";
+            let line = usage("inspect timeframes");
+            let usage = line.as_str();
             single(rest, usage).map(|data_version| Command::InspectTimeframes { data_version })
         }
         "events" => {
-            let usage = "usage: inspect events <data_version> --timeframe <tf>";
+            let line = usage("inspect events");
+            let usage = line.as_str();
             let options = parse_options(rest, usage, &["timeframe"], &[])?;
             options.expect_positionals(1, usage)?;
             Ok(Command::InspectEvents {
@@ -435,9 +466,13 @@ fn parse_profile(args: &[String]) -> Result<Command, ParseError> {
         .split_first()
         .ok_or_else(|| ParseError::Usage(String::from(FAMILY)))?;
     match name.as_str() {
-        "list" => no_arguments(rest, "usage: profile list").map(|()| Command::ProfileList),
+        "list" => {
+            let line = usage("profile list");
+            no_arguments(rest, line.as_str()).map(|()| Command::ProfileList)
+        }
         "create" => {
-            let usage = "usage: profile create <name> [--id <profile_id>]";
+            let line = usage("profile create");
+            let usage = line.as_str();
             let options = parse_options(rest, usage, &["id"], &[])?;
             options.expect_positionals(1, usage)?;
             let name = options.positional(0, "the profile name", usage)?.to_owned();
@@ -456,7 +491,8 @@ fn parse_profile(args: &[String]) -> Result<Command, ParseError> {
             })
         }
         "use" => {
-            let usage = "usage: profile use <profile_id>";
+            let line = usage("profile use");
+            let usage = line.as_str();
             let profile_id = single(rest, usage)?;
             quantrule_api::ProfileId::parse(&profile_id)
                 .map_err(|error| ParseError::Usage(format!("profile use {error}")))?;
@@ -475,7 +511,8 @@ fn parse_simulation(args: &[String]) -> Result<Command, ParseError> {
         .ok_or_else(|| ParseError::Usage(String::from(FAMILY)))?;
     match name.as_str() {
         "list" => {
-            let usage = "usage: simulation list [--status <status>] [--limit <n>]";
+            let line = usage("simulation list");
+            let usage = line.as_str();
             let options = parse_options(rest, usage, &["status", "limit"], &[])?;
             options.expect_positionals(0, usage)?;
             let status = options
@@ -489,7 +526,8 @@ fn parse_simulation(args: &[String]) -> Result<Command, ParseError> {
             Ok(Command::SimulationList { status, limit })
         }
         "create" => {
-            let usage = "usage: simulation create --premise <text> --bundle <digest> --seed <n> --criteria <text>";
+            let line = usage("simulation create");
+            let usage = line.as_str();
             let options =
                 parse_options(rest, usage, &["premise", "bundle", "seed", "criteria"], &[])?;
             options.expect_positionals(0, usage)?;
@@ -503,11 +541,13 @@ fn parse_simulation(args: &[String]) -> Result<Command, ParseError> {
             })
         }
         "windows" => {
-            let usage = "usage: simulation windows <sim_id>";
+            let line = usage("simulation windows");
+            let usage = line.as_str();
             single(rest, usage).map(|sim_id| Command::SimulationWindows { sim_id })
         }
         "mark" => {
-            let usage = "usage: simulation mark <sim_id> --chart <chart> --bar <n> --action entry|exit --quality good|bad|neutral --side long|short [--note <text>]";
+            let line = usage("simulation mark");
+            let usage = line.as_str();
             let options = parse_options(
                 rest,
                 usage,
@@ -528,7 +568,8 @@ fn parse_simulation(args: &[String]) -> Result<Command, ParseError> {
             })
         }
         "marks" => {
-            let usage = "usage: simulation marks <sim_id> [--origin human|oracle|all]";
+            let line = usage("simulation marks");
+            let usage = line.as_str();
             let options = parse_options(rest, usage, &["origin"], &[])?;
             options.expect_positionals(1, usage)?;
             let origin = match options.value("origin") {
@@ -543,15 +584,18 @@ fn parse_simulation(args: &[String]) -> Result<Command, ParseError> {
             })
         }
         "oracle" => {
-            let usage = "usage: simulation oracle <sim_id>";
+            let line = usage("simulation oracle");
+            let usage = line.as_str();
             single(rest, usage).map(|sim_id| Command::SimulationOracle { sim_id })
         }
         "check" => {
-            let usage = "usage: simulation check <sim_id>";
+            let line = usage("simulation check");
+            let usage = line.as_str();
             single(rest, usage).map(|sim_id| Command::SimulationCheck { sim_id })
         }
         "decide" => {
-            let usage = "usage: simulation decide <sim_id> <test|refine|stop> [--note <text>]";
+            let line = usage("simulation decide");
+            let usage = line.as_str();
             let options = parse_options(rest, usage, &["note"], &[])?;
             options.expect_positionals(2, usage)?;
             let decision = options
@@ -577,12 +621,13 @@ fn parse_simulation(args: &[String]) -> Result<Command, ParseError> {
 }
 
 fn parse_help(args: &[String]) -> Result<HelpTopic, ParseError> {
-    const USAGE: &str = "usage: help [<command>|all|glossary|workflows]";
+    let line = usage("help");
+    let usage = line.as_str();
     if args.is_empty() {
         return Ok(HelpTopic::Short);
     }
     if args.len() > 2 {
-        return Err(ParseError::Usage(USAGE.to_owned()));
+        return Err(ParseError::Usage(usage.to_owned()));
     }
     if args.len() == 1 {
         match args[0].as_str() {
@@ -593,7 +638,7 @@ fn parse_help(args: &[String]) -> Result<HelpTopic, ParseError> {
         }
     }
     if matches!(args[0].as_str(), "all" | "glossary" | "workflows") {
-        return Err(ParseError::Usage(USAGE.to_owned()));
+        return Err(ParseError::Usage(usage.to_owned()));
     }
     let name = args.join(" ");
     if is_command(&name) {

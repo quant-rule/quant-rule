@@ -7,75 +7,21 @@
 
 use std::collections::BTreeMap;
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use quantrule_api::Digest;
-use quantrule_runtime::adapters::{Backend, BoxFuture, ObjectStore, StoreError};
+use quantrule_runtime::adapters::ObjectStore;
 use quantrule_runtime::client::MemoryDataClient;
 use quantrule_runtime::{Config, HealthRegistry};
 use quantrule_service_api::{ConfigBundle, DatasetObject};
 
 use quantrule_model_service::{ModelServices, ModelState};
 
-/// An object store that keeps bytes in memory, so a route is tested without S3.
-#[derive(Clone, Default)]
-pub struct MemoryObjects {
-    inner: Arc<Mutex<BTreeMap<String, Vec<u8>>>>,
-}
-
-impl MemoryObjects {
-    /// Every key currently stored.
-    pub fn keys(&self) -> Vec<String> {
-        self.inner
-            .lock()
-            .expect("the object lock")
-            .keys()
-            .cloned()
-            .collect()
-    }
-}
-
-impl ObjectStore for MemoryObjects {
-    fn backend(&self) -> Backend {
-        Backend::Filesystem
-    }
-
-    fn put(&self, key: &str, bytes: Vec<u8>) -> BoxFuture<Result<(), StoreError>> {
-        let inner = Arc::clone(&self.inner);
-        let key = key.to_owned();
-        Box::pin(async move {
-            inner
-                .lock()
-                .map_err(|_| StoreError("the object lock is poisoned".to_owned()))?
-                .insert(key, bytes);
-            Ok(())
-        })
-    }
-
-    fn get(&self, key: &str) -> BoxFuture<Result<Vec<u8>, StoreError>> {
-        let inner = Arc::clone(&self.inner);
-        let key = key.to_owned();
-        Box::pin(async move {
-            inner
-                .lock()
-                .map_err(|_| StoreError("the object lock is poisoned".to_owned()))?
-                .get(&key)
-                .cloned()
-                .ok_or_else(|| StoreError(format!("{key} is absent")))
-        })
-    }
-
-    fn exists(&self, key: &str) -> BoxFuture<Result<bool, StoreError>> {
-        let inner = Arc::clone(&self.inner);
-        let key = key.to_owned();
-        Box::pin(async move {
-            Ok(inner
-                .lock()
-                .map_err(|_| StoreError("the object lock is poisoned".to_owned()))?
-                .contains_key(&key))
-        })
-    }
-}
+/// The in-memory object store from `quantrule_runtime`.
+// Each integration target compiles this module separately, and not every
+// target exercises the object store.
+#[allow(unused_imports)]
+pub use quantrule_runtime::adapters::memory::MemoryObjects;
 
 /// A seeded dataset and config catalog.
 pub struct Seed {

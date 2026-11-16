@@ -18,6 +18,11 @@ history is in Git and the pull requests.
 
 ## [Unreleased]
 
+### Fixed
+
+- The shell's `simulation marks` usage error no longer advertises `--origin all`,
+  which the parser rejects; the hint now matches `help` and the accepted values.
+
 ## [1.2.0] - 2026-11-16
 
 The version alignment release. The product version, the current tag, the

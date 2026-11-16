@@ -1,7 +1,7 @@
 # Cohesion Refactor — Cycle 5
 
 - Date: 2026-11-16 (UTC)
-- Status: **Approved** (human, 2026-11-16); implementation in progress
+- Status: **In Progress** (human approved 2026-11-16; four cycles implemented, review gate pending)
 - Claim type: **Behaviour Claim** (structure changes; commands, artifacts, and client behaviour stay byte-identical)
 - Owner: Human
 - Workflow: [Execution Plan](../../workflows/execution-plan.md) + [Refactor Workflow](../../workflows/refactor-workflow.md)
@@ -122,6 +122,10 @@ Explicitly excluded:
 | P3 | REF-…-02 | One profile database bootstrap | `runtime/src/backends.rs`, four service mains, runtime tests | 4 -> 0 binary branches | ≤ 8 files; +220/−220 |
 | P4 | REF-…-07 | Client state seam | new `apps/web/src/lib/simulationRun.svelte.ts`, `SimulationRunDetail.svelte`, possibly one child component | 762 -> under 400 lines | ≤ 5 files; +400/−500 |
 
+P2 carries one deliberate visible correction, approved by the human on
+2026-11-16: the parser's `simulation marks` hint drops the false `|all`. Every
+other command keeps its printed bytes.
+
 Order: P1, P2, P3, P4. P1 and P2 are independent; P3 depends on the runtime
 surface P1 touches only as a file location, not as a contract. One branch and
 one PR per cycle:
@@ -156,14 +160,14 @@ Limitation: the fast tier does not start the Compose stack. The composed tier an
 | V3 | Baseline gate | The full gate is green before the first seam | `bash tools/gate.sh` | Exit 0 | Exit 0; fmt, clippy, test, doc, 24 checkers | Pass | Planner | 2026-11-16 | Uses `target/gate` inside the worktree |
 | V4 | Baseline fixtures | Fixture bytes are recorded | `find crates -path '*/fixtures/*' -type f \| sort \| xargs sha256sum \| sha256sum` | `325d0c4a…` | `325d0c4a…` | Pass | Planner | 2026-11-16 | 135 files |
 | V5 | Baseline metrics | The four named metrics are recorded | `rg -c 'pub struct MemoryObjects' crates`; usage-literal count; `rg -c 'DeploymentProfile::Desktop'` binaries; `wc -l SimulationRunDetail.svelte` | 5 / 25 / 4 / 762 | 5 / 25 / 4 / 762 | Pass | Planner | 2026-11-16 | Commands in the assessment |
-| V6 | P1 shared fake | One definition; five suites import it | `rg 'pub struct MemoryObjects' crates` | 1 | — | Pending | Implementer | — | — |
-| V7 | P1 tests | The suites still prove their behaviour | `cargo test --workspace` | All pass; count ≥ V2 | — | Pending | Implementer | — | — |
-| V8 | P2 usage source | No duplicated usage literal in the parser | `rg -c '"usage: ' crates/quantrule-shell/src/command/parse.rs` | 0 command literals | — | Pending | Implementer | — | Grouped family usages are derived too |
-| V9 | P2 output | The shell prints the same bytes | `cargo test -p quantrule-shell` | All pass | — | Pending | Implementer | — | Command tests assert printed text |
+| V6 | P1 shared fake | One definition; five suites import it | `rg 'pub struct MemoryObjects' crates` | 1 | 1 (`runtime/src/adapters/memory.rs`) | Pass | Implementer | 2026-11-16 | Five common modules re-export it |
+| V7 | P1 tests | The suites still prove their behaviour | `cargo test --workspace` | All pass; count ≥ V2 | 2,120 passed, 0 failed, 14 ignored (baseline 2,118) | Pass | Implementer | 2026-11-16 | Two new runtime unit tests |
+| V8 | P2 usage source | No parser literal duplicates a help usage | `rg -n 'usage\("' crates/quantrule-shell/src/command/parse.rs`; `rg -n '"usage: ' crates/quantrule-shell/src/command/parse.rs` | 25 registry calls; only family hints and `quit` remain | 25 registry calls; 7 family hints and `quit` remain | Pass | Implementer | 2026-11-16 | The false `|all` hint was corrected with human approval |
+| V9 | P2 output | The shell prints the same bytes | `cargo test -p quantrule-shell` | All pass | 85 passed, 0 failed | Pass | Implementer | 2026-11-16 | New parity test covers every registered command |
 | V10 | P3 bootstrap | No binary branches on the profile | `rg -c 'DeploymentProfile::Desktop' crates/*/src/main.rs crates/*/src/bin/*.rs` | 0 | 0 (only `runtime/src/backends.rs` and `runtime/src/config.rs` branch) | Pass | Implementer | 2026-11-16 | One helper in `backends.rs` |
 | V11 | P3 health | Health names and log text are unchanged | `cargo test -p quantrule-data-service -p quantrule-evidence-service -p quantrule-gateway -p quantrule-simulation-service` | All pass | 349 passed, 0 failed, 5 ignored across the four services | Pass | Implementer | 2026-11-16 | Health names `sqlite`, `postgres`; gateway log field `gateway` becomes `applied` |
-| V12 | P4 client | The component is under 400 lines | `wc -l apps/web/src/lib/SimulationRunDetail.svelte` | < 400 | — | Pending | Implementer | — | Store owns state and requests |
-| V13 | P4 client tests | Web unit and e2e behaviour is unchanged | `cd apps/web && bun run check && bun test`; simulation e2e specs | All pass | — | Pending | Implementer | — | — |
+| V12 | P4 client | The component is under 400 lines | `wc -l apps/web/src/lib/SimulationRunDetail.svelte` | < 400 | 344 | Pass | Implementer | 2026-11-16 | Store plus three child components |
+| V13 | P4 client tests | Web unit and e2e behaviour is unchanged | `cd apps/web && bun run check && bun test`; full Playwright suite | All pass | check 0 errors; 121 unit tests; 41 e2e tests | Pass | Implementer | 2026-11-16 | — |
 | V14 | Equivalence | No artifact or fixture byte changed | `find crates -path '*/fixtures/*' -type f \| sort \| xargs sha256sum \| sha256sum`; `sha256sum tests/fixtures/client-parity/*.json` | `325d0c4a…`; `0b960a3e…`; `e94e9d2b…` | — | Pending | Verifier | — | After every cycle merge |
 | V15 | Equivalence | No dependency or schema change | `git diff --stat 439a0639 -- Cargo.toml Cargo.lock 'crates/*/migrations/*'` | Empty | — | Pending | Verifier | — | A change here stops the cycle |
 | V16 | Equivalence | No test removed or weakened | `git diff 439a0639 -- '*tests*'` review; test count | Count ≥ V2; no skipped test | — | Pending | Verifier | — | — |
