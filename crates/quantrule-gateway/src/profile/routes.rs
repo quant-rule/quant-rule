@@ -64,7 +64,8 @@ pub async fn create_profile(
     let record = ProfileRecord {
         profile_id: profile_id.clone(),
         name: name.to_owned(),
-        created_at: clock::now_utc(),
+        created_at: clock::now_utc()
+            .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?,
     };
     match store.create(record.clone()).await {
         Ok(()) => {

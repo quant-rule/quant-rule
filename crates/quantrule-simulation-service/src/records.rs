@@ -1,12 +1,17 @@
 //! The simulation records the store and the routes exchange.
 //!
-//! These types are the service's own shape. The domain crate owns the window,
-//! mark, oracle, and check rules; these records add the identity, the profile,
-//! the server timestamps, and the research-loop status the schema keeps.
+//! The service's own records add the identity, the profile, the server
+//! timestamps, and the research-loop status the schema keeps. The list summary
+//! and the create request are the shared `quantrule.api/v1` types, re-exported
+//! here so the service and the shell decode one definition.
 
-use quantrule_api::{Digest, MarkAction, MarkOrigin, MarkQuality, Side, SimulationStatus};
+use quantrule_api::{
+    Digest, MarkAction, MarkOrigin, MarkQuality, Side, SimulationId, SimulationStatus,
+};
 use quantrule_simulation::{CheckConfig, CheckRecord, OracleSpec, Selection, WindowSpec};
 use serde::{Deserialize, Serialize};
+
+pub use quantrule_api::SimulationSummary;
 
 /// A decision a researcher records; it closes marking.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -180,25 +185,6 @@ pub struct SimulationCounts {
     pub oracle_marks: u64,
 }
 
-/// One row of the run list.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct SimulationSummary {
-    /// The id.
-    pub sim_id: String,
-    /// The premise.
-    pub premise: String,
-    /// The research-loop stage.
-    pub status: SimulationStatus,
-    /// Windows selected.
-    pub windows: u32,
-    /// Human marks.
-    pub marks: u64,
-    /// The bundle reference.
-    pub bundle: Digest,
-    /// Windows carrying at least one human mark.
-    pub marked_windows: u64,
-}
-
 /// One simulation run in detail.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SimulationDetail {
@@ -231,7 +217,7 @@ impl RunRecord {
     #[must_use]
     pub fn summary(&self) -> SimulationSummary {
         SimulationSummary {
-            sim_id: self.sim_id.clone(),
+            sim_id: SimulationId(self.sim_id.clone()),
             premise: self.premise.clone(),
             status: self.status,
             windows: u32::try_from(self.windows().len()).unwrap_or(u32::MAX),

@@ -6,7 +6,7 @@ use axum::Json;
 use axum::extract::rejection::{JsonRejection, QueryRejection};
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
-use quantrule_api::{Digest, ErrorCode};
+use quantrule_api::{CreateSimulationRequest, Digest, ErrorCode};
 use quantrule_runtime::clock;
 use serde::{Deserialize, Serialize};
 
@@ -21,23 +21,6 @@ use crate::routes::{
     store, store_failure,
 };
 use crate::state::SimulationState;
-
-/// The body a run create carries.
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct CreateRequest {
-    /// The premise, one sentence.
-    premise: String,
-    /// The recorded bundle reference.
-    bundle: Digest,
-    /// The context inputs the run reads; absent in the shell's older form.
-    #[serde(default)]
-    inputs: String,
-    /// The window-selection seed.
-    seed: u64,
-    /// The mark criterion and check thresholds.
-    criteria: String,
-}
 
 /// The optional filters on a run list.
 #[derive(Debug, Deserialize)]
@@ -87,7 +70,7 @@ pub(crate) async fn list_runs(
 pub(crate) async fn create_run(
     State(state): State<Arc<SimulationState>>,
     headers: HeaderMap,
-    payload: Result<Json<CreateRequest>, JsonRejection>,
+    payload: Result<Json<CreateSimulationRequest>, JsonRejection>,
 ) -> Result<(StatusCode, Json<Ack>), ApiFailure> {
     let profile = request_profile(&headers)?;
     let Json(mut request) = payload.map_err(|_| {
@@ -162,7 +145,8 @@ pub(crate) async fn create_run(
         window_spec,
         oracle_spec,
         check_config,
-        created_at: clock::now_utc(),
+        created_at: clock::now_utc()
+            .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?,
     };
     store(&state)?
         .create(profile, run)
@@ -256,7 +240,7 @@ fn window_views(selection: &quantrule_simulation::Selection) -> Vec<WindowView> 
         .collect()
 }
 
-fn simulation_id(profile: &quantrule_api::ProfileId, request: &CreateRequest) -> String {
+fn simulation_id(profile: &quantrule_api::ProfileId, request: &CreateSimulationRequest) -> String {
     let identity = serde_json::json!({
         "schema": "quantrule.simulation-run/v1",
         "profile": profile.as_str(),
@@ -271,7 +255,7 @@ fn simulation_id(profile: &quantrule_api::ProfileId, request: &CreateRequest) ->
 }
 
 fn inputs_digest(
-    request: &CreateRequest,
+    request: &CreateSimulationRequest,
     window_spec: &quantrule_simulation::WindowSpec,
     oracle_spec: &quantrule_simulation::OracleSpec,
     check_config: &quantrule_simulation::CheckConfig,

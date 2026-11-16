@@ -225,7 +225,8 @@ async fn store_dataset(
         object_key: key,
         sha256: ingested.data_version.clone(),
         quality,
-        created_at: clock::now_utc(),
+        created_at: clock::now_utc()
+            .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?,
     };
 
     match catalog.insert(profile.clone(), record.clone()).await {
@@ -258,7 +259,7 @@ async fn upload_config(
         .configs
         .as_ref()
         .ok_or_else(|| failure(ErrorCode::Internal, "no config catalog is configured"))?;
-    let now = clock::now_utc();
+    let now = clock::now_utc().map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
     let staging = std::env::temp_dir();
     let record =
         tokio::task::spawn_blocking(move || build(&request.name, &request.files, &now, &staging))
@@ -287,7 +288,7 @@ pub(crate) async fn sync_configs(state: &DataState, profile: &ProfileId) -> Resu
         .as_ref()
         .ok_or_else(|| failure(ErrorCode::Internal, "no config catalog is configured"))?;
     let root = state.config_root.clone();
-    let now = clock::now_utc();
+    let now = clock::now_utc().map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
     let records = tokio::task::spawn_blocking(move || scan(&root, &now))
         .await
         .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?

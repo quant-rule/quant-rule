@@ -28,7 +28,8 @@ silent fallback.
 The packaged supervisor removes `QR_BEARER_TOKEN`, `QR_DATABASE_URL`,
 `QR_QUEUE_URL`, and the object-store variables from a desktop child, so an
 embedded start cannot borrow a server database or broker. `QR_IMAGE_DIGEST` is
-passed through when the parity harness sets it.
+passed through when the parity harness sets it; otherwise the supervisor
+exports the SHA-256 of the six installed sidecars as the package identity.
 
 ## 2. One SQLite file
 

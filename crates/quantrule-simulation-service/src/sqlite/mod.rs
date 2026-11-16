@@ -22,7 +22,7 @@
 
 mod rows;
 
-use quantrule_api::{MarkOrigin, ProfileId, SimulationStatus};
+use quantrule_api::{MarkOrigin, ProfileId, SimulationId, SimulationStatus};
 use quantrule_runtime::adapters::BoxFuture;
 use quantrule_runtime::adapters::DatabaseError;
 use quantrule_runtime::adapters::sqlite::SqliteDatabase;
@@ -614,7 +614,7 @@ fn summary_from_row(row: &rusqlite::Row<'_>) -> Result<SimulationSummary, StoreE
     let bundle: String = row.get("bundle").map_err(backend)?;
     let windows: i64 = row.get("windows").map_err(backend)?;
     Ok(SimulationSummary {
-        sim_id: row.get("sim_id").map_err(backend)?,
+        sim_id: SimulationId(row.get("sim_id").map_err(backend)?),
         premise: row.get("premise").map_err(backend)?,
         status,
         windows: u32::try_from(windows)

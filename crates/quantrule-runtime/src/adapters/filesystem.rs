@@ -9,7 +9,7 @@
 //! The embedded desktop profile has no MinIO. This module implements the same
 //! [`ObjectStore`] trait over a directory: the key becomes a mapped relative
 //! path, the bytes are the object, and a publish is a temporary file in the
-//! destination directory followed by a rename (ADR-2026-11-12-12).
+//! destination directory followed by a no-replace link (ADR-2026-11-12-12).
 //!
 //! Content addressing is the caller's rule and this adapter enforces it for the
 //! keys that carry an address. A key whose last segment is a bare SHA-256 — the
@@ -333,31 +333,36 @@ fn verify_content(key: &str, bytes: &[u8]) -> Result<(), StoreError> {
 fn publish(path: &Path, bytes: &[u8]) -> io::Result<()> {
     match std::fs::read(path) {
         Ok(existing) if existing == bytes => return Ok(()),
-        Ok(_) => {
-            return Err(io::Error::new(
-                io::ErrorKind::AlreadyExists,
-                "an object with different bytes already exists under this key",
-            ));
-        }
+        Ok(_) => return Err(already_exists()),
         Err(error) if error.kind() == io::ErrorKind::NotFound => {}
         Err(error) => return Err(error),
     }
-    write_atomic(path, bytes)
+    let temp = stage_temp(path, bytes)?;
+    match commit_temp(&temp, path) {
+        Ok(()) => Ok(()),
+        // Another writer won the key between our first lookup and the commit.
+        // A hard link cannot replace it, so the winner's bytes decide.
+        Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
+            let _ = std::fs::remove_file(&temp);
+            match std::fs::read(path) {
+                Ok(existing) if existing == bytes => Ok(()),
+                Ok(_) => Err(already_exists()),
+                Err(read_error) => Err(read_error),
+            }
+        }
+        Err(error) => {
+            let _ = std::fs::remove_file(&temp);
+            Err(error)
+        }
+    }
 }
 
-/// Atomically publish `bytes` at `path`.
-///
-/// The temporary file lives in the destination directory, so the rename stays
-/// on one filesystem. The file is fsynced before the rename and the directory
-/// after it: a crash leaves either the previous object or the complete new one,
-/// and a stale temporary file is never visible under the key.
-pub(crate) fn write_atomic(path: &Path, bytes: &[u8]) -> io::Result<()> {
-    let temp = stage_temp(path, bytes)?;
-    if let Err(error) = commit_temp(&temp, path) {
-        let _ = std::fs::remove_file(&temp);
-        return Err(error);
-    }
-    Ok(())
+/// The refusal shared by every existing-key path.
+fn already_exists() -> io::Error {
+    io::Error::new(
+        io::ErrorKind::AlreadyExists,
+        "an object with different bytes already exists under this key",
+    )
 }
 
 /// Write a complete temporary file next to `path` without publishing it.
@@ -394,10 +399,62 @@ fn stage_temp(path: &Path, bytes: &[u8]) -> io::Result<PathBuf> {
     }
 }
 
-/// Rename a temporary file onto its final key and make the rename durable.
+/// Link a temporary file into its final key without replacing an existing one.
+///
+/// A rename replaces its destination on Unix, so the previous check-then-act
+/// could publish two different bodies under one key. A hard link fails with
+/// `AlreadyExists` when the destination is present, which makes the commit an
+/// atomic compare-and-set on every filesystem that supports links. Where the
+/// filesystem refuses a link, the rename fallback serializes in-process writers
+/// and documents the weaker cross-process guarantee.
 fn commit_temp(temp: &Path, path: &Path) -> io::Result<()> {
-    std::fs::rename(temp, path)?;
-    sync_directory(path)
+    match std::fs::hard_link(temp, path) {
+        Ok(()) => {
+            // The final name is published; a leftover temp is harmless.
+            let _ = std::fs::remove_file(temp);
+            sync_directory(path)
+        }
+        Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
+            let _ = std::fs::remove_file(temp);
+            Err(already_exists())
+        }
+        Err(error) if link_unavailable(&error) => commit_with_rename(temp, path),
+        Err(error) => Err(error),
+    }
+}
+
+/// Whether a link failure means the filesystem has no hard links.
+fn link_unavailable(error: &io::Error) -> bool {
+    matches!(
+        error.kind(),
+        io::ErrorKind::Unsupported | io::ErrorKind::CrossesDevices
+    )
+}
+
+/// Commit by rename under one process-local lock.
+///
+/// This path is reachable only when the filesystem refuses a hard link (for
+/// example a FAT volume). The lock keeps concurrent threads in one process
+/// honest; two processes on such a volume still race, which is the platform's
+/// missing primitive rather than a check this adapter can implement.
+fn commit_with_rename(temp: &Path, path: &Path) -> io::Result<()> {
+    static COMMIT_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    let guard = COMMIT_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    match std::fs::metadata(path) {
+        Ok(_) => {
+            drop(guard);
+            let _ = std::fs::remove_file(temp);
+            Err(already_exists())
+        }
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            std::fs::rename(temp, path)?;
+            drop(guard);
+            sync_directory(path)
+        }
+        Err(error) => Err(error),
+    }
 }
 
 /// Fsync the directory holding `path`, so the rename survives a power loss.
@@ -628,6 +685,51 @@ mod tests {
             .await
             .expect("an identical blob republish is a no-op");
         assert_eq!(store.get(&content).await.expect("get"), bytes);
+
+        std::fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn two_writers_with_different_bodies_publish_one_winner() {
+        let root = test_root("two-writers");
+        let store = FilesystemStore::new(&root);
+        let key = "runs/run/manifest.json";
+        let first = store.clone();
+        let second = store.clone();
+
+        let left = tokio::spawn(async move { first.put(key, b"first".to_vec()).await });
+        let right = tokio::spawn(async move { second.put(key, b"second".to_vec()).await });
+        let left = left.await.expect("join the first writer").map_err(|e| e.0);
+        let right = right
+            .await
+            .expect("join the second writer")
+            .map_err(|e| e.0);
+
+        assert!(left.is_ok() ^ right.is_ok(), "{left:?} {right:?}");
+        let error = left.err().or_else(|| right.err()).expect("one refusal");
+        assert!(error.contains("different bytes"), "{error}");
+        let stored = store.get(key).await.expect("get");
+        assert!(stored == b"first" || stored == b"second");
+
+        std::fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn concurrent_identical_writers_both_succeed() {
+        let root = test_root("identical-writers");
+        let store = FilesystemStore::new(&root);
+        let key = "runs/run/manifest.json";
+        let first = store.clone();
+        let second = store.clone();
+
+        let left = tokio::spawn(async move { first.put(key, b"same".to_vec()).await });
+        let right = tokio::spawn(async move { second.put(key, b"same".to_vec()).await });
+        left.await.expect("join the first writer").expect("first");
+        right
+            .await
+            .expect("join the second writer")
+            .expect("second");
+        assert_eq!(store.get(key).await.expect("get"), b"same");
 
         std::fs::remove_dir_all(&root).expect("cleanup");
     }

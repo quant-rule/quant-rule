@@ -1,14 +1,12 @@
 <script lang="ts">
-  import { load as loadConfigs } from "./configs.svelte";
-  import { load as loadDatasets } from "./datasets.svelte";
-  import { profiles, select } from "./profiles.svelte";
+  import { profiles } from "./profiles.svelte";
+  import { switchProfile } from "./profileScope.svelte";
 
   const view = $derived(profiles());
 
   async function change(event: Event): Promise<void> {
     const value = (event.currentTarget as HTMLSelectElement).value;
-    await select(value);
-    await Promise.all([loadDatasets(), loadConfigs()]);
+    await switchProfile(value);
   }
 </script>
 

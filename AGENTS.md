@@ -50,7 +50,7 @@ The Rust workspace holds one crate per pipeline stage, a shared application serv
 - `crates/quantrule-data` — the data engine.
 - `crates/quantrule-model` — the model engine, which depends on `quantrule-data`.
 - `crates/quantrule-backtest` — the execution, portfolio, and generic strategy engines, which depend on `quantrule-model` and `quantrule-data`.
-- `crates/quantrule-app` — the application service: workspace, dataset, configuration, model run, export, research memory, and the shared use cases both clients call. It depends on the three engine crates and holds no transport.
+- `crates/quantrule-app` — the application service: workspace, dataset, configuration, model run, export, and the shared use cases both clients call. It depends on the three engine crates and holds no transport or research memory.
 - `crates/quantrule-api` — the `quantrule.api/v1` contract types. It depends on no engine crate.
 - `crates/quantrule-service-api` — the `quantrule.internal/v1` contract types. It depends on no engine, runtime, or service crate.
 - `crates/quantrule-runtime` — configuration, health, storage, queue, migrations, shutdown, and the service client. It depends on `quantrule-api` and `quantrule-service-api`, never on an engine or `quantrule-app`.
@@ -62,9 +62,9 @@ The Rust workspace holds one crate per pipeline stage, a shared application serv
 - `crates/quantrule-simulation-service` — `qr-simulation`: the `simulation` schema and the research plane.
 - `crates/quantrule-shell` — the command shell, an HTTP client that depends only on `quantrule-api`.
 
-The research engine (`quantrule-analytics`) was retired in P3. Historical research output contracts remain under `docs/analytics/` as history; there is no current analytics crate.
+The analytics research engine was retired in P3. Historical research output contracts remain under `docs/analytics/` as history; there is no current analytics crate.
 
-The v1.0.0 implementation status is tracked by `DIST-000` and specified in `docs/architecture/`. The current tree implements the v0.3.0 local surface: data inspection (`candles`, `candles-tolerant`, `timeframes`), the event batch (`events`), the model report (`report model`), strategy decisions (`strategy explain`, `strategy run`), execution fills (`execution run`), portfolio accounting (`portfolio replay`), the coupled run (`backtest run`), qualification (`qualify`), analytics evaluation (`analytics evaluate`), run validation (`run check`), source fetch (`fetch`), research memory (`memory`), and help. The distributed surface — a browser client, a gateway, six services, and a reference-driven command set — is specified in `docs/architecture/http-api.md` and `docs/architecture/command-surface.md` section 9. The stage contract and the discovery gate are in [`docs/architecture/command-surface.md`](docs/architecture/command-surface.md).
+The v1.0.0 implementation status is tracked by `DIST-000` and specified in `docs/architecture/`. The current tree implements the 27-command gateway surface in `docs/architecture/command-surface.md` section 3, which the shell `help` renders from the same registry: `health`; `dataset list`, `dataset show`, `dataset upload`; `config list`, `config show`; `run submit`, `run status`, `run list`, `run fetch`, `run cancel`; `inspect candles`, `inspect timeframes`, `inspect events`; `verify`; `profile list`, `profile create`, `profile use`; `simulation list`, `simulation create`, `simulation windows`, `simulation mark`, `simulation marks`, `simulation oracle`, `simulation check`, `simulation decide`; and `help`. The stage contract and the discovery gate are in the same document.
 
 The decision stack above the pipeline is one-way:
 
@@ -145,14 +145,14 @@ When principles appear to conflict, follow the project's explicit architectural 
 - **Strategy validation.** A claim that a rule is profitable reports in-sample and out-of-sample results, cost assumptions, and every variation tried. Out-of-sample evidence is required before the claim is called promising; a backtest on the tuning sample is not validation.
 - **Edge cases.** Explicitly cover: an empty series; a series with a single candle; input shorter than an indicator's required history; a timeframe boundary where candles do not align; gaps and missing candles; a candle with zero volume; and equal highs or lows where a rule must choose a tie-breaking behavior.
 - **Model-layer tests.** Every indicator and every event has a causality test, a determinism test, a golden fixture, and edge-case coverage: an empty series, a single candle, a series shorter than the required history, an unaligned timeframe boundary, a gap, a candle with zero volume, and equal highs or lows where a tie must be broken.
-- **Run and strategy tests.** The run loader validates every cross-config rule; `run check` is tested as printed output. The strategy explain command is tested as printed output, and a boundary test proves the strategy input exposes only registered signal/context events and states, confirmed levels, bar identity, and the as-of context derived from them; the separate position argument is the strategy's own state, not a market reading.
+- **Run and strategy tests.** The run loader validates every cross-config rule; `run status` and `run fetch` are tested as printed output. The strategy decision artifact is tested as executed output, and a boundary test proves the strategy input exposes only registered signal/context events and states, confirmed levels, bar identity, and the as-of context derived from them; the separate position argument is the strategy's own state, not a market reading.
 - **Feasibility preflight tests.** The preflight has unit tests for the ATR and cost arithmetic, the pass and fail verdicts, a 4:1 fade that fails, a cost-negative target that fails, a 1:2 design that passes, and a timeframe above 1 hour that fails. The tool reads no backtest outcome; a regression test on the recorded SR1 config proves the 4:1 fade is rejected.
 - **Audit regression guards.** A fix for an audit finding carries a regression test that fails before the fix and passes after it, or a written reason why a fail-before test is impossible.
 - **Improvement-run reproducibility.** A run record names the data versions, configs, partitions, costs, and matrix; the same manifest and config reproduce the same artifacts.
 - **Event tests.** An event appears only at or after the bar on which it became knowable, one underlying occurrence is never emitted twice, the level-event precedence is respected, and a divergence is never emitted before the pivot that confirms it has become knowable.
 - **Progression tests.** A leg's stage is null while its origin is unconfirmed or its target is unstable, every lifecycle code is reachable, and a target revision changes the target version without a price movement.
 - **Aggregation tests.** A reporting cross-timeframe view uses a method that suits its measurement: ordinal codes are counted rather than averaged, and every view names the timeframes it came from. The strategy context has its own causality and determinism tests.
-- **Isolation.** Tests are three tiers. **Fast — unit and integration** tests do not reach the network, the filesystem outside the repository, or a live market; they use the in-process transport fake, run in `tools/gate.sh`, and are required on every pull request. **Composed** tests run against the real Compose stack (services, database, queue, and object store), are opt-in through `tools/test_tiers.sh composed`, and are required before a release. **Port parity** tests compare a ported computation with golden fixtures captured from the retired implementation, match every numeric value to 1e-9, and are registered in `docs/port-parity/registry.json`; `tools/check_port_parity.py` runs in the gate and a port without that evidence is not complete. No tier depends on the wall clock, the execution order of tests, or the machine it runs on.
+- **Isolation.** Tests are three tiers. **Fast — unit and integration** tests do not reach the network, the filesystem outside the repository, or a live market; they use the in-process transport fake, run in `tools/gate.sh`, and are required on every pull request. **Composed** tests run against the real Compose stack (services, database, queue, and object store), are opt-in through `tools/test_tiers.sh composed` against a stack started by `make up`, and are required before a release; the suite checks `/health` and `/version`, then submits two equivalent runs through the gateway and compares their canonical digest. **Port parity** tests compare a ported computation with golden fixtures captured from the retired implementation, match every numeric value to 1e-9, and are registered in `docs/port-parity/registry.json`; `tools/check_port_parity.py` runs in the gate and a port without that evidence is not complete. No tier depends on the wall clock, the execution order of tests, or the machine it runs on.
 - **Distributed contract tests.** A service boundary has a test proving the gateway cannot reach an engine, that no client path reaches a use case, and that two submissions of the same inputs produce one run.
 - **Scale invariance.** Shardable work has a test asserting that one worker and N workers produce the same canonical digest.
 - **No partial publish.** A killed worker leaves no visible artifact and no `succeeded` run; the test kills the process mid-run.
@@ -787,8 +787,8 @@ Roles:
 The workflow runs the model, strategy, and portfolio tiers one at a time under
 the run contract in `docs/workflows/run-contract.md`. The strategy and portfolio
 tiers are gated by an accepted model baseline; the current model programme uses
-the research tooling and `report model`, and the current S3 commands are
-available for the first tiered run.
+the research tooling and the gateway `run submit`, and the gateway surface is
+the execution path for the first tiered run.
 
 Boundaries: the Improvement Workflow may run an approved protocol and recommend.
 It may not implement, change a config directly, accept a baseline, merge,
@@ -910,9 +910,9 @@ The workflow status vocabulary is `Current`, `Target`, `Historical`, `Deprecated
 
 ```text
 Strategy (human)
-  → model run -> model baseline (human)
-  → strategy run -> strategy baseline (human)
-  → portfolio run -> portfolio baseline (human)
+  → model tier run -> model baseline (human)
+  → strategy tier run -> strategy baseline (human)
+  → portfolio tier run -> portfolio baseline (human)
   → new hypothesis or stop
 ```
 

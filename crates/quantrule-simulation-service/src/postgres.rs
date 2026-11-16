@@ -6,7 +6,7 @@
 //! decision inside the same transaction, so a decision that lands concurrently
 //! cannot be bypassed.
 
-use quantrule_api::{MarkOrigin, ProfileId, SimulationStatus};
+use quantrule_api::{MarkOrigin, ProfileId, SimulationId, SimulationStatus};
 use quantrule_runtime::adapters::BoxFuture;
 use quantrule_simulation::{CheckRecord, Selection, WindowSpec};
 use sqlx::{PgPool, Row};
@@ -359,7 +359,7 @@ impl SimulationStore for PgSimulationStore {
                         invalid(format!("the stored status {status_word:?} is unknown"))
                     })?;
                     Ok(SimulationSummary {
-                        sim_id: row.try_get("sim_id").map_err(backend)?,
+                        sim_id: SimulationId(row.try_get("sim_id").map_err(backend)?),
                         premise: row.try_get("premise").map_err(backend)?,
                         status,
                         windows: u32::try_from(row.try_get::<i64, _>("windows").map_err(backend)?)

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
+import { readFileSync } from "node:fs";
 import { ApiError } from "./api";
 import {
   canCreate,
@@ -67,6 +68,14 @@ const CREATE: SimulationCreate = {
   seed: 7,
   criteria: "min_events=30; min_mean_net>0; min_hit_rate>0.5",
 };
+
+/** The create body the Rust contract test decodes through the API type. */
+const BROWSER_CREATE = JSON.parse(
+  readFileSync(
+    new URL("../../../../tests/fixtures/client-parity/simulation-create.json", import.meta.url),
+    "utf8",
+  ),
+) as SimulationCreate;
 
 const RAW_MARK = {
   mark_id: "m1",
@@ -144,7 +153,15 @@ describe("canCreate", () => {
 describe("listRuns", () => {
   it("reads the summaries with the query filters", async () => {
     const seen = capture(200, [
-      { sim_id: "sim", premise: "p", status: "draft", windows: 0, marks: 0 },
+      {
+        sim_id: "sim",
+        premise: "p",
+        status: "draft",
+        windows: 0,
+        marks: 0,
+        bundle: CREATE.bundle,
+        marked_windows: 0,
+      },
     ]);
     const rows = await listRuns({ status: "marking", limit: 5 });
     expect(seen[0]?.url).toBe(
@@ -152,17 +169,22 @@ describe("listRuns", () => {
     );
     expect(rows).toHaveLength(1);
     expect(rows[0]?.sim_id).toBe("sim");
+    expect(rows[0]?.marked_windows).toBe(0);
   });
 });
 
 describe("createRun", () => {
+  it("matches the shared browser create fixture", () => {
+    expect(CREATE).toEqual(BROWSER_CREATE);
+  });
+
   it("posts premise, bundle, inputs, seed, and criteria", async () => {
     const seen = capture(201, { sim_id: "sim_1" });
     const simId = await createRun(CREATE);
     expect(simId).toBe("sim_1");
     expect(seen[0]?.url).toBe("/api/v1/simulation/runs");
     expect(seen[0]?.init.method).toBe("POST");
-    expect(JSON.parse(String(seen[0]?.init.body))).toEqual(CREATE);
+    expect(JSON.parse(String(seen[0]?.init.body))).toEqual(BROWSER_CREATE);
   });
 
   it("rejects an acknowledgement without a sim id", async () => {

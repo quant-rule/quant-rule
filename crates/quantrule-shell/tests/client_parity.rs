@@ -28,13 +28,42 @@ fn command(fixture: &Fixture, args: &[&str]) -> Value {
     serde_json::from_slice(&output.stdout).expect("the shell prints one JSON value")
 }
 
+/// The command names the shell registers, read from `help all`.
+///
+/// The help renderer owns the registry, so a command added without a browser
+/// control is visible here rather than only in a unit test.
+fn shell_commands(fixture: &Fixture) -> Vec<String> {
+    let output = fixture.run(&["help", "all"]);
+    assert!(
+        output.status.success(),
+        "help all failed; stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let text = String::from_utf8(output.stdout).expect("help is UTF-8");
+    let mut names = Vec::new();
+    let mut lines = text.lines();
+    while let Some(line) = lines.next() {
+        if line.is_empty() || line.starts_with("  ") {
+            continue;
+        }
+        if let Some(next) = lines.next()
+            && next.starts_with("  usage:")
+        {
+            names.push(line.to_owned());
+        }
+    }
+    names
+}
+
 /// The normalized view the shell presents for the shared fixture.
 fn shell_view(fixture: &Fixture) -> Value {
     let api = client_parity_api();
     let dataset_id = api["dataset_id"].as_str().expect("the fixture dataset id");
     let config_id = api["config_id"].as_str().expect("the fixture config id");
     let run_id = api["run_id"].as_str().expect("the fixture run id");
+    let timeframe = api["timeframe"].as_str().expect("the fixture timeframe");
 
+    let commands = shell_commands(fixture);
     let health = command(fixture, &["health"]);
     let datasets = command(fixture, &["dataset", "list"]);
     let dataset = command(fixture, &["dataset", "show", dataset_id]);
@@ -43,9 +72,23 @@ fn shell_view(fixture: &Fixture) -> Value {
     let runs = command(fixture, &["run", "list"]);
     let run = command(fixture, &["run", "status", run_id]);
     let profiles = command(fixture, &["profile", "list"]);
+    let candles = command(fixture, &["inspect", "candles", dataset_id]);
+    let timeframes = command(fixture, &["inspect", "timeframes", dataset_id]);
+    let events = command(
+        fixture,
+        &["inspect", "events", dataset_id, "--timeframe", timeframe],
+    );
+    let digest = command(fixture, &["verify", run_id]);
+    let directory = fixture.fetch_directory();
+    let fetched = command(
+        fixture,
+        &["run", "fetch", run_id, &directory.display().to_string()],
+    );
+    let artifact = &fetched["artifacts"][0];
 
     json!({
         "profile": PROFILE,
+        "commands": commands,
         "health": health,
         "datasets": datasets,
         "dataset": dataset,
@@ -53,6 +96,15 @@ fn shell_view(fixture: &Fixture) -> Value {
         "config": config,
         "runs": runs,
         "run": run,
+        "candles": candles,
+        "timeframes": timeframes,
+        "events": events,
+        "digest": digest,
+        "artifact": {
+            "name": artifact["name"],
+            "bytes": artifact["bytes"],
+            "sha256": artifact["sha256"],
+        },
         "profiles": profiles,
     })
 }
@@ -78,7 +130,33 @@ fn the_shell_view_matches_the_shared_client_parity_view() {
     }
 
     let requests = fixture.requests();
-    assert_eq!(requests.len(), 8, "one request per parity operation");
+    assert_eq!(requests.len(), 14, "one request per parity operation");
+    let api = client_parity_api();
+    let dataset_id = api["dataset_id"].as_str().expect("the fixture dataset id");
+    let run_id = api["run_id"].as_str().expect("the fixture run id");
+    let paths: Vec<String> = requests
+        .iter()
+        .map(|request| request.path.clone())
+        .collect();
+    assert_eq!(
+        paths,
+        vec![
+            String::from("/health"),
+            String::from("/catalog/datasets"),
+            format!("/catalog/datasets/{dataset_id}"),
+            String::from("/catalog/configs"),
+            String::from("/catalog/configs"),
+            String::from("/runs"),
+            format!("/runs/{run_id}"),
+            String::from("/profiles"),
+            String::from("/inspect/candles"),
+            String::from("/inspect/timeframes"),
+            String::from("/inspect/events"),
+            format!("/runs/{run_id}/digest"),
+            format!("/runs/{run_id}"),
+            format!("/runs/{run_id}/artifacts/results.json"),
+        ]
+    );
     for request in &requests {
         assert_eq!(request.method, "GET");
         assert_eq!(

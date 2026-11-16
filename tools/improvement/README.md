@@ -1,21 +1,22 @@
 # Improvement tooling
 
-> Status: current. `run_current.py` invokes the S3 command surface; `run.py` is
-> the historical adapter for the retired `backtest` command and is retained for
-> reproducibility only. The manifest schema is `quantrule.improvement-run/v2`;
+> Status: the manifest schema is current. `run_current.py` and `run.py` are
+> historical adapters for the retired local stage commands and are retained for
+> reproducing pre-cutover runs. The current execution path is the gateway
+> `run submit` / `run status` / `run fetch`; a gateway-backed run-store adapter
+> is not yet specified. The manifest schema is `quantrule.improvement-run/v2`;
 > v1 is historical and is rejected for a new run.
 
 Python 3 standard-library tooling for the improvement run store. The scripts are
 offline and deterministic: they never read the wall clock, never use randomness,
 and sort every collection before writing. They record and validate evidence; the
-shell runs the model, strategy, execution, portfolio, qualification, and analytics
-stages.
+shell submits and fetches the gateway run.
 
 | Script | Purpose |
 |---|---|
 | `validate.py <manifest>` | Check a `quantrule.improvement-run/v2` manifest |
 | `index.py --root data/improvement` | Rebuild `index.json` and `index.md` from run manifests |
-| `run_current.py <manifest> [--qr PATH]` | Validate, create the run folder, invoke the current S3 commands, write `results.json`, refresh the index |
+| `run_current.py <manifest> [--qr PATH]` | Historical adapter for the retired local stage commands; retained for reproducing pre-cutover runs |
 | `run.py <manifest> [--qr PATH]` | Historical adapter for the retired `backtest` command; retained for reproducibility only |
 | `feasibility.py --strategy ... --data ... --cost-bps ...` | Deterministic preflight: reject a hypothesis whose target is below its round-trip cost or whose breakeven win rate exceeds 50%, and any timeframe above 1 hour |
 | `dukascopy_archive.py --symbol ... --year ... --out ...` | Rebuild a one-minute CSV from the Dukascopy historical archive; reports full hours and flat zero-volume placeholders so row coverage is not mistaken for market coverage |
@@ -46,8 +47,8 @@ Required fields:
 | `holdout_access` | `none` or `final` |
 | `strategy_config` | Required for a strategy or portfolio run; path to the strategy file |
 | `qualification_criteria` | Required for a strategy or portfolio run; path to the criteria file |
-| `analytics` | Optional boolean, default `true`; run `analytics evaluate` |
-| `command` | Optional; `backtest run` or `report model` |
+| `analytics` | Optional boolean, default `true`; record the analytics artifact in the run's result set |
+| `command` | Optional; `run submit` for a gateway run |
 
 `output_root` is optional. A development partition requires
 `holdout_access: none`; `portfolio_holdout` requires `final`.
@@ -68,16 +69,13 @@ config and every sibling `*.json` into `config/`, records outside config paths i
 `config/sources.json`, creates `artifacts/`, and starts `review.md` and
 `decision.md` with `Verdict: pending`.
 
-The current shell invocations are:
+The current gateway invocations are:
 
 ```text
-# Model run
-<qr> report model --config <run_config> --out <root>/artifacts --json
-
-# Strategy or portfolio run
-<qr> backtest run --config <run_config> --strategy <strategy_config> --out <root>/artifacts --json
-<qr> qualify --evidence <root>/artifacts/backtest --criteria <qualification_criteria> --out <root>/artifacts --json
-<qr> analytics evaluate --evidence <root>/artifacts/backtest --out <root>/artifacts --json
+# Submit and fetch one run
+<qr> run submit --data-version <data_version> --config <config_id>
+<qr> run status <run_id>
+<qr> run fetch <run_id> --out <root>/artifacts
 ```
 
 `results.json` records every command, return code, raw stdout and stderr, parsed

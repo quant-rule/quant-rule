@@ -25,6 +25,7 @@ pub mod cli;
 pub mod console;
 pub mod guard;
 pub mod health;
+pub mod package;
 pub mod ports;
 pub mod run;
 pub mod status;

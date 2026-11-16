@@ -52,7 +52,7 @@ Hypothesis -> Design -> Implement -> Development -> Freeze -> Holdout -> Accept/
 |---|---|---|---|---|
 | 1. Hypothesis | Which mechanic is claimed to improve the account outcome? | Quant Researcher | Hypothesis note | Human accepts the premise |
 | 2. Design | What changes, what stays frozen, and what is the cost model? | Quant Researcher + Quant Developer | Mechanics design | Strategy baseline accepted; policy declared |
-| 3. Implement | Do the execution and portfolio configs parse and run? | Quant Developer | Configs and tests | `execution run`, `portfolio replay`, `backtest run` pass |
+| 3. Implement | Do the execution and portfolio configs parse and run? | Quant Developer | Config bundle and tests | `run submit` reaches `succeeded` with execution and portfolio artifacts; `run fetch` retrieves them |
 | 4. Development | Does the mechanic improve the account outcome on `portfolio_dev`? | Quant Developer | Backtest, qualification | Green criteria on the development partition |
 | 5. Freeze | Is the candidate frozen by config hash? | Quant Researcher | Frozen candidate | No post-hoc change |
 | 6. Holdout | Does the frozen candidate survive the one-shot holdout? | Coordinator + Quant Validator | Holdout result | Human approves the access; Quant Validator record |
@@ -97,7 +97,7 @@ and a re-baseline.
   specifications live in the intent, not in the execution config.
 - Execution resolves the fill; it never chooses direction or sizing.
 - A rejected entry does not re-run the strategy in a standalone run; the coupled
-  `backtest run` supplies the actual position.
+  `run submit` supplies the actual position.
 
 ### Portfolio
 
@@ -133,11 +133,11 @@ and
 ## 8. Commands and artifacts
 
 ```bash
-quantrule execution run --decisions <strategy-bundle> --config <run.json> --out <dir>
-quantrule portfolio replay --fills <execution-bundle> --config <run.json> --out <dir>
-quantrule backtest run --config <run.json> --strategy <strategy.json> --out <dir>
-quantrule qualify --evidence <backtest-bundle> --criteria <qualification.json> --out <dir>
-quantrule analytics evaluate --evidence <backtest-bundle> --out <dir>
+quantrule config list
+quantrule run submit --data-version <data_version> --config <config_id>
+quantrule run status <run_id>
+quantrule run fetch <run_id> --out <dir>
+quantrule verify <run_id>
 ```
 
 | Artifact | Path |

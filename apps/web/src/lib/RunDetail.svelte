@@ -1,6 +1,9 @@
 <script lang="ts">
+  import { errorText } from "./api";
+  import { downloadArtifact, saveArtifact } from "./artifacts";
+  import { verifyRun } from "./inspect";
   import { bytes, elapsed, isActive, shortId } from "./runs";
-  import type { RunDetail, RunState, StageStatus } from "./types";
+  import type { ArtifactRef, RunDetail, RunDigest, RunState, StageStatus } from "./types";
 
   let {
     detail,
@@ -15,6 +18,56 @@
   } = $props();
 
   let copied = $state(false);
+  let verifying = $state(false);
+  let verified = $state<RunDigest | null>(null);
+  let verifyError = $state<string | null>(null);
+  let downloading = $state<string | null>(null);
+  let downloadError = $state<string | null>(null);
+  let saved = $state<string | null>(null);
+
+  async function copy(): Promise<void> {
+    if (!detail?.digest || !navigator.clipboard) {
+      return;
+    }
+    await navigator.clipboard.writeText(detail.digest);
+    copied = true;
+  }
+
+  /** Read the recorded digest; this is the `verify` command's use case. */
+  async function verify(): Promise<void> {
+    if (!detail) {
+      return;
+    }
+    verifying = true;
+    verifyError = null;
+    try {
+      verified = await verifyRun(detail.run_id);
+    } catch (error) {
+      verified = null;
+      verifyError = errorText(error);
+    } finally {
+      verifying = false;
+    }
+  }
+
+  /** Fetch one artifact and offer it only when the bytes match the record. */
+  async function download(artifact: ArtifactRef): Promise<void> {
+    if (!detail) {
+      return;
+    }
+    downloading = artifact.name;
+    downloadError = null;
+    saved = null;
+    try {
+      const body = await downloadArtifact(detail.run_id, artifact);
+      saveArtifact(body, artifact.name);
+      saved = artifact.name;
+    } catch (error) {
+      downloadError = errorText(error);
+    } finally {
+      downloading = null;
+    }
+  }
 
   function statusBadge(status: RunState): string {
     switch (status) {
@@ -45,13 +98,6 @@
     }
   }
 
-  async function copy(): Promise<void> {
-    if (!detail?.digest || !navigator.clipboard) {
-      return;
-    }
-    await navigator.clipboard.writeText(detail.digest);
-    copied = true;
-  }
 </script>
 
 <section class="stack">
@@ -118,11 +164,27 @@
     {#if detail.digest}
       <div class="row">
         <h3>Canonical digest</h3>
+        <button onclick={() => void verify()} disabled={verifying} aria-label="Verify canonical digest">
+          {verifying ? "Verifying…" : "Verify"}
+        </button>
         <button onclick={() => void copy()} aria-label="Copy canonical digest">
           {copied ? "Copied" : "Copy"}
         </button>
       </div>
       <pre class="mono digest">{detail.digest}</pre>
+      {#if verified}
+        <div class="notice small">
+          The run record reports <span class="mono">{verified.digest}</span>
+          {#if verified.digest === detail.digest}
+            and matches the digest above.
+          {:else}
+            and differs from the digest above.
+          {/if}
+        </div>
+      {/if}
+      {#if verifyError}
+        <div class="notice error" role="alert">{verifyError}</div>
+      {/if}
     {/if}
 
     {#if detail.status !== "failed"}
@@ -132,7 +194,7 @@
       {:else}
         <table>
           <thead>
-            <tr><th>Name</th><th>Size</th><th>SHA-256</th></tr>
+            <tr><th>Name</th><th>Size</th><th>SHA-256</th><th>Download</th></tr>
           </thead>
           <tbody>
             {#each detail.artifacts as artifact (artifact.name)}
@@ -140,10 +202,25 @@
                 <td class="mono">{artifact.name}</td>
                 <td>{bytes(artifact.bytes)}</td>
                 <td class="mono" title={artifact.sha256}>{shortId(artifact.sha256)}</td>
+                <td>
+                  <button
+                    onclick={() => void download(artifact)}
+                    disabled={downloading !== null}
+                    aria-label={`Download ${artifact.name}`}
+                  >
+                    {downloading === artifact.name ? "Checking…" : "Download"}
+                  </button>
+                </td>
               </tr>
             {/each}
           </tbody>
         </table>
+        {#if saved}
+          <div class="notice small">{saved} matched the record and was saved.</div>
+        {/if}
+        {#if downloadError}
+          <div class="notice error" role="alert">{downloadError}</div>
+        {/if}
       {/if}
     {/if}
   {/if}

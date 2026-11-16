@@ -154,6 +154,11 @@ no run lifecycle and no queue.
 | POST | `/simulation/runs/{id}/check` | — | check table and verdict |
 | POST | `/simulation/runs/{id}/decision` | `test`, `refine`, or `stop`, plus a note | `201` |
 
+A run summary carries `sim_id`, `premise`, `status`, `windows`, `marks`,
+`bundle`, and `marked_windows`. A create body carries `premise`, `bundle`,
+`inputs` (optional; absent records `unspecified`), `seed`, and `criteria`. The
+shared types live in `quantrule-api`; the service re-exports them.
+
 Rules:
 
 - `sim_id` is server-assigned; the client never supplies it.

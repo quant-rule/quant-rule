@@ -3,34 +3,18 @@
   import ConfigsPanel from "./lib/ConfigsPanel.svelte";
   import ConnectionPanel from "./lib/ConnectionPanel.svelte";
   import DatasetsPanel from "./lib/DatasetsPanel.svelte";
+  import HelpPanel from "./lib/HelpPanel.svelte";
+  import InspectPanel from "./lib/InspectPanel.svelte";
   import ProfilesPanel from "./lib/ProfilesPanel.svelte";
   import RunsPanel from "./lib/RunsPanel.svelte";
   import ProfileSwitcher from "./lib/ProfileSwitcher.svelte";
   import SimulationChartHarness from "./lib/SimulationChartHarness.svelte";
   import SimulationRunsPanel from "./lib/SimulationRunsPanel.svelte";
+  import { SECTIONS, type Section } from "./lib/capabilities";
   import { initialise } from "./lib/connection.svelte";
   import { load as loadProfiles } from "./lib/profiles.svelte";
 
-  type Section =
-    | "connection"
-    | "profiles"
-    | "datasets"
-    | "configs"
-    | "runs"
-    | "simulation"
-    | "memory"
-    | "settings";
-
-  const sections: { id: Section; label: string; hint: string }[] = [
-    { id: "connection", label: "Connection", hint: "Gateway and services" },
-    { id: "profiles", label: "Profiles", hint: "Research lines" },
-    { id: "datasets", label: "Datasets", hint: "Candles by content" },
-    { id: "configs", label: "Configs", hint: "Hypotheses and runs" },
-    { id: "runs", label: "Runs", hint: "Queued and finished" },
-    { id: "simulation", label: "Simulation", hint: "Chart-first research" },
-    { id: "memory", label: "Memory", hint: "Research record" },
-    { id: "settings", label: "Settings", hint: "Paths and defaults" },
-  ];
+  const sections = SECTIONS;
 
   let section = $state<Section>("connection");
   const fixture = new URLSearchParams(window.location.search).get("fixture");
@@ -97,11 +81,10 @@
         <RunsPanel />
       {:else if section === "simulation"}
         <SimulationRunsPanel />
-      {:else}
-        <div class="notice">
-          This screen arrives with its issue. The connection screen is the first
-          increment and proves the transport.
-        </div>
+      {:else if section === "inspect"}
+        <InspectPanel />
+      {:else if section === "help"}
+        <HelpPanel />
       {/if}
     </section>
   </main>

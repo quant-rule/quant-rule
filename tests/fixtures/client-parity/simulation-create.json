@@ -1,0 +1,7 @@
+{
+  "premise": "higher lows into a confirmed level",
+  "bundle": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "inputs": "EMA stack and RSI zone",
+  "seed": 7,
+  "criteria": "min_events=30; min_mean_net>0; min_hit_rate>0.5"
+}

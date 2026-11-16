@@ -8,7 +8,8 @@ requires a check and an archive before removal.
 Commands:
     check   classify the worktree contents; no deletion
     archive copy local data to a dated archive and write a manifest; no deletion
-    remove  check, archive, verify the branch is merged, then remove; --yes required
+    remove  check, archive and verify local data, verify the branch is merged,
+            delete the archived local data, then remove; --yes required
 
 Usage:
     python3 tools/worktree_cleanup.py check ../quant-rule--task
@@ -195,6 +196,51 @@ def archive_worktree(worktree: Path, dest: Path, label: str | None = None) -> di
     return manifest
 
 
+def _verify_archive(manifest: dict[str, Any]) -> None:
+    """Re-read an archive manifest and verify every copied file.
+
+    The removal step deletes the local data the archive was made from, so the
+    copy is checked before that happens. A short, missing, or altered file stops
+    the removal and leaves the worktree intact.
+    """
+    destination = Path(manifest["destination"])
+    files = manifest.get("files", [])
+    if manifest.get("file_count") != len(files):
+        raise CleanupError(
+            f"archive manifest {destination} counts {manifest.get('file_count')} files "
+            f"but lists {len(files)}"
+        )
+    for entry in files:
+        path = destination / entry["path"]
+        if not path.is_file():
+            raise CleanupError(f"archived file {path} is missing")
+        size = path.stat().st_size
+        if size != entry["bytes"]:
+            raise CleanupError(
+                f"archived file {path} is {size} bytes, manifest says {entry['bytes']}"
+            )
+        digest = _sha256(path)
+        if digest != entry["sha256"]:
+            raise CleanupError(
+                f"archived file {path} has hash {digest}, manifest says {entry['sha256']}"
+            )
+
+
+def _remove_archived_local_data(worktree: Path, local_data: list[str]) -> None:
+    """Delete the local data that the verified archive now holds."""
+    for relative in local_data:
+        source = worktree / relative
+        try:
+            if source.is_dir():
+                shutil.rmtree(source)
+            else:
+                source.unlink()
+        except OSError as error:
+            raise CleanupError(
+                f"cannot remove archived local data {source}: {error}"
+            ) from error
+
+
 def _main_worktree(worktree: Path) -> Path:
     output = _git(worktree, "worktree", "list", "--porcelain")
     for line in output.splitlines():
@@ -231,7 +277,16 @@ def remove_worktree(
         raise CleanupError(f"branch {branch} is not merged into {main_branch}")
     archive = None
     if check["local_data"]:
-        archive = archive_worktree(worktree, archive_root, label=worktree.name)
+        try:
+            archive = archive_worktree(worktree, archive_root, label=worktree.name)
+        except OSError as error:
+            raise CleanupError(
+                f"cannot archive local data in {worktree}: {error}"
+            ) from error
+        _verify_archive(archive)
+        _remove_archived_local_data(worktree, check["local_data"])
+    # No --force: a worktree that still holds anything unclassified must stay
+    # for the operator to inspect rather than disappear.
     _git(main, "worktree", "remove", str(worktree))
     _git(main, "branch", "-d", branch)
     if remote:

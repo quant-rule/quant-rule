@@ -2,7 +2,8 @@
 #
 # The toolchain is pinned by rust-toolchain.toml. The runner already has
 # rustup, so `rustup show` installs the pinned toolchain and components.
-# The four commands are the same ones documented in README.md.
+# The Rust commands and the shared checker gate are the same ones documented in
+# README.md and run by tools/gate.sh.
 
 name: CI
 
@@ -37,68 +38,13 @@ jobs:
       - name: Lints
         run: cargo clippy --all-targets -- -D warnings
 
-      - name: File size
-        run: python3 tools/check_file_size.py
-
-      - name: Schema prefixes
-        run: |
-          python3 -m unittest discover -s tools -p 'test_check_schema_prefixes.py'
-          python3 tools/check_schema_prefixes.py
-
-      - name: Python gate
-        run: |
-          python3 -m unittest discover -s tools -p 'test_check_python.py'
-          python3 tools/check_python.py
-
-      - name: Port parity
-        run: |
-          python3 -m unittest discover -s tools -p 'test_check_port_parity.py'
-          python3 tools/check_port_parity.py
-
-      - name: Structure
-        run: |
-          python3 -m unittest discover -s tools -p 'test_check_structure.py'
-          python3 tools/check_structure.py
-
-      - name: Workflows
-        run: |
-          python3 -m unittest discover -s tools -p 'test_check_workflows.py'
-          python3 tools/check_workflows.py
-
-      - name: Execution plans
-        run: |
-          python3 -m unittest discover -s tools -p 'test_check_execution_plans.py'
-          python3 tools/check_execution_plans.py
-
-      - name: Board permanence
-        run: |
-          python3 -m unittest discover -s tools -p 'test_check_board_permanence.py'
-          python3 tools/check_board_permanence.py
+      - name: Checker gate
+        run: bash tools/checkers.sh
 
       - name: Project sync
         run: |
           bash -n .github/scripts/project-sync.sh
           bash tools/test_project_sync.sh
-
-      - name: Claim types
-        run: |
-          python3 -m unittest discover -s tools -p 'test_check_claims.py'
-          python3 tools/check_claims.py
-
-      - name: Changelog
-        run: |
-          python3 -m unittest discover -s tools -p 'test_check_changelog.py'
-          python3 tools/check_changelog.py
-
-      - name: Releases
-        run: |
-          python3 -m unittest discover -s tools -p 'test_check_releases.py'
-          python3 tools/check_releases.py
-
-      - name: Partitions
-        run: |
-          python3 -m unittest discover -s tools -p 'test_check_partitions.py'
-          python3 tools/check_partitions.py
 
       - name: Data tooling
         run: |
@@ -107,35 +53,6 @@ jobs:
 
       - name: Tests
         run: cargo test
-
-      - name: Registry
-        run: python3 tools/check_registry.py
-
-      - name: Verification matrices
-        run: python3 tools/check_verification_matrix.py
-
-      - name: Verification evidence
-        run: python3 tools/check_verification.py
-
-      - name: Event emitters
-        run: python3 tools/check_event_emitters.py
-
-      - name: Validation claims
-        run: python3 tools/check_validation.py
-
-      - name: Command surface
-        run: python3 tools/check_command_surface.py
-
-      - name: Documentation links
-        run: python3 tools/check_links.py
-
-      - name: Workflow terms
-        run: python3 tools/check_terms.py
-
-      - name: Legacy labels
-        run: |
-          python3 -m unittest discover -s tools -p 'test_check_legacy.py'
-          python3 tools/check_legacy.py
 
       # Historical tooling retained for reproducibility; not part of the current shell surface.
       - name: Historical improvement tooling
@@ -166,7 +83,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
 
       - name: Install Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: "1.4.2"
 
@@ -192,7 +109,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
 
       - name: Install Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: "1.4.2"
 

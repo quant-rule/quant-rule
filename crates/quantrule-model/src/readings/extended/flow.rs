@@ -14,12 +14,19 @@ pub(super) struct FlowSeries {
     pub(super) ad_ma: Vec<Option<f64>>,
 }
 
-fn money_flow_volume(candle: &Candle) -> f64 {
+fn money_flow(candle: &Candle) -> Option<(f64, f64)> {
+    let volume = volume(candle)?;
     let span = candle.high() - candle.low();
-    if span <= 0.0 {
-        return 0.0;
-    }
-    (((candle.close() - candle.low()) - (candle.high() - candle.close())) / span) * volume(candle)
+    let multiplier = if span <= 0.0 {
+        0.0
+    } else {
+        ((candle.close() - candle.low()) - (candle.high() - candle.close())) / span
+    };
+    Some((multiplier * volume, volume))
+}
+
+fn money_flow_volume(candle: &Candle) -> Option<f64> {
+    money_flow(candle).map(|(flow, _)| flow)
 }
 
 pub(super) fn flow_series(candles: &[Candle], config: &ExtendedConfig) -> FlowSeries {
@@ -37,16 +44,29 @@ pub(super) fn flow_series(candles: &[Candle], config: &ExtendedConfig) -> FlowSe
     if len == 0 {
         return result;
     }
-    let mut obv = 0.0;
-    let mut ad = 0.0;
-    result.obv[0] = Some(0.0);
-    result.ad_line[0] = Some(0.0);
+    // The cumulative lines are seeded at zero only when the first bar carries a
+    // measured volume. Once a volume is missing, the cumulative value cannot be
+    // reconstructed, so every later bar stays unavailable rather than restarting
+    // from a fabricated baseline.
+    let mut obv = candles
+        .first()
+        .and_then(|candle| candle.volume())
+        .map(|_| 0.0);
+    let mut ad = obv;
+    result.obv[0] = obv;
+    result.ad_line[0] = ad;
     for bar in 1..len {
         let change = candles[bar].close() - candles[bar - 1].close();
-        obv += change.signum() * volume(&candles[bar]);
-        ad += money_flow_volume(&candles[bar]);
-        result.obv[bar] = Some(obv);
-        result.ad_line[bar] = Some(ad);
+        obv = match (obv, candles[bar].volume()) {
+            (Some(previous), Some(volume)) => Some(previous + change.signum() * volume),
+            _ => None,
+        };
+        ad = match (ad, money_flow_volume(&candles[bar])) {
+            (Some(previous), Some(flow)) => Some(previous + flow),
+            _ => None,
+        };
+        result.obv[bar] = obv;
+        result.ad_line[bar] = ad;
     }
     let window = config.flow_window;
     if window > 0 {
@@ -68,11 +88,16 @@ pub(super) fn flow_series(candles: &[Candle], config: &ExtendedConfig) -> FlowSe
             }
             let mut flow = 0.0;
             let mut total_volume = 0.0;
+            let mut complete = true;
             for candle in &candles[start..=bar] {
-                flow += money_flow_volume(candle);
-                total_volume += volume(candle);
+                let Some((value, volume)) = money_flow(candle) else {
+                    complete = false;
+                    break;
+                };
+                flow += value;
+                total_volume += volume;
             }
-            if total_volume > 0.0 {
+            if complete && total_volume > 0.0 {
                 result.cmf[bar] = Some(flow / total_volume);
             }
             if bar >= 2 * window - 1 {
@@ -95,7 +120,12 @@ pub(super) fn flow_series(candles: &[Candle], config: &ExtendedConfig) -> FlowSe
             let start = bar + 1 - mfi_window;
             let mut positive = 0.0;
             let mut negative = 0.0;
+            let mut complete = true;
             for index in start..=bar {
+                let Some(volume) = volume(&candles[index]) else {
+                    complete = false;
+                    break;
+                };
                 let typical =
                     (candles[index].high() + candles[index].low() + candles[index].close()) / 3.0;
                 let previous = if index > 0 {
@@ -106,14 +136,14 @@ pub(super) fn flow_series(candles: &[Candle], config: &ExtendedConfig) -> FlowSe
                 } else {
                     typical
                 };
-                let flow = typical * volume(&candles[index]);
+                let flow = typical * volume;
                 if typical > previous {
                     positive += flow;
                 } else if typical < previous {
                     negative += flow;
                 }
             }
-            if positive + negative > 0.0 {
+            if complete && positive + negative > 0.0 {
                 result.mfi[bar] = Some(if negative > 0.0 {
                     100.0 - 100.0 / (1.0 + positive / negative)
                 } else {

@@ -69,6 +69,74 @@ class EnginePurityTests(unittest.TestCase):
             )
             self.assertEqual(check_structure.check_engine_purity(root), [])
 
+    def test_grouped_import_in_engine_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            make_engines(root)
+            make_crate(root, "quantrule-model", "//! model\n\nuse std::{fs, io};\n")
+            violations = check_structure.check_engine_purity(root)
+            self.assertEqual(len(violations), 1)
+            self.assertIn("std::fs", violations[0].message)
+
+    def test_multiline_grouped_import_in_engine_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            make_engines(root)
+            make_crate(
+                root,
+                "quantrule-data",
+                "//! data\n\nuse std::{\n    collections::BTreeMap,\n    process,\n};\n",
+            )
+            violations = check_structure.check_engine_purity(root)
+            self.assertEqual(len(violations), 1)
+            self.assertIn("std::process", violations[0].message)
+
+    def test_aliased_import_in_engine_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            make_engines(root)
+            make_crate(root, "quantrule-backtest", "//! backtest\n\nuse std::env as environment;\n")
+            violations = check_structure.check_engine_purity(root)
+            self.assertEqual(len(violations), 1)
+            self.assertIn("std::env", violations[0].message)
+
+    def test_fully_qualified_io_path_in_engine_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            make_engines(root)
+            make_crate(
+                root,
+                "quantrule-model",
+                '//! model\n\npub fn read() -> String {\n    std::fs::read_to_string("x").unwrap()\n}\n',
+            )
+            violations = check_structure.check_engine_purity(root)
+            self.assertEqual(len(violations), 1)
+            self.assertIn("references std::fs", violations[0].message)
+
+    def test_grouped_clock_import_in_engine_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            make_engines(root)
+            make_crate(
+                root,
+                "quantrule-model",
+                "//! model\n\nuse std::time::{Duration, Instant};\n",
+            )
+            violations = check_structure.check_engine_purity(root)
+            self.assertEqual(len(violations), 1)
+            self.assertIn("std::time::Instant", violations[0].message)
+
+    def test_standard_library_data_import_is_allowed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            make_engines(root)
+            make_crate(
+                root,
+                "quantrule-model",
+                "//! model\n\nuse std::collections::{BTreeMap, BTreeSet};\n",
+            )
+            self.assertEqual(check_structure.check_engine_purity(root), [])
+
 
 class StageCommandCouplingTests(unittest.TestCase):
     def test_stage_module_importing_command_types_is_reported(self) -> None:

@@ -17,6 +17,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use quantrule_desktop_supervisor::health;
+use quantrule_desktop_supervisor::package;
 
 const SERVICES: [&str; 6] = [
     "qr-gateway",
@@ -293,6 +294,48 @@ fn process_alive(pid: u32) -> bool {
         Ok(output) => String::from_utf8_lossy(&output.stdout).contains(&pid.to_string()),
         Err(_) => false,
     }
+}
+
+#[test]
+fn the_package_digest_covers_the_installed_sidecars() {
+    let mut harness = Harness::new("package-digest");
+    harness.spawn();
+    harness.wait_ready();
+
+    let paths: Vec<PathBuf> = SERVICES
+        .iter()
+        .map(|name| harness.sidecars.join(executable(name)))
+        .collect();
+    let expected = package::digest(&paths).expect("the sidecar digest");
+    for name in SERVICES {
+        let environment = harness.environment(name);
+        assert!(
+            environment.contains(&format!("QR_IMAGE_DIGEST={expected}")),
+            "{name}: {environment}"
+        );
+    }
+
+    harness.kill_supervisor();
+    harness.wait_all_dead();
+}
+
+#[test]
+fn an_explicit_image_digest_wins() {
+    let mut harness = Harness::new("package-override");
+    let explicit = format!("sha256:{}", "1".repeat(64));
+    harness.spawn_with(&[("QR_IMAGE_DIGEST", explicit.clone())]);
+    harness.wait_ready();
+
+    for name in SERVICES {
+        let environment = harness.environment(name);
+        assert!(
+            environment.contains(&format!("QR_IMAGE_DIGEST={explicit}")),
+            "{name}: {environment}"
+        );
+    }
+
+    harness.kill_supervisor();
+    harness.wait_all_dead();
 }
 
 #[test]

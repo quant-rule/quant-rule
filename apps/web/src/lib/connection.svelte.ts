@@ -6,6 +6,7 @@ import {
   EXPECTED_API,
 } from "./connection";
 import { rememberToken, storedToken } from "./token";
+import { clearProfileScope } from "./profileScope.svelte";
 import type { HealthReport, VersionInfo } from "./types";
 
 export { EXPECTED_API };
@@ -106,6 +107,10 @@ export async function refresh(): Promise<void> {
     // required, so only a gated route proves the bearer token was accepted.
     await provesAuthorization();
     const verdict = classify(version, health);
+    if (verdict.state === "mismatch") {
+      // A contract the client was not built against is not trusted data.
+      clearProfileScope();
+    }
     current = {
       state: verdict.state,
       version,
@@ -115,6 +120,7 @@ export async function refresh(): Promise<void> {
     };
   } catch (error) {
     if (classifyFailure(error) === "unauthorized") {
+      clearProfileScope();
       current = {
         state: "unauthorized",
         version: null,
@@ -124,6 +130,7 @@ export async function refresh(): Promise<void> {
       };
       return;
     }
+    clearProfileScope();
     current = {
       state: "unreachable",
       version: null,

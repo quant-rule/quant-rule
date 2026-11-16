@@ -52,7 +52,7 @@ Hypothesis -> Design -> Implement -> Feasibility -> Development -> Freeze -> Val
 |---|---|---|---|---|
 | 1. Hypothesis | What is the rule, the thesis, and the falsifier? | Quant Researcher | Hypothesis note | Human accepts the premise |
 | 2. Design | Which published events/states does it read, and what is the rule budget? | Quant Researcher + Quant Developer | Strategy design | Model baseline and event roles are valid |
-| 3. Implement | Does the strategy config parse and explain one decision? | Quant Developer | `strategy.json`, tests | `strategy explain` and `strategy run` pass |
+| 3. Implement | Does the strategy config parse and explain one decision? | Quant Developer | `strategy.json`, config bundle | `run submit` produces the strategy artifact; `run fetch` retrieves it |
 | 3.5 Feasibility | Can the declared stop/target pay after costs without a win rate above 50%? | Quant Validator | `feasibility.json` | Net target > 0; breakeven win rate <= 50%; every timeframe <= 1h |
 | 4. Development | Does the rule produce a cost-inclusive result on `strategy_dev`? | Quant Developer | Decisions, backtest, qualification | Green criteria on the development partition |
 | 5. Freeze | Is the candidate frozen by config hash? | Quant Researcher | Frozen candidate | No post-hoc change |
@@ -142,12 +142,13 @@ post-hoc waiver.
 ## 7. Commands and artifacts
 
 ```bash
-quantrule strategy explain --model <model-bundle> --strategy <strategy.json> --bar <index>
-quantrule strategy run --model <model-bundle> --strategy <strategy.json> --out <dir>
-quantrule backtest run --config <run.json> --strategy <strategy.json> --out <dir>
+quantrule config list
+quantrule run submit --data-version <data_version> --config <config_id>
+quantrule run status <run_id>
+quantrule run fetch <run_id> --out <dir>
 python3 tools/improvement/feasibility.py --strategy <strategy.json> --data <data.json> --cost-bps <bps> --out <dir>
-quantrule qualify --evidence <backtest-bundle> --criteria <qualification.json> --out <dir>
-quantrule analytics evaluate --evidence <backtest-bundle> --out <dir>
+quantrule inspect events --data-version <data_version> --timeframe <timeframe>
+quantrule verify <run_id>
 ```
 
 | Artifact | Path |

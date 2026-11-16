@@ -137,3 +137,45 @@ export interface RunDetail {
   digest: Digest | null;
   error: string | null;
 }
+
+/** One timeframe's bars and coverage in an inspection. */
+export interface TimeframeBars {
+  timeframe: string;
+  bars: number;
+  partial_buckets: number;
+  first_bar: number | null;
+  last_bar: number | null;
+}
+
+/** A dataset's timeframe ladder, counted from its stored bytes. */
+export interface TimeframeInspection {
+  data_version: Digest;
+  timeframes: TimeframeBars[];
+}
+
+/** One published event record, as the gateway serializes it. */
+export interface InspectEvent {
+  event_code?: number;
+  event_type?: number;
+  event_subtype?: number;
+  type?: number;
+  source?: number;
+  occurred_bar?: number;
+  available_bar?: number;
+  bar?: number;
+  direction?: number;
+  [key: string]: unknown;
+}
+
+/** The event batch for one dataset and timeframe. */
+export interface InspectEvents {
+  data_version: Digest;
+  timeframe: string;
+  events: InspectEvent[];
+}
+
+/** The recorded canonical digest of one run. */
+export interface RunDigest {
+  run_id: Digest;
+  digest: Digest;
+}

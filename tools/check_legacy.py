@@ -15,8 +15,9 @@ retired source or the removal by contract.
 The M2.x research evidence under ``config/research/`` predates the cutover and
 still names retired schemas. It is historical evidence, not a current run
 config, and is the only remaining pending path. The scan covers current Rust
-source, README/docs, and config files; negative tests that prove retired
-schemas or commands are rejected are allowlisted explicitly.
+source, the README, the architecture, workflow, tutorial, governance, model, and
+config documents, and config files; negative tests that prove retired schemas or
+commands are rejected are allowlisted explicitly.
 """
 
 from __future__ import annotations
@@ -28,9 +29,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 SCAN = [
+    "AGENTS.md",
     "README.md",
     "docs/README.md",
     "docs/architecture",
+    "docs/workflows",
+    "docs/tutorials",
+    "docs/governance",
     "docs/model/2026-11-05",
     "docs/config",
     "config/defaults",
@@ -41,11 +46,15 @@ SCAN = [
 
 # The alias registry must name the old labels to map them.
 # Negative assertions that prove retired schemas are rejected.
+# The retirement and release records must name what they retired, and a release
+# note may state that a retired distribution does not exist.
 ALLOWLIST = {
     "docs/registry/history.md",
     "crates/quantrule-shell/tests/architecture.rs",
     "crates/quantrule-app/src/config/tests.rs",
     "crates/quantrule-shell/tests/fixtures/config-run/model-v3.json",
+    "docs/workflows/deprecation-retirement.md",
+    "docs/workflows/release-operations.md",
 }
 
 # M2.x research evidence predates the cutover and references retired files.

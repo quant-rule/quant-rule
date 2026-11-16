@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Check the structure of current execution plans.
 
-A plan dated 2026-11-11 or later must carry a status, a claim type, and a
-verification table with the reviewer columns, unique row IDs, non-empty core
-cells, and no unresolved row on a ``Verified`` plan. Historical plans are
-exempt because they predate the verification-table rule.
+A plan dated 2026-11-11 or later must carry a status drawn from the closed
+lifecycle vocabulary, a claim type, and a verification table with the reviewer
+columns, unique row IDs, non-empty core cells, and no unresolved row on a
+``Verified`` plan. The status may be bolded or followed by a date and a note;
+the lifecycle word is what is compared. Historical plans are exempt because they
+predate the verification-table rule.
 """
 
 from __future__ import annotations
@@ -23,6 +25,15 @@ EXEMPT = {
 STATUS = re.compile(r"^- Status:\s*(.+)$", re.MULTILINE)
 CLAIM = re.compile(r"^- Claim type:\s*(.+)$", re.MULTILINE)
 DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+PLAN_STATUSES = (
+    "Proposed",
+    "Approved",
+    "In Progress",
+    "In Review",
+    "Verified",
+    "Superseded",
+)
+EMPHASIS = "*_`"
 CLAIM_TYPES = (
     "Problem Claim",
     "Behaviour Claim",
@@ -42,6 +53,24 @@ COLUMNS = (
     "notes",
 )
 STATUSES = ("Pass", "Fail", "Blocked", "Pending", "Accepted risk")
+
+
+def normalize_status(raw: str) -> str | None:
+    """Return the lifecycle word in a status line, or ``None`` when unrecognized.
+
+    Plans write the same lifecycle state in several equivalent forms: plain,
+    bold, followed by a date in parentheses, or followed by a dash and a note.
+    Only the lifecycle word drives the row check, so the decoration is stripped
+    before the comparison. A word outside the closed vocabulary is returned as
+    ``None``; accepting it would let a plan opt out of the lifecycle again.
+    """
+    text = raw.strip().strip(EMPHASIS).strip()
+    for status in PLAN_STATUSES:
+        if text == status:
+            return status
+        if text.startswith(status) and not text[len(status)].isalnum():
+            return status
+    return None
 
 
 def row_cells(line: str) -> list[str]:
@@ -74,8 +103,15 @@ def check(root: Path) -> list[str]:
             continue
         text = path.read_text(encoding="utf-8")
         status = STATUS.search(text)
+        plan_status = None
         if status is None:
             problems.append(f"{relative}: missing '- Status:' line")
+        else:
+            plan_status = normalize_status(status.group(1))
+            if plan_status is None:
+                problems.append(
+                    f"{relative}: unknown plan status {status.group(1).strip()!r}"
+                )
         claim = CLAIM.search(text)
         if claim is None:
             problems.append(f"{relative}: missing '- Claim type:' line")
@@ -104,7 +140,6 @@ def check(root: Path) -> list[str]:
                 if len(rows) <= 1:
                     problems.append(f"{relative}: verification table has no data rows")
                 else:
-                    plan_status = status.group(1).strip() if status else ""
                     ids: set[str] = set()
                     for row in rows[1:]:
                         cells = row_cells(row)

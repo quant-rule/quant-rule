@@ -36,10 +36,10 @@ export interface SimulationSummary {
   status: SimulationStatus;
   windows: number;
   marks: number;
-  /** The recorded bundle; optional until the service confirms the list shape. */
-  bundle?: string;
-  /** Windows carrying at least one mark; optional for the same reason. */
-  marked_windows?: number;
+  /** The recorded bundle the run reads. */
+  bundle: string;
+  /** Windows carrying at least one mark. */
+  marked_windows: number;
 }
 
 /** The fields a researcher supplies to create a run. */

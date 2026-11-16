@@ -202,6 +202,8 @@ mod tests {
             "status": "draft",
             "windows": 3,
             "marks": 0,
+            "bundle": format!("sha256:{}", "a".repeat(64)),
+            "marked_windows": 0,
         }]))
     }
 

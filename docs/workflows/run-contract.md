@@ -128,8 +128,8 @@ historical and is rejected for a new run.
 | `run_config` | string | yes | Path to the shell run configuration |
 | `strategy_config` | string | strategy/portfolio | Path to the strategy file |
 | `qualification_criteria` | string | strategy/portfolio | Path to the qualification criteria |
-| `command` | string | no | `backtest run` or `report model`; default `backtest run` |
-| `analytics` | boolean | no | Run `analytics evaluate`; default `true` |
+| `command` | string | no | `run submit` for a gateway run; `backtest run` and `report model` are historical values in pre-cutover manifests |
+| `analytics` | boolean | no | Record the analytics artifact in the run's result set; default `true` |
 | `code_commit` | string | yes | Repository commit at run start |
 | `seed` | integer | yes | Non-negative deterministic seed |
 | `green_criteria` | object | yes | The pass/fail rule, recorded before the run |
@@ -174,7 +174,7 @@ record is not valid evidence if the freeze cannot be traced.
   "run_config": "config/examples/btcusd-2024/run.json",
   "strategy_config": "config/examples/btcusd-2024/strategy.json",
   "qualification_criteria": "config/examples/btcusd-2024/qualification.json",
-  "command": "backtest run",
+  "command": "run submit",
   "analytics": true,
   "code_commit": "42307b7",
   "seed": 0,
@@ -205,17 +205,17 @@ It:
    every sibling `*.json` into `config/`, and writes `config/sources.json` with
    the source paths and copy status;
 5. creates `artifacts/` and the starting `review.md` and `decision.md` templates;
-6. invokes the current commands:
+6. submits the run through the gateway and fetches its artifacts:
 
    ```text
-   <qr> backtest run --config <run_config> --strategy <strategy_config> --out <root>/artifacts --json
-   <qr> qualify --evidence <root>/artifacts/backtest --criteria <qualification_criteria> --out <root>/artifacts --json
-   <qr> analytics evaluate --evidence <root>/artifacts/backtest --out <root>/artifacts --json
+   quantrule run submit --data-version <data_version> --config <config_id>
+   quantrule run status <run_id>
+   quantrule run fetch <run_id> --out <root>/artifacts
    ```
 
-   The strategy and qualification steps are required for strategy and portfolio
-   tiers. A model run may use `report model` or `backtest run` without a strategy
-   config.
+   A strategy or portfolio run is submitted only after its model baseline is
+   accepted. A model run uses a model-only config and produces no strategy
+   artifact.
 
 7. writes `results.json` with every command, exit code, captured stdout and
    stderr, parsed stdout JSON, and a sorted artifact inventory with SHA-256
@@ -367,13 +367,16 @@ matching verdict and reason.
 The run-store tooling lives in `tools/improvement/` and is written in Python. See
 [`tools/improvement/README.md`](../../tools/improvement/README.md) for the
 current adapter and the retained scripts. It does not replace the shell: the
-shell executes `backtest run`, `qualify`, and `analytics evaluate`, and the
-tooling records, validates, and indexes the evidence.
+shell submits and fetches the gateway run, and the tooling records, validates,
+and indexes the evidence. `run_current.py` is the historical adapter for the
+pre-gateway local runner, when the shell still executed the pipeline stages; it
+is retained for reproducing pre-cutover runs and is not a current execution
+path.
 
 | Tool | Responsibility |
 |---|---|
 | `validate.py <manifest>` | Validate the v2 schema, run ID, tier, changed/frozen split, partition, UTC timestamp, seed, green criteria, and holdout declaration; reject an invalid manifest |
-| `run_current.py <manifest> [--qr PATH]` | Validate, create the run folder, copy provenance, invoke the current S3 commands, write `results.json`, and refresh the index |
+| `run_current.py <manifest> [--qr PATH]` | Historical adapter for the retired local stage commands; retained for reproducing pre-cutover runs |
 | `run.py <manifest> [--qr PATH]` | Historical adapter for the retired `backtest` command; retained for reproducibility only |
 | `claim_validation.py --cells <json> --out <dir>` | Grade states and events with forward outcomes, base rates, and corrected bounds |
 | `gate_compare.py --dev <json> --validation <json> --out <dir>` | Combine two partition results; a validation-only cell does not pass |
@@ -436,6 +439,12 @@ From v1.0.0 an improvement run is produced by submitting a pipeline run:
 | `config_hash` | computed by the gateway at submission |
 | `image_digest` | reported by `/health` and recorded in provenance |
 | `canonical_digest` | returned by `GET /runs/{id}/digest` |
+
+A desktop package has no container image. Its supervisor exports the SHA-256 of
+the six installed sidecars as `QR_IMAGE_DIGEST`, because a different package is a
+different execution even when its canonical artifacts match. An explicit
+`QR_IMAGE_DIGEST` wins, so the desktop/server parity harness can hold run identity
+constant.
 
 The manifest keeps the hypothesis, tier, partition, changed/frozen split, costs,
 green criteria, iteration cap, and stop rule. It replaces the local artifact

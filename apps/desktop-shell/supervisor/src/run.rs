@@ -17,6 +17,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::cli::{Config, Profile};
+use crate::package;
 use crate::ports::PortPlan;
 use crate::status::{ServiceStatus, Status};
 use crate::{health, ports, status};
@@ -138,6 +139,16 @@ fn supervise(config: &Config) -> Result<(), String> {
         .map_err(|error| format!("cannot prepare {}: {error}", config.data_dir.display()))?;
     let sidecar_dir = resolve_sidecar_dir(config)?;
     let programs = sidecar_programs(&sidecar_dir)?;
+    // A packaged run records the package that executed it. An explicit value
+    // wins so the desktop/server parity harness can hold run identity constant;
+    // otherwise the digest covers the six installed sidecars.
+    let image_digest = match std::env::var("QR_IMAGE_DIGEST")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+    {
+        Some(value) => value,
+        None => package::digest(&programs)?,
+    };
     let static_dir = config
         .resource_dir
         .as_ref()
@@ -164,6 +175,7 @@ fn supervise(config: &Config) -> Result<(), String> {
         plan,
         static_dir,
         config_root,
+        image_digest,
     };
     let mut running = Vec::with_capacity(SERVICES.len());
     for (spec, program) in SERVICES.iter().zip(programs) {
@@ -401,6 +413,7 @@ struct Spawner {
     plan: PortPlan,
     static_dir: Option<PathBuf>,
     config_root: Option<PathBuf>,
+    image_digest: String,
 }
 
 impl Spawner {
@@ -423,6 +436,7 @@ impl Spawner {
         }
         command.env("QR_PROFILE", "desktop");
         command.env("QR_DATA_DIR", &self.data_dir);
+        command.env("QR_IMAGE_DIGEST", &self.image_digest);
         command.env("QR_DESKTOP_CONTROL", &self.control);
         if let Some(directory) = &self.config_root {
             command.env("QR_CONFIG_ROOT", directory);

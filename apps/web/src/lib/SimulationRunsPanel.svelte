@@ -11,10 +11,12 @@
     type SimulationStatus,
   } from "./simulation";
   import { create, load, simulations } from "./simulation.svelte";
+  import { profiles } from "./profiles.svelte";
   import SimulationRunDetail from "./SimulationRunDetail.svelte";
 
   const view = $derived(simulations());
   const link = $derived(connection());
+  const active = $derived(profiles().active);
 
   let selected = $state<string | null>(null);
   let premise = $state("");
@@ -23,6 +25,19 @@
   let seed = $state(0);
   let criteria = $state("");
   let formError = $state<string | null>(null);
+  let scope = $state<string | null>(null);
+
+  // A different profile must not keep the previous profile's open simulation.
+  $effect(() => {
+    if (scope === null) {
+      scope = active;
+      return;
+    }
+    if (scope !== active) {
+      scope = active;
+      selected = null;
+    }
+  });
 
   onMount(() => {
     void load();
@@ -138,10 +153,10 @@
                   <span class="badge {statusBadge(item.status)}">{item.status}</span>
                 </td>
                 <td>{item.windows}</td>
-                <td>{item.marked_windows ?? "—"}</td>
+                <td>{item.marked_windows}</td>
                 <td>{item.marks}</td>
-                <td class="mono" title={item.bundle ?? "not published"}>
-                  {item.bundle ? shortId(item.bundle) : "—"}
+                <td class="mono" title={item.bundle}>
+                  {shortId(item.bundle)}
                 </td>
                 <td>
                   <button

@@ -95,8 +95,9 @@ Profiles:
 | No flag, no feature | External, so a development build never pretends to be a desktop profile |
 
 `QR_IMAGE_DIGEST` is passed through when it is set, so a parity harness can hold
-run identity constant. A packaged run without one records no image digest yet;
-that belongs to the parity work in section 10.
+run identity constant. Otherwise the supervisor hashes the six installed
+sidecars and exports that package digest, so an upgraded package is a distinct
+execution and `/health` names the package that is running.
 
 The sidecars receive `QR_PROFILE=desktop`, `QR_DATA_DIR`, `QR_BIND`, the four
 inter-service URLs, `QR_STATIC_DIR` for the bundled client, and

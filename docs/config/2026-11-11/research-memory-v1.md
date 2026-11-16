@@ -1,10 +1,12 @@
 # Local Research Memory v1
 
 - Date: 2026-11-11 (UTC)
-- Status: Current
+- Status: Historical; the module was removed on 2026-11-16 and the evidence
+  service owns research memory
 - Schema: `quantrule.research-memory/v1`
 - Export schema: `quantrule.research-memory-export/v1`
-- Code: `crates/quantrule-app/src/memory/`
+- Code: removed from `crates/quantrule-app` on 2026-11-16; this contract is kept
+  as history
 - Related: [`docs/execution-plans/2026-11-11/608-local-research-memory.md`](../../execution-plans/2026-11-11/608-local-research-memory.md)
 
 ## Scope

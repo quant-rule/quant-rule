@@ -15,19 +15,46 @@ pub fn rfc3339(seconds: u64) -> String {
     format!("{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}Z")
 }
 
+/// Why a clock reading cannot be formatted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClockError {
+    /// The host clock is before the Unix epoch.
+    BeforeEpoch,
+}
+
+impl std::fmt::Display for ClockError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::BeforeEpoch => write!(formatter, "the system clock is before the Unix epoch"),
+        }
+    }
+}
+
+impl std::error::Error for ClockError {}
+
+/// Format the supplied instant as RFC 3339 UTC.
+///
+/// # Errors
+///
+/// Returns [`ClockError::BeforeEpoch`] when `time` precedes the Unix epoch. A
+/// host in that state has no valid UTC reading to record, so the caller must
+/// fail the operation instead of inventing 1970.
+pub fn rfc3339_at(time: std::time::SystemTime) -> Result<String, ClockError> {
+    let seconds = time
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|_| ClockError::BeforeEpoch)?
+        .as_secs();
+    Ok(rfc3339(seconds))
+}
+
 /// The current time as RFC 3339 UTC.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics only when the system clock is before the Unix epoch, which a correct
-/// host does not report.
-#[must_use]
-pub fn now_utc() -> String {
-    let seconds = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .expect("the system clock is after the Unix epoch")
-        .as_secs();
-    rfc3339(seconds)
+/// Returns [`ClockError::BeforeEpoch`] when the host clock precedes the Unix
+/// epoch.
+pub fn now_utc() -> Result<String, ClockError> {
+    rfc3339_at(std::time::SystemTime::now())
 }
 
 /// Howard Hinnant's days-to-civil conversion, which avoids a date dependency.
@@ -73,8 +100,14 @@ mod tests {
 
     #[test]
     fn now_is_rfc3339_shaped() {
-        let now = now_utc();
+        let now = now_utc().expect("a current clock is after the epoch");
         assert_eq!(now.len(), 20, "{now}");
         assert!(now.ends_with('Z'));
+    }
+
+    #[test]
+    fn a_pre_epoch_clock_is_an_error() {
+        let before = std::time::SystemTime::UNIX_EPOCH - std::time::Duration::from_secs(1);
+        assert_eq!(rfc3339_at(before), Err(ClockError::BeforeEpoch));
     }
 }

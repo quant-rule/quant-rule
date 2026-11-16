@@ -16,11 +16,55 @@ history is in Git and the pull requests.
 
 ## [Unreleased]
 
+### Added
+
+- The browser client reaches the full shell surface: it inspects candles,
+  timeframe ladders, and event batches, verifies a run's recorded digest, and
+  downloads an artifact only after its SHA-256 matches the run record. The
+  shared parity fixture enumerates all 27 registered commands.
+- The composed test tier runs a real suite through `tools/composed.sh` and is
+  called by `tools/test_tiers.sh composed` and the release workflow.
+- `tools/check_client_docs.py` keeps the client screen and store tables, the
+  navigation labels, and the 49/150 indicator/event counts aligned with the
+  tree and the registry.
+- The release workflow validates the current-tag map before it resolves a
+  release note, and the desktop supervisor exports a package digest computed
+  over the installed sidecars.
+
 ### Changed
 
+- The simulation create request and list summary are the `quantrule-api`
+  contract types; the service re-exports them, and the shell's older body keeps
+  its wire shape because an empty `inputs` field is omitted.
+- A profile switch and a disconnection clear every profile-scoped store, and
+  the browser no longer presents a previous profile's runs, simulations, or
+  inspection result while a new read is pending.
+- The release image is built and checked locally before any push, and the
+  release concurrency key uses the tag name for both a tag push and a manual
+  dispatch.
+- Worktree cleanup verifies the archive manifest, deletes the archived local
+  data, and removes the worktree without `--force`.
+- The desktop Continue action opens the gateway that answered the probe, not
+  the typed candidate, while the typed URL remains the persisted setting.
 - Release tags were renumbered on 2026-11-15 to a continuous `v0.1.0`–`v1.0.0`
   history. Commits, images, and published artifacts are unchanged; historical
   release notes keep their original version headings.
+
+### Fixed
+
+- A price-only or partially missing-volume candle series publishes `null` for
+  mean volume, VWAP, volume profile, flow, MFI, CMF, and participation; OBV and
+  AD stay null after the first missing volume. A valid zero volume is unchanged.
+- The runtime clock returns a typed error instead of panicking, filesystem CAS
+  uses a no-replace hard link with a locked fallback, and migration planning
+  refuses an unordered version set.
+- `verify` resolves a run's recorded digest, and an artifact whose bytes do not
+  match the run record is refused rather than saved.
+
+### Removed
+
+- The retired local SQLite research memory and its `rusqlite` dependency were
+  removed from `quantrule-app`; research memory lives in the evidence service.
 
 ## [1.1.0] - 2026-11-15
 

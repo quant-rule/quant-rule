@@ -81,6 +81,7 @@ fn write_record(name: &str) {
         "QR_DATA_DIR",
         "QR_BIND",
         "QR_DESKTOP_CONTROL",
+        "QR_IMAGE_DIGEST",
         "QR_STATIC_DIR",
         "QR_CONFIG_ROOT",
         "QR_DATA_URL",

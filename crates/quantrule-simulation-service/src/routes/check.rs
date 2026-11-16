@@ -77,7 +77,8 @@ pub(crate) async fn record_decision(
     let decision = DecisionRecord {
         decision: request.decision,
         note: note.to_owned(),
-        decided_at_utc: clock::now_utc(),
+        decided_at_utc: clock::now_utc()
+            .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?,
     };
     let stored = store(&state)?
         .decide(profile, sim_id, decision)
