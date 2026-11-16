@@ -38,13 +38,13 @@ bash tools/checkers.sh
 
 | ID | Impact | Area | Finding | Evidence | Principle | Options | Recommended | Verification | Status | Links |
 |---|---|---|---|---|---|---|---|---|---|---|
-| REF-2026-11-16-01 | Medium | tests | Five service test suites copy the same in-memory object store | `rg -n 'pub struct MemoryObjects' crates` returns 5 copies, 57-69 lines each, 0.89-0.96 similar | duplication, testability | A / B / C | A | one definition; five suites import it; test count unchanged | Refactored | plan P1 |
-| REF-2026-11-16-02 | Medium | runtime, services | Four service binaries repeat the profile database bootstrap | `data-service/src/main.rs:39`, `evidence-service/src/main.rs:52`, `gateway/src/bin/qr_gateway.rs:36`, `simulation-service/src/main.rs:38`; `backtest-service/src/main.rs:38` already calls `backends::open_database` | duplication, coupling | A / B / C | A | one branch in runtime; four binaries call one helper; health tests pass | Refactored | plan P3 |
-| REF-2026-11-16-03 | Medium | shell | Command usage text is duplicated between the help registry and the parser | 25 of 27 `help.rs` usages are byte-identical literals in `parse.rs`; example `help.rs:51` vs `parse.rs:319` | duplication, coupling | A / B / C | A | 0 duplicated usage literals; shell output tests unchanged | Refactored | plan P2 |
+| REF-2026-11-16-01 | Medium | tests | Five service test suites copy the same in-memory object store | `rg -n 'pub struct MemoryObjects' crates` returns 5 copies, 57-69 lines each, 0.89-0.96 similar | duplication, testability | A / B / C | A | one definition; five suites import it; test count unchanged | Verified | PR #837 |
+| REF-2026-11-16-02 | Medium | runtime, services | Four service binaries repeat the profile database bootstrap | `data-service/src/main.rs:39`, `evidence-service/src/main.rs:52`, `gateway/src/bin/qr_gateway.rs:36`, `simulation-service/src/main.rs:38`; `backtest-service/src/main.rs:38` already calls `backends::open_database` | duplication, coupling | A / B / C | A | one branch in runtime; four binaries call one helper; health tests pass | Verified | PR #839 |
+| REF-2026-11-16-03 | Medium | shell | Command usage text is duplicated between the help registry and the parser | 25 of 27 `help.rs` usages are byte-identical literals in `parse.rs`; example `help.rs:51` vs `parse.rs:319` | duplication, coupling | A / B / C | A | 0 duplicated usage literals; shell output tests unchanged | Verified | PR #838 |
 | REF-2026-11-16-04 | Low | app | The timeframe code is mapped in three places | `artifact/labels.rs:8` (hand-written), `artifact/model_bundle/bundle.rs:278` and `stages/analytics/metrics.rs:323` (both from `Timeframe::ALL`) | duplication | A / B / C | A | one lookup; report and metrics tests unchanged | Open | plan pending |
 | REF-2026-11-16-05 | Low | app | Stage artifact writers duplicate the engine-code mappings | `sizing_label` at `execution/run.rs:561` and `portfolio/run.rs:513`; `summary_number` at 604 and 528; `collect` at `backtest.rs:556` and `execution/run.rs:357` | duplication | A / B | A | one definition each; bundle bytes identical | Open | plan pending |
 | REF-2026-11-16-06 | Low | docs | The normative crate list is stale in AGENTS.md and README.md | `AGENTS.md:48-63` and `README.md:237-250` list 14 crates; `Cargo.toml:3-18` lists 16; `quantrule-research` and `quantrule-simulation` missing | readability | A / B / C | A | both tables match `cargo metadata`; link and term checks pass | Open | plan pending |
-| REF-2026-11-16-07 | Medium | client | `SimulationRunDetail.svelte` owns state, loaders, actions, and markup | 762 lines; 23 `$state` variables; 7 async flows; the other panels use `*.svelte.ts` stores | cohesion, atomicity | A / B / C | A | component under 400 lines; web unit and e2e tests pass | Refactored | plan P4 |
+| REF-2026-11-16-07 | Medium | client | `SimulationRunDetail.svelte` owns state, loaders, actions, and markup | 762 lines; 23 `$state` variables; 7 async flows; the other panels use `*.svelte.ts` stores | cohesion, atomicity | A / B / C | A | component under 400 lines; web unit and e2e tests pass | Verified | PR #840 |
 | REF-2026-11-16-08 | Low | app | Two different types are named `StageProvenance` in one module tree | `artifact/provenance.rs:22` (identity fields) and `artifact/backtest.rs:121` (manifest stage record) | readability | A / B | A | no duplicate type name; gate passes | Open | plan pending |
 
 ## Detail blocks
@@ -405,8 +405,22 @@ Plan pending.
 
 ## Verification
 
-The plan carries the verification table. The Refactor Verifier recomputes the
-baseline commands above plus `bash tools/gate.sh`, the test inventory, the
-fixture hash, and the two client-parity fixture hashes. A change that alters a
-numeric value, a bundle byte, a command's printed text, or an error string is not
-a refactor and stops the cycle.
+The Refactor Verifier pass ran on merged `main` at `9324a581` on 2026-11-16,
+after PRs #836–#840 merged. The same agent performed the assessment, planning,
+implementation, and this verification pass; it is a sequential pass, not
+independent review.
+
+| Check | Observed |
+|---|---|
+| Full gate | `bash tools/gate.sh` exit 0; 2,122 passed, 0 failed, 14 ignored; 24 checkers pass |
+| Golden fixtures | 135 files; `325d0c4aa9498a7b4a91566c6704a3b42358dc0f16162b9952358061f251b1dd` (unchanged) |
+| Client-parity fixtures | `api.json` `0b960a3e…`; `view.json` `e94e9d2b…` (unchanged) |
+| Named metrics | fakes 1; parser literals that duplicate help 0; binary profile branches 0; screen 344 lines |
+| Dependencies and migrations | empty diff against `439a0639` for `Cargo.toml`, `Cargo.lock`, and `crates/*/migrations/*` |
+| Tests | 2,122 passed against the 2,118 baseline; no test removed or skipped |
+| Web | `svelte-check` 0 errors; 121 unit tests; 41 e2e tests |
+| Findings | REF-01, -02, -03, -07 `Verified`; the four Low findings remain `Open` |
+
+A change that alters a numeric value, a bundle byte, a command's printed text, or
+an error string would not be a refactor; none was observed outside the approved
+`simulation marks` hint correction.

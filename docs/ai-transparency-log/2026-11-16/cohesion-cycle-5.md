@@ -90,3 +90,17 @@ the recorded options, the campaign scope, and final acceptance.
 - Verification: `bun run check` 0 errors; 121 unit tests; 41 e2e tests; full
   `tools/gate.sh` exit 0.
 - Commit: `6c0e4917`.
+
+### 2026-11-16 — Merge and verification
+
+- Merged #836–#840 after all checks passed. #838 and #839 needed a `main` merge
+  into their branches; the only conflicts were adjacent plan and assessment rows,
+  resolved by keeping each cycle's own row.
+- Ran the merged `main` at `9324a581`: `tools/gate.sh` exit 0, 2,122 passed, 0
+  failed, 14 ignored; fixtures and client-parity bytes unchanged; metrics
+  1 / 0 / 0 / 344; web 121 unit and 41 e2e tests.
+- Moved REF-01, -02, -03, and -07 to `Verified`; the four Low findings stay
+  `Open`.
+- Disclosure: the Structure Auditor, Planner, Implementer, and Verifier passes
+  were performed by the same agent. This is a sequential verification pass, not
+  independent review.
