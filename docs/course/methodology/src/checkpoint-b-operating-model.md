@@ -1,5 +1,7 @@
 # Checkpoint B - Operating Model and Feedback
 
+> **Tag map.** Current release [`v1.2.0`](../../../releases/2026-11-16/v1.2.0.md); server platform `v0.9.0`; desktop package `v1.0.0`; 1.1.0 alignment `v1.1.0`. Authoritative map: [`docs/releases/README.md`](../../../releases/README.md).
+
 ## Lifecycle
 
 **Iterative and incremental, with pre-registered increments.**
@@ -15,8 +17,8 @@ Release evidence: [`docs/releases/2026-11-16/v1.2.0.md`](../../../releases/2026-
 (current tag `v1.2.0`).
 
 **Observed:** the pipeline, the bundle contract, the gate, and the distributed
-run lifecycle are released (server profile v0.9.0, desktop profile v1.0.0,
-current v1.2.0). The
+run lifecycle are released (current v1.2.0;
+[tag map](../../../releases/README.md)). The
 release note records two equivalent runs on the release host, 12 canonical
 artifacts and 3,559,171 bytes each, both printing
 `sha256:453c90b4442dd049074e126bb46b400b6f61baa986443c97fa27c3edd41c1daa`.

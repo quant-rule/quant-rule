@@ -1,5 +1,7 @@
 # Checkpoint C - Quality and Residual Risk
 
+> **Tag map.** Current release [`v1.2.0`](../../../releases/2026-11-16/v1.2.0.md); server platform `v0.9.0`; desktop package `v1.0.0`; 1.1.0 alignment `v1.1.0`. Authoritative map: [`docs/releases/README.md`](../../../releases/README.md).
+
 ## Risk map
 
 | Risk | Control | Effort | Residual |

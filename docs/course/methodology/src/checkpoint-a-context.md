@@ -1,5 +1,7 @@
 # Checkpoint A - Context and First Behaviour
 
+> **Tag map.** Current release [`v1.2.0`](../../../releases/2026-11-16/v1.2.0.md); server platform `v0.9.0`; desktop package `v1.0.0`; 1.1.0 alignment `v1.1.0`. Authoritative map: [`docs/releases/README.md`](../../../releases/README.md).
+
 ## Context
 
 One quantitative researcher works alone on their own OHLCV data. The system must
@@ -20,7 +22,7 @@ closing. Candle data stays on the operator's machine; there are no accounts.
 Falsified by: two runs over identical inputs and the same image producing
 different artifact bytes.
 
-## First increment (historical; now released as v1.2.0)
+## First increment (historical; first shipped in v0.9.0, current in v1.2.0)
 
 One user action, one observable result:
 
@@ -43,7 +45,8 @@ out-of-sample claim.
 
 **Non-goal:** no profitability or live-trading claim, and no tick, order-book,
 or machine-learning signal path. The product is a candles-only evidence machine.
-Released in v1.0.0 and current in v1.2.0; see
+The first increment shipped with the server platform in v0.9.0 and is
+current in v1.2.0; see
 [`docs/releases/2026-11-16/v1.2.0.md`](../../../releases/2026-11-16/v1.2.0.md).
 
 ## Pitch (45-60 seconds)
