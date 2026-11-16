@@ -1,70 +1,53 @@
 # Checkpoint E - Delivery, Observation, Recovery
 
-> **Tag map.** Current release [`v1.2.0`](../../../releases/2026-11-16/v1.2.0.md); server platform `v0.9.0`; desktop package `v1.0.0`; 1.1.0 alignment `v1.1.0`. Authoritative map: [`docs/releases/README.md`](../../../releases/README.md).
+## Spoken script
 
-## Claim
+The current release is v1.2.0. It ships as one image with six binaries, one published port, and nine containers. `make up` builds the stack, waits for health, and prints a URL. The desktop package installs from a release asset and starts the same six sidecars on SQLite, a filesystem CAS, and an in-process queue. It needs no Docker, and the shell reads no local engine data.
 
-**Claim type: Outcome.**
+I observe the system in three places. `/health` reports each dependency, queue depth, worker count, and the image digest. Run detail reports the stage, provenance, canonical digest, and artifacts. `make verify` submits two equivalent runs through the gateway and prints one canonical digest. The image digest is part of the evidence identity: a different build is a different run. The run record is the source of truth. A dead-lettered message shows up as a failed run, not as a silent loss.
 
-> For one researcher, a submitted run completes without the client and is
-> reproducible from its own provenance, measured by comparing the canonical
-> digest of two equivalent runs on the release host, with the limitation that
-> second-day and second-machine reruns are reviewer-executed and not claimed as
-> observed, and that this says nothing about the rule's edge.
+Here is one recovery story. I kill a worker in the middle of a run. The message is redelivered. The recompute is idempotent. No partial artifact becomes visible. A rerun gives the same digest. The queue also covers lease expiry, retry, dead-letter, and cancellation. If the evidence stage goes down after compute, the run stays running and finalization retries; it never becomes succeeded with a missing artifact.
 
-## Delivery
+The server profile and the desktop profile share the same six services and the same canonical digest. The release note records the v1.2.0 gate: 2,118 passing tests, 0 failed, 14 ignored, and 24 checkers. For backup, the archive contains Postgres and the object store; restore verifies every hash before it writes.
 
-- Released as v1.2.0: one image, six binaries, one digest, nine containers.
-- One command: `make up` -> healthy -> a URL.
-- One published port.
-- A self-contained desktop package installs from a release asset, starts the
-  same six sidecars on SQLite/filesystem CAS/in-process queue, and reads no
-  local engine data.
-- Release record: [`docs/releases/2026-11-16/v1.2.0.md`](../../../releases/2026-11-16/v1.2.0.md)
-  (current tag `v1.2.0`). It records the v1.2.0 gate: 2,118 passing tests, 0
-  failed, 14 ignored, and 24 checkers. The desktop note (now `v1.0.0`) records
-  2,134 passing tests; the earlier distributed-platform note (now `v0.9.0`)
-  recorded 1,995.
+The limit is clear. There is no high availability and no failover. A host failure is an outage until I restart the stack. That is a deliberate trade for a single-operator tool. Second-day and second-machine reproducibility are reviewer-executed; the release record claims the local gate, the two equivalent runs on the release host, and the packaged parity smokes, not a second day. A digest also says nothing about the rule's edge. The desktop artifacts are unsigned.
 
-## Observation
+When a client reconnects, the run record is the first place I look. The release note is the record I compare against. The next action is to run the reviewer verification on a second host and a second day, and record the result. The current evidence is the release-host two-run comparison, the packaged Linux and Windows parity smoke, and the queue and CAS tests.
 
-| Signal | Where | Action when it moves |
+```{=latex}
+\newpage
+```
+
+## Evidence appendix
+
+### Delivery
+
+| Item | Observed |
+|---|---|
+| Delivery | one image, six binaries; one published port `8080`; nine containers: six services, Postgres, MinIO, RabbitMQ |
+| Desktop | six sidecars, SQLite, filesystem CAS, in-process queue; installer from the release |
+| Current release | v1.2.0; gate 2,118 passed, 0 failed, 14 ignored; 24 checkers |
+
+### Observation
+
+| Signal | Where | What I do |
 |---|---|---|
 | Service state | `/health`, per dependency | restart the failing dependency |
-| Queue depth, workers | `/health` | add a worker |
+| Queue depth and workers | `/health` | add a worker |
 | Run state and failed stage | run detail | fix the input, resubmit |
 | Canonical digest | run detail, `make verify` | compare; a mismatch is a defect |
 | Image digest | `/health`, provenance | a different build is a different run |
 
-The run record is the source of truth. A dead-lettered message appears as a
-failed run, not as a silent loss.
+The run record is the source of truth. A dead-lettered message appears as a failed run, not as a silent loss.
 
-## Recovery
+### Recovery
 
-| Failure | Recovery | Evidence it worked |
+| Failure | Recovery | Evidence |
 |---|---|---|
-| Worker killed mid-run | message redelivered; recompute is idempotent | release note queue/CAS suite: lease expiry, redelivery, retry, dead-letter, cancellation, killed-writer invisibility; rerun digest verified |
-| Evidence stage down after compute | finalization retries | run stays `running`, never `succeeded` with a missing artifact; release note records the run lifecycle and no-partial-publish guard |
-| Database lost | restore the last backup | `tools/test_backup.sh`; release note backup/restore over Postgres and the object store |
-| Object store lost | restore from backup | `tools/test_backup.sh` and `tools/restore.sh`; missing objects make runs unverifiable, and that is reported |
-| Bad image | start the previous release digest | release note rollback: start the previous release digest (`v1.1.0`); `v0.9.0` is the server-platform baseline; migrations are forward-only, so the previous version must tolerate the newer schema |
+| Worker killed mid-run | message redelivered; recompute is idempotent | queue and CAS suite; rerun digest is the same |
+| Evidence stage down after compute | finalization retries | run stays `running`; never `succeeded` with a missing artifact |
+| Database lost | restore the last backup | `tools/test_backup.sh` |
+| Object store lost | restore from backup | `tools/restore.sh`; missing objects make runs unverifiable |
+| Bad image | start the previous release digest (`v1.1.0`) | release note; `v0.9.0` is the server-platform baseline |
 
-## Limit
-
-No high availability, no failover. A host failure is an outage until the operator
-restarts the stack. That is a deliberate trade for a single-operator tool, and it
-is stated rather than hidden. Second-day and second-machine reproducibility are
-reviewer-executed; the release record claims the local gate, the two equivalent
-runs on the release host, and the packaged parity smokes, not a second day.
-
-## Decision
-
-Shipped as `v0.9.0` (server) and `v1.0.0` (desktop); both current in
-`v1.2.0`. The server platform and the self-contained desktop package share the
-same six services and the same canonical digest; the server profile
-remains the default and the oracle. The thin shell, profiles, and desktop are
-released, not deferred.
-
-Next action: run the reviewer verification on a second host and a second day and
-record the result; the current evidence is the release-host two-run comparison,
-the packaged Linux/Windows parity smoke, and the queue/CAS tests.
+Limit: no high availability, no failover; second-day and second-machine reproducibility are reviewer-executed. Link: [current release note](../../../releases/2026-11-16/v1.2.0.md).

@@ -1,121 +1,48 @@
 # Checkpoint D - Architecture and Changeability
 
-> **Tag map.** Current release [`v1.2.0`](../../../releases/2026-11-16/v1.2.0.md); server platform `v0.9.0`; desktop package `v1.0.0`; 1.1.0 alignment `v1.1.0`. Authoritative map: [`docs/releases/README.md`](../../../releases/README.md).
+## Spoken script
 
-- Status: Released v1.2.0; updated 2026-11-16
-- Release: [`docs/releases/2026-11-16/v1.2.0.md`](../../../releases/2026-11-16/v1.2.0.md) (current tag `v1.2.0`)
+QuantRule is a service-based system for one operator. The browser, the command shell, and the desktop app are clients. They speak one HTTP contract through the gateway. Inside the boundary are six services: gateway, data, model, backtest, evidence, and simulation. The server profile runs them in nine containers with Postgres, S3-compatible object storage, and RabbitMQ. The desktop profile runs the same six sidecars with SQLite, a filesystem content-addressed store, and an in-process queue. One image, one port, one digest.
 
-**Claim.** For one researcher, the released v1.2.0 architecture keeps one rule
-in and one reproducible bundle out while a service, adapter, reading, or client
-screen changes without touching the engines.
+A run flows like this. I upload candles to data, which assigns a data_version. I submit a dataset and a config through the gateway. Evidence creates the run and puts a message on the queue. The backtest worker asks data for the config and dataset, asks model for the model bundle, runs strategy, execution, and portfolio, writes artifacts to the content-addressed store, and records the canonical digest. Evidence verifies the manifest and marks the run succeeded. I can close the client; the run continues.
 
-## Architecture
+The authoritative data is the catalog dataset record, the runs/research run record and provenance, the canonical digest, and the object-store bytes. The external systems are Postgres, MinIO, and RabbitMQ in the server profile; SQLite, the filesystem CAS, and the in-process queue in the desktop profile. The contracts are `quantrule.api/v1`, `quantrule.internal/v1`, and one schema per service. No service reads another service's schema.
 
-Service-Based, domain-partitioned, six services, one image, nine containers.
-The current v1.2.0 release covers the server profile and the self-contained
-desktop package; the distributed server platform itself was released as v0.9.0.
-Its historical note was prepared as v1.0.0 before the 2026-11-15 renumbering;
-see the [tag map](../../../releases/README.md).
+Three choices matter. First, service-based and domain-partitioned, not microservices. Six coarse services in one image. The trade-off is Docker and more moving parts; the gain is that a run outlives the client and can move to another host. Second, a synchronous data plane and an asynchronous control plane. The run is deterministic; the queue is retryable. The trade-off is that status is eventual; the gain is detachability and safe retries. Third, content-addressed exchange, references instead of payloads. The trade-off is an object-store dependency; the gain is idempotent retries and reproducible bytes.
 
-| Service | Code | Capability |
-|---|---|---|
-| gateway | `crates/quantrule-gateway` | HTTP boundary, static client, profile, upload |
-| data | `crates/quantrule-data-service` | ingestion, content identity, timeframe ladder, catalog |
-| model | `crates/quantrule-model-service` | readings, states, events, progression |
-| backtest | `crates/quantrule-backtest-service` | orchestration, strategy, execution, portfolio |
-| evidence | `crates/quantrule-evidence-service` | provenance, digest, run records, memory |
-| simulation | `crates/quantrule-simulation-service` | windows, marks, oracle, review, check |
+The hard-to-reverse decisions are the canonical digest definition and the run identity. Changing the digest invalidates every recorded comparison. Changing the run identity invalidates deduplication and every run id. I keep them stable and revisit only when a digest misses a real artifact class or a new input changes results.
 
-The engines live in `crates/quantrule-data`, `crates/quantrule-model`, and
-`crates/quantrule-backtest`; the shared application service is
-`crates/quantrule-app`; the contracts are `crates/quantrule-api` and
-`crates/quantrule-service-api`.
+What this makes cheap: a rule change, a new reading, a client screen, an endpoint behind a version, and a second worker. What it makes expensive: the digest definition, the run identity, and a seventh service.
 
-The pipeline is synchronous; the run lifecycle is asynchronous; research is a
-separate, isolated plane. Stages exchange content references, never payload sets.
-Database, object store, and queue sit behind traits, so a second implementation
-is additive.
+The main unknown is cross-machine determinism and throughput at scale. The project's own pre-release kata alignment rated deployability 2/5, responsiveness 2/5, scalability 2/5, and elasticity 1/5. I use that rating as a pre-release check on the architecture, not as a current measurement.
 
-Key constraints: a client sends identifiers, never filesystem paths; every record
-is `profile_id`-scoped and a profile is organisational, not a security boundary;
-one service owns each schema; the image digest and canonical digest are part of
-the evidence identity; the desktop profile replaces the three adapters without
-changing the engines.
+The next architectural change is to retire the pinned legacy MinIO archive and record a maintained object-store source. It touches the object-store adapter selection, deployment, and backup, not the engines. The desktop profile already uses the filesystem CAS.
 
-## L16 architecture view
+The distribution left the engines untouched. I can change a service without rewriting a rule or a client screen. The concrete ripple is in the appendix.
 
-| Element | Current view |
+## Architecture view
+
+| View | Content |
 |---|---|
-| Actors | One operator/researcher; one reviewer; browser, command shell, and desktop clients |
-| System boundary | Gateway, six services, Postgres/S3/RabbitMQ, and the object store; candle bytes and run artifacts stay inside |
-| Key request/data flows | Upload -> catalog -> run submit -> queue -> model/backtest worker -> evidence finalize -> client fetch |
-| Authoritative data | `catalog` dataset record; `runs`/`research` run record and provenance; canonical digest; object-store bytes |
-| External systems | Postgres, S3-compatible MinIO, RabbitMQ; the desktop profile substitutes SQLite, filesystem CAS, and an in-process queue |
-| Contracts | `quantrule.api/v1`, `quantrule.internal/v1`, and per-service schemas; no service reads another schema |
+| Actors and boundary | one operator/researcher; one reviewer; browser, shell, desktop; gateway, six services, Postgres/S3/RabbitMQ, object store |
+| Components and flow | gateway, data, model, backtest, evidence, simulation; upload -> data_version -> submit -> queue -> backtest -> model -> artifacts -> evidence -> client ([services.md](../../../architecture/services.md)) |
+| Authoritative data | catalog dataset; runs/research record; canonical digest; object bytes |
+| External systems and contracts | Postgres, MinIO, RabbitMQ; desktop SQLite, filesystem CAS, in-process queue; `quantrule.api/v1`, `quantrule.internal/v1`, one schema per service |
 
-Code and contract references: [`services.md`](../../../architecture/services.md),
-[`data-plane.md`](../../../architecture/data-plane.md),
-[`control-plane.md`](../../../architecture/control-plane.md),
-[`http-api.md`](../../../architecture/http-api.md), and the six
-`crates/quantrule-*-service` crates.
+## Evidence appendix
 
-## Decisions
+### What we wanted and what we measured
 
-Twelve recorded decisions (the 2026-11-12 ADR set). The two that are hard to reverse:
+| Characteristic and target | What we measured |
+|---|---|
+| Reproducibility: same inputs and image digest -> same bytes | server and desktop parity reproduced `sha256:453c90b4…`; cross-machine is reviewer-executed ([v1.2.0 release note](../../../releases/2026-11-16/v1.2.0.md)) |
+| Temporal integrity: no later bar changes an earlier value | causality and prefix tests pass |
+| Auditability: every result names its inputs and digests | provenance, `make verify`, and run records |
+| Scalability: one to four workers, same digest; 2.5x throughput | one pass and four shards share one digest; throughput not measured |
+| Deployability: healthy within 10 minutes, one port | `make up` starts nine containers and one port; the 10-minute target is not measured |
 
-| Decision | Why hard to reverse | Revisit when |
-|---|---|---|
-| Canonical digest definition | Invalidates every recorded comparison | a digest misses a real artefact class |
-| Run identity inputs | Invalidates deduplication and every run id | a new input changes results |
+### Changeability
 
-## Quantified characteristics: target vs observed
+- Add profiles or a reading: profiles cost one column in four schemas, one header, and one client store; a reading costs one module, registry, parser, writer, and one fixture. Neither changes service responsibility.
+- Add a service: two decisions and nine work items. The engines stay untouched.
 
-Targets are the design goal. Observed evidence is what the repository or release
-record actually shows; an unmeasured target is not presented as observed.
-
-| Characteristic | Target / good means | Observed evidence | Status |
-|---|---|---|---|
-| Testability | every reading and event has causality, determinism, and golden evidence; fast suite <= 5 min | 49 indicators and 150 active events have registry/evidence rows; the v1.2.0 gate passed 2,118 tests; the v1.0.0 release gate passed 2,134; 24 checkers | Coverage observed; 5-minute target not measured |
-| Modularity | 6 services, 0 cycles, gateway imports 0 engine symbols | Six service crates; service-boundary guard; service catalog | Observed |
-| Maintainability | a rule change touches <= 1 crate and <= 3 modules; no file over 1,000 lines | Add-a-reading trace touches one model crate, registry, parser, writer, and fixture; file-size checker passes | Structural trace observed; no timed metric |
-| Deployability | clean clone to healthy <= 10 min; one published port | `make up` starts nine containers and one published port; release note records the local image and `/health` | Path observed; 10-minute target not measured |
-| Fault tolerance | no `succeeded` run with a missing artifact; resubmission gives identical bytes | No-partial-publish, queue lease/redelivery/dead-letter, CAS, and backup/restore tests; release note records the queue/CAS suite | Observed in tests; no production failure injection |
-| Responsiveness | submit <= 200 ms; chart window <= 200 ms; 1 year over 8 timeframes <= 60 s on 8 cores | No benchmark in the release record | Target; unverified |
-| Scalability | model stage 1 to 4 workers: identical digest, >= 2.5x throughput | `one_pass_and_four_shards_share_one_digest`, reversed ladder, and unsorted-merge counterexample pass (2026-11-14) | Digest invariance observed; 2.5x throughput target unverified |
-| Partitioning type | domain-driven: 6 services by capability, no layer split | Service catalog and ADR-2026-11-12-01 | Observed |
-
-The project's own [kata alignment](../../../execution-plans/2026-11-13/kata-alignment.md)
-rates deployability 2/5, responsiveness 2/5, scalability 2/5, and elasticity
-1/5. The table above therefore separates the architecture goal from measured
-maturity.
-
-## Changeability evidence
-
-| Change | Ripple | Cost | What stayed easy |
-|---|---|---|---|
-| Add a service | 2 decisions, 9 work items | one documentation pass | the engines were untouched |
-| Add profiles | one column in four schemas, one header, one client store | small | no service changed its responsibility |
-| Add a reading | one module, registry, parser, writer, one fixture | the widest ripple in the system | bounded to one crate |
-
-Cheap to change: a rule, a reading, a client screen, an endpoint behind a
-version. Expensive: the digest definition, the run identity, the service count.
-
-## Next architectural change
-
-Retire the pinned legacy MinIO archive and record a maintained object-store
-source. It touches the object-store adapter selection, deployment, backup, and
-the release note, not the engines. The human registry decision is still open;
-the desktop profile already uses the filesystem CAS instead.
-
-## Consistency
-
-Eight requirements -> eight characteristics -> six services -> twelve decisions ->
-one released v1.2.0 tree. One increment throughout: one rule in, one
-reproducible bundle out.
-
-## Likely questions
-
-- **Cheap:** a rule change, a new reading, a client screen, a second worker.
-- **Expensive:** the digest definition, the run identity, a seventh service.
-- **Residual risk:** cross-machine determinism and throughput at scale are not
-  yet measured; the object-store source is a stopgap; no HA or failover.

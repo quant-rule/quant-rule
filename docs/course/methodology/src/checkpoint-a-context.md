@@ -1,64 +1,30 @@
 # Checkpoint A - Context and First Behaviour
 
-> **Tag map.** Current release [`v1.2.0`](../../../releases/2026-11-16/v1.2.0.md); server platform `v0.9.0`; desktop package `v1.0.0`; 1.1.0 alignment `v1.1.0`. Authoritative map: [`docs/releases/README.md`](../../../releases/README.md).
+## Spoken script (45-60 seconds)
 
-## Context
+My project is QuantRule. It turns a candle hypothesis into evidence I can reproduce.
+The user is one researcher working alone on their own OHLCV data. The reviewer reproduces the result months later.
+My claim is a behaviour claim. If I submit one rule over one dataset, the system writes one evidence bundle, and two equivalent runs over the same inputs and image produce the same canonical digest.
+The first increment is one action: submit a rule, get a bundle, and see the data version, config hash, model version, and image digest in provenance.
+The evidence is a client test that prints the gateway result and a two-run comparison.
+The limit is that a digest says nothing about whether the rule has an edge.
+The non-goal is no profitability claim, no live trading, and no tick, order-book, or machine-learning signal path.
 
-One quantitative researcher works alone on their own OHLCV data. The system must
-ingest candles, measure them across timeframes as numbers, evaluate one
-human-authored rule without look-ahead, and produce evidence a reviewer can
-reproduce months later. Runs take minutes to hours and must survive the client
-closing. Candle data stays on the operator's machine; there are no accounts.
+## Handout
 
-## Claim
+Pitch: QuantRule turns a candle hypothesis into evidence you can reproduce. The user is one researcher who must defend a result months later. The claim: one rule in, one bundle out, byte-identical on a rerun.
 
-**Claim type: Behaviour.**
+Panel: Quantitative researcher. QuantRule - reproducible OHLCV evidence. Description: Reproducible evidence for rule-based OHLCV research. Claim: Same inputs, same bundle, every time.
 
-> For a quantitative researcher working on their own OHLCV data, the system will
-> produce one evidence bundle per submitted rule, measured by comparing the
-> canonical digest of two runs over the same inputs, with the limitation that a
-> digest says nothing about whether the rule has an edge.
+## Evidence appendix
 
-Falsified by: two runs over identical inputs and the same image producing
-different artifact bytes.
+First increment: `submit a rule over a dataset` -> one bundle -> `provenance.json` records data version, config hash, model version, and image digest -> command exits 0.
 
-## First increment (historical; first shipped in v0.9.0, current in v1.2.0)
+| Evidence | What it shows |
+|---|---|
+| `cargo test -p quantrule-shell --test http_commands` | the client prints the gateway result; no engine sits in the client |
+| `tools/verify.sh` | two equivalent runs over the same inputs print one canonical digest |
+| a run's `provenance.json` | data version, config hash, model identity, and image digest |
+| [`docs/releases/2026-11-16/v1.2.0.md`](../../../releases/2026-11-16/v1.2.0.md) | current release records `sha256:453c90b4…`, 12 canonical artifacts, and 3,559,171 bytes per run |
 
-One user action, one observable result:
-
-```text
-submit a rule over a dataset
-  -> a bundle is written
-  -> provenance records the data version, the config hash, the model version,
-     and the image digest
-  -> the command exits 0
-```
-
-It crosses the real architecture boundary: client -> service -> engines, with the
-engines pure and the evidence written by one owner.
-
-Evidence: the printed-output client tests in
-`crates/quantrule-shell/tests/http_commands.rs`, the two-run comparison in
-`tools/verify.sh`, and a run's `provenance.json` carrying the data version,
-config hash, model identity, and image digest. Limit: fixture data only; no
-out-of-sample claim.
-
-**Non-goal:** no profitability or live-trading claim, and no tick, order-book,
-or machine-learning signal path. The product is a candles-only evidence machine.
-The first increment shipped with the server platform in v0.9.0 and is
-current in v1.2.0; see
-[`docs/releases/2026-11-16/v1.2.0.md`](../../../releases/2026-11-16/v1.2.0.md).
-
-## Pitch (45-60 seconds)
-
-- **QuantRule** - a research workstation that turns a candle hypothesis into
-  evidence you can reproduce.
-- **The user** is one researcher who must defend a result months later.
-- **The claim**: one rule in, one bundle out, byte-identical on a rerun.
-
-## Panel
-
-- **Name:** Quantitative researcher.
-- **Project:** QuantRule - reproducible OHLCV evidence.
-- **Description (10 words):** Reproducible evidence for rule-based OHLCV research.
-- **Claim:** Same inputs, same bundle, every time.
+Limit: fixture data only. The digest does not establish an edge. Claim type: Behaviour. Current release: v1.2.0.

@@ -1,58 +1,58 @@
 # Checkpoint C - Quality and Residual Risk
 
-> **Tag map.** Current release [`v1.2.0`](../../../releases/2026-11-16/v1.2.0.md); server platform `v0.9.0`; desktop package `v1.0.0`; 1.1.0 alignment `v1.1.0`. Authoritative map: [`docs/releases/README.md`](../../../releases/README.md).
+## Spoken script
 
-## Risk map
+The risk that worries me most is look-ahead. A rule can look profitable because it read a level before the level was confirmed. I track five risks: look-ahead, non-determinism, silent artifact loss, a contract change that invalidates recorded evidence, and a wrong input accepted as valid. The one that matters most is look-ahead, because it can make a rule look profitable when it is not. The control is availability bars and a causality test per event. The other four risks have controls too: fixed accumulation order and sorted merges for non-determinism; publish only after every hash verifies; versioned contracts and immutable runs; strict config validation and cross-config checks. The non-test control is contract versioning plus the review rule.
 
-| Risk | Control | Effort | Residual |
-|---|---|---|---|
-| Look-ahead leaks into a rule | availability bars; a causality test per event | high | a new reading can repeat a past mistake |
-| Non-determinism across runs | fixed accumulation order; sorted merges; one digest | high | equality across two CPUs is unproven |
-| A run loses an artifact silently | publish only after every hash verifies | medium | a failure during verification is untested in production |
-| A change breaks recorded evidence | versioned contracts; immutable runs | medium | a digest definition change invalidates old bundles |
-| A wrong input is accepted as valid | strict config validation; cross-config checks | medium | a valid config can still be a bad hypothesis |
+The behaviour I test is simple: an event appears only at or after the bar on which it became knowable. I expect that appending later bars leaves every earlier published value unchanged. In the current release, the causality and prefix checks pass. The gate ran 2,118 tests with 0 failures and 14 ignored, and the 24 repository checkers pass. The exact tests are in the appendix. These are not coverage numbers. They are prefix checks that would fail if a later bar changed an earlier value.
 
-One control is not a test: contract versioning plus the review rule.
+The limit is important. These checks prove the tested readings are causal. They do not prove that a strategy built on top of them is causal. A strategy is a separate rule and can still read a level before it is confirmed. The risk table in the appendix names the residual for each risk.
 
-## One behaviour, with evidence
+Review kept the model output numeric and rejected labels at the service boundary. The browser maps codes to words from one generated table, so two clients cannot drift. That was the change the review deliberately kept. The gate is the review control: a red gate blocks the change, and a review comment blocks it too. The observed result is from the current release, not a one-off local run.
 
-- **Risk:** look-ahead.
-- **Behaviour:** an event appears only at or after the bar on which it became
-  knowable.
-- **Expected:** appending later bars does not change any earlier published value.
-- **Observed:** `every_prefix_keeps_the_output_lengths_and_ranges`
-  (`crates/quantrule-model/tests/hardening.rs`) and
-  `every_prefix_matches_the_full_series`
-  (`crates/quantrule-model/tests/progression_golden.rs`) pass in the
-  2026-11-16 gate. The v1.2.0 gate (2026-11-16) passed 2,118 tests; the
-  v1.0.0 release gate (2026-11-15) passed 2,134.
+AI drafted architecture documents and work items. I checked each claim against code or the gate. I do not claim cross-machine determinism as observed.
 
-Command: `cargo test -p quantrule-model` (causality and prefix tests).
+The residual risk is that determinism is bounded to one machine until a second machine runs the verification procedure. The shard-invariance tests show the same digest with one pass and four shards, reversed order, and an unsorted-merge counterexample. That proves digest invariance, not throughput. The next step is to measure cross-machine determinism and throughput at scale. The client has shipped. The current release record names the gate result, so the claim is traceable to one command. The gate is the same control I use for every change: format, clippy with warnings denied, tests, and the documentation checkers. It is the release gate, not a separate course check. The review and the gate are both required before the evidence becomes a release record.
 
-## Limit
+```{=latex}
+\newpage
+```
 
-Passing causality tests prove the tested readings are causal. They do not prove
-that a strategy written on top of them is: a strategy is a separate rule and can
-still read a level before it is confirmed.
+## Evidence appendix
 
-## Three decisions
+### Five risks
 
-- **Review.** Kept numeric model output and rejected labels at the service
-  boundary; labels are a client mapping in `labels.generated.ts`, so two clients
-  cannot drift (`docs/architecture/client.md` §5). The review kept the
-  service-side numeric contract and rejected a server-rendered label.
-- **AI use.** AI drafted the architecture documents and the work items. Every
-  claim was checked against code or the gate; cross-machine determinism is
-  explicitly not claimed as observed.
-- **Residual risk.** The determinism claim is bounded to one machine until a
-  second one runs the verification procedure. The observed scale result is the
-  shard-invariance suite: `one_pass_and_four_shards_share_one_digest`,
-  `a_reversed_ladder_produces_the_same_digest`,
-  `one_shard_merged_equals_the_full_pass`, and
-  `an_unsorted_merge_would_change_the_digest` pass (2026-11-14,
-  `docs/ai-transparency-log/2026-11-14/664-scale-invariance.md`). That proves
-  digest invariance, not throughput. Next: measure cross-machine determinism
-  and throughput at scale; the client has shipped.
+| Risk | Control | Residual |
+|---|---|---|
+| Look-ahead leaks into a rule | availability bars; a causality test per event | a new reading can repeat a past mistake |
+| Non-determinism across runs | fixed accumulation order; sorted merges; one digest | equality across two CPUs is unproven |
+| A run loses an artifact silently | publish only after every hash verifies | a failure during verification is untested in production |
+| A change breaks recorded evidence | versioned contracts; immutable runs | a digest definition change invalidates old bundles |
+| A wrong input is accepted as valid | strict config validation; cross-config checks | a valid config can still be a bad hypothesis |
 
-**Risk -> Control -> Evidence -> Review -> Residual:** the evidence supports the
-causality claim for the tested readings, not for a strategy built on them.
+The non-test control is contract versioning plus the review rule.
+
+### One behaviour
+
+The risk is look-ahead. An event must appear only at or after the bar on which it became knowable. The expected result is that appending later bars leaves every earlier published value unchanged.
+
+Observed in the 2026-11-16 gate:
+
+- `crates/quantrule-model/tests/hardening.rs`: `every_prefix_keeps_the_output_lengths_and_ranges`
+- `crates/quantrule-model/tests/progression_golden.rs`: `every_prefix_matches_the_full_series`
+- `cargo test -p quantrule-model`
+- `tools/gate.sh`: 2,118 passed, 0 failed, 14 ignored, 24 checkers
+
+Limit: the tests prove the tested readings are causal, not a strategy written on top of them.
+
+### Review, AI use, and residual risk
+
+Review kept numeric model output; labels are a client mapping in `labels.generated.ts`, recorded in `docs/architecture/client.md` section 5.
+
+AI use: AI drafted architecture documents and work items. Each claim was checked against code or the gate. Cross-machine determinism is not claimed as observed.
+
+Residual risk: the determinism claim is bounded to one machine. The shard-invariance suite in `crates/quantrule-model-service/src/model/compute.rs` covers one pass and four shards, a reversed ladder, and an unsorted-merge counterexample. It proves digest invariance, not throughput. The next step is to measure cross-machine determinism and throughput at scale; the client has shipped.
+
+Links: [current release note (v1.2.0)](../../../releases/2026-11-16/v1.2.0.md),
+[scale-invariance log](../../../ai-transparency-log/2026-11-14/664-scale-invariance.md),
+[client decision](../../../architecture/client.md).
