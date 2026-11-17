@@ -115,7 +115,7 @@ so a retry after a lost publish can recover; the worker treats it as a lookup.
 `provenance.model_version` in the run record is the model identity from the run
 config's `model_id`, such as `M1.3`. The model bundle manifest records the
 registry version (`2026-11-10.2`), and an artifact's `provenance.json` records
-the compiled package version (`1.2.0`). The three values are distinct; a
+the compiled package version (`2.0.0`). The three values are distinct; a
 comparison names the context it reads.
 
 ## 5. Error codes

@@ -26,7 +26,7 @@ names another host.
 
 | # | Shell | Browser | Expect |
 |---:|---|---|---|
-| 1 | `make up` | Open `http://localhost:8080` | `QuantRule v1.2.0 ready → http://localhost:8080` |
+| 1 | `make up` | Open `http://localhost:8080` | `QuantRule v2.0.0 ready → http://localhost:8080` |
 | 2 | `quantrule health` | **Connection** → health table | Every required service is up; the badge is `connected` |
 | 3 | `quantrule profile use default` | **Profiles** → active profile | The active profile is `default` |
 | 4 | `quantrule dataset upload config/examples/verify-mini/candles.csv --name verify-mini` | **Workbench → Data** → CSV file → Upload | A `data_version`, candle count, and coverage |

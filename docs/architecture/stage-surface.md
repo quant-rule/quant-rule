@@ -1,7 +1,7 @@
 # Stage, Research, and Operations Surface
 
 - Date: 2026-11-17 (UTC)
-- Status: Current for the stage, research, and operations slices; the stage contract and schema are merged (#850), the worker and gateway landed in #851, the model stage and Workbench Data/Model tabs landed in #852, the strategy stage and Workbench Strategy tab landed in #853, the portfolio stage and Workbench Portfolio tab landed in #854, backtest promotion landed in #855, the research ledger and manifest v3 landed in #856, the research commands and Research screen landed in #857, and the operations surface and end-to-end verification landed in #858
+- Status: Current; released as v2.0.0. The stage contract and schema are merged (#850), the worker and gateway landed in #851, the model stage and Workbench Data/Model tabs landed in #852, the strategy stage and Workbench Strategy tab landed in #853, the portfolio stage and Workbench Portfolio tab landed in #854, backtest promotion landed in #855, the research ledger and manifest v3 landed in #856, the research commands and Research screen landed in #857, the operations surface and end-to-end verification landed in #858, and the user manual landed in #859
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 - Decision: [ADR-2026-11-16-01](../adr/2026-11-16/01-stage-execution-and-evidence-boundary.md)
