@@ -18,8 +18,6 @@ history is in Git and the pull requests.
 
 ## [Unreleased]
 
-### Changed
-
 ### Fixed
 
 - `portfolio_holdout` excludes `COPPERCMDUSD` and `TSLAUSUSD` until a 2025
