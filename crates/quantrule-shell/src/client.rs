@@ -118,6 +118,20 @@ impl Client {
         read(response, path)
     }
 
+    /// DELETE one path, accepting a `204` with no body.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same failures as [`Client::get`].
+    pub(crate) fn delete_empty(&self, path: &str) -> Result<Response, RunError> {
+        let url = self.url(path);
+        let response = self
+            .common_headers(self.agent.delete(&url))
+            .call()
+            .map_err(|error| RunError::Transport(error.to_string()))?;
+        read(response, path)
+    }
+
     /// Attach the headers every gateway call carries.
     fn common_headers<B>(&self, request: ureq::RequestBuilder<B>) -> ureq::RequestBuilder<B> {
         let request = request

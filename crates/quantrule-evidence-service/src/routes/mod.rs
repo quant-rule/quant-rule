@@ -72,6 +72,10 @@ fn routes() -> Router<Arc<EvidenceState>> {
             "/stages/runs/{id}/artifacts",
             get(stages::get_stage_artifacts),
         )
+        .route(
+            "/stages/runs/{id}/artifacts/{*name}",
+            get(stages::get_stage_artifact),
+        )
         .route("/stages/runs/{id}/cancel", post(stages::cancel_stage))
         .route("/internal/v1/runs/{id}", get(internal::get_run))
         .route("/internal/v1/runs/{id}/claim", post(internal::claim_run))

@@ -62,6 +62,10 @@ fn shell_view(fixture: &Fixture) -> Value {
     let config_id = api["config_id"].as_str().expect("the fixture config id");
     let run_id = api["run_id"].as_str().expect("the fixture run id");
     let timeframe = api["timeframe"].as_str().expect("the fixture timeframe");
+    let stage_id = api["stage_id"].as_str().expect("the fixture stage id");
+    let stage_timeframe = api["stage_timeframe"]
+        .as_str()
+        .expect("the fixture stage timeframe");
 
     let commands = shell_commands(fixture);
     let health = command(fixture, &["health"]);
@@ -86,6 +90,38 @@ fn shell_view(fixture: &Fixture) -> Value {
     );
     let artifact = &fetched["artifacts"][0];
 
+    let stage_submit = command(fixture, &["stage", "run", "model", dataset_id, config_id]);
+    let stage_list = command(fixture, &["stage", "list"]);
+    let stage = command(fixture, &["stage", "show", stage_id]);
+    let stage_events = command(
+        fixture,
+        &["stage", "events", stage_id, "--timeframe", stage_timeframe],
+    );
+    let stage_directory = fixture.home().join("stage-fetch");
+    let stage_fetched = command(
+        fixture,
+        &[
+            "stage",
+            "fetch",
+            stage_id,
+            &stage_directory.display().to_string(),
+        ],
+    );
+    let stage_artifacts: Vec<Value> = stage_fetched["artifacts"]
+        .as_array()
+        .expect("the stage artifacts")
+        .iter()
+        .map(|artifact| {
+            json!({
+                "name": artifact["name"],
+                "bytes": artifact["bytes"],
+                "sha256": artifact["sha256"],
+            })
+        })
+        .collect();
+    let stage_cancel = command(fixture, &["stage", "cancel", stage_id]);
+    let stage_delete = command(fixture, &["stage", "delete", stage_id]);
+
     json!({
         "profile": PROFILE,
         "commands": commands,
@@ -106,6 +142,16 @@ fn shell_view(fixture: &Fixture) -> Value {
             "sha256": artifact["sha256"],
         },
         "profiles": profiles,
+        "stage_submit": stage_submit,
+        "stage_list": stage_list,
+        "stage": stage,
+        "stage_events": stage_events,
+        "stage_fetch": {
+            "stage_run_id": stage_fetched["stage_run_id"],
+            "artifacts": stage_artifacts,
+        },
+        "stage_cancel": stage_cancel,
+        "stage_delete": stage_delete,
     })
 }
 
@@ -130,10 +176,11 @@ fn the_shell_view_matches_the_shared_client_parity_view() {
     }
 
     let requests = fixture.requests();
-    assert_eq!(requests.len(), 14, "one request per parity operation");
+    assert_eq!(requests.len(), 25, "one request per parity operation");
     let api = client_parity_api();
     let dataset_id = api["dataset_id"].as_str().expect("the fixture dataset id");
     let run_id = api["run_id"].as_str().expect("the fixture run id");
+    let stage_id = api["stage_id"].as_str().expect("the fixture stage id");
     let paths: Vec<String> = requests
         .iter()
         .map(|request| request.path.clone())
@@ -155,10 +202,32 @@ fn the_shell_view_matches_the_shared_client_parity_view() {
             format!("/runs/{run_id}/digest"),
             format!("/runs/{run_id}"),
             format!("/runs/{run_id}/artifacts/results.json"),
+            String::from("/stages/model/runs"),
+            String::from("/stages/runs"),
+            format!("/stages/runs/{stage_id}"),
+            format!("/stages/runs/{stage_id}"),
+            format!("/stages/runs/{stage_id}/artifacts/events.csv"),
+            format!("/stages/runs/{stage_id}/artifacts/report.json"),
+            format!("/stages/runs/{stage_id}"),
+            format!("/stages/runs/{stage_id}/artifacts/events.csv"),
+            format!("/stages/runs/{stage_id}/artifacts/report.json"),
+            format!("/stages/runs/{stage_id}/cancel"),
+            format!("/stages/runs/{stage_id}"),
+        ]
+    );
+    let methods: Vec<&str> = requests
+        .iter()
+        .map(|request| request.method.as_str())
+        .collect();
+    assert_eq!(
+        methods,
+        vec![
+            "GET", "GET", "GET", "GET", "GET", "GET", "GET", "GET", "GET", "GET", "GET", "GET",
+            "GET", "GET", "POST", "GET", "GET", "GET", "GET", "GET", "GET", "GET", "GET", "POST",
+            "DELETE",
         ]
     );
     for request in &requests {
-        assert_eq!(request.method, "GET");
         assert_eq!(
             request.header("x-quantrule-profile"),
             Some(PROFILE),

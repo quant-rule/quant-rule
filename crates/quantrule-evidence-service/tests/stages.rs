@@ -165,6 +165,55 @@ async fn json<T: serde::de::DeserializeOwned>(response: axum::response::Response
     serde_json::from_slice(&body_bytes(response).await).expect("json")
 }
 
+/// Submit, claim, and complete one stage with the given files.
+async fn completed_stage(harness: &Harness, files: &[(&str, &[u8])]) -> (String, StageArtifact) {
+    let data_version = digest(b"candles-a");
+    let response = submit(
+        Arc::clone(&harness.state),
+        "default",
+        "model",
+        &model_body(&data_version),
+    )
+    .await;
+    let created: StageSubmitResponse = json(response).await;
+    let id = created.stage_run_id.to_string();
+    harness
+        .stages
+        .claim(id.clone(), false)
+        .await
+        .expect("claim");
+    let artifact = StageArtifact::from_files(
+        files
+            .iter()
+            .map(|(name, bytes)| ArtifactRef {
+                name: (*name).to_owned(),
+                bytes: bytes.len() as u64,
+                sha256: Digest::sha256(bytes),
+            })
+            .collect(),
+    )
+    .expect("artifact");
+    for (name, bytes) in files {
+        assert!(!name.is_empty());
+        let file = artifact
+            .files
+            .iter()
+            .find(|file| file.name == *name)
+            .expect("file");
+        harness
+            .objects
+            .put(&StageManifest::blob_key(&file.sha256), bytes.to_vec())
+            .await
+            .expect("blob");
+    }
+    harness
+        .stages
+        .complete(id.clone(), artifact.clone())
+        .await
+        .expect("complete");
+    (id, artifact)
+}
+
 #[tokio::test]
 async fn a_model_stage_is_content_addressed_queued_and_listed() {
     let harness = harness();
@@ -505,6 +554,149 @@ async fn the_internal_lifecycle_records_a_verified_artifact() {
     assert_eq!(response.status(), StatusCode::OK);
     let exposed: StageArtifact = json(response).await;
     assert_eq!(exposed, artifact);
+}
+
+#[tokio::test]
+async fn a_stage_artifact_is_downloaded_by_its_recorded_hash() {
+    let harness = harness();
+    let (id, artifact) = completed_stage(
+        &harness,
+        &[
+            ("events.csv", b"timeframe_secs,event_index\n300,0\n"),
+            ("report.json", b"{\"timeframes\":[]}"),
+        ],
+    )
+    .await;
+    let response = router(Arc::clone(&harness.state))
+        .oneshot(
+            Request::get(format!("/stages/runs/{id}/artifacts/events.csv"))
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response
+            .headers()
+            .get("content-type")
+            .and_then(|value| value.to_str().ok()),
+        Some("text/csv")
+    );
+    let expected_etag = format!("\"{}\"", artifact.files[0].sha256);
+    assert_eq!(
+        response
+            .headers()
+            .get("etag")
+            .and_then(|value| value.to_str().ok()),
+        Some(expected_etag.as_str())
+    );
+    assert_eq!(
+        body_bytes(response).await,
+        b"timeframe_secs,event_index\n300,0\n"
+    );
+
+    for (profile, expected) in [
+        ("alpha", StatusCode::NOT_FOUND),
+        ("default", StatusCode::OK),
+    ] {
+        let response = router(Arc::clone(&harness.state))
+            .oneshot(
+                Request::get(format!("/stages/runs/{id}/artifacts/report.json"))
+                    .header(PROFILE_HEADER, profile)
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), expected, "{profile}");
+    }
+
+    let response = router(Arc::clone(&harness.state))
+        .oneshot(
+            Request::get(format!("/runs/{id}/artifacts/events.csv"))
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    let envelope: ErrorEnvelope = json(response).await;
+    assert_eq!(envelope.error.code, ErrorCode::RunNotFound);
+}
+
+#[tokio::test]
+async fn a_stage_artifact_download_refuses_unknown_names_and_traversal() {
+    let harness = harness();
+    let (id, _) = completed_stage(&harness, &[("events.csv", b"a\n")]).await;
+    let response = router(Arc::clone(&harness.state))
+        .oneshot(
+            Request::get(format!("/stages/runs/{id}/artifacts/missing.csv"))
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    for name in ["../secret", "a//b", "a/./b", "/etc/passwd"] {
+        let response = router(Arc::clone(&harness.state))
+            .oneshot(
+                Request::get(format!(
+                    "/stages/runs/{id}/artifacts/{}",
+                    name.replace('\\', "%5C")
+                ))
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(
+            response.status(),
+            StatusCode::BAD_REQUEST,
+            "{name} was not refused"
+        );
+    }
+    let missing_id = digest(b"missing-stage").to_string();
+    let response = router(Arc::clone(&harness.state))
+        .oneshot(
+            Request::get(format!("/stages/runs/{missing_id}/artifacts/events.csv"))
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn a_changed_stage_artifact_is_refused() {
+    let harness = harness();
+    let (id, artifact) = completed_stage(&harness, &[("events.csv", b"a\n")]).await;
+    harness
+        .objects
+        .put(
+            &StageManifest::blob_key(&artifact.files[0].sha256),
+            b"changed\n".to_vec(),
+        )
+        .await
+        .expect("overwrite");
+    let response = router(Arc::clone(&harness.state))
+        .oneshot(
+            Request::get(format!("/stages/runs/{id}/artifacts/events.csv"))
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    let envelope: ErrorEnvelope = json(response).await;
+    assert_eq!(envelope.error.code, ErrorCode::Internal);
 }
 
 #[tokio::test]

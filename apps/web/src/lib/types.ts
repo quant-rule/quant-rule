@@ -179,3 +179,83 @@ export interface RunDigest {
   run_id: Digest;
   digest: Digest;
 }
+
+/** Which engine a diagnostic stage runs. */
+export type StageKind = "model" | "strategy" | "portfolio";
+
+/** The lifecycle of a diagnostic stage. */
+export type StageState = "queued" | "running" | "succeeded" | "failed" | "cancelled";
+
+/** One input a stage consumes. */
+export type StageInput =
+  | { kind: "data_version"; data_version: Digest }
+  | { kind: "model_artifact"; model_artifact_id: Digest }
+  | { kind: "decisions_artifact"; decisions_artifact_id: Digest };
+
+/** The provenance of one stage run. */
+export interface StageProvenance {
+  data_version: Digest;
+  config_hash: Digest;
+  model_version: string;
+  image_digest: Digest;
+}
+
+/** A content-addressed stage artifact bundle. */
+export interface StageArtifact {
+  artifact_id: Digest;
+  files: ArtifactRef[];
+}
+
+/** One diagnostic stage in a list. */
+export interface StageRunSummary {
+  stage_run_id: Digest;
+  kind: StageKind;
+  state: StageState;
+  config_id: string;
+  submitted_at: string;
+  artifact_id: Digest | null;
+  evidence: false;
+}
+
+/** One diagnostic stage in detail. */
+export interface StageRunDetail {
+  stage_run_id: Digest;
+  kind: StageKind;
+  state: StageState;
+  owner: string;
+  config_id: string;
+  input: StageInput;
+  provenance: StageProvenance;
+  artifact: StageArtifact | null;
+  submitted_at: string;
+  error: string | null;
+  attempts: number;
+  evidence: false;
+}
+
+/** The response to a stage submission. */
+export interface StageSubmitResponse {
+  stage_run_id: Digest;
+  state: StageState;
+  created: boolean;
+}
+
+/** One event row from a model stage's events.csv. */
+export type StageEventRow = Record<string, string>;
+
+/** The filtered event batch and report coverage of one model stage. */
+export interface StageEventView {
+  stage_run_id: Digest;
+  timeframe: string;
+  columns: string[];
+  events: StageEventRow[];
+  coverage: StageCoverage[];
+}
+
+/** One coverage row from a model stage's report.json. */
+export interface StageCoverage {
+  timeframe_secs: number;
+  bars: number | null;
+  expected_bars: number | null;
+  coverage_share: number | null;
+}

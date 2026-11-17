@@ -10,6 +10,7 @@
   import ProfileSwitcher from "./lib/ProfileSwitcher.svelte";
   import SimulationChartHarness from "./lib/SimulationChartHarness.svelte";
   import SimulationRunsPanel from "./lib/SimulationRunsPanel.svelte";
+  import WorkbenchPanel from "./lib/WorkbenchPanel.svelte";
   import { SECTIONS, type Section } from "./lib/capabilities";
   import { initialise } from "./lib/connection.svelte";
   import { load as loadProfiles } from "./lib/profiles.svelte";
@@ -73,6 +74,8 @@
         <ConnectionPanel />
       {:else if section === "profiles"}
         <ProfilesPanel />
+      {:else if section === "workbench"}
+        <WorkbenchPanel />
       {:else if section === "datasets"}
         <DatasetsPanel />
       {:else if section === "configs"}

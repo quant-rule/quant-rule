@@ -95,6 +95,51 @@ pub(crate) enum Command {
         /// The run id.
         run_id: String,
     },
+    /// Submit a model stage run.
+    StageRunModel {
+        /// The dataset to consume.
+        data_version: String,
+        /// The configuration to apply.
+        config_id: String,
+    },
+    /// List diagnostic stage runs.
+    StageList {
+        /// Only this stage kind.
+        kind: Option<quantrule_api::StageKind>,
+        /// Only this state.
+        status: Option<quantrule_api::StageState>,
+        /// At most this many rows.
+        limit: Option<usize>,
+    },
+    /// Read one stage run.
+    StageShow {
+        /// The stage run id.
+        stage_run_id: String,
+    },
+    /// Read and render one model stage event batch.
+    StageEvents {
+        /// The stage run id.
+        stage_run_id: String,
+        /// The requested timeframe short code.
+        timeframe: String,
+    },
+    /// Download a stage artifact set into a directory.
+    StageFetch {
+        /// The stage run id.
+        stage_run_id: String,
+        /// The local target directory.
+        directory: PathBuf,
+    },
+    /// Cancel a stage run.
+    StageCancel {
+        /// The stage run id.
+        stage_run_id: String,
+    },
+    /// Delete one diagnostic stage run.
+    StageDelete {
+        /// The stage run id.
+        stage_run_id: String,
+    },
     /// Inspect a dataset's candle coverage.
     InspectCandles {
         /// The content identity.

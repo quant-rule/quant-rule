@@ -15,17 +15,18 @@ use std::sync::Arc;
 use axum::Json;
 use axum::extract::rejection::{JsonRejection, QueryRejection};
 use axum::extract::{Path, Query, State};
-use axum::http::{HeaderMap, StatusCode};
+use axum::http::{HeaderMap, StatusCode, header};
+use axum::response::IntoResponse;
 use quantrule_api::{
     Digest, ErrorCode, StageArtifact, StageInput, StageKind, StageProvenance, StageRunDetail,
     StageRunSummary, StageState, StageSubmitResponse,
 };
 use quantrule_runtime::clock;
 use quantrule_runtime::queue::{ROUTING_STAGE_CANCELLED, ROUTING_STAGE_REQUESTED};
-use quantrule_service_api::NewStageRun;
+use quantrule_service_api::{NewStageRun, StageManifest};
 use serde::Deserialize;
 
-use crate::routes::runs::model_version;
+use crate::routes::runs::{artifact_content_type, check_artifact_name, model_version};
 use crate::routes::{ApiFailure, data_failure, failure, request_profile};
 use crate::stage::{StageCancelOutcome, StageCreateOutcome, StageStore, retention};
 use crate::state::EvidenceState;
@@ -380,6 +381,72 @@ pub(crate) async fn get_stage_artifacts(
         )),
         Err(error) => Err(failure(ErrorCode::Internal, error.to_string())),
     }
+}
+
+pub(crate) async fn get_stage_artifact(
+    State(state): State<Arc<EvidenceState>>,
+    headers: HeaderMap,
+    Path((id, name)): Path<(String, String)>,
+) -> Result<impl IntoResponse, ApiFailure> {
+    let profile = request_profile(&headers)?;
+    let id = parse_stage_id(&id)?;
+    check_artifact_name(&name).map_err(|message| failure(ErrorCode::StageInvalid, message))?;
+    let stages = state
+        .stages
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no stage store is configured"))?;
+    let record = match stages.get(profile, id.clone()).await {
+        Ok(Some(record)) => record,
+        Ok(None) => {
+            return Err(failure(
+                ErrorCode::StageNotFound,
+                format!("stage {id} is unknown"),
+            ));
+        }
+        Err(error) => return Err(failure(ErrorCode::Internal, error.to_string())),
+    };
+    let artifact = record.artifact.as_ref().ok_or_else(|| {
+        failure(
+            ErrorCode::StageConflict,
+            format!("stage {id} has not produced an artifact"),
+        )
+    })?;
+    let file = artifact
+        .files
+        .iter()
+        .find(|file| file.name == name)
+        .ok_or_else(|| {
+            failure(
+                ErrorCode::StageNotFound,
+                format!("stage {id} has no artifact {name}"),
+            )
+        })?;
+    let objects = state
+        .objects
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no object store is configured"))?;
+    let bytes = objects
+        .get(&StageManifest::blob_key(&file.sha256))
+        .await
+        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
+    if bytes.len() as u64 != file.bytes || Digest::sha256(&bytes) != file.sha256 {
+        return Err(failure(
+            ErrorCode::Internal,
+            "the stored stage artifact does not match the stage record",
+        ));
+    }
+    let etag = format!("\"{}\"", file.sha256);
+    Ok((
+        StatusCode::OK,
+        [
+            (
+                header::CONTENT_TYPE,
+                artifact_content_type(&name).to_owned(),
+            ),
+            (header::ETAG, etag),
+        ],
+        bytes,
+    ))
 }
 
 pub(crate) async fn cancel_stage(

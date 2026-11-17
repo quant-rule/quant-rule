@@ -65,7 +65,25 @@ recorded; it does not recompute it. A failed call keeps its stable code:
 error: run.not_found: run is unknown
 ```
 
-## 4. Simulation research
+## 4. A model stage
+
+```bash
+quantrule stage run model <data_version> <config_id>
+quantrule stage list --kind model --status succeeded --limit 20
+quantrule stage show <stage_run_id>
+quantrule stage events <stage_run_id> --timeframe 5m
+quantrule stage fetch <stage_run_id> ./stage-bundle
+quantrule stage cancel <stage_run_id>
+quantrule stage delete <stage_run_id>
+```
+
+A stage is diagnostic: `stage show` prints `evidence: false`, and the artifact
+is never a run, a baseline, or a canonical digest. `stage events` reads the
+published `events.csv` and `report.json`; it filters the event rows and prints
+the report coverage without computing a model value. `stage fetch` checks every
+artifact against the stage record before writing it.
+
+## 5. Simulation research
 
 ```bash
 quantrule simulation create \
@@ -85,7 +103,7 @@ The server assigns `sim_id` and `marked_time_utc`. The client clock is not
 trusted. `check` refuses fewer than 30 events, and marking after a decision is
 refused with `simulation.locked`.
 
-## 5. Help and JSON
+## 6. Help and JSON
 
 ```bash
 quantrule help

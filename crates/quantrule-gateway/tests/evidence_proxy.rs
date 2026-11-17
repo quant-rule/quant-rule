@@ -356,6 +356,10 @@ async fn a_stage_submission_and_its_read_paths_are_forwarded_unchanged() {
         (axum::http::Method::GET, "/stages/runs"),
         (axum::http::Method::GET, "/stages/runs/sha256:abc"),
         (axum::http::Method::GET, "/stages/runs/sha256:abc/artifacts"),
+        (
+            axum::http::Method::GET,
+            "/stages/runs/sha256:abc/artifacts/events.csv",
+        ),
         (axum::http::Method::POST, "/stages/runs/sha256:abc/cancel"),
         (axum::http::Method::DELETE, "/stages/runs/sha256:abc"),
     ] {

@@ -120,6 +120,64 @@ const COMMANDS: &[CommandHelp] = &[
         notes: &["Cancelling a terminal run is refused with run.conflict."],
     },
     CommandHelp {
+        name: "stage run model",
+        usage: "stage run model <data_version> <config_id>",
+        summary: "Submit a diagnostic model stage run.",
+        output: "stage_run_id, state, created",
+        notes: &[
+            "The model artifact is diagnostic: it is never evidence and has no canonical digest.",
+            "A duplicate submission returns the existing stage with created=false.",
+        ],
+    },
+    CommandHelp {
+        name: "stage list",
+        usage: "stage list [--kind model] [--status <state>] [--limit <n>]",
+        summary: "List diagnostic stage runs in the active profile.",
+        output: "one line per stage: stage_run_id, kind, state, config, submitted_at, artifact",
+        notes: &["Rows are newest first, then by stage_run_id."],
+    },
+    CommandHelp {
+        name: "stage show",
+        usage: "stage show <stage_run_id>",
+        summary: "Read one diagnostic stage run and its artifact files.",
+        output: "identity, state, owner, config, input, provenance, attempts, error, artifact files",
+        notes: &["A stage detail always carries evidence=false."],
+    },
+    CommandHelp {
+        name: "stage events",
+        usage: "stage events <stage_run_id> --timeframe <tf>",
+        summary: "Read the model event batch for one timeframe.",
+        output: "the event table for the timeframe and one coverage line per report timeframe",
+        notes: &[
+            "The shell reads events.csv and report.json; it computes no model value.",
+            "--json prints one deterministic JSON value.",
+        ],
+    },
+    CommandHelp {
+        name: "stage fetch",
+        usage: "stage fetch <stage_run_id> <directory>",
+        summary: "Download every artifact of a stage into a local directory.",
+        output: "the stage id, the target directory, and one line per artifact",
+        notes: &[
+            "Every artifact is checked against its recorded size and SHA-256.",
+            "A traversal name is refused.",
+        ],
+    },
+    CommandHelp {
+        name: "stage cancel",
+        usage: "stage cancel <stage_run_id>",
+        summary: "Cancel a queued or running stage and print its new state.",
+        output: "the stage detail after the transition",
+        notes: &["Cancelling a terminal stage is refused with stage.conflict."],
+    },
+    CommandHelp {
+        name: "stage delete",
+        usage: "stage delete <stage_run_id>",
+        summary: "Delete one diagnostic stage run and its artifact objects.",
+        output: "the deleted stage_run_id",
+        notes: &["A run and a research record are never touched."],
+    },
+    CommandHelp {
         name: "inspect candles",
         usage: "inspect candles <data_version>",
         summary: "Read a dataset's candle count and coverage.",
@@ -380,6 +438,13 @@ mod tests {
             "run list",
             "run fetch",
             "run cancel",
+            "stage run model",
+            "stage list",
+            "stage show",
+            "stage events",
+            "stage fetch",
+            "stage cancel",
+            "stage delete",
             "inspect candles",
             "inspect timeframes",
             "inspect events",
@@ -399,7 +464,7 @@ mod tests {
         ] {
             assert!(is_command(name), "{name} must be documented");
         }
-        assert_eq!(COMMANDS.len(), 27);
+        assert_eq!(COMMANDS.len(), 34);
     }
 
     #[test]

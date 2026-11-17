@@ -1,7 +1,7 @@
 # Stage Surface — Target Architecture
 
 - Date: 2026-11-17 (UTC)
-- Status: Target; the stage contract and schema are merged (#850); the worker, clients, and research ledger land in #851–#858
+- Status: Current for the model slice; the stage contract and schema are merged (#850), the worker and gateway landed in #851, and the model stage and Workbench Data/Model tabs landed in #852; strategy, portfolio, and research land in #853–#858
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 - Decision: [ADR-2026-11-16-01](../adr/2026-11-16/01-stage-execution-and-evidence-boundary.md)
@@ -119,8 +119,8 @@ profile-scoped and content-addressed.
 | Capability | Status |
 |---|---|
 | Stage API types, internal contract, `stage` schema, and store | Implemented (#850) |
-| Stage worker, queue, retention, and gateway proxy | Target (#851) |
-| Model stage vertical slice and Workbench Data/Model tabs | Target (#852) |
+| Stage worker, queue, retention, and gateway proxy | Implemented (#851) |
+| Model stage vertical slice and Workbench Data/Model tabs | Implemented (#852) |
 | Strategy stage vertical slice and Workbench Strategy tab | Target (#853) |
 | Portfolio stage vertical slice and Workbench Portfolio tab | Target (#854) |
 | Backtest promotion with a frozen model artifact | Target (#855) |

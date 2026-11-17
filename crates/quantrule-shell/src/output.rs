@@ -10,11 +10,42 @@ use std::io::{self, Write};
 use quantrule_api::{
     ConfigOrigin, ConfigSummary, DatasetRecord, DatasetSummary, HealthReport, ProfileSummary,
     RunDetail, RunState, RunSummary, ServiceState, SimulationStatus, SimulationSummary,
-    StageStatus, TimeframeInspection,
+    StageRunDetail, StageRunSummary, StageStatus, TimeframeInspection,
 };
 use serde_json::Value;
 
 use crate::error::RunError;
+
+/// One filtered model-stage event batch and the report coverage.
+///
+/// The type is presentation, not measurement: it carries the published CSV
+/// columns and values and the four report coverage fields.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct StageEventsView {
+    /// The stage run the artifact belongs to.
+    pub(crate) stage_run_id: String,
+    /// The timeframe short code the caller requested.
+    pub(crate) timeframe: String,
+    /// The CSV header, in artifact order.
+    pub(crate) columns: Vec<String>,
+    /// The event rows for the requested timeframe, in artifact order.
+    pub(crate) events: Vec<std::collections::BTreeMap<String, String>>,
+    /// The per-timeframe coverage from `report.json`.
+    pub(crate) coverage: Vec<Value>,
+}
+
+impl StageEventsView {
+    /// Build the canonical JSON value for `--json` and the parity fixture.
+    pub(crate) fn to_value(&self) -> Value {
+        serde_json::json!({
+            "stage_run_id": self.stage_run_id,
+            "timeframe": self.timeframe,
+            "columns": self.columns,
+            "events": self.events,
+            "coverage": self.coverage,
+        })
+    }
+}
 
 /// Print one command result as text, or as JSON when `--json` is set.
 ///
@@ -248,6 +279,148 @@ pub(crate) fn run_submit(
     writeln!(writer, "run_id: {run_id}")?;
     writeln!(writer, "status: {}", status.as_str())?;
     writeln!(writer, "created: {created}")
+}
+
+/// Render a stage submission.
+pub(crate) fn stage_submitted(
+    writer: &mut dyn Write,
+    stage_run_id: &str,
+    state: &str,
+    created: bool,
+) -> io::Result<()> {
+    writeln!(writer, "stage_run_id: {stage_run_id}")?;
+    writeln!(writer, "state: {state}")?;
+    writeln!(writer, "created: {created}")
+}
+
+/// Render the stage table.
+pub(crate) fn stage_list(writer: &mut dyn Write, stages: &[StageRunSummary]) -> io::Result<()> {
+    let mut rows = stages.to_vec();
+    rows.sort_by(|left, right| {
+        right
+            .submitted_at
+            .cmp(&left.submitted_at)
+            .then_with(|| left.stage_run_id.cmp(&right.stage_run_id))
+    });
+    writeln!(writer, "stages: {}", rows.len())?;
+    for stage in rows {
+        writeln!(
+            writer,
+            "{} kind={} state={} config={} submitted={} artifact={}",
+            stage.stage_run_id,
+            stage.kind.as_str(),
+            stage.state.as_str(),
+            stage.config_id,
+            stage.submitted_at,
+            stage
+                .artifact_id
+                .as_ref()
+                .map_or_else(|| String::from("none"), ToString::to_string)
+        )?;
+    }
+    Ok(())
+}
+
+/// Render one stage detail.
+pub(crate) fn stage_detail(writer: &mut dyn Write, detail: &StageRunDetail) -> io::Result<()> {
+    writeln!(writer, "stage_run_id: {}", detail.stage_run_id)?;
+    writeln!(writer, "kind: {}", detail.kind.as_str())?;
+    writeln!(writer, "state: {}", detail.state.as_str())?;
+    writeln!(writer, "owner: {}", detail.owner)?;
+    writeln!(writer, "config_id: {}", detail.config_id)?;
+    writeln!(
+        writer,
+        "input: {} {}",
+        detail.input.label(),
+        detail.input.digest()
+    )?;
+    writeln!(writer, "data_version: {}", detail.provenance.data_version)?;
+    writeln!(writer, "config_hash: {}", detail.provenance.config_hash)?;
+    writeln!(writer, "model_version: {}", detail.provenance.model_version)?;
+    writeln!(writer, "image_digest: {}", detail.provenance.image_digest)?;
+    writeln!(writer, "attempts: {}", detail.attempts)?;
+    writeln!(
+        writer,
+        "error: {}",
+        detail.error.as_deref().unwrap_or("none")
+    )?;
+    match &detail.artifact {
+        Some(artifact) => {
+            writeln!(writer, "artifact_id: {}", artifact.artifact_id)?;
+            writeln!(writer, "artifacts: {}", artifact.files.len())?;
+            for file in &artifact.files {
+                writeln!(
+                    writer,
+                    "artifact {}: bytes={} sha256={}",
+                    file.name, file.bytes, file.sha256
+                )?;
+            }
+        }
+        None => {
+            writeln!(writer, "artifact_id: none")?;
+            writeln!(writer, "artifacts: 0")?;
+        }
+    }
+    writeln!(writer, "evidence: {}", detail.evidence)
+}
+
+/// Render a downloaded stage artifact set.
+pub(crate) fn stage_fetched(
+    writer: &mut dyn Write,
+    stage_run_id: &str,
+    directory: &str,
+    artifacts: &[(String, u64, String, String)],
+) -> io::Result<()> {
+    writeln!(writer, "stage_run_id: {stage_run_id}")?;
+    writeln!(writer, "directory: {directory}")?;
+    for (name, bytes, digest, path) in artifacts {
+        writeln!(
+            writer,
+            "artifact {name}: bytes={bytes} sha256={digest} written={path}"
+        )?;
+    }
+    Ok(())
+}
+
+/// Render the deleted stage identity.
+pub(crate) fn stage_deleted(writer: &mut dyn Write, stage_run_id: &str) -> io::Result<()> {
+    writeln!(writer, "deleted: {stage_run_id}")
+}
+
+/// Render one model-stage event batch and its report coverage.
+pub(crate) fn stage_events(writer: &mut dyn Write, view: &StageEventsView) -> io::Result<()> {
+    writeln!(writer, "stage_run_id: {}", view.stage_run_id)?;
+    writeln!(writer, "timeframe: {}", view.timeframe)?;
+    writeln!(writer, "events: {}", view.events.len())?;
+    writeln!(writer, "{}", view.columns.join(","))?;
+    for event in &view.events {
+        let row: Vec<&str> = view
+            .columns
+            .iter()
+            .map(|column| event.get(column).map_or("", String::as_str))
+            .collect();
+        writeln!(writer, "{}", row.join(","))?;
+    }
+    writeln!(writer, "coverage: {}", view.coverage.len())?;
+    for entry in &view.coverage {
+        writeln!(
+            writer,
+            "timeframe_secs={} bars={} expected_bars={} coverage_share={}",
+            value_text(&entry["timeframe_secs"]),
+            value_text(&entry["bars"]),
+            value_text(&entry["expected_bars"]),
+            value_text(&entry["coverage_share"])
+        )?;
+    }
+    Ok(())
+}
+
+fn value_text(value: &Value) -> String {
+    match value {
+        Value::Null => String::from("none"),
+        Value::String(text) => text.clone(),
+        other => other.to_string(),
+    }
 }
 
 /// Render a run detail.

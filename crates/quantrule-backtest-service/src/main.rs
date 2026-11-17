@@ -23,9 +23,10 @@
 
 use std::sync::Arc;
 
+use quantrule_api::StageKind;
 use quantrule_backtest_service::backtest::{ProcessOutcome, WorkerServices, process};
 use quantrule_backtest_service::stage::{
-    StageDispatch, StageProcessOutcome, StageWorkerServices, process_stage,
+    ModelStageExecutor, StageDispatch, StageProcessOutcome, StageWorkerServices, process_stage,
 };
 use quantrule_runtime::adapters::{
     Message, MessageHandler, ObjectStore, Queue, QueueConsumer, QueueError,
@@ -70,6 +71,7 @@ async fn main() -> Result<(), RuntimeError> {
     let publish: Arc<dyn Queue> = queue.clone();
     let stage_publish: Arc<dyn Queue> = queue.clone();
     let stage_objects: Arc<dyn ObjectStore> = Arc::clone(&objects);
+    let stage_model: Arc<dyn ModelClient> = Arc::clone(&model);
     let services = Arc::new(WorkerServices {
         evidence,
         data,
@@ -79,10 +81,13 @@ async fn main() -> Result<(), RuntimeError> {
     });
     let stage_services = Arc::new(StageWorkerServices {
         evidence: stage_evidence,
-        objects: stage_objects,
+        objects: Arc::clone(&stage_objects),
         queue: stage_publish,
     });
-    let dispatch = Arc::new(StageDispatch::new());
+    let dispatch = Arc::new(StageDispatch::new().with(
+        StageKind::Model,
+        Arc::new(ModelStageExecutor::new(stage_model, stage_objects)),
+    ));
 
     let handler: MessageHandler = Box::new(move |message: Message| {
         let services = Arc::clone(&services);

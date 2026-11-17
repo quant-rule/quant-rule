@@ -12,6 +12,9 @@ use quantrule_api::{
 
 use super::help::{is_command, usage as registered_usage};
 use super::types::{Command, GlobalOptions, HelpTopic, Invocation, ParseError};
+
+mod parse_stage;
+use self::parse_stage::parse_stage;
 use crate::token::BearerToken;
 
 /// The `usage: ...` line for a registered command.
@@ -281,6 +284,7 @@ fn parse_command(rest: &[String]) -> Result<Command, ParseError> {
         "dataset" => parse_dataset(args),
         "config" => parse_config(args),
         "run" => parse_run(args),
+        "stage" => parse_stage(args),
         "inspect" => parse_inspect(args),
         "verify" => single(args, registered_usage("verify").unwrap_or("verify"))
             .map(|run_id| Command::Verify { run_id }),
@@ -753,6 +757,13 @@ mod tests {
             (vec!["run", "list"], "list"),
             (vec!["run", "fetch", "r", "out"], "fetch"),
             (vec!["run", "cancel", "r"], "cancel"),
+            (vec!["stage", "run", "model", "d", "c"], "model"),
+            (vec!["stage", "list"], "list"),
+            (vec!["stage", "show", "s"], "show"),
+            (vec!["stage", "events", "s", "--timeframe", "5m"], "events"),
+            (vec!["stage", "fetch", "s", "out"], "fetch"),
+            (vec!["stage", "cancel", "s"], "cancel"),
+            (vec!["stage", "delete", "s"], "delete"),
             (vec!["inspect", "candles", "d"], "candles"),
             (vec!["inspect", "timeframes", "d"], "timeframes"),
             (

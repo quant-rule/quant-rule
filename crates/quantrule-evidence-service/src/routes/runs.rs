@@ -263,7 +263,7 @@ pub(crate) async fn cancel_run(
 /// such as `execution/fills.csv` is a valid key. Empty segments, `.`, `..`, a
 /// leading slash, a backslash, and NUL are refused so a name can never escape
 /// the artifact set or select a file outside it.
-fn check_artifact_name(name: &str) -> Result<(), ApiFailure> {
+pub(crate) fn check_artifact_name(name: &str) -> Result<(), &'static str> {
     let refused = name.is_empty()
         || name.starts_with('/')
         || name.contains('\\')
@@ -272,15 +272,14 @@ fn check_artifact_name(name: &str) -> Result<(), ApiFailure> {
             .split('/')
             .any(|segment| segment.is_empty() || segment == "." || segment == "..");
     if refused {
-        return Err(failure(
-            ErrorCode::RunInvalid,
+        return Err(
             "an artifact name is a relative path without empty, parent, or absolute segments",
-        ));
+        );
     }
     Ok(())
 }
 
-fn artifact_content_type(name: &str) -> &'static str {
+pub(crate) fn artifact_content_type(name: &str) -> &'static str {
     match name.rsplit('.').next() {
         Some("json") => "application/json",
         Some("csv") => "text/csv",
@@ -298,7 +297,7 @@ pub(crate) async fn get_run_artifact(
 ) -> Result<impl IntoResponse, ApiFailure> {
     let profile = request_profile(&headers)?;
     let id = parse_run_id(&id)?;
-    check_artifact_name(&name)?;
+    check_artifact_name(&name).map_err(|message| failure(ErrorCode::RunInvalid, message))?;
     let runs = state
         .runs
         .as_ref()
