@@ -36,7 +36,7 @@ The state machine is `created -> submitted -> decided`:
 
 | State | Meaning | Write |
 |---|---|---|
-| `created` | The v3 pre-registration exists; no pipeline run is linked | Create once; an identical create is idempotent by profile and improvement id |
+| `created` | The v3 pre-registration exists; no pipeline run is linked | The public create assigns the next id and writes one record; an internal same-id create is idempotent, and a different manifest under that id is refused |
 | `submitted` | One pipeline run is linked; the canonical digest may still be pending | Link the run once; record the digest once when the run produces it |
 | `decided` | The human decision and note are recorded | Decide once; an `accepted` decision requires the digest |
 
@@ -209,10 +209,11 @@ including a model-tier run: its config must carry a strategy, and the model
 report is the comparison source. A model-tier run does not submit a model-only
 config.
 
-1. Pre-register with `research create`. The evidence service generates the id and
-   UTC timestamp, validates the manifest, checks the dataset and config through
-   data, and writes `state = created`. An identical create returns the same
-   record; a different manifest under the same id is refused.
+1. Pre-register with `research create`. The evidence service assigns the next
+   id and the UTC timestamp, validates the manifest, checks the dataset and
+   config through data, and writes `state = created`. A repeated public create
+   is a new pre-registration with a new id; only an internal same-id create is
+   idempotent, and a different manifest under that id is refused.
 2. Submit with `research submit <improvement_id>`. It submits the coupled run
    through the same run use case, links the pipeline `run_id`, and moves the
    record to `state = submitted`. A duplicate submit is a conflict.

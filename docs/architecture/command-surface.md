@@ -105,7 +105,7 @@ enforces the distinction.
 | `stage fetch` | Implemented | `stage_run_id`, directory | verified artifact set |
 | `stage cancel` | Implemented | `stage_run_id` | new stage state |
 | `stage delete` | Implemented | `stage_run_id` | deleted stage artifact |
-| `research create` | Implemented | tier, hypothesis, partition, `data_version`, `config_id`, criteria for strategy/portfolio, green criteria | v3 pre-registration |
+| `research create` | Implemented | tier, hypothesis, partition, `data_version`, `config_id`, criteria for strategy/portfolio (optional model), green criteria | v3 pre-registration |
 | `research submit` | Implemented | improvement run id | linked pipeline run |
 | `research list` | Implemented | tier, state, limit | improvement records |
 | `research show` | Implemented | improvement run id | one improvement record and lazy digest |

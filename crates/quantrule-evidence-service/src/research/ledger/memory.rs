@@ -349,6 +349,7 @@ impl ImprovementStore for MemoryImprovementStore {
                 right
                     .accepted_on
                     .cmp(&left.accepted_on)
+                    .then_with(|| right.created_at.cmp(&left.created_at))
                     .then_with(|| left.baseline_id.cmp(&right.baseline_id))
             });
             Ok(rows)

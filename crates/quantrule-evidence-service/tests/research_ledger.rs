@@ -18,7 +18,8 @@ use quantrule_evidence_service::research::{
 use quantrule_runtime::adapters::sqlite::{SqliteDatabase, apply_migrations_in};
 
 use research_ledger_support::{
-    baseline, digest, invalidation, ledger_conformance, manifest, profile, registry_conformance,
+    baseline, baseline_order_conformance, digest, invalidation, ledger_conformance, manifest,
+    profile, registry_conformance,
 };
 
 #[tokio::test]
@@ -165,6 +166,25 @@ async fn a_sqlite_decision_and_registry_commit_together() {
         store.baselines(owner).await.expect("the baselines").len(),
         1
     );
+}
+
+#[tokio::test]
+async fn the_memory_baselines_are_newest_first() {
+    let store = MemoryImprovementStore::default();
+    baseline_order_conformance(&store, &profile("memory-baseline-order")).await;
+}
+
+#[tokio::test]
+async fn the_sqlite_baselines_are_newest_first() {
+    let database = SqliteDatabase::open_in_memory().expect("the database opens");
+    apply_migrations_in(&database, "runs", &migrations::sqlite())
+        .await
+        .expect("the evidence baseline");
+    baseline_order_conformance(
+        &SqliteImprovementStore::new(database),
+        &profile("sqlite-baseline-order"),
+    )
+    .await;
 }
 
 #[tokio::test]
@@ -633,6 +653,11 @@ async fn the_postgres_ledger_conforms() {
     registry_conformance(
         &store,
         &profile(&format!("pg-registry-{}", std::process::id())),
+    )
+    .await;
+    baseline_order_conformance(
+        &store,
+        &profile(&format!("pg-baseline-order-{}", std::process::id())),
     )
     .await;
 

@@ -36,8 +36,8 @@ snapshot; the evidence ledger is the operational record.
 - `python3 tools/check_structure.py` — pass.
 - `python3 tools/check_schema_prefixes.py` — pass.
 - `python3 tools/check_file_size.py` — pass.
-- `cargo test -p quantrule-evidence-service --test research_routes` — 16 pass.
-- `cargo test -p quantrule-evidence-service --test research_ledger` — 10 pass, 1 ignored (Postgres).
+- `cargo test -p quantrule-evidence-service --test research_routes` — 17 pass.
+- `cargo test -p quantrule-evidence-service --test research_ledger` — 12 pass, 1 ignored (Postgres).
 - `cargo test -p quantrule-shell --test research_commands` — 7 pass.
 - `cargo test -p quantrule-shell --test client_parity` — 2 pass.
 - `bun run check` in `apps/web` — 0 errors, 0 warnings.
@@ -81,6 +81,13 @@ Postgres conformance remains opt-in and was not exercised locally.
 - `canCreate` requires a criteria reference for strategy and portfolio while
   keeping it optional for model; the GUI field is marked required for those
   tiers. The unit test covers both tiers.
+- The baseline list orders by `accepted_on DESC, created_at DESC,
+  baseline_id`, so a same-day acceptance is not hidden behind an older id. Both
+  the memory and SQLite stores and the ignored Postgres path share the ordering
+  test; the route test selects the later row.
+- The public create always assigns a new id. The run contract now states that a
+  repeated public create is a new pre-registration; only an internal same-id
+  create is idempotent.
 
 ## Residual risk
 

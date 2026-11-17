@@ -213,11 +213,12 @@ const COMMANDS: &[CommandHelp] = &[
     },
     CommandHelp {
         name: "research create",
-        usage: "research create --tier <model|strategy|portfolio> --hypothesis <text> --partition <name> --data-version <digest> --config <config_id> --green-criteria <json> --code-commit <commit> [--criteria <criteria_id>] [--baseline <id>] [--seed <n>] [--analytics <true|false>]",
+        usage: "research create --tier <model|strategy|portfolio> --hypothesis <text> --partition <name> --data-version <digest> --config <config_id> [--criteria <criteria_id>] --green-criteria <json> --code-commit <commit> [--baseline <id>] [--seed <n>] [--analytics <true|false>]",
         summary: "Create one v3 improvement-run pre-registration.",
         output: "improvement_id, tier, state, manifest fields, and timestamps",
         notes: &[
             "The server assigns the improvement_id and created_utc; the manifest is immutable.",
+            "A repeated public create is a new pre-registration; an internal same-id create is idempotent.",
             "A research run is a coupled run: the config must carry a strategy, and model tier still runs strategy and portfolio.",
             "--criteria is required for a strategy or portfolio run; it is optional for model.",
         ],

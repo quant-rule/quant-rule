@@ -753,7 +753,7 @@ impl ImprovementStore for PgImprovementStore {
                                 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')
                    FROM research.baselines
                   WHERE profile_id = $1
-                  ORDER BY accepted_on DESC, baseline_id",
+                  ORDER BY accepted_on DESC, created_at DESC, baseline_id",
             )
             .bind(profile.as_str())
             .fetch_all(&pool)

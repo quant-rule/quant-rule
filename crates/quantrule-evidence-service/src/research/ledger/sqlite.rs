@@ -669,7 +669,7 @@ impl ImprovementStore for SqliteImprovementStore {
                         accepted_on, scope, supersedes, created_at
                    FROM {BASELINES_TABLE}
                   WHERE profile_id = ?1
-                  ORDER BY accepted_on DESC, baseline_id"
+                  ORDER BY accepted_on DESC, created_at DESC, baseline_id"
             );
             let rows = database
                 .call(move |connection| {

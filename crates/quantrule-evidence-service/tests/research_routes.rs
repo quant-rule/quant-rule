@@ -632,6 +632,51 @@ async fn a_stage_artifact_is_not_a_pipeline_run_for_acceptance() {
 }
 
 #[tokio::test]
+async fn baseline_show_selects_the_later_same_day_row() {
+    let harness = harness();
+    let earlier = BaselineRecord {
+        baseline_id: "BASELINE-SAME-DAY-A".to_owned(),
+        tier: ImprovementTier::Model,
+        run_id: Some("MODEL-SAME-DAY-A".to_owned()),
+        improvement_id: None,
+        accepted_by: "Human".to_owned(),
+        accepted_on: "2026-11-17".to_owned(),
+        scope: "the earlier row".to_owned(),
+        supersedes: None,
+        created_at: "2026-11-17T00:00:00Z".to_owned(),
+    };
+    let mut later = earlier.clone();
+    later.baseline_id = "BASELINE-SAME-DAY-Z".to_owned();
+    later.run_id = Some("MODEL-SAME-DAY-Z".to_owned());
+    later.scope = "the later row".to_owned();
+    later.created_at = "2026-11-17T01:00:00Z".to_owned();
+    harness
+        .improvements
+        .add_baseline(profile("default"), earlier)
+        .await
+        .expect("the earlier baseline");
+    harness
+        .improvements
+        .add_baseline(profile("default"), later.clone())
+        .await
+        .expect("the later baseline");
+
+    let response = send(
+        harness.state.clone(),
+        "default",
+        Method::GET,
+        "/research/baselines/model",
+        None,
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let shown: BaselineRecord =
+        serde_json::from_slice(&body_bytes(response).await).expect("baseline");
+    assert_eq!(shown.baseline_id, later.baseline_id);
+    assert_eq!(shown.scope, "the later row");
+}
+
+#[tokio::test]
 async fn registry_lists_are_profile_scoped_and_show_the_tier_baseline() {
     let harness = harness();
     let baseline = BaselineRecord {
