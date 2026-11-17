@@ -77,6 +77,10 @@ fn bundle(config_id: &str, hash_seed: &[u8], model: &str) -> ConfigBundle {
 }
 
 async fn harness() -> (Arc<EvidenceState>, MemoryQueue) {
+    harness_with_image(Some(Digest::sha256(b"image"))).await
+}
+
+async fn harness_with_image(image_digest: Option<Digest>) -> (Arc<EvidenceState>, MemoryQueue) {
     let queue = MemoryQueue::default();
     let data = MemoryDataClient::default();
     let default = quantrule_api::ProfileId::parse("default").expect("default");
@@ -98,8 +102,12 @@ async fn harness() -> (Arc<EvidenceState>, MemoryQueue) {
             },
         );
     }
+    let config = Config {
+        image_digest,
+        ..Config::default()
+    };
     let state = Arc::new(EvidenceState::with_services(
-        &Config::default(),
+        &config,
         HealthRegistry::new(),
         EvidenceServices {
             data: Some(Arc::new(data)),
@@ -155,6 +163,21 @@ async fn list(state: Arc<EvidenceState>, profile: &str) -> Vec<RunSummary> {
         .expect("response");
     assert_eq!(response.status(), StatusCode::OK);
     serde_json::from_slice(&body_bytes(response).await).expect("runs")
+}
+
+#[tokio::test]
+async fn a_server_without_an_image_digest_refuses_submission() {
+    let (state, queue) = harness_with_image(None).await;
+    let (data_version, config_id, _) = seed();
+
+    let response = submit(state, "default", &data_version, &config_id).await;
+    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    let text = String::from_utf8(body_bytes(response).await).expect("utf8");
+    assert!(text.contains("image digest"), "{text}");
+    assert!(
+        queue.messages().is_empty(),
+        "a refused run published a message"
+    );
 }
 
 #[tokio::test]
@@ -383,8 +406,12 @@ async fn an_unknown_status_filter_is_rejected() {
 
 fn state_with(runs: MemoryRuns, objects: common::MemoryObjects) -> Arc<EvidenceState> {
     use quantrule_evidence_service::runs::RunStore;
+    let config = Config {
+        image_digest: Some(Digest::sha256(b"image")),
+        ..Config::default()
+    };
     Arc::new(EvidenceState::with_services(
-        &Config::default(),
+        &config,
         HealthRegistry::new(),
         EvidenceServices {
             runs: Some(Arc::new(runs) as Arc<dyn RunStore>),
