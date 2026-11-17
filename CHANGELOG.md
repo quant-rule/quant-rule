@@ -20,11 +20,10 @@ history is in Git and the pull requests.
 
 ### Changed
 
-- `portfolio_holdout` excludes `COPPERCMDUSD` and `TSLAUSUSD` until a 2025
-  source is admitted; the committed coverage for both ends on 2024-12-31.
-
 ### Fixed
 
+- `portfolio_holdout` excludes `COPPERCMDUSD` and `TSLAUSUSD` until a 2025
+  source is admitted; the committed coverage for both ends on 2024-12-31.
 - Restore now counts, drops, and round-trips all six schemas, including
   `gateway` and `stage`; a `--force` restore can no longer partially destroy a
   started stack.
@@ -62,6 +61,11 @@ history is in Git and the pull requests.
   ATR.
 - The `session` indicator registers `session_vwap` as a published reading, and
   the session row contract covers it against the golden fixture.
+- Event edge evidence now names an event-constructing suite that covers the
+  empty, single, short, flat, zero-volume, missing-volume, equal-tie, and gap
+  inputs. The checker rejects a readings-only test as event-edge evidence.
+- The breakout-retest-hold event has its own golden fixture, and the extended
+  indicators' edge evidence names the family tests that check their readings.
 
 ## [1.3.0] - 2026-11-17
 
