@@ -18,7 +18,12 @@ history is in Git and the pull requests.
 
 ## [Unreleased]
 
-No unreleased changes yet. `v1.3.0` is the current release.
+### Fixed
+
+- VWAP slope now subtracts the VWAP from one full window back
+  (`S[t] = VWAP[t] - VWAP[t - window]`), matching the registered formula. The
+  first value appears at bar `2*window - 1`, and the extended readings and
+  event goldens were regenerated deliberately.
 
 ## [1.3.0] - 2026-11-17
 
