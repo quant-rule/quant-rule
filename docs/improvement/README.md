@@ -63,16 +63,20 @@ A v3 improvement run is one row in `research.improvement_runs`, scoped to the
 active profile. The manifest is `quantrule.improvement-run/v3` and carries
 gateway references (`data_version`, `config_id`, and a strategy/portfolio
 `criteria_id`) rather than filesystem paths. The evidence service validates the
-manifest, writes it once, links one pipeline run and canonical digest after
-submission, and records one human decision with a note.
+manifest, writes it once, links one pipeline run after submission, records the
+canonical digest once when the run produces it, and records one human decision
+with a note. An accepted decision needs the digest; a rejected, no-edge,
+new-hypothesis, or invalidated decision may be recorded without one.
 
 The committed baseline and invalidation files remain the human-owned source of
 truth. The ledger seeds the three accepted model baselines
 (`MODEL-2026-11-04-04..05`, `MODEL-2026-11-04-06..07`, and
 `MODEL-2026-11-04-10..11`) and the existing tombstones for the `default` profile;
 the tables are append-only, so a correction is a new row or a new human decision,
-not a rewrite. A v3 run does not create a local run folder and is never a stage
-artifact.
+not a rewrite. The evidence service can append a human-accepted baseline or an
+invalidation tombstone; a duplicate id is refused and an existing row is never
+updated or deleted. A v3 run does not create a local run folder and is never a
+stage artifact.
 
 ## Historical v2 run record
 

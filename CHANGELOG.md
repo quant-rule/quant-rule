@@ -60,10 +60,11 @@ history is in Git and the pull requests.
   baseline.
 - The research-ledger schema and manifest v3: `quantrule.improvement-run/v3`
   gateway-reference pre-registrations in the evidence service, a one-time
-  pipeline run and canonical-digest link, a one-time human decision with a note,
-  append-only baseline and invalidation registries, Postgres `0016` and SQLite
-  `0004` migrations, and the committed model baselines and tombstones seeded for
-  the `default` profile.
+  pipeline-run link, a one-time canonical-digest record when the run produces it,
+  a one-time human decision with a note, append-only baseline and invalidation
+  registries with append methods, Postgres `0016` and SQLite `0004` migrations,
+  and the committed model baselines and tombstones seeded for the `default`
+  profile.
 
 ### Changed
 

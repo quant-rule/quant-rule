@@ -53,20 +53,31 @@ pub trait ImprovementStore: Send + Sync {
         created_at: String,
     ) -> BoxFuture<Result<CreateOutcome, ImprovementStoreError>>;
 
-    /// Link one pipeline run and its canonical digest once.
+    /// Link one pipeline run once and move the record to `submitted`.
     ///
     /// The caller must pass a pipeline run id, not a stage artifact id. The
-    /// evidence service owns that validation boundary.
-    fn link_pipeline_run(
+    /// digest is not known when a queued run is submitted, so it is linked
+    /// separately by [`ImprovementStore::link_digest`].
+    fn link_run(
         &self,
         profile: ProfileId,
         improvement_id: String,
         pipeline_run_id: RunId,
-        canonical_digest: Digest,
         submitted_at: String,
     ) -> BoxFuture<Result<ImprovementRunDetail, ImprovementStoreError>>;
 
-    /// Record the human decision once, with a non-empty note.
+    /// Record the canonical digest once, after a pipeline run is linked.
+    ///
+    /// A digest may be linked while the record is `submitted` or `decided`, but
+    /// it can never be changed once it is present.
+    fn link_digest(
+        &self,
+        profile: ProfileId,
+        improvement_id: String,
+        canonical_digest: Digest,
+    ) -> BoxFuture<Result<ImprovementRunDetail, ImprovementStoreError>>;
+
+    /// Record the human decision once, after both the run and digest are linked.
     fn decide(
         &self,
         profile: ProfileId,
@@ -90,6 +101,26 @@ pub trait ImprovementStore: Send + Sync {
         improvement_id: String,
     ) -> BoxFuture<Result<Option<ImprovementRunDetail>, ImprovementStoreError>>;
 
+    /// Append one accepted baseline and return the stored row.
+    ///
+    /// The row is inserted once. A duplicate id is a conflict; an existing row
+    /// is never updated or deleted.
+    fn add_baseline(
+        &self,
+        profile: ProfileId,
+        record: BaselineRecord,
+    ) -> BoxFuture<Result<BaselineRecord, ImprovementStoreError>>;
+
+    /// Append one invalidation tombstone and return the stored row.
+    ///
+    /// The row is inserted once. A duplicate id is a conflict; an existing row
+    /// is never updated or deleted.
+    fn add_invalidation(
+        &self,
+        profile: ProfileId,
+        record: InvalidationRecord,
+    ) -> BoxFuture<Result<InvalidationRecord, ImprovementStoreError>>;
+
     /// List the accepted baselines for a profile.
     fn baselines(
         &self,
@@ -101,4 +132,53 @@ pub trait ImprovementStore: Send + Sync {
         &self,
         profile: ProfileId,
     ) -> BoxFuture<Result<Vec<InvalidationRecord>, ImprovementStoreError>>;
+}
+
+pub(super) fn validate_baseline(record: &BaselineRecord) -> Result<(), ImprovementStoreError> {
+    for (field, value) in [
+        ("run_id", &record.run_id),
+        ("improvement_id", &record.improvement_id),
+    ] {
+        if let Some(value) = value
+            && value.trim().is_empty()
+        {
+            return Err(ImprovementStoreError(format!(
+                "a baseline {field} is empty"
+            )));
+        }
+    }
+    if record.run_id.is_none() && record.improvement_id.is_none() {
+        return Err(ImprovementStoreError(
+            "a baseline needs a run id or an improvement id".to_owned(),
+        ));
+    }
+    if record.accepted_by.trim().is_empty() {
+        return Err(ImprovementStoreError(
+            "a baseline needs a non-empty accepted_by".to_owned(),
+        ));
+    }
+    if record.scope.trim().is_empty() {
+        return Err(ImprovementStoreError(
+            "a baseline needs a non-empty scope".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+pub(super) fn validate_invalidation(
+    record: &InvalidationRecord,
+) -> Result<(), ImprovementStoreError> {
+    for (field, value) in [
+        ("date", &record.date),
+        ("commit", &record.commit),
+        ("removed", &record.removed),
+        ("reason", &record.reason),
+    ] {
+        if value.trim().is_empty() {
+            return Err(ImprovementStoreError(format!(
+                "an invalidation {field} is empty"
+            )));
+        }
+    }
+    Ok(())
 }

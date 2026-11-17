@@ -19,8 +19,8 @@ CREATE TABLE IF NOT EXISTS research__improvement_runs (
                                   AND decision_note IS NOT NULL
                                   AND decided_at IS NOT NULL)),
     CHECK (state = 'created' OR (pipeline_run_id IS NOT NULL
-                                 AND canonical_digest IS NOT NULL
                                  AND submitted_at IS NOT NULL)),
+    CHECK (decision <> 'accepted' OR canonical_digest IS NOT NULL),
     CHECK (state <> 'created' OR (pipeline_run_id IS NULL
                                   AND canonical_digest IS NULL
                                   AND submitted_at IS NULL))
@@ -47,16 +47,18 @@ BEFORE UPDATE ON research__improvement_runs
 FOR EACH ROW
 WHEN (OLD.pipeline_run_id IS NOT NULL
       AND (NEW.pipeline_run_id IS NOT OLD.pipeline_run_id
-           OR NEW.canonical_digest IS NOT OLD.canonical_digest
            OR NEW.submitted_at IS NOT OLD.submitted_at))
+  OR (OLD.canonical_digest IS NOT NULL
+      AND NEW.canonical_digest IS NOT OLD.canonical_digest)
   OR (OLD.decision IS NOT NULL
       AND (NEW.decision IS NOT OLD.decision
            OR NEW.decision_note IS NOT OLD.decision_note
            OR NEW.decided_at IS NOT OLD.decided_at))
   OR (OLD.state = 'decided' AND NEW.state <> 'decided')
   OR (OLD.state = 'submitted' AND NEW.state NOT IN ('submitted', 'decided'))
+  OR (OLD.state = 'created' AND NEW.state NOT IN ('created', 'submitted'))
 BEGIN
-    SELECT RAISE(ABORT, 'a research link or decision is recorded once');
+    SELECT RAISE(ABORT, 'a research link, digest, or decision is recorded once');
 END;
 
 CREATE TABLE IF NOT EXISTS research__baselines (

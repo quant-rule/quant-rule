@@ -11,9 +11,10 @@
 Deliver the research-ledger schema and the v3 improvement-run manifest: the API
 types, the Postgres and SQLite migrations, the seeded committed registry rows, and
 the evidence-service store. The v3 manifest is a human-owned pre-registration
-that carries gateway references instead of filesystem paths. The pipeline run and
-canonical digest are linked once after submission; the human decision is recorded
-once.
+that carries gateway references instead of filesystem paths. The pipeline run is
+linked once after submission; the canonical digest is recorded once when the run
+produces it. An accepted decision requires the digest, while a failed run can be
+rejected or closed without one. The human decision is recorded once.
 
 The AI did not add a CLI or GUI command, a research route, or a stage record. It
 did not change the model, strategy, execution, or portfolio contracts, and it did
@@ -38,8 +39,8 @@ The baseline stage-artifact refusal is left to #857.
 - `python3 tools/check_schema_prefixes.py` — pass; 8 ledger rows, 19 tables, 7 baselines.
 - `python3 tools/check_file_size.py` — pass.
 - `python3 -m unittest test_check_schema_prefixes` in `tools/` — 21 tests pass.
-- `cargo test -p quantrule-api improvement` — 5 tests pass.
-- `cargo test -p quantrule-evidence-service --test research_ledger` — 7 pass, 1 ignored (Postgres).
+- `cargo test -p quantrule-api improvement` — 7 tests pass.
+- `cargo test -p quantrule-evidence-service --test research_ledger` — 9 pass, 1 ignored (Postgres).
 - `cargo test -p quantrule-evidence-service --lib migrations` — 15 tests pass.
 - `cargo test -p quantrule-evidence-service --test sqlite_parity` — 6 tests pass.
 
@@ -64,14 +65,23 @@ so the Postgres conformance test remains `#[ignore]` for the composed tier.
   label. The committed `INVALIDATIONS.md` is the historical source; the seed is
   not rewritten to modern terminology.
 - The Postgres and SQLite triggers enforce manifest immutability, a single
-  pipeline link, a single decision, and no state regression. The store also
-  enforces these transitions, but the trigger is the backstop for direct SQL.
-  Table checks keep `created`, `submitted`, and `decided` rows internally
-  consistent.
+  pipeline-run link, a single digest, a single decision, and no state regression.
+  The store also enforces these transitions, but the trigger is the backstop for
+  direct SQL. Table checks keep `created`, `submitted`, and `decided` rows
+  internally consistent. A submitted row may have no digest; a decided row needs
+  a digest only for an accepted decision.
+- The trait exposes `link_run` and `link_digest` separately because a queued run
+  has no canonical digest at submission. The conformance suite covers accepted
+  and rejected decisions with and without a digest.
+- The trait also exposes `add_baseline` and `add_invalidation`. They validate the
+  human-owned fields, reject a duplicate id, and return the stored row; the
+  database triggers remain the append-only backstop. The old first-writer-wins
+  memory fixture helpers were removed.
+- The manifest validator now requires the exact frozen set for the tier and a
+  `created_utc` date equal to the date in `improvement_id`; the rejection tests
+  cover a missing frozen tier, a duplicate tier, and a date mismatch.
 - The store timestamps are explicit parameters. The library does not read the
   clock; the caller supplies `created_at`, `submitted_at`, and `decided_at`.
-- The memory baseline and invalidation fixture helpers are first-writer-wins, so
-  the in-memory tests model the append-only registry rather than mutating it.
 - `tools/check_schema_prefixes.py` gained a separate `research` inventory row for
   SQLite `0004`; the existing research row still owns `0001` and the hypothesis
   table. The test fixture builds the new row from the same inventory.

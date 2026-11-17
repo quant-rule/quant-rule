@@ -18,8 +18,8 @@ CREATE TABLE IF NOT EXISTS research.improvement_runs (
                                   AND decision_note IS NOT NULL
                                   AND decided_at IS NOT NULL)),
     CHECK (state = 'created' OR (pipeline_run_id IS NOT NULL
-                                 AND canonical_digest IS NOT NULL
                                  AND submitted_at IS NOT NULL)),
+    CHECK (decision <> 'accepted' OR canonical_digest IS NOT NULL),
     CHECK (state <> 'created' OR (pipeline_run_id IS NULL
                                   AND canonical_digest IS NULL
                                   AND submitted_at IS NULL))
@@ -51,9 +51,12 @@ CREATE OR REPLACE FUNCTION research.reject_link_change() RETURNS trigger AS $$
 BEGIN
     IF OLD.pipeline_run_id IS NOT NULL
        AND (NEW.pipeline_run_id IS DISTINCT FROM OLD.pipeline_run_id
-            OR NEW.canonical_digest IS DISTINCT FROM OLD.canonical_digest
             OR NEW.submitted_at IS DISTINCT FROM OLD.submitted_at) THEN
         RAISE EXCEPTION 'a research pipeline link is recorded once';
+    END IF;
+    IF OLD.canonical_digest IS NOT NULL
+       AND NEW.canonical_digest IS DISTINCT FROM OLD.canonical_digest THEN
+        RAISE EXCEPTION 'a research canonical digest is recorded once';
     END IF;
     IF OLD.decision IS NOT NULL
        AND (NEW.decision IS DISTINCT FROM OLD.decision
@@ -63,6 +66,9 @@ BEGIN
     END IF;
     IF OLD.state = 'decided' AND NEW.state <> 'decided' THEN
         RAISE EXCEPTION 'a research decision cannot be reopened';
+    END IF;
+    IF OLD.state = 'created' AND NEW.state NOT IN ('created', 'submitted') THEN
+        RAISE EXCEPTION 'a research run must be submitted before a decision';
     END IF;
     IF OLD.state = 'submitted' AND NEW.state NOT IN ('submitted', 'decided') THEN
         RAISE EXCEPTION 'a research submission cannot move backwards';

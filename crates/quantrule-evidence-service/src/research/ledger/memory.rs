@@ -10,7 +10,10 @@ use quantrule_api::{
 };
 use quantrule_runtime::adapters::BoxFuture;
 
-use super::store::{CreateOutcome, ImprovementStore, ImprovementStoreError};
+use super::store::{
+    CreateOutcome, ImprovementStore, ImprovementStoreError, validate_baseline,
+    validate_invalidation,
+};
 
 /// An in-memory research ledger.
 #[derive(Debug, Clone, Default)]
@@ -23,31 +26,6 @@ struct MemoryState {
     runs: BTreeMap<(String, String), ImprovementRunDetail>,
     baselines: BTreeMap<(String, String), BaselineRecord>,
     invalidations: BTreeMap<(String, String), InvalidationRecord>,
-}
-
-impl MemoryImprovementStore {
-    /// Add one historical baseline to the in-memory fixture.
-    ///
-    /// The trait has no append method: the committed registry is the human-owned
-    /// source, and a store write is not exposed to a client.
-    pub fn add_baseline(&self, profile: ProfileId, record: BaselineRecord) {
-        if let Ok(mut state) = self.inner.lock() {
-            state
-                .baselines
-                .entry((profile.as_str().to_owned(), record.baseline_id.clone()))
-                .or_insert(record);
-        }
-    }
-
-    /// Add one historical invalidation tombstone to the in-memory fixture.
-    pub fn add_invalidation(&self, profile: ProfileId, record: InvalidationRecord) {
-        if let Ok(mut state) = self.inner.lock() {
-            state
-                .invalidations
-                .entry((profile.as_str().to_owned(), record.invalidation_id.clone()))
-                .or_insert(record);
-        }
-    }
 }
 
 fn lock(
@@ -86,12 +64,11 @@ impl ImprovementStore for MemoryImprovementStore {
         })
     }
 
-    fn link_pipeline_run(
+    fn link_run(
         &self,
         profile: ProfileId,
         improvement_id: String,
         pipeline_run_id: RunId,
-        canonical_digest: Digest,
         submitted_at: String,
     ) -> BoxFuture<Result<ImprovementRunDetail, ImprovementStoreError>> {
         let inner = Arc::clone(&self.inner);
@@ -107,9 +84,36 @@ impl ImprovementStore for MemoryImprovementStore {
                 ));
             }
             record.pipeline_run_id = Some(pipeline_run_id);
-            record.canonical_digest = Some(canonical_digest);
             record.state = ImprovementRunState::Submitted;
             record.submitted_at = Some(submitted_at);
+            Ok(record.clone())
+        })
+    }
+
+    fn link_digest(
+        &self,
+        profile: ProfileId,
+        improvement_id: String,
+        canonical_digest: Digest,
+    ) -> BoxFuture<Result<ImprovementRunDetail, ImprovementStoreError>> {
+        let inner = Arc::clone(&self.inner);
+        Box::pin(async move {
+            let mut state = lock(&inner)?;
+            let key = (profile.as_str().to_owned(), improvement_id);
+            let record = state.runs.get_mut(&key).ok_or_else(|| {
+                ImprovementStoreError("the improvement record is unknown".to_owned())
+            })?;
+            if record.state == ImprovementRunState::Created {
+                return Err(ImprovementStoreError(
+                    "a canonical digest needs a submitted pipeline run".to_owned(),
+                ));
+            }
+            if record.canonical_digest.is_some() {
+                return Err(ImprovementStoreError(
+                    "the canonical digest is already recorded".to_owned(),
+                ));
+            }
+            record.canonical_digest = Some(canonical_digest);
             Ok(record.clone())
         })
     }
@@ -134,9 +138,19 @@ impl ImprovementStore for MemoryImprovementStore {
             let record = state.runs.get_mut(&key).ok_or_else(|| {
                 ImprovementStoreError("the improvement record is unknown".to_owned())
             })?;
-            if record.state != ImprovementRunState::Submitted {
+            if record.state == ImprovementRunState::Created {
                 return Err(ImprovementStoreError(
-                    "a decision needs a submitted pipeline run and can be recorded once".to_owned(),
+                    "a decision needs a submitted pipeline run".to_owned(),
+                ));
+            }
+            if record.state == ImprovementRunState::Decided {
+                return Err(ImprovementStoreError(
+                    "the decision is already recorded".to_owned(),
+                ));
+            }
+            if decision == ImprovementDecision::Accepted && record.canonical_digest.is_none() {
+                return Err(ImprovementStoreError(
+                    "an accepted decision needs the canonical digest".to_owned(),
                 ));
             }
             record.state = ImprovementRunState::Decided;
@@ -186,6 +200,46 @@ impl ImprovementStore for MemoryImprovementStore {
                 .runs
                 .get(&(profile.as_str().to_owned(), improvement_id))
                 .cloned())
+        })
+    }
+
+    fn add_baseline(
+        &self,
+        profile: ProfileId,
+        record: BaselineRecord,
+    ) -> BoxFuture<Result<BaselineRecord, ImprovementStoreError>> {
+        let inner = Arc::clone(&self.inner);
+        Box::pin(async move {
+            validate_baseline(&record)?;
+            let mut state = lock(&inner)?;
+            let key = (profile.as_str().to_owned(), record.baseline_id.clone());
+            if state.baselines.contains_key(&key) {
+                return Err(ImprovementStoreError(
+                    "the baseline id already exists".to_owned(),
+                ));
+            }
+            state.baselines.insert(key, record.clone());
+            Ok(record)
+        })
+    }
+
+    fn add_invalidation(
+        &self,
+        profile: ProfileId,
+        record: InvalidationRecord,
+    ) -> BoxFuture<Result<InvalidationRecord, ImprovementStoreError>> {
+        let inner = Arc::clone(&self.inner);
+        Box::pin(async move {
+            validate_invalidation(&record)?;
+            let mut state = lock(&inner)?;
+            let key = (profile.as_str().to_owned(), record.invalidation_id.clone());
+            if state.invalidations.contains_key(&key) {
+                return Err(ImprovementStoreError(
+                    "the invalidation id already exists".to_owned(),
+                ));
+            }
+            state.invalidations.insert(key, record.clone());
+            Ok(record)
         })
     }
 

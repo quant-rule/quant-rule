@@ -242,6 +242,18 @@ impl ImprovementManifest {
                 ));
             }
         }
+        let expected_frozen: BTreeSet<ImprovementTier> = match self.tier {
+            ImprovementTier::Model => [ImprovementTier::Strategy, ImprovementTier::Portfolio],
+            ImprovementTier::Strategy => [ImprovementTier::Model, ImprovementTier::Portfolio],
+            ImprovementTier::Portfolio => [ImprovementTier::Model, ImprovementTier::Strategy],
+        }
+        .into_iter()
+        .collect();
+        if seen != expected_frozen {
+            return Err(ImprovementManifestError(
+                "frozen must list exactly the tiers held fixed for this run".to_owned(),
+            ));
+        }
         let expected_tier = match self.partition {
             ImprovementPartition::ModelDev | ImprovementPartition::ModelValidation => {
                 ImprovementTier::Model
@@ -275,6 +287,23 @@ impl ImprovementManifest {
         if !is_rfc3339_utc(&self.created_utc) {
             return Err(ImprovementManifestError(
                 "created_utc must be an RFC 3339 UTC timestamp".to_owned(),
+            ));
+        }
+        let id_date = self
+            .improvement_id
+            .split('-')
+            .skip(1)
+            .take(3)
+            .collect::<Vec<_>>()
+            .join("-");
+        let created_date = self
+            .created_utc
+            .split_once('T')
+            .map(|(date, _)| date)
+            .unwrap_or("");
+        if created_date != id_date {
+            return Err(ImprovementManifestError(
+                "created_utc must match the date in improvement_id".to_owned(),
             ));
         }
         if self.green_criteria.is_empty() {
@@ -676,12 +705,14 @@ mod tests {
             |value: &mut Value| value["changed"] = serde_json::json!("strategy"),
             |value: &mut Value| value["frozen"] = serde_json::json!(["strategy", "strategy"]),
             |value: &mut Value| value["frozen"] = serde_json::json!(["strategy", "model"]),
+            |value: &mut Value| value["frozen"] = serde_json::json!(["strategy"]),
             |value: &mut Value| value["partition"] = serde_json::json!("portfolio_holdout"),
             |value: &mut Value| value["partition"] = serde_json::json!("strategy_dev"),
             |value: &mut Value| value["holdout_access"] = serde_json::json!("final"),
             |value: &mut Value| {
                 value["created_utc"] = serde_json::json!("2026-11-17T00:00:00+01:00")
             },
+            |value: &mut Value| value["created_utc"] = serde_json::json!("2026-11-18T00:00:00Z"),
             |value: &mut Value| value["green_criteria"] = serde_json::json!({}),
             |value: &mut Value| value["config_id"] = serde_json::json!("../cfg"),
             |value: &mut Value| value["config_id"] = serde_json::json!(".."),
@@ -697,6 +728,25 @@ mod tests {
             mutate(&mut value);
             assert!(ImprovementManifest::parse(&value).is_err(), "{value}");
         }
+    }
+
+    #[test]
+    fn the_frozen_set_is_exact_for_the_tier() {
+        let mut value = manifest();
+        value["frozen"] = serde_json::json!(["strategy"]);
+        assert!(ImprovementManifest::parse(&value).is_err());
+        value["frozen"] = serde_json::json!(["strategy", "portfolio", "strategy"]);
+        assert!(ImprovementManifest::parse(&value).is_err());
+        value["frozen"] = serde_json::json!(["portfolio", "strategy"]);
+        assert!(ImprovementManifest::parse(&value).is_ok());
+    }
+
+    #[test]
+    fn created_utc_matches_the_improvement_date() {
+        let mut value = manifest();
+        value["created_utc"] = serde_json::json!("2026-11-18T00:00:00Z");
+        let error = ImprovementManifest::parse(&value).expect_err("the date mismatch");
+        assert!(error.to_string().contains("match"), "{error}");
     }
 
     #[test]

@@ -227,6 +227,11 @@ mod tests {
         }
         assert!(postgres.sql.contains("reject_manifest_change"));
         assert!(postgres.sql.contains("reject_append_only"));
+        assert!(
+            postgres
+                .sql
+                .contains("CHECK (decision <> 'accepted' OR canonical_digest IS NOT NULL)")
+        );
         assert!(postgres.sql.contains("MODEL-2026-11-04-04..05"));
         assert!(postgres.sql.contains("docs/improvement/2026-11-10/SR10.md"));
 

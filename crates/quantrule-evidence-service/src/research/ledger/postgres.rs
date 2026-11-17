@@ -1,9 +1,11 @@
 //! The Postgres research ledger.
 //!
 //! The manifest is stored whole as `jsonb` and never rewritten. A pipeline run
-//! and its canonical digest are linked once, and the human decision is recorded
-//! once; database triggers enforce both rules in addition to the store. The
-//! committed `docs/improvement/` registry remains the human-owned snapshot.
+//! is linked once, the canonical digest is recorded once when it is available,
+//! and the human decision is recorded once; database triggers enforce both rules
+//! in addition to the store. A non-accepted decision may omit the digest. The
+//! baseline and invalidation registries are append-only. The committed
+//! `docs/improvement/` registry remains the human-owned snapshot.
 
 use quantrule_api::{
     BaselineRecord, Digest, ImprovementDecision, ImprovementManifest, ImprovementRunDetail,
@@ -13,7 +15,10 @@ use quantrule_api::{
 use quantrule_runtime::adapters::BoxFuture;
 use sqlx::PgPool;
 
-use super::store::{CreateOutcome, ImprovementStore, ImprovementStoreError};
+use super::store::{
+    CreateOutcome, ImprovementStore, ImprovementStoreError, validate_baseline,
+    validate_invalidation,
+};
 
 /// A research ledger backed by Postgres.
 #[derive(Debug, Clone)]
@@ -225,6 +230,48 @@ fn invalidation_from_row(
     })
 }
 
+async fn load_baseline(
+    pool: &PgPool,
+    profile: &str,
+    baseline_id: &str,
+) -> Result<Option<BaselineRecord>, ImprovementStoreError> {
+    let row: Option<BaselineRow> = sqlx::query_as(
+        "SELECT baseline_id, tier, run_id, improvement_id, accepted_by,
+                to_char(accepted_on, 'YYYY-MM-DD'), scope, supersedes,
+                to_char(created_at AT TIME ZONE 'UTC',
+                        'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')
+           FROM research.baselines
+          WHERE profile_id = $1 AND baseline_id = $2",
+    )
+    .bind(profile)
+    .bind(baseline_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(|error| ImprovementStoreError(error.to_string()))?;
+    row.map(baseline_from_row).transpose()
+}
+
+async fn load_invalidation(
+    pool: &PgPool,
+    profile: &str,
+    invalidation_id: &str,
+) -> Result<Option<InvalidationRecord>, ImprovementStoreError> {
+    let row: Option<InvalidationRow> = sqlx::query_as(
+        "SELECT invalidation_id, to_char(date, 'YYYY-MM-DD'), \"commit\",
+                removed, reason, superseded_by,
+                to_char(created_at AT TIME ZONE 'UTC',
+                        'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')
+           FROM research.invalidations
+          WHERE profile_id = $1 AND invalidation_id = $2",
+    )
+    .bind(profile)
+    .bind(invalidation_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(|error| ImprovementStoreError(error.to_string()))?;
+    row.map(invalidation_from_row).transpose()
+}
+
 impl ImprovementStore for PgImprovementStore {
     fn create(
         &self,
@@ -272,29 +319,26 @@ impl ImprovementStore for PgImprovementStore {
         })
     }
 
-    fn link_pipeline_run(
+    fn link_run(
         &self,
         profile: ProfileId,
         improvement_id: String,
         pipeline_run_id: RunId,
-        canonical_digest: Digest,
         submitted_at: String,
     ) -> BoxFuture<Result<ImprovementRunDetail, ImprovementStoreError>> {
         let pool = self.pool.clone();
         Box::pin(async move {
             let profile_id = profile.as_str().to_owned();
             let run_id = pipeline_run_id.to_string();
-            let digest = canonical_digest.to_string();
             let changed = sqlx::query(
                 "UPDATE research.improvement_runs
-                    SET pipeline_run_id = $3, canonical_digest = $4,
-                        state = 'submitted', submitted_at = $5::timestamptz
+                    SET pipeline_run_id = $3, state = 'submitted',
+                        submitted_at = $4::timestamptz
                   WHERE profile_id = $1 AND improvement_id = $2 AND state = 'created'",
             )
             .bind(&profile_id)
             .bind(&improvement_id)
             .bind(&run_id)
-            .bind(&digest)
             .bind(&submitted_at)
             .execute(&pool)
             .await
@@ -312,6 +356,50 @@ impl ImprovementStore for PgImprovementStore {
                 ImprovementRunState::Created => "the pipeline run was not linked",
                 ImprovementRunState::Submitted => "the pipeline run is already linked",
                 ImprovementRunState::Decided => "the improvement record is already decided",
+            };
+            Err(ImprovementStoreError(reason.to_owned()))
+        })
+    }
+
+    fn link_digest(
+        &self,
+        profile: ProfileId,
+        improvement_id: String,
+        canonical_digest: Digest,
+    ) -> BoxFuture<Result<ImprovementRunDetail, ImprovementStoreError>> {
+        let pool = self.pool.clone();
+        Box::pin(async move {
+            let profile_id = profile.as_str().to_owned();
+            let digest = canonical_digest.to_string();
+            let changed = sqlx::query(
+                "UPDATE research.improvement_runs
+                    SET canonical_digest = $3
+                  WHERE profile_id = $1 AND improvement_id = $2
+                    AND state <> 'created' AND canonical_digest IS NULL",
+            )
+            .bind(&profile_id)
+            .bind(&improvement_id)
+            .bind(&digest)
+            .execute(&pool)
+            .await
+            .map_err(|error| ImprovementStoreError(error.to_string()))?
+            .rows_affected();
+            let detail = load_detail(&pool, &profile_id, &improvement_id)
+                .await?
+                .ok_or_else(|| {
+                    ImprovementStoreError("the improvement record is unknown".to_owned())
+                })?;
+            if changed == 1 {
+                return Ok(detail);
+            }
+            let reason = match detail.state {
+                ImprovementRunState::Created => "a canonical digest needs a submitted pipeline run",
+                ImprovementRunState::Submitted | ImprovementRunState::Decided
+                    if detail.canonical_digest.is_some() =>
+                {
+                    "the canonical digest is already recorded"
+                }
+                _ => "the canonical digest was not recorded",
             };
             Err(ImprovementStoreError(reason.to_owned()))
         })
@@ -337,7 +425,8 @@ impl ImprovementStore for PgImprovementStore {
                 "UPDATE research.improvement_runs
                     SET state = 'decided', decision = $3, decision_note = $4,
                         decided_at = $5::timestamptz
-                  WHERE profile_id = $1 AND improvement_id = $2 AND state = 'submitted'",
+                  WHERE profile_id = $1 AND improvement_id = $2 AND state = 'submitted'
+                    AND ($3 <> 'accepted' OR canonical_digest IS NOT NULL)",
             )
             .bind(&profile_id)
             .bind(&improvement_id)
@@ -358,6 +447,12 @@ impl ImprovementStore for PgImprovementStore {
             }
             let reason = match detail.state {
                 ImprovementRunState::Created => "a decision needs a submitted pipeline run",
+                ImprovementRunState::Submitted
+                    if decision == ImprovementDecision::Accepted
+                        && detail.canonical_digest.is_none() =>
+                {
+                    "an accepted decision needs the canonical digest"
+                }
                 ImprovementRunState::Submitted => "the decision was not recorded",
                 ImprovementRunState::Decided => "the decision is already recorded",
             };
@@ -401,6 +496,90 @@ impl ImprovementStore for PgImprovementStore {
     ) -> BoxFuture<Result<Option<ImprovementRunDetail>, ImprovementStoreError>> {
         let pool = self.pool.clone();
         Box::pin(async move { load_detail(&pool, profile.as_str(), &improvement_id).await })
+    }
+
+    fn add_baseline(
+        &self,
+        profile: ProfileId,
+        record: BaselineRecord,
+    ) -> BoxFuture<Result<BaselineRecord, ImprovementStoreError>> {
+        let pool = self.pool.clone();
+        Box::pin(async move {
+            validate_baseline(&record)?;
+            let profile_id = profile.as_str().to_owned();
+            let inserted = sqlx::query(
+                "INSERT INTO research.baselines
+                     (profile_id, baseline_id, tier, run_id, improvement_id,
+                      accepted_by, accepted_on, scope, supersedes, created_at)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7::date, $8, $9, $10::timestamptz)
+                 ON CONFLICT (profile_id, baseline_id) DO NOTHING",
+            )
+            .bind(&profile_id)
+            .bind(&record.baseline_id)
+            .bind(record.tier.as_str())
+            .bind(record.run_id.as_deref())
+            .bind(record.improvement_id.as_deref())
+            .bind(&record.accepted_by)
+            .bind(&record.accepted_on)
+            .bind(&record.scope)
+            .bind(record.supersedes.as_deref())
+            .bind(&record.created_at)
+            .execute(&pool)
+            .await
+            .map_err(|error| ImprovementStoreError(error.to_string()))?
+            .rows_affected();
+            if inserted == 0 {
+                return Err(ImprovementStoreError(
+                    "the baseline id already exists".to_owned(),
+                ));
+            }
+            load_baseline(&pool, &profile_id, &record.baseline_id)
+                .await?
+                .ok_or_else(|| {
+                    ImprovementStoreError("the baseline vanished after append".to_owned())
+                })
+        })
+    }
+
+    fn add_invalidation(
+        &self,
+        profile: ProfileId,
+        record: InvalidationRecord,
+    ) -> BoxFuture<Result<InvalidationRecord, ImprovementStoreError>> {
+        let pool = self.pool.clone();
+        Box::pin(async move {
+            validate_invalidation(&record)?;
+            let profile_id = profile.as_str().to_owned();
+            let inserted = sqlx::query(
+                "INSERT INTO research.invalidations
+                     (profile_id, invalidation_id, date, \"commit\", removed,
+                      reason, superseded_by, created_at)
+                 VALUES ($1, $2, $3::date, $4, $5, $6, $7, $8::timestamptz)
+                 ON CONFLICT (profile_id, invalidation_id) DO NOTHING",
+            )
+            .bind(&profile_id)
+            .bind(&record.invalidation_id)
+            .bind(&record.date)
+            .bind(&record.commit)
+            .bind(&record.removed)
+            .bind(&record.reason)
+            .bind(record.superseded_by.as_deref())
+            .bind(&record.created_at)
+            .execute(&pool)
+            .await
+            .map_err(|error| ImprovementStoreError(error.to_string()))?
+            .rows_affected();
+            if inserted == 0 {
+                return Err(ImprovementStoreError(
+                    "the invalidation id already exists".to_owned(),
+                ));
+            }
+            load_invalidation(&pool, &profile_id, &record.invalidation_id)
+                .await?
+                .ok_or_else(|| {
+                    ImprovementStoreError("the invalidation vanished after append".to_owned())
+                })
+        })
     }
 
     fn baselines(

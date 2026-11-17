@@ -37,14 +37,19 @@ The state machine is `created -> submitted -> decided`:
 | State | Meaning | Write |
 |---|---|---|
 | `created` | The v3 pre-registration exists; no pipeline run is linked | Create once; an identical create is idempotent by profile and improvement id |
-| `submitted` | One pipeline run and its canonical digest are linked | Link once; a second link is refused |
-| `decided` | The human decision and note are recorded | Decide once; a second decision is refused |
+| `submitted` | One pipeline run is linked; the canonical digest may still be pending | Link the run once; record the digest once when the run produces it |
+| `decided` | The human decision and note are recorded | Decide once; an `accepted` decision requires the digest |
 
 A stage artifact is not a pipeline run and cannot be linked as one. The evidence
-service accepts a pipeline `RunId` and a `Digest`; the baseline-link validation is
-a #857 deliverable. The committed `docs/improvement/` registry remains the
-human-owned snapshot. The seeded baseline and invalidation rows are historical
-records; they do not transfer acceptance authority to an agent.
+service accepts a pipeline `RunId`; the digest is linked separately because a
+queued run does not have one at submission. A failed run that never produces a
+digest can still be `rejected`, `no-edge`, `new-hypothesis`, or `invalidated`,
+but it cannot be `accepted`. The baseline-link validation is a #857 deliverable.
+The committed `docs/improvement/` registry remains the human-owned snapshot. The
+evidence service appends a baseline or invalidation row only on an explicit human
+acceptance or invalidation; a duplicate id is refused and an existing row is
+never updated or deleted. The seeded baseline and invalidation rows are
+historical records; they do not transfer acceptance authority to an agent.
 
 ## Run identity
 
@@ -151,14 +156,15 @@ frozen by the contract and do not appear in `frozen`; the policy layer is
 retired and is not a run input.
 
 The v3 validator refuses an unknown field; a v2 schema; an id whose tier prefix
-or date is wrong; a `changed` value that differs from `tier`; a `frozen` list
-that contains `changed` or a duplicate; an undeclared partition or one that
-belongs to another tier; a holdout declaration that does not match the
-partition; a non-UTC `created_utc`; a negative `seed`; an empty required string;
-an empty `green_criteria` object; a strategy or portfolio run without
-`criteria_id`; a `command` other than `run submit`; and a `config_id`,
-`criteria_id`, or `baseline` that looks like a filesystem path. `data_version`
-is a digest, so a path cannot deserialize.
+or date is wrong; a `created_utc` whose calendar date differs from the date in
+`improvement_id`; a `changed` value that differs from `tier`; a `frozen` list
+that is not exactly the two tiers held fixed for the run (missing, extra, or
+duplicate); an undeclared partition or one that belongs to another tier; a
+holdout declaration that does not match the partition; a non-UTC `created_utc`;
+a negative `seed`; an empty required string; an empty `green_criteria` object; a
+strategy or portfolio run without `criteria_id`; a `command` other than
+`run submit`; and a `config_id`, `criteria_id`, or `baseline` that looks like a
+filesystem path. `data_version` is a digest, so a path cannot deserialize.
 
 ### Example manifest
 
@@ -210,11 +216,16 @@ after the worker has produced a canonical digest.
    A strategy or portfolio run is submitted only after its model baseline is
    accepted. A model run uses a model-only config and produces no strategy
    artifact.
-3. Link the pipeline `run_id` and its canonical digest once. The record moves to
-   `state = submitted`; a second link is refused.
-4. The human records exactly one decision — `accepted`, `rejected`, `no-edge`,
-   `invalidated`, or `new-hypothesis` — with a non-empty note. The record moves
-   to `state = decided`; a second decision is refused.
+3. Link the pipeline `run_id` once and move the record to `state = submitted`;
+   a second link is refused. The canonical digest is still unknown for a queued
+   run.
+4. Record the canonical digest once when the run produces it. A digest can be
+   linked while the record is `submitted` or later; it can never be changed once
+   present.
+5. The human records exactly one decision — `accepted`, `rejected`, `no-edge`,
+   `invalidated`, or `new-hypothesis` — with a non-empty note. An `accepted`
+   decision requires the digest; a non-accepted decision may be recorded without
+   one. A second decision is refused.
 
 A non-zero pipeline exit is a failure. The pipeline run remains available for
 diagnosis, but the improvement record is not decided as accepted evidence.
@@ -240,7 +251,9 @@ The evidence service seeds the three accepted historical model baselines
 accepted by Human on 2026-11-04. Strategy and portfolio have no accepted
 baseline. The committed registry remains the human-owned source of truth and the
 append-only evidence rows mirror it; when they disagree, the committed registry
-wins and the row is corrected by a new decision, never by a rewrite.
+wins and the row is corrected by a new decision, never by a rewrite. The evidence
+service appends a baseline row only on an explicit human acceptance; a duplicate
+id is refused, and an existing row is never updated or deleted.
 
 The manifest's optional `baseline` field names the comparison run.
 
@@ -292,8 +305,9 @@ An invalidated run:
 The invalidation log is append-only. A row is never deleted or rewritten. When
 artifacts are removed in cleanup, the row is the tombstone that preserves what
 was removed and why. Deleting artifacts without a tombstone is a defect. The
-evidence table seeds the committed tombstones; the committed log remains the
-human-owned source of truth.
+evidence service appends a tombstone only on an explicit human invalidation; a
+duplicate id is refused. The table seeds the committed tombstones; the committed
+log remains the human-owned source of truth.
 
 ## Historical v2 layout and tooling
 
@@ -315,13 +329,14 @@ pre-reset experiment record, a historical audit, or a v2 folder as a v3 run.
    declaration agree.
 3. `data_version`, `config_id`, and `criteria_id` are gateway references, not
    paths; a strategy or portfolio run has a criteria reference.
-4. The pipeline run is linked once with its canonical digest.
+4. The pipeline run is linked once; the canonical digest is recorded once before
+   an accepted decision.
 5. The partition matches the tier; a holdout run declares `final`.
 6. A rerun with the same inputs produces a byte-identical canonical digest.
 7. The review compares against the declared baseline and names the costs,
    sample, stability, and limitations.
-8. The human decision is recorded once with a non-empty note and, when
-   applicable, the baseline acceptance.
+8. The human decision is recorded once with a non-empty note; an accepted
+   decision carries the digest, and a non-accepted decision may omit it.
 9. The committed baseline and invalidation registries agree with the evidence
    rows; a disagreement is resolved by a new human decision, not a rewrite.
 

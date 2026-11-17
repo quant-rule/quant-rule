@@ -1,9 +1,11 @@
 //! The SQLite research ledger.
 //!
-//! The manifest is stored once as JSON and never rewritten. A pipeline run and
-//! its canonical digest are linked once, and the human decision is recorded
-//! once; `BEFORE UPDATE` triggers enforce both rules as they do in Postgres.
-//! The committed `docs/improvement/` registry remains the human-owned snapshot.
+//! The manifest is stored once as JSON and never rewritten. A pipeline run is
+//! linked once, the canonical digest is recorded once when it is available, and
+//! the human decision is recorded once; `BEFORE UPDATE` triggers enforce both
+//! rules as they do in Postgres. A non-accepted decision may omit the digest.
+//! The baseline and invalidation registries are append-only. The committed
+//! `docs/improvement/` registry remains the human-owned snapshot.
 
 use quantrule_api::{
     BaselineRecord, Digest, ImprovementDecision, ImprovementManifest, ImprovementRunDetail,
@@ -14,7 +16,10 @@ use quantrule_runtime::adapters::BoxFuture;
 use quantrule_runtime::adapters::sqlite::SqliteDatabase;
 use rusqlite::{OptionalExtension, params};
 
-use super::store::{CreateOutcome, ImprovementStore, ImprovementStoreError};
+use super::store::{
+    CreateOutcome, ImprovementStore, ImprovementStoreError, validate_baseline,
+    validate_invalidation,
+};
 use crate::sqlite::{BASELINES_TABLE, IMPROVEMENT_RUNS_TABLE, INVALIDATIONS_TABLE};
 
 /// A research ledger backed by the embedded SQLite database.
@@ -197,12 +202,11 @@ impl ImprovementStore for SqliteImprovementStore {
         })
     }
 
-    fn link_pipeline_run(
+    fn link_run(
         &self,
         profile: ProfileId,
         improvement_id: String,
         pipeline_run_id: RunId,
-        canonical_digest: Digest,
         submitted_at: String,
     ) -> BoxFuture<Result<ImprovementRunDetail, ImprovementStoreError>> {
         let database = self.database.clone();
@@ -210,11 +214,9 @@ impl ImprovementStore for SqliteImprovementStore {
             let owner = profile.as_str().to_owned();
             let update_key = improvement_id.clone();
             let run_id = pipeline_run_id.to_string();
-            let digest = canonical_digest.to_string();
             let sql = format!(
                 "UPDATE {IMPROVEMENT_RUNS_TABLE}
-                    SET pipeline_run_id = ?3, canonical_digest = ?4,
-                        state = 'submitted', submitted_at = ?5
+                    SET pipeline_run_id = ?3, state = 'submitted', submitted_at = ?4
                   WHERE profile_id = ?1 AND improvement_id = ?2 AND state = 'created'"
             );
             let owner_for_update = owner.clone();
@@ -222,7 +224,7 @@ impl ImprovementStore for SqliteImprovementStore {
                 .call(move |connection| {
                     connection.execute(
                         &sql,
-                        params![owner_for_update, update_key, run_id, digest, submitted_at],
+                        params![owner_for_update, update_key, run_id, submitted_at],
                     )
                 })
                 .await
@@ -242,6 +244,54 @@ impl ImprovementStore for SqliteImprovementStore {
                 ImprovementRunState::Created => "the pipeline run was not linked",
                 ImprovementRunState::Submitted => "the pipeline run is already linked",
                 ImprovementRunState::Decided => "the improvement record is already decided",
+            };
+            Err(ImprovementStoreError(reason.to_owned()))
+        })
+    }
+
+    fn link_digest(
+        &self,
+        profile: ProfileId,
+        improvement_id: String,
+        canonical_digest: Digest,
+    ) -> BoxFuture<Result<ImprovementRunDetail, ImprovementStoreError>> {
+        let database = self.database.clone();
+        Box::pin(async move {
+            let owner = profile.as_str().to_owned();
+            let update_key = improvement_id.clone();
+            let digest = canonical_digest.to_string();
+            let sql = format!(
+                "UPDATE {IMPROVEMENT_RUNS_TABLE}
+                    SET canonical_digest = ?3
+                  WHERE profile_id = ?1 AND improvement_id = ?2
+                    AND state <> 'created' AND canonical_digest IS NULL"
+            );
+            let owner_for_update = owner.clone();
+            let changed = database
+                .call(move |connection| {
+                    connection.execute(&sql, params![owner_for_update, update_key, digest])
+                })
+                .await
+                .map_err(|error| ImprovementStoreError(error.to_string()))?;
+            let stored = database
+                .call(move |connection| read_run(connection, &owner, &improvement_id))
+                .await
+                .map_err(|error| ImprovementStoreError(error.to_string()))?
+                .ok_or_else(|| {
+                    ImprovementStoreError("the improvement record is unknown".to_owned())
+                })?;
+            let detail = detail_from_stored(stored)?;
+            if changed == 1 {
+                return Ok(detail);
+            }
+            let reason = match detail.state {
+                ImprovementRunState::Created => "a canonical digest needs a submitted pipeline run",
+                ImprovementRunState::Submitted | ImprovementRunState::Decided
+                    if detail.canonical_digest.is_some() =>
+                {
+                    "the canonical digest is already recorded"
+                }
+                _ => "the canonical digest was not recorded",
             };
             Err(ImprovementStoreError(reason.to_owned()))
         })
@@ -268,7 +318,8 @@ impl ImprovementStore for SqliteImprovementStore {
                 "UPDATE {IMPROVEMENT_RUNS_TABLE}
                     SET state = 'decided', decision = ?3, decision_note = ?4,
                         decided_at = ?5
-                  WHERE profile_id = ?1 AND improvement_id = ?2 AND state = 'submitted'"
+                  WHERE profile_id = ?1 AND improvement_id = ?2 AND state = 'submitted'
+                    AND (?3 <> 'accepted' OR canonical_digest IS NOT NULL)"
             );
             let owner_for_update = owner.clone();
             let changed = database
@@ -299,6 +350,12 @@ impl ImprovementStore for SqliteImprovementStore {
             }
             let reason = match detail.state {
                 ImprovementRunState::Created => "a decision needs a submitted pipeline run",
+                ImprovementRunState::Submitted
+                    if decision == ImprovementDecision::Accepted
+                        && detail.canonical_digest.is_none() =>
+                {
+                    "an accepted decision needs the canonical digest"
+                }
                 ImprovementRunState::Submitted => "the decision was not recorded",
                 ImprovementRunState::Decided => "the decision is already recorded",
             };
@@ -363,6 +420,96 @@ impl ImprovementStore for SqliteImprovementStore {
                 .await
                 .map_err(|error| ImprovementStoreError(error.to_string()))?;
             stored.map(detail_from_stored).transpose()
+        })
+    }
+
+    fn add_baseline(
+        &self,
+        profile: ProfileId,
+        record: BaselineRecord,
+    ) -> BoxFuture<Result<BaselineRecord, ImprovementStoreError>> {
+        let database = self.database.clone();
+        Box::pin(async move {
+            validate_baseline(&record)?;
+            let owner = profile.as_str().to_owned();
+            let row = record.clone();
+            let sql = format!(
+                "INSERT INTO {BASELINES_TABLE}
+                     (profile_id, baseline_id, tier, run_id, improvement_id,
+                      accepted_by, accepted_on, scope, supersedes, created_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+                 ON CONFLICT (profile_id, baseline_id) DO NOTHING"
+            );
+            let changed = database
+                .call(move |connection| {
+                    connection.execute(
+                        &sql,
+                        params![
+                            owner,
+                            row.baseline_id,
+                            row.tier.as_str(),
+                            row.run_id,
+                            row.improvement_id,
+                            row.accepted_by,
+                            row.accepted_on,
+                            row.scope,
+                            row.supersedes,
+                            row.created_at
+                        ],
+                    )
+                })
+                .await
+                .map_err(|error| ImprovementStoreError(error.to_string()))?;
+            if changed == 0 {
+                return Err(ImprovementStoreError(
+                    "the baseline id already exists".to_owned(),
+                ));
+            }
+            Ok(record)
+        })
+    }
+
+    fn add_invalidation(
+        &self,
+        profile: ProfileId,
+        record: InvalidationRecord,
+    ) -> BoxFuture<Result<InvalidationRecord, ImprovementStoreError>> {
+        let database = self.database.clone();
+        Box::pin(async move {
+            validate_invalidation(&record)?;
+            let owner = profile.as_str().to_owned();
+            let row = record.clone();
+            let sql = format!(
+                "INSERT INTO {INVALIDATIONS_TABLE}
+                     (profile_id, invalidation_id, date, \"commit\", removed,
+                      reason, superseded_by, created_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+                 ON CONFLICT (profile_id, invalidation_id) DO NOTHING"
+            );
+            let changed = database
+                .call(move |connection| {
+                    connection.execute(
+                        &sql,
+                        params![
+                            owner,
+                            row.invalidation_id,
+                            row.date,
+                            row.commit,
+                            row.removed,
+                            row.reason,
+                            row.superseded_by,
+                            row.created_at
+                        ],
+                    )
+                })
+                .await
+                .map_err(|error| ImprovementStoreError(error.to_string()))?;
+            if changed == 0 {
+                return Err(ImprovementStoreError(
+                    "the invalidation id already exists".to_owned(),
+                ));
+            }
+            Ok(record)
         })
     }
 

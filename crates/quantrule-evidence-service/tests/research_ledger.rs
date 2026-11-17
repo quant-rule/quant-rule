@@ -1,201 +1,22 @@
 //! The research-ledger conformance suite.
 //!
-//! The same body runs against the memory store and the SQLite store; the
-//! Postgres case is opt-in because it needs a live server. The suite asserts the
-//! store contract: profile scoping, idempotent create, an immutable manifest, a
-//! single pipeline link, a single human decision, and the seeded baseline and
-//! invalidation rows.
+//! The shared conformance bodies run against the memory and SQLite stores; the
+//! Postgres case is opt-in because it needs a live server. This target covers the
+//! two-step pipeline link, the accepted-only digest rule, the append-only
+//! registries, and the seeded committed rows.
 
-use quantrule_api::{
-    Digest, HoldoutAccess, IMPROVEMENT_RUN_SCHEMA, ImprovementDecision, ImprovementManifest,
-    ImprovementPartition, ImprovementRunState, ImprovementTier, InvalidationRecord, ProfileId,
-    RunId,
-};
+mod research_ledger_support;
+
+use quantrule_api::{ImprovementDecision, ImprovementTier, RunId};
 use quantrule_evidence_service::migrations;
 use quantrule_evidence_service::research::{
     ImprovementStore, MemoryImprovementStore, PgImprovementStore, SqliteImprovementStore,
-    seeded_baselines,
 };
 use quantrule_runtime::adapters::sqlite::{SqliteDatabase, apply_migrations_in};
 
-fn profile(name: &str) -> ProfileId {
-    ProfileId::parse(name).expect("a test profile id")
-}
-
-fn manifest(improvement_id: &str) -> ImprovementManifest {
-    let mut green_criteria = serde_json::Map::new();
-    green_criteria.insert("profit_factor".to_owned(), serde_json::json!(1.1));
-    ImprovementManifest {
-        schema: IMPROVEMENT_RUN_SCHEMA.to_owned(),
-        improvement_id: improvement_id.to_owned(),
-        tier: ImprovementTier::Model,
-        hypothesis: "the compression expansion holds on the development partition".to_owned(),
-        created_utc: "2026-11-17T00:00:00Z".to_owned(),
-        changed: ImprovementTier::Model,
-        frozen: vec![ImprovementTier::Strategy, ImprovementTier::Portfolio],
-        partition: ImprovementPartition::ModelDev,
-        data_version: Digest::sha256(b"the test dataset"),
-        config_id: "cfg_test".to_owned(),
-        criteria_id: None,
-        green_criteria,
-        holdout_access: HoldoutAccess::None,
-        baseline: None,
-        code_commit: "c236539f".to_owned(),
-        seed: 7,
-        command: Some("run submit".to_owned()),
-        analytics: Some(true),
-    }
-}
-
-fn digest(seed: &str) -> Digest {
-    Digest::sha256(seed.as_bytes())
-}
-
-async fn ledger_conformance(store: &dyn ImprovementStore, owner: &ProfileId) {
-    let other = profile(&format!("{}-other", owner.as_str()));
-    let record = manifest("MODEL-2026-11-17-01");
-
-    let created = store
-        .create(
-            owner.clone(),
-            record.clone(),
-            "2026-11-17T00:00:00Z".to_owned(),
-        )
-        .await
-        .expect("the pre-registration");
-    assert!(created.created());
-    assert_eq!(created.record().state, ImprovementRunState::Created);
-
-    let repeated = store
-        .create(
-            owner.clone(),
-            record.clone(),
-            "2026-11-17T00:00:01Z".to_owned(),
-        )
-        .await
-        .expect("the idempotent create");
-    assert!(!repeated.created());
-    assert_eq!(repeated.record().created_at, "2026-11-17T00:00:00Z");
-
-    let mut changed = record.clone();
-    changed.hypothesis = "a different hypothesis under the same id".to_owned();
-    assert!(
-        store
-            .create(owner.clone(), changed, "2026-11-17T00:00:02Z".to_owned())
-            .await
-            .is_err(),
-        "an existing improvement id must not be rewritten"
-    );
-
-    assert_eq!(
-        store
-            .get(other.clone(), "MODEL-2026-11-17-01".to_owned())
-            .await
-            .expect("the other profile read"),
-        None
-    );
-    assert!(
-        store
-            .list(other.clone(), 10)
-            .await
-            .expect("the other profile list")
-            .is_empty()
-    );
-
-    assert!(
-        store
-            .decide(
-                owner.clone(),
-                "MODEL-2026-11-17-01".to_owned(),
-                ImprovementDecision::Accepted,
-                "not yet submitted".to_owned(),
-                "2026-11-17T00:10:00Z".to_owned(),
-            )
-            .await
-            .is_err(),
-        "a decision needs a submitted pipeline run"
-    );
-
-    let run_id = RunId(digest("the pipeline run"));
-    let canonical = digest("the canonical result");
-    let submitted = store
-        .link_pipeline_run(
-            owner.clone(),
-            "MODEL-2026-11-17-01".to_owned(),
-            run_id.clone(),
-            canonical.clone(),
-            "2026-11-17T00:05:00Z".to_owned(),
-        )
-        .await
-        .expect("the pipeline link");
-    assert_eq!(submitted.state, ImprovementRunState::Submitted);
-    assert_eq!(submitted.pipeline_run_id, Some(run_id));
-    assert_eq!(submitted.canonical_digest, Some(canonical));
-
-    assert!(
-        store
-            .link_pipeline_run(
-                owner.clone(),
-                "MODEL-2026-11-17-01".to_owned(),
-                RunId(digest("another run")),
-                digest("another result"),
-                "2026-11-17T00:06:00Z".to_owned(),
-            )
-            .await
-            .is_err(),
-        "a pipeline link is recorded once"
-    );
-
-    assert!(
-        store
-            .decide(
-                owner.clone(),
-                "MODEL-2026-11-17-01".to_owned(),
-                ImprovementDecision::Accepted,
-                "   ".to_owned(),
-                "2026-11-17T00:10:00Z".to_owned(),
-            )
-            .await
-            .is_err(),
-        "a decision needs a note"
-    );
-
-    let decided = store
-        .decide(
-            owner.clone(),
-            "MODEL-2026-11-17-01".to_owned(),
-            ImprovementDecision::Accepted,
-            "the pre-registered criteria passed".to_owned(),
-            "2026-11-17T00:10:00Z".to_owned(),
-        )
-        .await
-        .expect("the human decision");
-    assert_eq!(decided.state, ImprovementRunState::Decided);
-    assert_eq!(decided.decision, Some(ImprovementDecision::Accepted));
-    assert_eq!(
-        decided.decision_note.as_deref(),
-        Some("the pre-registered criteria passed")
-    );
-
-    assert!(
-        store
-            .decide(
-                owner.clone(),
-                "MODEL-2026-11-17-01".to_owned(),
-                ImprovementDecision::Rejected,
-                "a second decision".to_owned(),
-                "2026-11-17T00:11:00Z".to_owned(),
-            )
-            .await
-            .is_err(),
-        "a decision is recorded once"
-    );
-
-    let listed = store.list(owner.clone(), 10).await.expect("the list");
-    assert_eq!(listed.len(), 1);
-    assert_eq!(listed[0].state, ImprovementRunState::Decided);
-    assert_eq!(listed[0].decision, Some(ImprovementDecision::Accepted));
-}
+use research_ledger_support::{
+    baseline, digest, invalidation, ledger_conformance, manifest, profile, registry_conformance,
+};
 
 #[tokio::test]
 async fn the_memory_ledger_conforms() {
@@ -204,57 +25,9 @@ async fn the_memory_ledger_conforms() {
 }
 
 #[tokio::test]
-async fn the_memory_baselines_are_profile_scoped_and_append_only() {
+async fn the_memory_registries_conform() {
     let store = MemoryImprovementStore::default();
-    let seeded = seeded_baselines();
-    let first = seeded[0].clone();
-    for baseline in seeded {
-        store.add_baseline(profile("baseline-owner"), baseline);
-    }
-    let mut replacement = first.clone();
-    replacement.scope = "a rewritten scope".to_owned();
-    store.add_baseline(profile("baseline-owner"), replacement);
-    let rows = store
-        .baselines(profile("baseline-owner"))
-        .await
-        .expect("the baselines");
-    assert_eq!(rows.len(), 3);
-    assert_eq!(rows[0].accepted_by, "Human");
-    assert_eq!(
-        rows.iter().find(|row| row.baseline_id == first.baseline_id),
-        Some(&first),
-        "the first baseline row wins"
-    );
-    assert!(
-        store
-            .baselines(profile("another-owner"))
-            .await
-            .expect("the other baselines")
-            .is_empty()
-    );
-}
-
-#[tokio::test]
-async fn the_memory_invalidations_are_append_only() {
-    let store = MemoryImprovementStore::default();
-    let owner = profile("invalidation-owner");
-    let first = InvalidationRecord {
-        invalidation_id: "MODEL-2026-11-10-01".to_owned(),
-        date: "2026-11-10".to_owned(),
-        commit: "worktree".to_owned(),
-        removed: "MODEL-2026-11-10-01".to_owned(),
-        reason: "the first reason".to_owned(),
-        superseded_by: None,
-        created_at: "2026-11-10T00:00:00Z".to_owned(),
-    };
-    let mut replacement = first.clone();
-    replacement.reason = "a rewritten reason".to_owned();
-    store.add_invalidation(owner.clone(), first.clone());
-    store.add_invalidation(owner.clone(), replacement);
-    assert_eq!(
-        store.invalidations(owner).await.expect("the invalidations"),
-        vec![first]
-    );
+    registry_conformance(&store, &profile("memory-registry")).await;
 }
 
 #[tokio::test]
@@ -266,6 +39,19 @@ async fn the_sqlite_ledger_conforms() {
     ledger_conformance(
         &SqliteImprovementStore::new(database),
         &profile("sqlite-ledger"),
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn the_sqlite_registries_conform() {
+    let database = SqliteDatabase::open_in_memory().expect("the database opens");
+    apply_migrations_in(&database, "runs", &migrations::sqlite())
+        .await
+        .expect("the evidence baseline");
+    registry_conformance(
+        &SqliteImprovementStore::new(database),
+        &profile("sqlite-registry"),
     )
     .await;
 }
@@ -335,13 +121,110 @@ async fn the_sqlite_ledger_reads_the_seeded_registries() {
 }
 
 #[tokio::test]
-async fn the_sqlite_ledger_is_append_only() {
+async fn the_sqlite_ledger_requires_a_digest_only_for_acceptance() {
     let database = SqliteDatabase::open_in_memory().expect("the database opens");
     apply_migrations_in(&database, "runs", &migrations::sqlite())
         .await
         .expect("the evidence baseline");
     let store = SqliteImprovementStore::new(database.clone());
-    let owner = profile("append-only");
+    let owner = profile("acceptance-digest");
+    let rejected_id = "MODEL-2026-11-17-01";
+    let accepted_id = "MODEL-2026-11-17-02";
+    let raw_id = "MODEL-2026-11-17-03";
+    for id in [rejected_id, accepted_id, raw_id] {
+        store
+            .create(
+                owner.clone(),
+                manifest(id),
+                "2026-11-17T00:00:00Z".to_owned(),
+            )
+            .await
+            .expect("the pre-registration");
+        store
+            .link_run(
+                owner.clone(),
+                id.to_owned(),
+                RunId(digest(id)),
+                "2026-11-17T00:05:00Z".to_owned(),
+            )
+            .await
+            .expect("the pipeline link");
+    }
+
+    let missing = store
+        .decide(
+            owner.clone(),
+            rejected_id.to_owned(),
+            ImprovementDecision::Accepted,
+            "accepted without a digest".to_owned(),
+            "2026-11-17T00:10:00Z".to_owned(),
+        )
+        .await
+        .expect_err("accepted without a digest");
+    assert!(
+        missing.to_string().contains("canonical digest"),
+        "{missing}"
+    );
+
+    let rejected = store
+        .decide(
+            owner.clone(),
+            rejected_id.to_owned(),
+            ImprovementDecision::Rejected,
+            "rejected without a digest".to_owned(),
+            "2026-11-17T00:10:00Z".to_owned(),
+        )
+        .await
+        .expect("a rejected decision without a digest");
+    assert_eq!(rejected.canonical_digest, None);
+
+    store
+        .link_digest(
+            owner.clone(),
+            accepted_id.to_owned(),
+            digest("the accepted digest"),
+        )
+        .await
+        .expect("the accepted digest");
+    let accepted = store
+        .decide(
+            owner.clone(),
+            accepted_id.to_owned(),
+            ImprovementDecision::Accepted,
+            "accepted after the digest".to_owned(),
+            "2026-11-17T00:10:00Z".to_owned(),
+        )
+        .await
+        .expect("an accepted decision after the digest");
+    assert!(accepted.canonical_digest.is_some());
+
+    let owner_id = owner.as_str().to_owned();
+    let raw_accept = database
+        .call(move |connection| {
+            connection.execute(
+                "UPDATE research__improvement_runs
+                    SET state = 'decided', decision = 'accepted',
+                        decision_note = 'accepted without a digest',
+                        decided_at = '2026-11-17T00:10:00Z'
+                  WHERE profile_id = ?1 AND improvement_id = ?2",
+                rusqlite::params![owner_id, "MODEL-2026-11-17-03"],
+            )
+        })
+        .await;
+    assert!(
+        raw_accept.is_err(),
+        "the schema refuses accepted without a digest"
+    );
+}
+
+#[tokio::test]
+async fn the_sqlite_ledger_records_the_link_and_digest_once() {
+    let database = SqliteDatabase::open_in_memory().expect("the database opens");
+    apply_migrations_in(&database, "runs", &migrations::sqlite())
+        .await
+        .expect("the evidence baseline");
+    let store = SqliteImprovementStore::new(database.clone());
+    let owner = profile("link-once");
     store
         .create(
             owner.clone(),
@@ -350,6 +233,15 @@ async fn the_sqlite_ledger_is_append_only() {
         )
         .await
         .expect("the pre-registration");
+    store
+        .link_run(
+            owner.clone(),
+            "MODEL-2026-11-17-01".to_owned(),
+            RunId(digest("the first run")),
+            "2026-11-17T00:05:00Z".to_owned(),
+        )
+        .await
+        .expect("the pipeline link");
 
     let manifest_owner = owner.as_str().to_owned();
     let manifest_update = database
@@ -395,88 +287,6 @@ async fn the_sqlite_ledger_is_append_only() {
         "the pre-registration time is immutable"
     );
 
-    let baseline_update = database
-        .call(|connection| {
-            connection.execute(
-                "UPDATE research__baselines SET scope = 'changed'
-                  WHERE profile_id = 'default'
-                    AND baseline_id = 'MODEL-2026-11-04-04..05'",
-                [],
-            )
-        })
-        .await;
-    assert!(baseline_update.is_err(), "a baseline is append-only");
-
-    let baseline_delete = database
-        .call(|connection| {
-            connection.execute(
-                "DELETE FROM research__baselines
-                  WHERE profile_id = 'default'
-                    AND baseline_id = 'MODEL-2026-11-04-04..05'",
-                [],
-            )
-        })
-        .await;
-    assert!(baseline_delete.is_err(), "a baseline cannot be deleted");
-
-    let invalidation_update = database
-        .call(|connection| {
-            connection.execute(
-                "UPDATE research__invalidations SET reason = 'changed'
-                  WHERE profile_id = 'default'
-                    AND invalidation_id = 'docs/improvement/2026-11-10/SR10.md'",
-                [],
-            )
-        })
-        .await;
-    assert!(
-        invalidation_update.is_err(),
-        "an invalidation is append-only"
-    );
-
-    let invalidation_delete = database
-        .call(|connection| {
-            connection.execute(
-                "DELETE FROM research__invalidations
-                  WHERE profile_id = 'default'
-                    AND invalidation_id = 'docs/improvement/2026-11-10/SR10.md'",
-                [],
-            )
-        })
-        .await;
-    assert!(
-        invalidation_delete.is_err(),
-        "an invalidation cannot be deleted"
-    );
-}
-
-#[tokio::test]
-async fn the_sqlite_ledger_records_a_link_once() {
-    let database = SqliteDatabase::open_in_memory().expect("the database opens");
-    apply_migrations_in(&database, "runs", &migrations::sqlite())
-        .await
-        .expect("the evidence baseline");
-    let store = SqliteImprovementStore::new(database.clone());
-    let owner = profile("link-once");
-    store
-        .create(
-            owner.clone(),
-            manifest("MODEL-2026-11-17-01"),
-            "2026-11-17T00:00:00Z".to_owned(),
-        )
-        .await
-        .expect("the pre-registration");
-    store
-        .link_pipeline_run(
-            owner.clone(),
-            "MODEL-2026-11-17-01".to_owned(),
-            RunId(digest("the first run")),
-            digest("the first result"),
-            "2026-11-17T00:05:00Z".to_owned(),
-        )
-        .await
-        .expect("the pipeline link");
-
     let owner_id = owner.as_str().to_owned();
     let relink = database
         .call(move |connection| {
@@ -493,6 +303,174 @@ async fn the_sqlite_ledger_records_a_link_once() {
         })
         .await;
     assert!(relink.is_err(), "a pipeline link is recorded once");
+
+    let submitted_at_owner = owner.as_str().to_owned();
+    let resubmit = database
+        .call(move |connection| {
+            connection.execute(
+                "UPDATE research__improvement_runs
+                    SET submitted_at = '2026-11-17T00:07:00Z'
+                  WHERE profile_id = ?1 AND improvement_id = ?2",
+                rusqlite::params![submitted_at_owner, "MODEL-2026-11-17-01"],
+            )
+        })
+        .await;
+    assert!(resubmit.is_err(), "the submission time is immutable");
+
+    store
+        .link_digest(
+            owner.clone(),
+            "MODEL-2026-11-17-01".to_owned(),
+            digest("the first result"),
+        )
+        .await
+        .expect("the canonical digest");
+
+    let digest_owner = owner.as_str().to_owned();
+    let change_digest = database
+        .call(move |connection| {
+            connection.execute(
+                "UPDATE research__improvement_runs
+                    SET canonical_digest = ?3
+                  WHERE profile_id = ?1 AND improvement_id = ?2",
+                rusqlite::params![
+                    digest_owner,
+                    "MODEL-2026-11-17-01",
+                    digest("the second result").to_string()
+                ],
+            )
+        })
+        .await;
+    assert!(change_digest.is_err(), "the canonical digest is immutable");
+}
+
+#[tokio::test]
+async fn the_sqlite_registries_are_append_only() {
+    let database = SqliteDatabase::open_in_memory().expect("the database opens");
+    apply_migrations_in(&database, "runs", &migrations::sqlite())
+        .await
+        .expect("the evidence baseline");
+    let store = SqliteImprovementStore::new(database.clone());
+    let owner = profile("sqlite-append-only");
+    let baseline = baseline(owner.as_str());
+    store
+        .add_baseline(owner.clone(), baseline.clone())
+        .await
+        .expect("the baseline append");
+    let invalidation = invalidation(owner.as_str());
+    store
+        .add_invalidation(owner.clone(), invalidation.clone())
+        .await
+        .expect("the invalidation append");
+
+    let baseline_owner = owner.as_str().to_owned();
+    let baseline_id = baseline.baseline_id.clone();
+    let baseline_update = database
+        .call(move |connection| {
+            connection.execute(
+                "UPDATE research__baselines SET scope = 'changed'
+                  WHERE profile_id = ?1 AND baseline_id = ?2",
+                rusqlite::params![baseline_owner, baseline_id],
+            )
+        })
+        .await;
+    assert!(baseline_update.is_err(), "a baseline is append-only");
+
+    let baseline_owner = owner.as_str().to_owned();
+    let baseline_id = baseline.baseline_id.clone();
+    let baseline_delete = database
+        .call(move |connection| {
+            connection.execute(
+                "DELETE FROM research__baselines
+                  WHERE profile_id = ?1 AND baseline_id = ?2",
+                rusqlite::params![baseline_owner, baseline_id],
+            )
+        })
+        .await;
+    assert!(baseline_delete.is_err(), "a baseline cannot be deleted");
+
+    let invalidation_owner = owner.as_str().to_owned();
+    let invalidation_id = invalidation.invalidation_id.clone();
+    let invalidation_update = database
+        .call(move |connection| {
+            connection.execute(
+                "UPDATE research__invalidations SET reason = 'changed'
+                  WHERE profile_id = ?1 AND invalidation_id = ?2",
+                rusqlite::params![invalidation_owner, invalidation_id],
+            )
+        })
+        .await;
+    assert!(
+        invalidation_update.is_err(),
+        "an invalidation is append-only"
+    );
+
+    let invalidation_owner = owner.as_str().to_owned();
+    let invalidation_id = invalidation.invalidation_id.clone();
+    let invalidation_delete = database
+        .call(move |connection| {
+            connection.execute(
+                "DELETE FROM research__invalidations
+                  WHERE profile_id = ?1 AND invalidation_id = ?2",
+                rusqlite::params![invalidation_owner, invalidation_id],
+            )
+        })
+        .await;
+    assert!(
+        invalidation_delete.is_err(),
+        "an invalidation cannot be deleted"
+    );
+
+    assert_eq!(
+        store.baselines(owner.clone()).await.expect("the baselines"),
+        vec![baseline]
+    );
+    assert_eq!(
+        store.invalidations(owner).await.expect("the invalidations"),
+        vec![invalidation]
+    );
+}
+
+#[tokio::test]
+async fn the_sqlite_ledger_refuses_a_direct_created_to_decided_update() {
+    let database = SqliteDatabase::open_in_memory().expect("the database opens");
+    apply_migrations_in(&database, "runs", &migrations::sqlite())
+        .await
+        .expect("the evidence baseline");
+    let store = SqliteImprovementStore::new(database.clone());
+    let owner = profile("skip-submit");
+    store
+        .create(
+            owner.clone(),
+            manifest("MODEL-2026-11-17-01"),
+            "2026-11-17T00:00:00Z".to_owned(),
+        )
+        .await
+        .expect("the pre-registration");
+
+    let owner_id = owner.as_str().to_owned();
+    let update = database
+        .call(move |connection| {
+            connection.execute(
+                "UPDATE research__improvement_runs
+                    SET pipeline_run_id = ?3,
+                        canonical_digest = ?4,
+                        submitted_at = '2026-11-17T00:05:00Z',
+                        state = 'decided',
+                        decision = 'accepted',
+                        decision_note = 'skipped submit',
+                        decided_at = '2026-11-17T00:10:00Z'
+                  WHERE profile_id = ?1 AND improvement_id = ?2",
+                rusqlite::params![
+                    owner_id,
+                    "MODEL-2026-11-17-01",
+                    RunId(digest("the run")).to_string(),
+                    digest("the digest").to_string()
+                ],
+            )
+        })
+        .await;
+    assert!(update.is_err(), "created must move to submitted first");
 }
 
 #[tokio::test]
@@ -515,6 +493,11 @@ async fn the_postgres_ledger_conforms() {
     let store = PgImprovementStore::new(database.pool().clone());
     let owner = profile(&format!("pg-ledger-{}", std::process::id()));
     ledger_conformance(&store, &owner).await;
+    registry_conformance(
+        &store,
+        &profile(&format!("pg-registry-{}", std::process::id())),
+    )
+    .await;
 
     let baselines = store
         .baselines(profile("default"))
@@ -546,24 +529,74 @@ async fn the_postgres_ledger_conforms() {
     .await;
     assert!(relink.is_err(), "a pipeline link is recorded once");
 
+    let change_digest = sqlx::query(
+        "UPDATE research.improvement_runs SET canonical_digest = $2
+          WHERE profile_id = $1 AND improvement_id = 'MODEL-2026-11-17-01'",
+    )
+    .bind(owner.as_str())
+    .bind(digest("another result").to_string())
+    .execute(database.pool())
+    .await;
+    assert!(change_digest.is_err(), "a canonical digest is immutable");
+
+    let registry_owner = profile(&format!("pg-append-{}", std::process::id()));
+    let baseline = baseline(registry_owner.as_str());
+    let invalidation = invalidation(registry_owner.as_str());
+    store
+        .add_baseline(registry_owner.clone(), baseline.clone())
+        .await
+        .expect("the baseline append");
+    store
+        .add_invalidation(registry_owner.clone(), invalidation.clone())
+        .await
+        .expect("the invalidation append");
+
     let baseline_update = sqlx::query(
         "UPDATE research.baselines SET scope = 'changed'
-          WHERE profile_id = 'default'
-            AND baseline_id = 'MODEL-2026-11-04-04..05'",
+          WHERE profile_id = $1 AND baseline_id = $2",
     )
+    .bind(registry_owner.as_str())
+    .bind(&baseline.baseline_id)
     .execute(database.pool())
     .await;
     assert!(baseline_update.is_err(), "a baseline is append-only");
 
     let invalidation_delete = sqlx::query(
         "DELETE FROM research.invalidations
-          WHERE profile_id = 'default'
-            AND invalidation_id = 'docs/improvement/2026-11-10/SR10.md'",
+          WHERE profile_id = $1 AND invalidation_id = $2",
     )
+    .bind(registry_owner.as_str())
+    .bind(&invalidation.invalidation_id)
     .execute(database.pool())
     .await;
     assert!(
         invalidation_delete.is_err(),
         "an invalidation cannot be deleted"
     );
+
+    let skip_submit_owner = profile(&format!("pg-skip-{}", std::process::id()));
+    store
+        .create(
+            skip_submit_owner.clone(),
+            manifest("MODEL-2026-11-17-01"),
+            "2026-11-17T00:00:00Z".to_owned(),
+        )
+        .await
+        .expect("the skip-submit pre-registration");
+    let skip_submit = sqlx::query(
+        "UPDATE research.improvement_runs
+            SET pipeline_run_id = $2, canonical_digest = $3,
+                submitted_at = $4::timestamptz, state = 'decided',
+                decision = 'accepted', decision_note = 'skipped submit',
+                decided_at = $5::timestamptz
+          WHERE profile_id = $1 AND improvement_id = 'MODEL-2026-11-17-01'",
+    )
+    .bind(skip_submit_owner.as_str())
+    .bind(RunId(digest("the run")).to_string())
+    .bind(digest("the digest").to_string())
+    .bind("2026-11-17T00:05:00Z")
+    .bind("2026-11-17T00:10:00Z")
+    .execute(database.pool())
+    .await;
+    assert!(skip_submit.is_err(), "created must move to submitted first");
 }
