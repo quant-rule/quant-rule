@@ -3,13 +3,13 @@
 //! A sequence event is emitted only on the confirmation bar of the pivot that
 //! extends the sequence. Its `occurred_bar_index` is the pivot's occurrence bar
 //! and its `available_bar_index` is the confirmation bar. A reading that stays
-//! constant between pivots does not re-emit. The detector reads confirmed major
-//! pivots only, so a candidate or a future pivot can never affect an earlier
-//! event.
+//! constant between pivots does not re-emit. The detector reads confirmed
+//! pivots of the configured structure scale only, so a candidate or a future
+//! pivot can never affect an earlier event.
 
 use super::{
-    EventRecord, EventType, ExtendedEventConfig, ExtendedReadings, PivotKind, PivotScale, Readings,
-    codes, push_confirmed,
+    EventRecord, EventType, ExtendedEventConfig, ExtendedReadings, PivotKind, Readings, codes,
+    push_confirmed,
 };
 pub use crate::events::source_codes::PIVOT_SEQUENCE_SOURCE_CODE;
 
@@ -21,7 +21,7 @@ pub(super) fn structure_sequence_events(
     bar: usize,
     events: &mut Vec<EventRecord>,
 ) {
-    let Some(pivot) = readings.pivots.confirmed_at(PivotScale::Major, bar) else {
+    let Some(pivot) = readings.pivots.confirmed_at(config.structure_scale(), bar) else {
         return;
     };
     let timeframe = config.timeframe_secs();

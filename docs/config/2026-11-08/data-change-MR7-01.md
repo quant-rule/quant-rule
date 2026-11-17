@@ -42,6 +42,10 @@ The full quality evidence is in
 - Instruments: `COPPERCMDUSD`, `TSLAUSUSD`.
 - Aliases: `COPPER` → `COPPERCMDUSD`; `TSLA` → `TSLAUSUSD`.
 - Holdout: unchanged; these instruments inherit the declared partition windows.
+- **2026-11-17 correction:** `portfolio_holdout` excludes `COPPERCMDUSD` and
+  `TSLAUSUSD` because the committed coverage ends 2024-12-31; a 2025 COPPER
+  source is not admitted. This is a Data Steward correction, and no accepted
+  baseline uses the holdout.
 
 ## Admissibility
 

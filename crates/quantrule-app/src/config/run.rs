@@ -14,6 +14,7 @@
 use std::io;
 use std::path::{Path, PathBuf};
 
+use quantrule_api::Digest;
 use quantrule_backtest::portfolio::PortfolioConfig;
 use quantrule_data::Timeframe;
 use quantrule_model::input::MarketStateConfig;
@@ -43,6 +44,10 @@ pub struct RunConfig {
     pub schema_version: String,
     /// A stable fingerprint of the config files.
     pub config_hash: String,
+    /// The model-input identity: data version label, model config bytes, and
+    /// the effective model ladder. It is invariant under a strategy-only
+    /// change, so a model bundle can be reused across strategy cells.
+    pub model_input_hash: String,
     /// The resolved config paths.
     pub paths: ConfigPaths,
     /// The optional model identity, such as `M1.0`.
@@ -127,11 +132,13 @@ impl RunConfig {
         };
 
         let config_hash = fingerprint(&paths)?;
+        let model_input_hash = model_input_hash(&paths, &data, run.model_timeframes.as_deref())?;
         let config = Self {
             name: run.name,
             schema_version: run.schema,
             output_root: base.join(&run.output_root),
             config_hash,
+            model_input_hash,
             paths,
             model_id: run.model_id,
             execution_id: run.execution_id,
@@ -199,6 +206,14 @@ impl RunConfig {
                 .strategy
                 .as_ref()
                 .map_or("strategy.json", |path| file_name(path));
+            if strategy.execution_timeframe != self.execution.fill_timeframe {
+                return Err(ConfigError::inconsistent(
+                    strategy_file,
+                    "$.execution_timeframe",
+                    self.execution.fill_timeframe.code(),
+                    strategy.execution_timeframe.code(),
+                ));
+            }
             if !self
                 .data
                 .available_timeframes
@@ -417,15 +432,13 @@ fn load_document(path: &Path, file: &str) -> Result<Value, ConfigError> {
     serde_json::from_str(&text).map_err(|error| ConfigError::invalid_json(file, &error.to_string()))
 }
 
-/// A stable FNV-1a fingerprint of the config file bytes.
+/// The canonical SHA-256 identity of the config file bytes.
 ///
-/// The hash is an identity aid, not a security primitive. It is stable for the
-/// same bytes and the same binary, and it is recorded in provenance so a later
-/// run can be shown to have used the same engine files.
+/// The data service hashes the same files with the same order and a NUL
+/// separator, so the catalog's `config_hash`, the run record, and the stage
+/// provenance name one value. The hash is an identity, not a security
+/// primitive; it is stable for the same bytes.
 fn fingerprint(paths: &ConfigPaths) -> Result<String, ConfigError> {
-    const OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
-    const PRIME: u64 = 0x0000_0100_0000_01b3;
-    let mut hash = OFFSET;
     let mut files: Vec<&PathBuf> = vec![
         &paths.run,
         &paths.data,
@@ -436,21 +449,42 @@ fn fingerprint(paths: &ConfigPaths) -> Result<String, ConfigError> {
     if let Some(strategy) = &paths.strategy {
         files.push(strategy);
     }
+    let mut bytes = Vec::new();
     for path in files {
-        let bytes = std::fs::read(path).map_err(|error| match error.kind() {
+        let content = std::fs::read(path).map_err(|error| match error.kind() {
             io::ErrorKind::NotFound => ConfigError::missing_file(file_name(path)),
             _ => ConfigError::unreadable_file(file_name(path)),
         })?;
-        for byte in bytes {
-            hash ^= u64::from(byte);
-            hash = hash.wrapping_mul(PRIME);
-        }
+        bytes.extend_from_slice(&content);
         // A separator prevents the concatenation of two files from colliding
-        // with a different split.
-        hash ^= 0xff;
-        hash = hash.wrapping_mul(PRIME);
+        // with a different split. The data service uses the same byte.
+        bytes.push(0);
     }
-    Ok(format!("{hash:016x}"))
+    Ok(Digest::sha256(&bytes).to_string())
+}
+
+/// The model-input identity: the data version label, the model config bytes,
+/// and the effective model ladder.
+///
+/// The full [`fingerprint`] covers the strategy and every execution and
+/// portfolio file, so it changes when a strategy cell changes. The model
+/// artifact must survive that change; this hash covers only the inputs the
+/// model consumes.
+fn model_input_hash(
+    paths: &ConfigPaths,
+    data: &DataConfig,
+    model_ladder: Option<&[Timeframe]>,
+) -> Result<String, ConfigError> {
+    let model_bytes = std::fs::read(&paths.model).map_err(|error| match error.kind() {
+        io::ErrorKind::NotFound => ConfigError::missing_file(file_name(&paths.model)),
+        _ => ConfigError::unreadable_file(file_name(&paths.model)),
+    })?;
+    let ladder: Vec<String> = model_ladder
+        .unwrap_or(&data.available_timeframes)
+        .iter()
+        .map(|timeframe| timeframe.code().to_owned())
+        .collect();
+    Ok(quantrule_api::model_input_hash(&data.data_version, &model_bytes, &ladder).to_string())
 }
 
 /// Whether `identity` is `<prefix><major>.<minor>` with decimal components.

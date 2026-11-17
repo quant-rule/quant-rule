@@ -18,10 +18,11 @@ impl ExecutionEngine {
             return Ok(());
         }
 
-        // On the entry bar the position did not exist at the open, so the
-        // open cannot gap through a level. Evaluate the bar's range from the
-        // fill instead; a stop tighter than the slippage otherwise fills at a
-        // pre-entry price and silently worsens the exit.
+        // On the entry bar OHLC cannot prove whether the bar's low or high
+        // occurred before or after the entry trigger. The conservative
+        // convention treats the bracket as live for the whole entry bar: a
+        // range that crosses the stop records a stop-out. This can reject a
+        // candidate but cannot invent a fill, and it is the documented rule.
         let (reference, reason, trigger_price, side) = if index == position.entry_bar {
             match position.side {
                 Side::Long => {

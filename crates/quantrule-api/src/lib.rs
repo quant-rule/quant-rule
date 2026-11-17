@@ -29,7 +29,7 @@ pub use catalog::{
     ConfigOrigin, ConfigSummary, DatasetRecord, DatasetSummary, QualityReport, SkippedRow,
     TimeframeBars, TimeframeInspection, UploadConfigRequest,
 };
-pub use digest::{Digest, DigestError};
+pub use digest::{Digest, DigestError, model_input_hash};
 pub use error::{ApiError, ErrorCode, ErrorEnvelope};
 pub use health::{HealthReport, ServiceHealth, ServiceState, VersionInfo};
 pub use improvement::{

@@ -439,7 +439,7 @@ async fn a_queued_run_matches_the_coupled_baseline() {
     // this line before it can reach a run.
     assert_eq!(
         fixture.baseline_digest.to_string(),
-        "sha256:c23925d44bbd1ea35757b3893eb9361e8864ce327e8db3f6e023630cdfaa72bf"
+        "sha256:32dc2c72bfa54569067b0beedacd2c97e06d87532da6f32930f068732e73e26f"
     );
     assert_eq!(
         process(fixture.run_id.clone(), false, &fixture.services)

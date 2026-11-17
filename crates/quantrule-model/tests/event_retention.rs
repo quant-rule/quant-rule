@@ -43,8 +43,17 @@ fn a_long_run_bounds_the_history_without_dropping_the_batch() {
     )
     .expect("the generated series produces a model");
 
-    let batch = model.events();
+    let batch = model.event_batch().as_slice();
     let history = model.event_history();
+    assert!(
+        !model.extended_events().is_empty(),
+        "the fixture must produce an extended event"
+    );
+    assert_eq!(
+        batch.len(),
+        model.events().len() + model.extended_events().events().len(),
+        "the full batch must carry the core and extended events"
+    );
     assert!(
         batch.len() > EVENT_SNAPSHOT_LIMIT,
         "the fixture must produce more than the snapshot limit, got {}",

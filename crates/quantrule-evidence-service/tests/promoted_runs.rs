@@ -66,11 +66,24 @@ fn bundle(config_id: &str, hash_seed: &[u8], model: &str) -> ConfigBundle {
         config_id: config_id.to_owned(),
         files: BTreeMap::from([(
             "run.json".to_owned(),
-            format!(r#"{{"model_id":"{model}"}}"#),
+            format!(r#"{{"schema":"quantrule.run/v4","model_id":"{model}"}}"#),
         )]),
         valid: true,
         message: None,
         config_hash: Some(digest(hash_seed)),
+    }
+}
+
+fn v3_bundle() -> ConfigBundle {
+    ConfigBundle {
+        config_id: "cfg_v3".to_owned(),
+        files: BTreeMap::from([(
+            "run.json".to_owned(),
+            r#"{"schema":"quantrule.run/v3","model_id":"M1.0"}"#.to_owned(),
+        )]),
+        valid: true,
+        message: None,
+        config_hash: Some(digest(b"v3")),
     }
 }
 
@@ -86,10 +99,15 @@ async fn harness() -> Arc<EvidenceState> {
         }
         data.add_config(profile, bundle("cfg_valid", b"valid", "M1.0"));
         data.add_config(profile, bundle("cfg_changed", b"changed", "M1.0"));
+        data.add_config(profile, v3_bundle());
     }
     seed_stages(&stages).await;
+    let config = Config {
+        image_digest: Some(Digest::sha256(b"image")),
+        ..Config::default()
+    };
     Arc::new(EvidenceState::with_services(
-        &Config::default(),
+        &config,
         HealthRegistry::new(),
         EvidenceServices {
             data: Some(Arc::new(data)),
@@ -297,13 +315,53 @@ async fn a_promoted_run_reuses_a_succeeded_model_stage() {
 }
 
 #[tokio::test]
+
+async fn a_v3_coupled_config_is_rejected_at_submission() {
+    let state = harness().await;
+    let response = router(state)
+        .oneshot(
+            Request::post("/runs")
+                .header(PROFILE_HEADER, "default")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "data_version": digest(b"candles-a"),
+                        "config_id": "cfg_v3",
+                    })
+                    .to_string(),
+                ))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let envelope: ErrorEnvelope = decode(response).await;
+    assert_eq!(envelope.error.code, ErrorCode::ConfigInvalid);
+}
+
+#[tokio::test]
+async fn a_strategy_cell_may_submit_a_model_stage_from_another_config_hash() {
+    let state = harness().await;
+    let response = submit_promoted(
+        Arc::clone(&state),
+        "default",
+        &digest(b"candles-a"),
+        "cfg_valid",
+        &model_artifact(b"model-changed").artifact_id,
+    )
+    .await;
+    // The worker verifies the frozen model-input identity before reuse; the
+    // submission check deliberately does not reject a strategy-only config.
+    assert_eq!(response.status(), StatusCode::ACCEPTED);
+}
+
+#[tokio::test]
 async fn a_promoted_run_rejects_an_invalid_model_artifact() {
     let state = harness().await;
     for (artifact, message) in [
         (digest(b"missing"), "unknown"),
         (model_artifact(b"strategy").artifact_id, "another"),
         (model_artifact(b"model-data-b").artifact_id, "dataset"),
-        (model_artifact(b"model-changed").artifact_id, "config"),
         (model_artifact(b"model-m99").artifact_id, "model"),
     ] {
         let response = submit_promoted(

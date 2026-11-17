@@ -80,10 +80,13 @@ New stage bundles use `quantrule.stage-provenance/v1`:
 
 The existing model bundle keeps its `quantrule.provenance/v1` file, which carries
 `report`, `data_version`, `config_hash`, `config_files`, `config`, `period`, and
-`artifacts`. Its `config_hash` is the model stage's `config_id`. The model bundle
-does not carry `code_commit` or `source_artifacts` today; a later stage that
-consumes it records those in its own provenance. The model bundle is not
-rewritten by this contract.
+`artifacts`. Its `config_hash` is the model-input identity: the data version
+label, the model config bytes, and the effective model ladder. The strategy,
+execution, and portfolio files do not contribute, so a strategy-only change can
+reuse the same model artifact. The model stage keeps the full config identity in
+its own provenance. The model bundle does not carry `code_commit` or
+`source_artifacts` today; a later stage that consumes it records those in its own
+provenance. The model bundle is not rewritten by this contract.
 
 ## 3. Data stage
 
@@ -208,6 +211,14 @@ stop specification, the target specification, and the last bar on which the
 intent is valid. A bracket entry carries the two boundary prices. An exit intent
 carries `event_condition`, `time_stop`, or `giveback`. The strategy never sets a
 fill price.
+
+On the entry bar, OHLC cannot prove whether the bar's low or high occurred
+before or after the entry trigger. The execution contract uses the conservative
+convention: the bracket is live for the whole entry bar, so a bar range that
+crosses the stop records a stop-out; a range that reaches the target without
+crossing the stop records a take-profit. The convention applies
+to market and stop entries. It can reject a candidate, but it never invents a
+fill or claims the intrabar order was observed.
 
 The evidence list carries only published signal/context inputs:
 

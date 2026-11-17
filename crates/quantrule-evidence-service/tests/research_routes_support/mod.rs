@@ -57,6 +57,7 @@ pub struct Harness {
     pub runs: Arc<MemoryRuns>,
     pub objects: MemoryObjects,
     pub queue: MemoryQueue,
+    pub data: Arc<MemoryDataClient>,
     pub data_version: Digest,
     pub config_hash: Digest,
     pub image_digest: Digest,
@@ -86,7 +87,31 @@ fn config(id: &str, seed: &[u8], coupled: bool) -> ConfigBundle {
     };
     ConfigBundle {
         config_id: id.to_owned(),
-        files: BTreeMap::from([("run.json".to_owned(), run_json)]),
+        files: BTreeMap::from([
+            ("run.json".to_owned(), run_json),
+            (
+                "data.json".to_owned(),
+                r#"{"from":"2018-01-01","to":"2020-12-31"}"#.to_owned(),
+            ),
+        ]),
+        valid: true,
+        message: None,
+        config_hash: Some(Digest::sha256(seed)),
+    }
+}
+
+/// A coupled config with an explicit data window, for the partition test.
+pub fn config_with_window(id: &str, seed: &[u8], from: &str, to: &str) -> ConfigBundle {
+    let run_json = serde_json::json!({"model_id": "M1.0", "strategy": "strategy.json"}).to_string();
+    ConfigBundle {
+        config_id: id.to_owned(),
+        files: BTreeMap::from([
+            ("run.json".to_owned(), run_json),
+            (
+                "data.json".to_owned(),
+                serde_json::json!({"from": from, "to": to}).to_string(),
+            ),
+        ]),
         valid: true,
         message: None,
         config_hash: Some(Digest::sha256(seed)),
@@ -107,8 +132,13 @@ pub fn harness() -> Harness {
     let runs = Arc::new(MemoryRuns::default());
     let objects = MemoryObjects::default();
     let queue = MemoryQueue::default();
+    let image_digest = Digest::sha256(b"no-image-digest");
+    let config = Config {
+        image_digest: Some(image_digest.clone()),
+        ..Config::default()
+    };
     let state = Arc::new(EvidenceState::with_services(
-        &Config::default(),
+        &config,
         HealthRegistry::new(),
         EvidenceServices {
             improvements: Some(improvements.clone()),
@@ -125,9 +155,10 @@ pub fn harness() -> Harness {
         runs,
         objects,
         queue,
+        data,
         data_version,
         config_hash,
-        image_digest: Digest::sha256(b"no-image-digest"),
+        image_digest,
     }
 }
 
