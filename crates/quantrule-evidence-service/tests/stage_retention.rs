@@ -12,7 +12,9 @@ use quantrule_evidence_service::stage::{
 use quantrule_runtime::adapters::ObjectStore;
 use quantrule_runtime::adapters::memory::MemoryObjects;
 use quantrule_runtime::adapters::sqlite::{SqliteDatabase, apply_migrations_in};
+use quantrule_runtime::clock;
 use quantrule_service_api::StageManifest;
+use std::time::{Duration, UNIX_EPOCH};
 
 fn profile(name: &str) -> ProfileId {
     ProfileId::parse(name).expect("profile")
@@ -268,6 +270,35 @@ async fn the_sqlite_stage_tables_expire_without_touching_a_run() {
             .is_some(),
         "the SQLite retention deleted a run"
     );
+}
+
+#[tokio::test]
+async fn run_cleanup_reports_the_counts_and_utc_instant() {
+    let stages = MemoryStages::default();
+    let objects = MemoryObjects::default();
+    let created = stages
+        .create(profile("default"), stage(b"old", "2020-01-01T00:00:00Z"))
+        .await
+        .expect("stage");
+    write_stage_objects(&objects, created.record()).await;
+    let now = UNIX_EPOCH + Duration::from_secs(1_800_000_000);
+    let report = retention::run_cleanup(&stages, &objects, now, 30).await;
+    assert_eq!(report.completed_utc, clock::rfc3339(1_800_000_000));
+    assert_eq!(report.stages_removed, 1);
+    assert!(report.objects_removed >= 1);
+    assert_eq!(report.error, None);
+}
+
+#[tokio::test]
+async fn a_failed_cleanup_reports_the_error_and_zero_counts() {
+    let stages = MemoryStages::default();
+    let objects = MemoryObjects::default();
+    let before = UNIX_EPOCH - Duration::from_secs(1);
+    let report = retention::run_cleanup(&stages, &objects, before, 30).await;
+    assert_eq!(report.completed_utc, "1970-01-01T00:00:00Z");
+    assert_eq!(report.stages_removed, 0);
+    assert_eq!(report.objects_removed, 0);
+    assert!(report.error.is_some(), "a clock failure is reported");
 }
 
 #[tokio::test]

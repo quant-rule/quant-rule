@@ -27,9 +27,10 @@ use quantrule_service_api::DatasetObject;
 use tower::ServiceExt;
 
 /// Every endpoint the HTTP contract documents, with its success status.
-const DOCUMENTED_ENDPOINTS: [(&str, &str, u16); 43] = [
+const DOCUMENTED_ENDPOINTS: [(&str, &str, u16); 44] = [
     ("GET", "/health", 200),
     ("GET", "/version", 200),
+    ("GET", "/operations", 200),
     ("GET", "/profiles", 200),
     ("POST", "/profiles", 201),
     ("GET", "/hypotheses/{fingerprint}", 200),
@@ -78,7 +79,8 @@ const DOCUMENTED_ENDPOINTS: [(&str, &str, u16); 43] = [
 ];
 
 /// The record routes, which require a known profile.
-const RECORD_ENDPOINTS: [(&str, &str, u16); 39] = [
+const RECORD_ENDPOINTS: [(&str, &str, u16); 40] = [
+    ("GET", "/operations", 200),
     ("GET", "/hypotheses/{fingerprint}", 200),
     ("POST", "/hypotheses", 201),
     ("GET", "/catalog/datasets", 200),
@@ -199,6 +201,8 @@ fn documented_status(method: &Method, path: &str) -> Option<StatusCode> {
         ("GET", ["research", "baselines"]) => StatusCode::OK,
         ("GET", ["research", "baselines", _]) => StatusCode::OK,
         ("GET", ["research", "invalidations"]) => StatusCode::OK,
+        ("GET", ["operations"]) => StatusCode::OK,
+        ("GET", ["operations", _]) => StatusCode::OK,
         _ => return None,
     };
     Some(status)
@@ -604,6 +608,18 @@ async fn the_bearer_token_gates_the_api_but_not_the_client() {
     )
     .await;
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+
+    let response = send(
+        &state,
+        "GET",
+        "/operations",
+        Some("default"),
+        None,
+        Body::empty(),
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+
     assert!(
         fake.calls().is_empty(),
         "an unauthenticated call reached a service"
@@ -620,6 +636,18 @@ async fn the_bearer_token_gates_the_api_but_not_the_client() {
     .await;
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(fake.calls().len(), 1);
+
+    let response = send(
+        &state,
+        "GET",
+        "/operations",
+        Some("default"),
+        Some("s3cret"),
+        Body::empty(),
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(fake.calls().len(), 2);
     handle.abort();
 }
 

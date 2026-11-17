@@ -7,6 +7,7 @@
 
 pub mod hypotheses;
 pub mod internal;
+mod operations;
 mod research;
 pub mod runs;
 pub mod stage_internal;
@@ -56,6 +57,7 @@ fn routes() -> Router<Arc<EvidenceState>> {
     Router::new()
         .route("/health", get(health))
         .route("/version", get(version))
+        .route("/operations", get(operations::get_operations))
         .route("/runs", get(runs::list_runs).post(runs::submit_run))
         .route("/runs/{id}", get(runs::get_run))
         .route("/runs/{id}/cancel", post(runs::cancel_run))

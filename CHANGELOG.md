@@ -73,6 +73,14 @@ history is in Git and the pull requests.
   A model-tier research run is a coupled full run, the comparison reads only
   published numbers, and an accepted decision requires a succeeded run and
   digest.
+- The operations surface: `GET /operations` reports `QR_STAGE_RETENTION_DAYS`,
+  whether a stage store exists, the last startup cleanup's UTC instant, removed
+  stage and object counts, and an optional cleanup error; the evidence service
+  keeps the shared cleanup status; the gateway proxies `/operations`; the
+  browser Operations screen shows health, version, image digest, active profile,
+  token presence, retention, and a run-digest verification form. The
+  End-to-End Verification tutorial records `make up`, `make verify`, the expected
+  two-run digest, and the composed tier.
 
 ### Changed
 

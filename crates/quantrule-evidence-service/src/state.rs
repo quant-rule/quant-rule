@@ -13,6 +13,7 @@ use quantrule_runtime::adapters::{ObjectStore, Queue};
 use quantrule_runtime::client::DataClient;
 use quantrule_runtime::health::HealthRegistry;
 
+use crate::operations::OperationsStatus;
 use crate::research::{HypothesisStore, ImprovementStore};
 use crate::runs::RunStore;
 use crate::stage::StageStore;
@@ -58,6 +59,8 @@ pub struct EvidenceState {
     pub queue: Option<Arc<dyn Queue>>,
     /// The data service's typed reads; absent in a test that does not submit.
     pub data: Option<Arc<dyn DataClient>>,
+    /// The configured retention window and the last startup cleanup.
+    pub operations: Arc<OperationsStatus>,
 }
 
 impl std::fmt::Debug for EvidenceState {
@@ -85,6 +88,7 @@ impl EvidenceState {
         health: HealthRegistry,
         services: EvidenceServices,
     ) -> Self {
+        let stage_store = services.stages.is_some();
         Self {
             version: VersionInfo::current(env!("CARGO_PKG_VERSION"), config.image_digest.clone()),
             health,
@@ -95,6 +99,7 @@ impl EvidenceState {
             objects: services.objects,
             queue: services.queue,
             data: services.data,
+            operations: OperationsStatus::new(config.stage_retention_days, stage_store),
         }
     }
 }

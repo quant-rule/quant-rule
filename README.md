@@ -222,10 +222,12 @@ distributed release (v0.9.0, prepared as v1.0.0).
 | `simulation decide` | Research | Record test, refine, or stop |
 | `help` | Shell | Show the command map and contracts |
 
-### Target stage and research surface
+### Stage, research, and operations surface
 
-The next surface is additive: `research` records; `baseline` and `invalidation`
-reads. It is not implemented yet. The target is
+The stage and research surface is implemented: diagnostic stage runs, the
+coupled `run submit --model-artifact` path, and the research records, baselines,
+and invalidations. The operations surface adds `GET /operations` for retention
+and cleanup status and the browser Operations screen. The contract is
 [`docs/architecture/stage-surface.md`](docs/architecture/stage-surface.md).
 
 ## Principles
@@ -250,6 +252,7 @@ reads. It is not implemented yet. The target is
 | [`docs/architecture/kata.md`](docs/architecture/kata.md) | Why the product exists |
 | [`docs/architecture/characteristics.md`](docs/architecture/characteristics.md) | Measurable qualities and fitness functions |
 | [`docs/architecture/deployment.md`](docs/architecture/deployment.md) | How to run it |
+| [End-to-end verification tutorial](docs/tutorials/2026-11-17/end-to-end-verification.md) | Clean-stack proof and the two-run digest |
 | [`docs/workflows/README.md`](docs/workflows/README.md) | Workflow index |
 | [`docs/model/2026-11-10/model-m1.3.md`](docs/model/2026-11-10/model-m1.3.md) | Current model contract |
 | [`CHANGELOG.md`](CHANGELOG.md) | Grouped release history |

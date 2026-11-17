@@ -32,6 +32,7 @@ never renders a label, and never returns a raw engine type.
 | GET | `/profiles` | — | profiles with dataset, run, and simulation counts |
 | POST | `/profiles` | `profile_id`, `name` | `201` new, `200` existing, with the summary |
 | GET | `/version` | — | product version, image digest, contract versions |
+| GET | `/operations` | profile and token | diagnostic stage retention, stage-store presence, last cleanup instant, removed counts, optional error; requires the profile header and the bearer gate |
 | GET | `/hypotheses/{fingerprint}` | — | one sealed hypothesis in the profile |
 | POST | `/hypotheses` | hypothesis JSON | `201` with the sealed record |
 | GET | `/catalog/datasets` | — | list with `data_version`, candles, coverage |
@@ -55,11 +56,12 @@ never renders a label, and never returns a raw engine type.
 | `GET/POST` | `/research/runs`, `/research/runs/{id}`, `/research/runs/{id}/submit`, `/research/runs/{id}/compare`, `/research/runs/{id}/decision`, `/research/baselines`, `/research/baselines/{tier}`, `/research/invalidations` | v3 pre-registration, coupled submit, compare, decision, registries | records; `accepted` requires a succeeded run and digest |
 
 The gateway owns `/profiles` and proxies `/catalog/*`, `/datasets/*`,
-`/inspect/candles`, and `/inspect/timeframes` to `qr-data`. `/inspect/events`
-computes a model, so the gateway forwards it to `qr-model`'s internal event-batch
-route; the data service never runs a model. The gateway also proxies
-`/model/compute` to `qr-model`. A proxied response keeps its status, body, content type, and ETag; a closed
-upstream is `503 service.unavailable`. The data service trusts the injected profile.
+`/inspect/*`, `/model/compute`, `/runs/*`, `/stages/*`, `/research/*`, and
+`/operations` to their services with the injected profile. A proxied response
+keeps its status, body, content type, and ETag; a closed upstream is
+`503 service.unavailable`. `/inspect/events` goes to `qr-model`; the data
+service never runs a model. `/operations` is operational metadata: retention
+days and the last startup cleanup; an unrun cleanup is `null`.
 
 A count is bounded by the service's 200-record list page, not an invented total.
 
@@ -85,9 +87,8 @@ the stage provenance, computes `run_id`, writes `queued`, publishes
 
 `202` means new work. `200` means the identical run already exists. A run is
 content-addressed and shared: each profile that submits it gets a submission row,
-and the run itself is not duplicated. A duplicate submission publishes the
-message again, so a retry after a lost publish can recover; the worker treats a
-repeated message as a lookup.
+and the run is not duplicated. A duplicate submission publishes the message again,
+so a retry after a lost publish can recover; the worker treats it as a lookup.
 
 ## 4. Run detail
 
@@ -146,9 +147,8 @@ comparison names the context it reads.
 | `simulation.locked` | 409 | Marking after the decision is recorded |
 
 An upload is idempotent: the same bytes return the existing record and never
-create a second row. A config row carries the whole bundle, not only the run
-file, so a run can reproduce the configuration after the staging directory is
-gone.
+create a second row. A config row carries the whole bundle, so a run can
+reproduce the configuration after the staging directory is gone.
 
 ## 6. Simulation endpoints — the research plane
 

@@ -161,6 +161,8 @@ async fn a_run_detail_artifact_and_digest_path_is_forwarded() {
         "/research/baselines",
         "/research/baselines/model",
         "/research/invalidations",
+        "/operations",
+        "/operations/status",
     ] {
         let response = router(gateway(address).await)
             .oneshot(
@@ -252,6 +254,9 @@ async fn an_artifact_traversal_never_reaches_the_upstream() {
         "/api/v1/research/../internal",
         "/api/v1/research/%2e%2e/internal",
         "/api/v1/researchX",
+        "/api/v1/operations/../internal",
+        "/api/v1/operations/%2e%2e/internal",
+        "/api/v1/operationsX",
     ] {
         let response = router(gateway(address).await)
             .oneshot(

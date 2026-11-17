@@ -19,6 +19,7 @@ export const SECTIONS = [
   { id: "configs", label: "Configs", hint: "Hypotheses and runs" },
   { id: "runs", label: "Runs", hint: "Queued and finished" },
   { id: "research", label: "Research", hint: "Pre-registration and decisions" },
+  { id: "operations", label: "Operations", hint: "Health, retention, verification" },
   { id: "inspect", label: "Inspect", hint: "Candles, ladders, events" },
   { id: "simulation", label: "Simulation", hint: "Chart-first research" },
   { id: "help", label: "Help", hint: "Command reference" },

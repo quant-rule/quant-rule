@@ -39,7 +39,7 @@ repeating a status.
 | Pipeline | Every stage is implemented: data, model, strategy, execution, portfolio, backtest, qualification, analytics. |
 | Surfaces | Product 1.2.0 is a distributed platform with two clients: a Svelte browser client and a command shell, both on `quantrule.api/v1`, plus the Tauri desktop package over the gateway URL. The command shell is a thin gateway client with no engine dependency; the six services are packaged in one image and nine-container stack, and the desktop installer carries the same six sidecars on embedded backends. |
 | Command surface | 46 implemented commands on the gateway-client surface in [command-surface.md](architecture/command-surface.md), including the model, strategy, and portfolio stage commands added in #852–#854, the optional `run submit --model-artifact` flag added in #855, and the research and registry commands added in #857; the previous 27-command surface was released as v0.9.0 (prepared as v1.0.0). The discovery gate passes for the implemented set. |
-| Stage surface | The stage contract, schema, worker, gateway, and the model, strategy, and portfolio slices are implemented (#850–#854); promotion is implemented (#855), the research ledger and manifest v3 are implemented (#856), and the research commands and Research screen are implemented (#857); operations remains target (#858). [stage-surface.md](architecture/stage-surface.md). |
+| Stage surface | The stage contract, schema, worker, gateway, and the model, strategy, and portfolio slices are implemented (#850–#854); promotion is implemented (#855), the research ledger and manifest v3 are implemented (#856), the research commands and Research screen are implemented (#857), and the operations surface and end-to-end verification are implemented (#858). [stage-surface.md](architecture/stage-surface.md). |
 | Model | `M1.3` current; 49 indicators, 150 active events, 199 validation claims; accepted compression baselines; `M2.x` no edge; `M3.x` underpowered; `M4.x` no edge; `MR5.x` no edge; `MR6.x` no edge; `MR7.x` no edge. |
 | Strategy | No accepted strategy baseline; the tier is gated by an accepted model baseline. |
 | Portfolio | No accepted portfolio baseline; the tier is gated by an accepted strategy baseline. |
@@ -106,6 +106,7 @@ repeating a status.
 | Verify determinism tutorial | Current; the canonical digest and a repeat run | `docs/tutorials/2026-11-12/02-verify-determinism.md` |
 | Remote compute tutorial | Current; a second host and the gateway URL | `docs/tutorials/2026-11-12/03-remote-compute.md` |
 | Reviewer verification tutorial | Current; reproduce the data plane and compare the digest | `docs/tutorials/2026-11-15/reviewer-verification.md` |
+| End-to-end verification tutorial | Current; `make up`, `make verify`, the expected digest, and the composed tier | `docs/tutorials/2026-11-17/end-to-end-verification.md` |
 | Indicator verification matrix | Current; 49 rows, generated from the evidence map | `docs/model/2026-11-06/indicator-verification.md` |
 | Event verification matrix | Current; 150 rows, generated from the evidence map | `docs/model/2026-11-06/event-verification.md` |
 | Verification evidence map | Current; row/family/tool/n-a scope per class | `docs/registry/verification.json` |

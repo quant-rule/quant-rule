@@ -17,6 +17,7 @@ pub mod error;
 pub mod health;
 pub mod improvement;
 pub mod model;
+pub mod operations;
 pub mod profile;
 pub mod run;
 pub mod sha256;
@@ -39,6 +40,7 @@ pub use improvement::{
     InvalidationRecord,
 };
 pub use model::{EventBatch, EventRecord, ModelComputeRequest, ModelObject};
+pub use operations::{CleanupReport, OperationsReport};
 pub use profile::{
     CreateProfileRequest, DEFAULT_PROFILE, PROFILE_HEADER, ProfileId, ProfileSummary,
 };

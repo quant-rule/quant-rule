@@ -1,7 +1,7 @@
 # End-to-End Verification Workflow
 
 - Date: 2026-11-16 (UTC)
-- Status: Current
+- Status: Current; the operations surface and composed tier are implemented (#858)
 - Scope: proving a clean deployment works from health to a verified canonical digest
 - Owner: Release / Operations Verifier
 - Contract: [Release & Operations](release-operations.md), [Run Contract](run-contract.md)
@@ -81,7 +81,8 @@ make verify
 `make verify` submits the two equivalent configurations and prints one canonical
 digest. A reviewer compares the printed digest with the recorded one. The
 composed tier (`tools/test_tiers.sh composed`) runs the same comparison against
-the real stack and is required before a release.
+the real stack and is required before a release. The step-by-step procedure is
+the [end-to-end verification tutorial](../tutorials/2026-11-17/end-to-end-verification.md).
 
 ## 5. What is compared
 
@@ -179,5 +180,6 @@ Stop and request human direction when:
 - [Engine Execution Workflow](engine-execution.md)
 - [Run Contract](run-contract.md)
 - [Deployment](../architecture/deployment.md)
+- [End-to-end verification tutorial](../tutorials/2026-11-17/end-to-end-verification.md)
 - [`docs/workflows/README.md`](README.md)
 - [`AGENTS.md`](../../AGENTS.md)
