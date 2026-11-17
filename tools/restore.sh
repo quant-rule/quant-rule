@@ -211,9 +211,12 @@ restart_services=$(backup_quiesce)
 postgres_user=${QR_POSTGRES_USER:-quantrule}
 postgres_db=${QR_POSTGRES_DB:-quantrule}
 bucket=${QR_OBJECT_BUCKET:-quantrule}
+# A normal stack owns six schemas: the four data-plane/evidence schemas plus
+# the gateway profile schema and the diagnostic stage schema. The restore must
+# count and drop all six, or pg_restore fails on the objects it left behind.
 tables=$(backup_compose exec -T postgres psql -U "$postgres_user" -d "$postgres_db" -tAc \
   "SELECT count(*) FROM information_schema.tables
-   WHERE table_schema IN ('catalog', 'runs', 'research', 'simulation')
+   WHERE table_schema IN ('catalog', 'runs', 'research', 'simulation', 'gateway', 'stage')
       OR (table_schema = 'public' AND table_name = 'schema_migrations')")
 tables=${tables//[[:space:]]/}
 objects=$(backup_minio_run 'mc ls --recursive "qr-backup/$QR_BACKUP_BUCKET" | wc -l')
@@ -232,7 +235,7 @@ if [ "$tables" -ne 0 ] || [ "$objects" -ne 0 ]; then
   backup_log "replacing $tables tables and $objects objects"
   backup_compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "$postgres_user" -d "$postgres_db" \
     >/dev/null <<'SQL'
-DROP SCHEMA IF EXISTS catalog, runs, research, simulation CASCADE;
+DROP SCHEMA IF EXISTS catalog, runs, research, simulation, gateway, stage CASCADE;
 DROP TABLE IF EXISTS public.schema_migrations;
 SQL
   if [ "$objects" -ne 0 ]; then
