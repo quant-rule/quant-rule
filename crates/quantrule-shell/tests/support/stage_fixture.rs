@@ -20,7 +20,7 @@ pub fn stage_events_body() -> Vec<u8> {
 
 /// The model stage report artifact fixture.
 pub fn stage_report_body() -> Vec<u8> {
-    br#"{"model_version":"1.2.0","view_contract":"quantrule.model-view/v4","data_version":"fixture","requested_period":{"from":null,"to":null},"flat_report":{"timeframes":[{"timeframe_secs":900,"bars":0,"expected_bars":1,"coverage_share":0.0},{"timeframe_secs":300,"bars":3,"expected_bars":3,"coverage_share":1.0}]}}"#.to_vec()
+    br#"{"model_version":"2.0.0","view_contract":"quantrule.model-view/v4","data_version":"fixture","requested_period":{"from":null,"to":null},"flat_report":{"timeframes":[{"timeframe_secs":900,"bars":0,"expected_bars":1,"coverage_share":0.0},{"timeframe_secs":300,"bars":3,"expected_bars":3,"coverage_share":1.0}]}}"#.to_vec()
 }
 
 /// A stage detail with the two model artifacts.

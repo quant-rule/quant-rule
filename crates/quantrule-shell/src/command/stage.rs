@@ -207,7 +207,7 @@ mod tests {
     use super::*;
 
     const EVENTS: &[u8] = b"timeframe_secs,event_index,event_code\n300,0,1\n900,0,2\n300,1,3\n";
-    const REPORT: &[u8] = br#"{"model_version":"1.2.0","view_contract":"quantrule.model-view/v4","data_version":"fixture","requested_period":{"from":null,"to":null},"flat_report":{"timeframes":[{"timeframe_secs":900,"bars":0,"expected_bars":1,"coverage_share":0.0},{"timeframe_secs":300,"bars":3,"expected_bars":3,"coverage_share":1.0}]}}"#;
+    const REPORT: &[u8] = br#"{"model_version":"2.0.0","view_contract":"quantrule.model-view/v4","data_version":"fixture","requested_period":{"from":null,"to":null},"flat_report":{"timeframes":[{"timeframe_secs":900,"bars":0,"expected_bars":1,"coverage_share":0.0},{"timeframe_secs":300,"bars":3,"expected_bars":3,"coverage_share":1.0}]}}"#;
 
     #[test]
     fn a_timeframe_filter_keeps_only_its_rows() {

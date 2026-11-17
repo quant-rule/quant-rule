@@ -1,6 +1,6 @@
 # Web Client
 
-- Status: Current; product 1.2.0, current tag `v1.2.0`; approved 2026-11-12
+- Status: Current; product 2.0.0, current tag `v2.0.0`; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Decision: [`ADR-2026-11-12-05`](../adr/2026-11-12/05-svelte-only-web-client.md)
 - Claim type: Behaviour Claim
