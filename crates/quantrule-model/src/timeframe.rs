@@ -131,7 +131,7 @@ pub struct TimeframeModel {
     context: ContextSeries,
     events: EventBatch,
     extended_events: ExtendedEventSeries,
-    merged_events: Vec<EventRecord>,
+    all_events: EventBatch,
     event_history: EventHistory,
     levels: Vec<ConfirmedLevel>,
 }
@@ -306,8 +306,9 @@ impl TimeframeModel {
         merged_events.extend_from_slice(extended_events.events());
         merged_events.sort_by_key(|event| (event.available_bar_index, event.occurred_bar_index));
 
+        let all_events = EventBatch::new(merged_events);
+        let event_history = EventHistory::from_batch(&all_events);
         let events = EventBatch::new(events);
-        let event_history = EventHistory::from_batch(&events);
         let registry = ConfirmedLevelRegistry::from_pivots(&readings.pivots);
         let levels: Vec<ConfirmedLevel> = registry.levels().to_vec();
 
@@ -327,7 +328,7 @@ impl TimeframeModel {
             context,
             events,
             extended_events,
-            merged_events,
+            all_events,
             event_history,
             levels,
         })
@@ -502,13 +503,16 @@ impl TimeframeModel {
     /// keep the detector append order.
     #[must_use]
     pub fn all_events(&self) -> &[EventRecord] {
-        self.merged_events.as_slice()
+        self.all_events.as_slice()
     }
 
     /// The full event batch wrapper.
+    ///
+    /// This is the merged core and extended batch, in availability order; the
+    /// bounded history is the newest records of it.
     #[must_use]
     pub const fn event_batch(&self) -> &EventBatch {
-        &self.events
+        &self.all_events
     }
 
     /// The bounded event history.

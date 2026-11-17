@@ -20,6 +20,8 @@ history is in Git and the pull requests.
 
 ### Fixed
 
+### Fixed
+
 - The configuration identity is one SHA-256 across the app, catalog, run
   record, and stage provenance. The old 64-bit FNV fingerprint is gone.
 - The canonical digest now covers every `metrics.json`, so a metrics-only change
@@ -80,6 +82,12 @@ history is in Git and the pull requests.
   OHLC cannot order a pre-trigger low or high against the entry, so the bracket
   is live for the whole entry bar. A fixture with a pre-trigger low now proves
   the rule; no fill behavior changed.
+- The model event batch and bounded history now include the extended events as
+  well as the core batch, matching the retention contract. The retention test
+  asserts both sources are present.
+- The data-v3 document no longer requires the retired policy universe; the
+  loader's non-empty instrument and ordered-ladder checks are the actual
+  admission rules.
 
 ## [1.3.0] - 2026-11-17
 
