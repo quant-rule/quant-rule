@@ -88,8 +88,12 @@ async fn harness() -> Arc<EvidenceState> {
         data.add_config(profile, bundle("cfg_changed", b"changed", "M1.0"));
     }
     seed_stages(&stages).await;
+    let config = Config {
+        image_digest: Some(Digest::sha256(b"image")),
+        ..Config::default()
+    };
     Arc::new(EvidenceState::with_services(
-        &Config::default(),
+        &config,
         HealthRegistry::new(),
         EvidenceServices {
             data: Some(Arc::new(data)),

@@ -147,6 +147,7 @@ fn session_row_contract() {
         vec![
             ("session_code", sessions.session_code.clone()),
             ("session_age", sessions.session_age.clone()),
+            ("session_vwap", sessions.session_vwap.clone()),
         ]
     });
 }

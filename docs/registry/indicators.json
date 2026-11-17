@@ -1469,10 +1469,14 @@
       "name": "Session state",
       "taxonomy": "session",
       "role": "context",
-      "claim": "The session code and age describe the local session.",
-      "formula": "local=UTC+zone offset; session_code=1 if start<=local_hour<end else 0; age=bars since session open",
+      "claim": "The session code, age, and anchored VWAP describe the local session.",
+      "formula": "local=UTC+zone offset; session_code=1 if start<=local_hour<end else 0; age=bars since session open; SVWAP=sum(TP*V,session)/sum(V,session)",
       "inputs": [
-        "timestamp"
+        "timestamp",
+        "high",
+        "low",
+        "close",
+        "volume"
       ],
       "parameters": [
         "model.session.london_start",
@@ -1482,9 +1486,10 @@
       ],
       "outputs": [
         "session_code",
-        "session_age"
+        "session_age",
+        "session_vwap"
       ],
-      "availability": "bar timestamp",
+      "availability": "bar timestamp; SVWAP when sum(V,session) > 0",
       "events": [
         "level.session_vwap_test",
         "signal.session_open",

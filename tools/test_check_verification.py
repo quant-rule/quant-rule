@@ -15,7 +15,9 @@ from pathlib import Path
 import check_verification
 
 TEST_NAME = "ema_row_contract"
-RUST_FUNCTIONS = {TEST_NAME}
+EVENT_TEST_NAME = "event_edge_test"
+RUST_FUNCTIONS = {TEST_NAME, EVENT_TEST_NAME}
+EVENT_FUNCTIONS = {EVENT_TEST_NAME}
 N_A = {"scope": "n/a", "tests": []}
 
 
@@ -49,7 +51,9 @@ class VerificationCheckerTests(unittest.TestCase):
                 root / "docs" / "registry" / "verification.json",
                 make_manifest(overrides),
             )
-            return check_verification.check(root, RUST_FUNCTIONS)
+            return check_verification.check(
+                root, RUST_FUNCTIONS, EVENT_FUNCTIONS
+            )
 
     def test_complete_manifest_passes(self) -> None:
         self.assertEqual(self.check(), [])
@@ -82,9 +86,44 @@ class VerificationCheckerTests(unittest.TestCase):
             document = make_manifest()
             del document["indicators"][0]["evidence"]["edge"]
             write(root / "docs" / "registry" / "verification.json", document)
-            problems = check_verification.check(root, RUST_FUNCTIONS)
+            problems = check_verification.check(
+                root, RUST_FUNCTIONS, EVENT_FUNCTIONS
+            )
             self.assertTrue(
                 any("missing evidence class edge" in problem for problem in problems)
+            )
+
+    def test_event_edge_evidence_must_construct_events(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            write(
+                root / "docs" / "registry" / "indicators.json",
+                {"indicators": [], "events": [{"id": "signal.test", "status": "active"}]},
+            )
+            evidence = {
+                name: {"scope": "family", "tests": ["readings_only"]}
+                for name in check_verification.CLASSES
+            }
+            write(
+                root / "docs" / "registry" / "verification.json",
+                {
+                    "schema": "quantrule.verification/v1",
+                    "indicators": [],
+                    "events": [
+                        {
+                            "id": "signal.test",
+                            "kind": "event",
+                            "evidence": evidence,
+                        }
+                    ],
+                },
+            )
+            problems = check_verification.check(
+                root, {"readings_only"}, EVENT_FUNCTIONS
+            )
+            self.assertTrue(
+                any("edge evidence does not construct events" in problem for problem in problems),
+                problems,
             )
 
 
