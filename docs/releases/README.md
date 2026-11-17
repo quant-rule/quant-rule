@@ -77,7 +77,7 @@ historical heading and records the prepared version in a tag note.
 | `v1.0.0` | `6373c293` | `v1.1.0` |
 | `v1.1.0` | `a734e7fb` | new 2026-11-16 (current 1.1.0 tree) |
 | `v1.2.0` | `231c1395` | new 2026-11-16 (version alignment) |
-| `v1.3.0` | release merge (recorded after merge) | new 2026-11-17 (stage execution surface) |
+| `v1.3.0` | `a07def5c` | new 2026-11-17 (stage execution surface) |
 
 The GitHub release pages follow the current tag names; published asset and image
 names keep their original build versions. The `v1.0.0` desktop release was built
