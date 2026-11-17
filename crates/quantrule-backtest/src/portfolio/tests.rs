@@ -356,7 +356,7 @@ fn fixed_notional_sizes_an_entry() {
 }
 
 #[test]
-fn fixed_notional_ignores_the_equity() {
+fn fixed_notional_is_capped_by_the_equity() {
     let config = config();
     let low = config
         .size_entry(1_000.0, 200.0)
@@ -364,7 +364,8 @@ fn fixed_notional_ignores_the_equity() {
     let high = config
         .size_entry(100_000.0, 200.0)
         .expect("the entry is sizeable");
-    assert_eq!(low, high);
+    assert_eq!(low, 5.0, "the fixed notional must not exceed the equity");
+    assert_eq!(high, 50.0);
 }
 
 #[test]

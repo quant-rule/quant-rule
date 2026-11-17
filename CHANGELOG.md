@@ -18,8 +18,30 @@ history is in Git and the pull requests.
 
 ## [Unreleased]
 
+### Changed
+
+- `portfolio_holdout` excludes `COPPERCMDUSD` and `TSLAUSUSD` until a 2025
+  source is admitted; the committed coverage for both ends on 2024-12-31.
+
 ### Fixed
 
+- Restore now counts, drops, and round-trips all six schemas, including
+  `gateway` and `stage`; a `--force` restore can no longer partially destroy a
+  started stack.
+- The evidence service refuses a run or stage submission when the server has no
+  `QR_IMAGE_DIGEST`, instead of recording a synthetic image identity; `make up`
+  records the built image id.
+- Research creation rejects a run config whose data window leaves its declared
+  partition, closing the `strategy_dev`/2024 and holdout leakage path.
+- The Postgres run cancel is conditional on `queued`/`running`, so a concurrent
+  complete cannot be overwritten by a later cancel.
+- The portfolio ledger caps a fixed notional at current equity, refuses an entry
+  that would make cash negative or a halted account, and marks funding at the
+  charge price. The golden short fixture is unchanged; the long-entry tests use
+  a funded account.
+- Session VWAP no longer substitutes zero for a missing candle volume; it is
+  unavailable from the first missing-volume bar for the rest of the session and
+  resets at the next session. The normal-volume golden fixture is unchanged.
 - A divergence RSI window is clamped to the pivot's availability bar, so it
   cannot read past the bar on which the event claims to be knowable. The model
   v4 config now refuses a window above the pivot-scale lookback. The default
