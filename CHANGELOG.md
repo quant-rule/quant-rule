@@ -18,7 +18,12 @@ history is in Git and the pull requests.
 
 ## [Unreleased]
 
-No unreleased changes yet. `v1.3.0` is the current release.
+### Fixed
+
+- The portfolio ledger caps a fixed notional at current equity, refuses an entry
+  that would make cash negative or a halted account, and marks funding at the
+  charge price. The golden short fixture is unchanged; the long-entry tests use
+  a funded account.
 
 ## [1.3.0] - 2026-11-17
 
