@@ -59,6 +59,10 @@ and make is optional there:
 docker compose up -d --build --wait
 ```
 
+A direct Compose start must also set `QR_IMAGE_DIGEST` to the built image id;
+`make up` records it automatically. A server without the digest refuses run and
+stage submissions instead of inventing a build identity.
+
 Fedora may use Docker Engine or Podman: `make up COMPOSE="podman compose"`. The
 default stack starts all nine containers; see
 [`docs/architecture/deployment.md`](docs/architecture/deployment.md).

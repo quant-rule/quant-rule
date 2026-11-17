@@ -108,6 +108,51 @@ impl ImprovementPartition {
             _ => None,
         }
     }
+
+    /// The declared inclusive date window, as `YYYY-MM-DD` strings.
+    ///
+    /// The windows mirror `data/partitions.json`; the `check_partitions`
+    /// checker and the improvement test keep the two in step.
+    #[must_use]
+    pub const fn window(self) -> (&'static str, &'static str) {
+        match self {
+            Self::ModelDev => ("2018-01-01", "2020-12-31"),
+            Self::ModelValidation => ("2021-01-01", "2022-12-31"),
+            Self::StrategyDev => ("2018-01-01", "2022-12-31"),
+            Self::StrategyValidation => ("2024-01-01", "2024-12-31"),
+            Self::PortfolioDev => ("2024-01-01", "2024-12-31"),
+            Self::PortfolioHoldout => ("2025-01-01", "2025-12-31"),
+        }
+    }
+
+    /// The half-open Unix-second window, `[start, end)`, for a bar timestamp.
+    ///
+    /// The declared end date is inclusive, so the exclusive end is the next
+    /// UTC midnight.
+    #[must_use]
+    pub fn unix_window(self) -> (u64, u64) {
+        let (from, to) = self.window();
+        (date_to_epoch(from), date_to_epoch(to) + 86_400)
+    }
+}
+
+/// Convert a `YYYY-MM-DD` UTC date to Unix seconds.
+///
+/// Howard Hinnant's civil-date algorithm; it is pure integer arithmetic and
+/// does not read a clock. The input is validated by the manifest/config parser.
+fn date_to_epoch(date: &str) -> u64 {
+    let mut parts = date.split('-');
+    let year: i64 = parts.next().unwrap_or("1970").parse().unwrap_or(1970);
+    let month: i64 = parts.next().unwrap_or("1").parse().unwrap_or(1);
+    let day: i64 = parts.next().unwrap_or("1").parse().unwrap_or(1);
+    let year = if month <= 2 { year - 1 } else { year };
+    let era = if year >= 0 { year } else { year - 399 } / 400;
+    let year_of_era = year - era * 400;
+    let month_index = if month > 2 { month - 3 } else { month + 9 };
+    let day_of_year = (153 * month_index + 2) / 5 + day - 1;
+    let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
+    let seconds = (era * 146_097 + day_of_era - 719_468) * 86_400;
+    u64::try_from(seconds).unwrap_or(0)
 }
 
 /// Whether the one-shot holdout was opened.
@@ -852,5 +897,32 @@ mod tests {
         assert!(ImprovementManifest::parse(&value).is_ok());
         value["holdout_access"] = serde_json::json!("none");
         assert!(ImprovementManifest::parse(&value).is_err());
+    }
+
+    #[test]
+    fn partitions_match_the_declared_windows() {
+        let text = include_str!("../../../data/partitions.json");
+        let value: serde_json::Value = serde_json::from_str(text).expect("the partition file");
+        let partitions = value["partitions"].as_object().expect("partitions");
+        for (name, config) in partitions {
+            let partition = ImprovementPartition::parse(name).expect("a declared partition");
+            assert_eq!(
+                partition.window().0,
+                config["window"]["from"].as_str().expect("from"),
+                "{name} from"
+            );
+            assert_eq!(
+                partition.window().1,
+                config["window"]["to"].as_str().expect("to"),
+                "{name} to"
+            );
+        }
+    }
+
+    #[test]
+    fn the_partition_unix_window_is_half_open() {
+        let (start, end) = ImprovementPartition::ModelDev.unix_window();
+        assert_eq!(start, 1_514_764_800, "2018-01-01 UTC");
+        assert_eq!(end, 1_609_459_200, "2021-01-01 UTC, exclusive");
     }
 }

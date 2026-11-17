@@ -636,3 +636,52 @@ async fn the_postgres_stores_conform() {
     model_artifact_conformance(&PgRunStore::new(database.pool().clone()), &token).await;
     hypothesis_conformance(&PgHypothesisStore::new(database.pool().clone()), &token).await;
 }
+
+#[tokio::test]
+#[ignore = "needs QR_TEST_DATABASE_URL pointing at a disposable Postgres"]
+async fn the_postgres_cancel_and_complete_are_monotonic() {
+    let url = std::env::var("QR_TEST_DATABASE_URL").expect(
+        "QR_TEST_DATABASE_URL must name a disposable Postgres database; \
+         this test is ignored in the fast gate",
+    );
+    let database = PgDatabase::connect(&url).await.expect("the Postgres pool");
+    apply_postgres_migrations(database.pool(), "runs", &migrations::available())
+        .await
+        .expect("the evidence migrations");
+    let store = PgRunStore::new(database.pool().clone());
+    let token = token();
+    let profile = profile("race", &token);
+    for attempt in 0..25 {
+        let run = new_run(&token, &format!("race-{attempt}"), "2026-11-15T00:00:00Z");
+        let submitted = store
+            .submit(profile.clone(), run)
+            .await
+            .expect("the race submission");
+        let id = submitted.record().run_id.to_string();
+        store
+            .claim(id.clone(), false)
+            .await
+            .expect("the race claim");
+        let digest = Digest::sha256(format!("race-digest-{attempt}").as_bytes());
+        let (completed, cancelled) = tokio::join!(
+            store.complete(id.clone(), digest.clone(), artifacts(), computed_stages()),
+            store.cancel(profile.clone(), id.clone())
+        );
+        completed.expect("the race complete");
+        cancelled.expect("the race cancel");
+        let final_record = store
+            .get(profile.clone(), id.clone())
+            .await
+            .expect("the race read")
+            .expect("the race run");
+        assert!(
+            !(final_record.status == RunState::Cancelled && final_record.digest.is_some()),
+            "a cancel overwrote a succeeded run on attempt {attempt}"
+        );
+        match final_record.status {
+            RunState::Succeeded => assert_eq!(final_record.digest, Some(digest)),
+            RunState::Cancelled => assert_eq!(final_record.digest, None),
+            other => panic!("the race left {other:?}"),
+        }
+    }
+}
