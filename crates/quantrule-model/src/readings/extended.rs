@@ -405,12 +405,28 @@ impl ExtendedReadings {
         }
     }
 
-    /// Computes the extended readings over the candles.
+    /// Computes the extended readings over the candles with the major pivot
+    /// scale.
     ///
     /// `readings.atr14` supplies the ATR for the distance outputs. A missing
     /// ATR makes the distance `None`; the VWAP and profile still publish.
     #[must_use]
     pub fn compute(candles: &[Candle], readings: &Readings, config: &ExtendedConfig) -> Self {
+        Self::compute_with_scale(candles, readings, config, PivotScale::Major)
+    }
+
+    /// Computes the extended readings with an explicit structure pivot scale.
+    ///
+    /// The structure readings read confirmed pivots of `structure_scale`; the
+    /// default [`ExtendedReadings::compute`] keeps the major scale. A candidate
+    /// or a future pivot never affects an earlier bar.
+    #[must_use]
+    pub fn compute_with_scale(
+        candles: &[Candle],
+        readings: &Readings,
+        config: &ExtendedConfig,
+        structure_scale: PivotScale,
+    ) -> Self {
         let len = candles.len();
         let (vwap, mad) = vwap_series(candles, config.vwap_window);
         let mut distance = vec![None; len];
@@ -428,8 +444,8 @@ impl ExtendedReadings {
                 upper[bar] = Some(center + config.vwap_band_mad * deviation);
                 lower[bar] = Some(center - config.vwap_band_mad * deviation);
             }
-            if bar + 1 >= config.vwap_window {
-                let prior = bar + 1 - config.vwap_window;
+            if bar >= config.vwap_window {
+                let prior = bar - config.vwap_window;
                 if let Some(previous) = vwap[prior] {
                     slope[bar] = Some(center - previous);
                 }
@@ -450,7 +466,7 @@ impl ExtendedReadings {
             absorption_strength,
         ) = participation_series(candles, readings, config, &vwap, &profile.poc);
         let flow = flow_series(candles, config);
-        let structure = structure_series(candles, readings, config);
+        let structure = structure_series(candles, readings, config, structure_scale);
         let fibonacci = fibonacci_series(candles, readings);
         let band = band_series(candles, readings, config);
         let anatomy = anatomy_series(candles, readings, config);

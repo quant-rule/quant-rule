@@ -87,6 +87,10 @@ impl DivergenceConfig {
     }
 
     /// Builds a configuration with an explicit RSI window.
+    ///
+    /// The detector clamps the RSI read to the pivot's availability bar, so a
+    /// window above the scale lookback cannot read the future. The v4 config
+    /// parser rejects such a window before it reaches this constructor.
     #[must_use]
     pub const fn with_window(timeframe_secs: NonZeroU64, scale: PivotScale, window: usize) -> Self {
         Self {
@@ -185,6 +189,7 @@ impl DivergenceEventSeries {
                 rsi: rsi_window_value(
                     &readings.rsi14,
                     pivot.occurred_at,
+                    pivot.available_at,
                     pivot.kind,
                     config.window(),
                 ),
@@ -255,12 +260,18 @@ struct PivotState {
 fn rsi_window_value(
     series: &ReadingSeries,
     occurred_at: usize,
+    available_at: usize,
     kind: PivotKind,
     window: usize,
 ) -> Option<f64> {
     let last = series.len().checked_sub(1)?;
     let start = occurred_at.saturating_sub(window);
-    let end = occurred_at.saturating_add(window).min(last);
+    // The event claims to be knowable at `available_at`; even a caller that
+    // configured a wider window must not read a later RSI bar.
+    let end = occurred_at
+        .saturating_add(window)
+        .min(last)
+        .min(available_at);
     let mut value: Option<f64> = None;
 
     for bar in start..=end {
@@ -665,6 +676,42 @@ mod tests {
                 .iter()
                 .all(|event| event.available_bar_index >= 10)
         );
+    }
+
+    #[test]
+    fn a_window_above_the_lookback_cannot_read_past_availability() {
+        let candles = candles(&regular_bullish_series());
+        let rsi = vec![Some(30.0); candles.len()];
+        let atr = atr_values(candles.len(), 8, 2.0);
+        let config = DivergenceConfig::with_window(
+            NonZeroU64::new(300).expect("a non-zero timeframe"),
+            PivotScale::Minor,
+            6,
+        );
+        let full =
+            DivergenceEventSeries::compute(&readings(&candles, rsi.clone(), atr.clone()), &config);
+        assert!(
+            full.events()
+                .iter()
+                .all(|event| event.available_bar_index >= 10),
+            "a wide window emitted before availability"
+        );
+        for length in 0..=candles.len() {
+            let prefix = &candles[..length];
+            let prefix_readings = readings(prefix, rsi[..length].to_vec(), atr[..length].to_vec());
+            let partial = DivergenceEventSeries::compute(&prefix_readings, &config);
+            let expected: Vec<_> = full
+                .events()
+                .iter()
+                .filter(|event| event.available_bar_index < length)
+                .copied()
+                .collect();
+            assert_eq!(
+                partial.events(),
+                expected.as_slice(),
+                "the prefix of length {length} changed an earlier event with a wide window"
+            );
+        }
     }
 
     #[test]

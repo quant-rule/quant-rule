@@ -139,6 +139,7 @@ impl SessionReadings {
                 overnight: None,
                 vwap_weighted: 0.0,
                 vwap_volume: 0.0,
+                volume_complete: true,
             });
             if state.bars == 0 {
                 state.open = candle.open();
@@ -155,10 +156,16 @@ impl SessionReadings {
             state.high = state.high.max(candle.high());
             state.low = state.low.min(candle.low());
             state.bars = state.bars.saturating_add(1);
-            let volume = candle.volume().unwrap_or(0.0);
+            // A missing volume is not a zero volume. Once the session has one
+            // missing bar, the anchored VWAP is unavailable for the rest of the
+            // session rather than being built from a fabricated zero.
             let typical = (candle.high() + candle.low() + candle.close()) / 3.0;
-            state.vwap_weighted += typical * volume;
-            state.vwap_volume += volume;
+            if let Some(volume) = candle.volume() {
+                state.vwap_weighted += typical * volume;
+                state.vwap_volume += volume;
+            } else {
+                state.volume_complete = false;
+            }
             let values = result_values(state, candle, atr);
             session_code[bar] = Some(1.0);
             session_age[bar] = values.age;
@@ -166,7 +173,7 @@ impl SessionReadings {
             opening_range_low[bar] = values.opening_low;
             opening_range_atr[bar] = values.opening_atr;
             session_range_atr[bar] = values.session_atr;
-            if state.vwap_volume > 0.0 {
+            if state.volume_complete && state.vwap_volume > 0.0 {
                 session_vwap[bar] = Some(state.vwap_weighted / state.vwap_volume);
             }
             overnight_return[bar] = state.overnight;
@@ -198,6 +205,7 @@ struct DayState {
     overnight: Option<f64>,
     vwap_weighted: f64,
     vwap_volume: f64,
+    volume_complete: bool,
 }
 
 struct Values {
@@ -406,6 +414,35 @@ mod tests {
             previous = close;
         }
         candles
+    }
+
+    #[test]
+    fn a_missing_volume_makes_the_session_vwap_unavailable() {
+        let mut candles = two_day_series();
+        let source = candles[10];
+        candles[10] = Candle::new(
+            source.series_index(),
+            source.timestamp(),
+            source.open(),
+            source.high(),
+            source.low(),
+            source.close(),
+            None,
+        )
+        .expect("the no-volume candle is valid");
+        let readings = Readings::compute_with_config(&candles, &ReadingsConfig::DEFAULT);
+        let sessions = SessionReadings::compute(&candles, &readings, &SessionConfig::london());
+
+        assert!(
+            sessions.session_vwap.get(9).is_some(),
+            "the VWAP is available before the missing bar"
+        );
+        assert_eq!(sessions.session_vwap.get(10), None);
+        assert_eq!(sessions.session_vwap.get(15), None);
+        assert!(
+            sessions.session_vwap.get(32).is_some(),
+            "the next session starts a fresh VWAP"
+        );
     }
 
     #[test]
