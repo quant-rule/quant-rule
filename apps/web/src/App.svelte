@@ -5,6 +5,7 @@
   import DatasetsPanel from "./lib/DatasetsPanel.svelte";
   import HelpPanel from "./lib/HelpPanel.svelte";
   import InspectPanel from "./lib/InspectPanel.svelte";
+  import OperationsPanel from "./lib/OperationsPanel.svelte";
   import ProfilesPanel from "./lib/ProfilesPanel.svelte";
   import ResearchPanel from "./lib/ResearchPanel.svelte";
   import RunsPanel from "./lib/RunsPanel.svelte";
@@ -85,6 +86,8 @@
         <RunsPanel />
       {:else if section === "research"}
         <ResearchPanel />
+      {:else if section === "operations"}
+        <OperationsPanel />
       {:else if section === "simulation"}
         <SimulationRunsPanel />
       {:else if section === "inspect"}

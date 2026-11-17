@@ -1,9 +1,9 @@
 //! The evidence service binary.
 //!
 //! It connects to Postgres, the object store, the broker, and the data service.
-//! It applies only the `runs`/`research` migrations, serves the public run and
-//! hypothesis surface plus the internal lifecycle, and consumes `run.computed`
-//! to verify the hash chain and finalize the run. With `QR_PROFILE=desktop` the
+//! It applies only the `runs`/`research` migrations, serves the public run,
+//! hypothesis, research, and operations surface plus the internal lifecycle,
+//! and consumes `run.computed` to verify the hash chain and finalize the run. With `QR_PROFILE=desktop` the
 //! run and hypothesis stores sit on the embedded SQLite file under
 //! `QR_DATA_DIR`, artifact bytes live in the filesystem CAS under
 //! `<QR_DATA_DIR>/objects`, and the control-plane queue is the durable queue on
@@ -125,33 +125,39 @@ async fn main() -> Result<(), RuntimeError> {
 
     // Retention runs once at startup. It names only the stage schema and the
     // stage object namespace; a run, a research record, and a run artifact key
-    // are untouched. A failure is logged and the service still starts, because
-    // the health probes say what is down.
+    // are untouched. The outcome is recorded on the shared operations status,
+    // success or failure, and the service still starts because the health
+    // probes say what is down.
     if let (Some(stages), Some(objects)) = (stages.as_ref(), state.objects.as_ref()) {
-        match retention::cutoff(std::time::SystemTime::now(), config.stage_retention_days) {
-            Ok(cutoff) => {
-                let stages = Arc::clone(stages);
-                let objects = Arc::clone(objects);
-                let days = config.stage_retention_days;
-                tokio::spawn(async move {
-                    match retention::purge_expired(stages.as_ref(), objects.as_ref(), &cutoff).await
-                    {
-                        Ok(report) => {
-                            tracing::info!(
-                                stages = report.stages,
-                                objects = report.objects,
-                                days,
-                                "expired stage runs removed"
-                            );
-                        }
-                        Err(error) => {
-                            tracing::warn!(%error, "stage retention did not finish");
-                        }
-                    }
-                });
+        let stages = Arc::clone(stages);
+        let objects = Arc::clone(objects);
+        let days = config.stage_retention_days;
+        let operations = Arc::clone(&state.operations);
+        tokio::spawn(async move {
+            let report = retention::run_cleanup(
+                stages.as_ref(),
+                objects.as_ref(),
+                std::time::SystemTime::now(),
+                days,
+            )
+            .await;
+            if let Some(error) = report.error.as_deref() {
+                tracing::warn!(
+                    %error,
+                    completed_utc = %report.completed_utc,
+                    "stage retention did not finish"
+                );
+            } else {
+                tracing::info!(
+                    stages = report.stages_removed,
+                    objects = report.objects_removed,
+                    days,
+                    completed_utc = %report.completed_utc,
+                    "expired stage runs removed"
+                );
             }
-            Err(error) => tracing::warn!(%error, "stage retention was skipped"),
-        }
+            operations.record(report);
+        });
     }
 
     // A database that is merely unreachable is a health state, not a startup

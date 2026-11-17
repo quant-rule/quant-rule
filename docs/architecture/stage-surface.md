@@ -1,7 +1,7 @@
 # Stage Surface — Target Architecture
 
 - Date: 2026-11-17 (UTC)
-- Status: Current for the model, strategy, portfolio, and promotion slices; the stage contract and schema are merged (#850), the worker and gateway landed in #851, the model stage and Workbench Data/Model tabs landed in #852, the strategy stage and Workbench Strategy tab landed in #853, the portfolio stage and Workbench Portfolio tab landed in #854, backtest promotion landed in #855, the research ledger and manifest v3 landed in #856, and the research commands and Research screen landed in #857; operations remains #858
+- Status: Current for the stage, research, and operations slices; the stage contract and schema are merged (#850), the worker and gateway landed in #851, the model stage and Workbench Data/Model tabs landed in #852, the strategy stage and Workbench Strategy tab landed in #853, the portfolio stage and Workbench Portfolio tab landed in #854, backtest promotion landed in #855, the research ledger and manifest v3 landed in #856, the research commands and Research screen landed in #857, and the operations surface and end-to-end verification landed in #858
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 - Decision: [ADR-2026-11-16-01](../adr/2026-11-16/01-stage-execution-and-evidence-boundary.md)
@@ -29,7 +29,7 @@ client screens. It does not claim that a target command or screen exists today.
 
 ## 3. API surface
 
-The implemented base contract is in [`http-api.md`](http-api.md); the stage and research surface is implemented, with the remaining operations surface target.
+The implemented base contract is in [`http-api.md`](http-api.md); the stage, research, and operations surface is implemented.
 
 | Method | Path | Purpose |
 |---|---|---|
@@ -49,6 +49,7 @@ The implemented base contract is in [`http-api.md`](http-api.md); the stage and 
 | GET | `/research/baselines` | Read the baseline registry |
 | GET | `/research/baselines/{tier}` | Read the current tier baseline |
 | GET | `/research/invalidations` | Read the invalidation tombstones |
+| GET | `/operations` | Read retention days and the last startup cleanup |
 
 A strategy submission keeps the input
 `{kind:"model_artifact", model_artifact_id}`. The server resolves the succeeded
@@ -63,17 +64,16 @@ succeeded strategy stage and derives `data_version` and `model_version` from its
 provenance; an unknown or non-strategy artifact returns `stage.not_found`, and a
 `data_version` or model-version mismatch returns `stage.invalid`.
 
-The gateway proxies `/stages/*` and `/research/*` with the same profile header, bearer token, path allowlist, and error envelope; it never reaches an engine.
-
+The gateway proxies `/stages/*`, `/research/*`, and `/operations` with the same profile header, bearer token, path allowlist, and error envelope; it never reaches an engine.
 ## 4. Command surface
 
 The current 46 commands are in [`command-surface.md`](command-surface.md). The
-model stage commands (`stage run model`, `stage list`, `stage show`,
-`stage events`, `stage fetch`, `stage cancel`, and `stage delete`) are
-implemented (#852), `stage run strategy` and `stage explain` are implemented
-(#853), and `stage run portfolio` is implemented (#854). Promotion is
-implemented (#855), and the research commands and Research screen are implemented
-(#857); the operations rows remain target (#858):
+model stage commands (`stage run model`, `stage list`, `stage show`, `stage
+events`, `stage fetch`, `stage cancel`, and `stage delete`) are implemented
+(#852); `stage run strategy`, `stage explain`, and `stage run portfolio` are
+implemented (#853–#854). Promotion is implemented (#855), the research commands
+and Research screen are implemented (#857), and the operations surface is
+implemented (#858):
 
 | Command | Purpose |
 |---|---|
@@ -119,11 +119,11 @@ capability that only one client can reach is a parity gap.
 
 | Service | Stage responsibility |
 |---|---|
-| `evidence` | Owns the `stage` schema: `stage.runs`, `stage.submissions`, `stage.artifacts`; stage lifecycle, profile scoping, expiry |
+| `evidence` | Owns the `stage` schema: `stage.runs`, `stage.submissions`, `stage.artifacts`; stage lifecycle, profile scoping, expiry; reports retention and the last startup cleanup on `/operations` |
 | `backtest` | Stage worker: claims a stage, dispatches to the model, strategy, or portfolio executor, publishes the artifact, publishes `stage.computed` |
 | `model` | Computes the model bundle that a model stage publishes; serves model-stage event reads |
 | `data` | Supplies the dataset and config bundle; never executes a stage |
-| `gateway` | Proxies `/stages/*` and `/research/*`; validates the profile and token; holds no stage state |
+| `gateway` | Proxies `/stages/*`, `/research/*`, and `/operations`; validates the profile and token; holds no stage state |
 | `simulation` | Unchanged; the research plane never reads a stage |
 
 No service reads another service's schema. The stage store is in the evidence
@@ -153,8 +153,8 @@ profile-scoped and content-addressed.
 | Strategy stage vertical slice and Workbench Strategy tab | Implemented (#853) |
 | Portfolio stage vertical slice and Workbench Portfolio tab | Implemented (#854) |
 | Backtest promotion with a frozen model artifact | Implemented (#855) |
-| Research ledger and Research screens | Target (#856–#857) |
-| Operations and end-to-end verification screens | Target (#858) |
+| Research ledger and Research screens | Implemented (#856–#857) |
+| Operations surface and end-to-end verification | Implemented (#858) |
 | Manual chapters and command/GUI reference | Target (#859) |
 
 ## 9. Related documents

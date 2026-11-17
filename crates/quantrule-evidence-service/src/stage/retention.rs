@@ -13,6 +13,7 @@
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use quantrule_api::CleanupReport;
 use quantrule_runtime::adapters::{ObjectStore, StoreError};
 use quantrule_runtime::clock;
 use quantrule_service_api::StageManifest;
@@ -85,6 +86,41 @@ pub async fn purge_expired(
         stages: expiry.stage_run_ids.len(),
         objects,
     })
+}
+
+/// Run one startup cleanup and describe it for the operations route.
+///
+/// The cleanup instant is read once from the injected clock. A failed cutoff or
+/// purge still returns a report with the error, so the caller records a visible
+/// failure instead of leaving the previous status in place.
+pub async fn run_cleanup(
+    stages: &dyn StageStore,
+    objects: &dyn ObjectStore,
+    now: SystemTime,
+    days: u64,
+) -> CleanupReport {
+    let completed_utc = now.duration_since(UNIX_EPOCH).map_or_else(
+        |_| clock::rfc3339(0),
+        |duration| clock::rfc3339(duration.as_secs()),
+    );
+    let result = match cutoff(now, days) {
+        Ok(cutoff) => purge_expired(stages, objects, &cutoff).await,
+        Err(error) => Err(error),
+    };
+    match result {
+        Ok(report) => CleanupReport {
+            completed_utc,
+            stages_removed: report.stages,
+            objects_removed: report.objects,
+            error: None,
+        },
+        Err(error) => CleanupReport {
+            completed_utc,
+            stages_removed: 0,
+            objects_removed: 0,
+            error: Some(error.to_string()),
+        },
+    }
 }
 
 /// Delete the objects of a stage row that was already deleted explicitly.

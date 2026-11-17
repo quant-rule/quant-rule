@@ -23,6 +23,21 @@ export interface VersionInfo {
   contracts: [string, string][];
 }
 
+/** One completed startup retention cleanup. */
+export interface CleanupReport {
+  completed_utc: string;
+  stages_removed: number;
+  objects_removed: number;
+  error: string | null;
+}
+
+/** The evidence service's retention and cleanup snapshot. */
+export interface OperationsReport {
+  stage_retention_days: number;
+  stage_store: boolean;
+  last_cleanup: CleanupReport | null;
+}
+
 /** One dataset in a list. */
 export interface DatasetSummary {
   data_version: Digest;
