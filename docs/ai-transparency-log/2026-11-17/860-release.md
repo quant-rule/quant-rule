@@ -81,9 +81,9 @@ authorization gate.
 
 ## Retarget
 
-The human authorized `v1.3.0` before any tag was created. The prepared
-`v2.0.0` records were renamed and retargeted to `v1.3.0`; no `v2.0.0` tag or
-release exists, and the historical `1.2.0` evidence is unchanged.
+The human authorized `v1.3.0` before any tag was created. The previously
+prepared release records were renamed and retargeted to `v1.3.0`; no earlier
+tag or release exists, and the historical `1.2.0` evidence is unchanged.
 
 ## Residual risk
 
