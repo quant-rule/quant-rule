@@ -206,6 +206,24 @@ fn baseline_and_invalidation_commands_print_their_registries() {
 }
 
 #[test]
+fn research_decide_requires_a_note() {
+    let fixture = Fixture::start();
+    let output = fixture.run(&[
+        "research",
+        "decide",
+        "MODEL-2026-11-17-01",
+        "--decision",
+        "accepted",
+    ]);
+    assert_failure(&output);
+    assert!(
+        stderr(&output).contains("--note is required"),
+        "{}",
+        stderr(&output)
+    );
+}
+
+#[test]
 fn research_conflicts_keep_the_research_error_code() {
     let fixture = Fixture::start();
     let output = fixture.run(&["research", "submit", "MODEL-CONFLICT"]);

@@ -29,8 +29,7 @@ client screens. It does not claim that a target command or screen exists today.
 
 ## 3. API surface
 
-The implemented base contract is in [`http-api.md`](http-api.md). The target
-stage and research additions are:
+The implemented base contract is in [`http-api.md`](http-api.md); the stage and research surface is implemented, with the remaining operations surface target.
 
 | Method | Path | Purpose |
 |---|---|---|
@@ -44,8 +43,11 @@ stage and research additions are:
 | POST | `/research/runs` | Create an improvement-run record |
 | GET | `/research/runs` | List improvement runs |
 | GET | `/research/runs/{id}` | Read one improvement record |
+| POST | `/research/runs/{id}/submit` | Submit and link the coupled pipeline run |
+| GET | `/research/runs/{id}/compare` | Compare published numbers with a baseline |
 | POST | `/research/runs/{id}/decision` | Record the human accept, reject, or no-edge |
 | GET | `/research/baselines` | Read the baseline registry |
+| GET | `/research/baselines/{tier}` | Read the current tier baseline |
 | GET | `/research/invalidations` | Read the invalidation tombstones |
 
 A strategy submission keeps the input
@@ -61,9 +63,7 @@ succeeded strategy stage and derives `data_version` and `model_version` from its
 provenance; an unknown or non-strategy artifact returns `stage.not_found`, and a
 `data_version` or model-version mismatch returns `stage.invalid`.
 
-The gateway proxies `/stages/*` and `/research/*` with the same profile header,
-bearer token, path allowlist, and error envelope as every other route. The
-gateway never reaches an engine.
+The gateway proxies `/stages/*` and `/research/*` with the same profile header, bearer token, path allowlist, and error envelope; it never reaches an engine.
 
 ## 4. Command surface
 

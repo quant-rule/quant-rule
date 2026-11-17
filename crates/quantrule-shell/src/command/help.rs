@@ -219,6 +219,7 @@ const COMMANDS: &[CommandHelp] = &[
         notes: &[
             "The server assigns the improvement_id and created_utc; the manifest is immutable.",
             "A research run is a coupled run: the config must carry a strategy, and model tier still runs strategy and portfolio.",
+            "--criteria is required for a strategy or portfolio run; it is optional for model.",
         ],
     },
     CommandHelp {
@@ -257,11 +258,11 @@ const COMMANDS: &[CommandHelp] = &[
     },
     CommandHelp {
         name: "research decide",
-        usage: "research decide <improvement_id> --decision <accepted|rejected|no-edge|invalidated|new-hypothesis> [--note <text>]",
+        usage: "research decide <improvement_id> --decision <accepted|rejected|no-edge|invalidated|new-hypothesis> --note <text>",
         summary: "Record exactly one human decision and its registry row.",
         output: "the decided improvement detail",
         notes: &[
-            "A note is required by the server; an accepted decision also requires a succeeded run and canonical digest.",
+            "A non-empty note is required; an accepted decision also requires a succeeded run and canonical digest.",
             "A second decision is refused with research.conflict.",
             "An accepted decision appends one baseline; an invalidated decision appends one tombstone.",
         ],

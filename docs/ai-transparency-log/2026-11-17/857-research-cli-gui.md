@@ -38,12 +38,12 @@ snapshot; the evidence ledger is the operational record.
 - `python3 tools/check_file_size.py` — pass.
 - `cargo test -p quantrule-evidence-service --test research_routes` — 16 pass.
 - `cargo test -p quantrule-evidence-service --test research_ledger` — 10 pass, 1 ignored (Postgres).
-- `cargo test -p quantrule-shell --test research_commands` — 6 pass.
+- `cargo test -p quantrule-shell --test research_commands` — 7 pass.
 - `cargo test -p quantrule-shell --test client_parity` — 2 pass.
 - `bun run check` in `apps/web` — 0 errors, 0 warnings.
-- `bun test` in `apps/web` — pass.
+- `bun test` in `apps/web` — 142 pass.
 - `bun run build` in `apps/web` — pass.
-- `bunx playwright test` — pass, including `e2e/research.e2e.ts`.
+- `bunx playwright test` — 51 pass, including `e2e/research.e2e.ts` and the profile-scope research assertion.
 
 Postgres conformance remains opt-in and was not exercised locally.
 
@@ -72,6 +72,15 @@ Postgres conformance remains opt-in and was not exercised locally.
   uses a non-API path; the bearer seam covers `/research`.
 - The research tests were split into support modules and a separate
   `research_commands` shell target to keep every source file under 1,000 lines.
+- `profileScope.svelte.ts` now resets and loads the research store with the other
+  five scoped stores. The panel's mount read and the scope read share the
+  generation counter, so an old-profile response is dropped.
+- The decision note is required in the help usage and parser. The GUI already
+  disabled the action without a note; the CLI now refuses the request before it
+  reaches the gateway.
+- `canCreate` requires a criteria reference for strategy and portfolio while
+  keeping it optional for model; the GUI field is marked required for those
+  tiers. The unit test covers both tiers.
 
 ## Residual risk
 

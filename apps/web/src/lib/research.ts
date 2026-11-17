@@ -118,7 +118,11 @@ export interface CreateImprovement {
 
 /** Whether a create form carries every field the endpoint needs. */
 export function canCreate(input: CreateImprovement): boolean {
+  const criteria =
+    input.tier === "model" ||
+    (input.criteria_id !== null && input.criteria_id.trim().length > 0);
   return (
+    criteria &&
     input.hypothesis.trim().length > 0 &&
     input.data_version.trim().length > 0 &&
     input.config_id.trim().length > 0 &&

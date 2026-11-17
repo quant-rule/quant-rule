@@ -52,6 +52,9 @@
   ];
 
   onMount(() => {
+    // The profile scope also resets and reloads this store. Its generation
+    // counter makes a mount read from an old profile stale, so the two reads
+    // cannot overwrite the active profile's rows.
     void load();
     return () => reset();
   });
@@ -181,8 +184,13 @@
         <input bind:value={configId} placeholder="cfg_…" />
       </label>
       <label>
-        Criteria id (strategy/portfolio)
-        <input bind:value={criteriaId} placeholder="criteria_…" />
+        Criteria id (required for strategy/portfolio)
+        <input
+          bind:value={criteriaId}
+          placeholder="criteria_…"
+          required={tier !== "model"}
+          aria-required={tier !== "model"}
+        />
       </label>
       <label>
         Green criteria

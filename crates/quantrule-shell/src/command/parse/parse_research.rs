@@ -114,7 +114,7 @@ pub(super) fn parse_research(args: &[String]) -> Result<Command, ParseError> {
                     .positional(0, "the improvement id", usage)?
                     .to_owned(),
                 decision: parse_decision(options.required("decision", usage)?, usage)?,
-                note: options.value("note").unwrap_or("").to_owned(),
+                note: options.required("note", usage)?.to_owned(),
             })
         }
         other => Err(ParseError::Usage(format!(

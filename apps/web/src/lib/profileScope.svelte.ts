@@ -2,11 +2,12 @@
  * The profile-scoped client boundary.
  *
  * Every row the browser shows belongs to one profile: datasets, configs, runs,
- * simulation runs, and diagnostic stage runs. Selecting another profile or
- * losing the gateway clears all five before any new read starts, so a slow or
- * failed request cannot leave the previous profile's rows on screen. The stores
- * keep their own generation counter; this module is only the one place that
- * decides when a scope ends.
+ * simulation runs, diagnostic stage runs, and research runs, baselines, and
+ * invalidations. Selecting another profile or losing the gateway clears all six
+ * scoped stores before any new read starts, so a slow or failed request cannot
+ * leave the previous profile's rows on screen. The stores keep their own
+ * generation counter; this module is only the one place that decides when a
+ * scope ends.
  *
  * Panel-local selections (an open run, an open simulation, an inspection
  * result) are cleared by the panel that owns them when the active profile
@@ -16,6 +17,7 @@
 import { load as loadConfigs, reset as resetConfigs } from "./configs.svelte";
 import { load as loadDatasets, reset as resetDatasets } from "./datasets.svelte";
 import { select } from "./profiles.svelte";
+import { load as loadResearch, reset as resetResearch } from "./research.svelte";
 import { load as loadRuns, reset as resetRuns } from "./runs.svelte";
 import { load as loadSimulations, reset as resetSimulations } from "./simulation.svelte";
 import { load as loadStages, reset as resetStages } from "./stages.svelte";
@@ -25,6 +27,7 @@ export function clearProfileScope(): void {
   resetDatasets();
   resetConfigs();
   resetRuns();
+  resetResearch();
   resetSimulations();
   resetStages();
 }
@@ -35,6 +38,7 @@ export async function loadProfileScope(): Promise<void> {
     loadDatasets(),
     loadConfigs(),
     loadRuns(),
+    loadResearch(),
     loadSimulations(),
     loadStages(),
   ]);

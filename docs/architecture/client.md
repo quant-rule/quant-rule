@@ -67,11 +67,11 @@ same error-envelope check. The profile header is attached in one place.
 ## 4. Disconnection and profile scope
 
 Selecting a profile, or losing the gateway, clears every profile-scoped row
-before the next read starts: datasets, configs, runs, and simulation runs.
+before the next read: datasets, configs, runs, simulations, stages, and research.
 
 - The connection pill turns red on `unreachable`, `unauthorized`, or `mismatch`.
 - The runs list shows `disconnected`, not stale rows.
-- An open run detail, an open simulation, and an inspection result are cleared.
+- An open run detail, simulation, stage, or research selection is cleared.
 - Submission is disabled.
 - No result is read from local storage.
 

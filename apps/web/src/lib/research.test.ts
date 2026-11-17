@@ -84,6 +84,34 @@ describe("research API paths", () => {
     expect(canCreate({ ...draft(), seed: -1 })).toBe(false);
   });
 
+  it("requires criteria for strategy and portfolio but not model", () => {
+    expect(canCreate({ ...draft(), tier: "model", criteria_id: null })).toBe(true);
+    expect(
+      canCreate({
+        ...draft(),
+        tier: "strategy",
+        partition: "strategy_dev",
+        criteria_id: null,
+      }),
+    ).toBe(false);
+    expect(
+      canCreate({
+        ...draft(),
+        tier: "portfolio",
+        partition: "portfolio_dev",
+        criteria_id: " ",
+      }),
+    ).toBe(false);
+    expect(
+      canCreate({
+        ...draft(),
+        tier: "strategy",
+        partition: "strategy_dev",
+        criteria_id: "criteria_1",
+      }),
+    ).toBe(true);
+  });
+
   it("posts the create, submit, compare, and decision requests once each", async () => {
     const created = {
       improvement_id: "MODEL-2026-11-17-01",
