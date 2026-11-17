@@ -35,6 +35,9 @@ class SharedListTests(unittest.TestCase):
     def test_every_checker_test_is_listed(self) -> None:
         listed = set(lines(TOOLS / "checker_tests.txt"))
         present = {path.stem for path in TOOLS.glob("test_check_*.py")}
+        # The cleanup test predates the `test_check_*` convention and is kept
+        # under its historical name; it is still part of the shared runner.
+        present.add("test_worktree_cleanup")
         self.assertEqual(listed, present)
 
     def test_both_entry_points_call_the_shared_runner(self) -> None:

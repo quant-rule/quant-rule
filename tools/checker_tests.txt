@@ -17,3 +17,4 @@ test_check_schema_prefixes
 test_check_structure
 test_check_verification
 test_check_workflows
+test_worktree_cleanup
