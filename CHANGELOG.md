@@ -57,6 +57,11 @@ history is in Git and the pull requests.
   readings and the lower-high/lower-low sequence events. The default `major`
   scale keeps the existing output; a `minor` scale now changes the structure
   output as the registry states.
+- VWAP bands and slope publish when the ATR family is inactive, and range
+  expansion no longer requires ATR; only the ATR distance stays null without
+  ATR.
+- The `session` indicator registers `session_vwap` as a published reading, and
+  the session row contract covers it against the golden fixture.
 
 ## [1.3.0] - 2026-11-17
 

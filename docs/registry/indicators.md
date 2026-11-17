@@ -49,7 +49,7 @@
 | `breadth` | 39 | cross_asset | context | active | The share of instruments with a positive return describes participation breadth. |
 | `co_movement` | 40 | cross_asset | diagnostic | active | The same-sign share against the basket describes co-movement. |
 | `dispersion` | 41 | cross_asset | diagnostic | active | The cross-sectional return range describes dispersion. |
-| `session` | 42 | session | context | active | The session code and age describe the local session. |
+| `session` | 42 | session | context | active | The session code, age, and anchored VWAP describe the local session. |
 | `opening_range` | 43 | session | context | active | The first bars of a session define an opening range. |
 | `overnight_intraday` | 44 | session | context | active | The overnight return and the intraday return decompose the session move. |
 | `session_range` | 45 | session | context | active | The running session high-low in ATR describes the session range. |

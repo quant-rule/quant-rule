@@ -127,9 +127,10 @@ pub(super) fn structure_series(
                 result.atr_slope[bar] = Some(ratio - previous);
             }
         }
-        if let (Some(mean), Some(atr)) = (mean_range(candles, bar, config.range_window), atr_fast)
+        // Range expansion is (high - low) / mean range; it does not use ATR and
+        // must not be gated by an inactive ATR family.
+        if let Some(mean) = mean_range(candles, bar, config.range_window)
             && mean > 0.0
-            && atr > 0.0
         {
             result.range_expansion[bar] = Some((candles[bar].high() - candles[bar].low()) / mean);
         }
