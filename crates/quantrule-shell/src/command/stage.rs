@@ -91,11 +91,12 @@ fn report_coverage(bytes: &[u8]) -> Result<Vec<Value>, RunError> {
         message: error.to_string(),
     })?;
     let timeframes = report
-        .get("timeframes")
+        .get("flat_report")
+        .and_then(|report| report.get("timeframes"))
         .and_then(Value::as_array)
         .ok_or_else(|| RunError::Decode {
             path: String::from("report.json"),
-            message: String::from("the model report carries no timeframes array"),
+            message: String::from("the model report carries no flat_report.timeframes array"),
         })?;
     let mut coverage = Vec::with_capacity(timeframes.len());
     for timeframe in timeframes {
@@ -206,7 +207,7 @@ mod tests {
     use super::*;
 
     const EVENTS: &[u8] = b"timeframe_secs,event_index,event_code\n300,0,1\n900,0,2\n300,1,3\n";
-    const REPORT: &[u8] = br#"{"timeframes":[{"timeframe_secs":900,"bars":0,"expected_bars":1,"coverage_share":0.0},{"timeframe_secs":300,"bars":3,"expected_bars":3,"coverage_share":1.0}]}"#;
+    const REPORT: &[u8] = br#"{"model_version":"1.2.0","view_contract":"quantrule.model-view/v4","data_version":"fixture","requested_period":{"from":null,"to":null},"flat_report":{"timeframes":[{"timeframe_secs":900,"bars":0,"expected_bars":1,"coverage_share":0.0},{"timeframe_secs":300,"bars":3,"expected_bars":3,"coverage_share":1.0}]}}"#;
 
     #[test]
     fn a_timeframe_filter_keeps_only_its_rows() {
@@ -218,8 +219,20 @@ mod tests {
     }
 
     #[test]
-    fn a_report_without_timeframes_is_refused() {
+    fn the_real_report_envelope_is_read_through_flat_report() {
+        let view = stage_events("stage", "5m", EVENTS, Some(REPORT)).expect("envelope");
+        assert_eq!(view.coverage.len(), 2);
+        assert_eq!(view.coverage[0]["timeframe_secs"], 300);
+        assert_eq!(view.coverage[0]["bars"], 3);
+    }
+
+    #[test]
+    fn a_report_without_the_flat_report_timeframes_is_refused() {
         assert!(stage_events("stage", "5m", EVENTS, Some(b"{}")).is_err());
+        assert!(
+            stage_events("stage", "5m", EVENTS, Some(br#"{"timeframes":[]}"#)).is_err(),
+            "a top-level timeframes array is not the model report envelope"
+        );
     }
 
     #[test]

@@ -54,8 +54,11 @@ gateway never reaches an engine.
 
 ## 4. Command surface
 
-The current 27 commands are in [`command-surface.md`](command-surface.md). The
-target additions are:
+The current 34 commands are in [`command-surface.md`](command-surface.md). The
+model stage commands (`stage run model`, `stage list`, `stage show`,
+`stage events`, `stage fetch`, `stage cancel`, and `stage delete`) are
+implemented (#852). The strategy, portfolio, promotion, research, and operations
+rows below remain target:
 
 | Command | Purpose |
 |---|---|

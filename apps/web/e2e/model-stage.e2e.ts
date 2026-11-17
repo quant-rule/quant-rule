@@ -10,8 +10,10 @@ const STAGE = "sha256:" + "f".repeat(64);
 const ARTIFACT = "sha256:" + "9".repeat(64);
 const EVENTS = "timeframe_secs,event_index,event_code\n300,0,1\n900,0,2\n300,1,3\n";
 const REPORT =
-  '{"timeframes":[{"timeframe_secs":900,"bars":0,"expected_bars":1,"coverage_share":0.0},' +
-  '{"timeframe_secs":300,"bars":3,"expected_bars":3,"coverage_share":1.0}]}';
+  '{"model_version":"1.2.0","view_contract":"quantrule.model-view/v4",' +
+  '"data_version":"fixture","requested_period":{"from":null,"to":null},' +
+  '"flat_report":{"timeframes":[{"timeframe_secs":900,"bars":0,"expected_bars":1,"coverage_share":0.0},' +
+  '{"timeframe_secs":300,"bars":3,"expected_bars":3,"coverage_share":1.0}]}}';
 const EVENTS_SHA = "sha256:" + createHash("sha256").update(EVENTS).digest("hex");
 const REPORT_SHA = "sha256:" + createHash("sha256").update(REPORT).digest("hex");
 

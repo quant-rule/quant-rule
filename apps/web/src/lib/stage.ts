@@ -108,11 +108,14 @@ export function filterEvents(
 
 /** Read the four coverage fields from `report.json`. */
 export function reportCoverage(report: string): StageCoverage[] {
-  const value = JSON.parse(report) as { timeframes?: unknown };
-  if (!Array.isArray(value.timeframes)) {
-    throw new Error("report.json carries no timeframes array");
+  const value = JSON.parse(report) as {
+    flat_report?: { timeframes?: unknown };
+  };
+  const timeframes = value.flat_report?.timeframes;
+  if (!Array.isArray(timeframes)) {
+    throw new Error("report.json carries no flat_report.timeframes array");
   }
-  const coverage = value.timeframes.map((entry) => {
+  const coverage = timeframes.map((entry) => {
     if (entry === null || typeof entry !== "object") {
       throw new Error("a report timeframe is not an object");
     }

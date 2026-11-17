@@ -274,8 +274,8 @@
         },
         {
           "name": "report.json",
-          "bytes": 158,
-          "sha256": "sha256:e5ea03c9e74a0c9d8d0554f268ad0e7a3548619bc6f79917570648ab60388bab"
+          "bytes": 308,
+          "sha256": "sha256:c51202f0d530c89ace6e2005966bc9f898fe836ecddbc50280016a0311e69b5c"
         }
       ]
     },
@@ -329,8 +329,8 @@
       },
       {
         "name": "report.json",
-        "bytes": 158,
-        "sha256": "sha256:e5ea03c9e74a0c9d8d0554f268ad0e7a3548619bc6f79917570648ab60388bab"
+        "bytes": 308,
+        "sha256": "sha256:c51202f0d530c89ace6e2005966bc9f898fe836ecddbc50280016a0311e69b5c"
       }
     ]
   },

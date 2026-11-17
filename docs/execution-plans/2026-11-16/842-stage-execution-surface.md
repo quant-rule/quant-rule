@@ -1,7 +1,7 @@
 # Stage Execution Surface — Execution Plan
 
 - Date: 2026-11-16 (UTC)
-- Status: Approved
+- Status: In Progress
 - Claim type: Behaviour Claim
 - Scope: diagnostic stage execution for the data, model, strategy, and portfolio engines; one coupled backtest evidence path; research ledger; operations verification; CLI and GUI parity; user manual
 - Owner: Human

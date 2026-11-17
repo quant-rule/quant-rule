@@ -51,14 +51,14 @@ The Rust workspace holds one crate per pipeline stage, a shared application serv
 - `crates/quantrule-model` — the model engine, which depends on `quantrule-data`.
 - `crates/quantrule-backtest` — the execution, portfolio, and generic strategy engines, which depend on `quantrule-model` and `quantrule-data`.
 - `crates/quantrule-app` — the application service: workspace, dataset, configuration, model run, export, and the shared use cases both clients call. It depends on the three engine crates and holds no transport or research memory.
-- `crates/quantrule-api` — the `quantrule.api/v1` contract types. It depends on no engine crate.
-- `crates/quantrule-service-api` — the `quantrule.internal/v1` contract types. It depends on no engine, runtime, or service crate.
+- `crates/quantrule-api` — the `quantrule.api/v1` contract types, including run, research, and diagnostic stage types. It depends on no engine crate.
+- `crates/quantrule-service-api` — the `quantrule.internal/v1` contract types, including the run and diagnostic stage lifecycle and manifest types. It depends on no engine, runtime, or service crate.
 - `crates/quantrule-runtime` — configuration, health, storage, queue, migrations, shutdown, and the service client. It depends on `quantrule-api` and `quantrule-service-api`, never on an engine or `quantrule-app`.
 - `crates/quantrule-gateway` — the gateway: profiles in the `gateway` schema, the static client, the proxy table, and health. It links no app, engine, or domain service crate.
 - `crates/quantrule-data-service` — `qr-data`: the `catalog` schema, ingest, datasets, configs, inspection, and ladder.
 - `crates/quantrule-model-service` — `qr-model`: model compute and model bundles.
-- `crates/quantrule-backtest-service` — `qr-backtest`: the worker, strategy, execution, portfolio, and artifact objects.
-- `crates/quantrule-evidence-service` — `qr-evidence`: `runs` and `research` schemas, provenance, canonical digest, run records, and research memory.
+- `crates/quantrule-backtest-service` — `qr-backtest`: the run worker, the diagnostic stage worker and executor seam, strategy, execution, portfolio, and artifact objects.
+- `crates/quantrule-evidence-service` — `qr-evidence`: `runs`, `research`, and diagnostic `stage` schemas; provenance, canonical digest, run records, research memory, and the stage lifecycle and retention.
 - `crates/quantrule-simulation-service` — `qr-simulation`: the `simulation` schema and the research plane.
 - `crates/quantrule-shell` — the command shell, an HTTP client that depends only on `quantrule-api`.
 

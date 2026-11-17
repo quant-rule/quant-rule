@@ -111,11 +111,6 @@ fn verify_manifest(
             "the model bundle names a different config hash".to_owned(),
         ));
     }
-    if manifest.model_version != record.provenance.model_version {
-        return Err(StageExecutorError(
-            "the model bundle names a different model version".to_owned(),
-        ));
-    }
     if manifest.artifacts.is_empty() {
         return Err(StageExecutorError(
             "the model bundle carries no artifacts".to_owned(),
@@ -221,7 +216,7 @@ mod tests {
             data_version: record.provenance.data_version.clone(),
             config_id: record.config_id.clone(),
             config_hash: record.provenance.config_hash.clone(),
-            model_version: record.provenance.model_version.clone(),
+            model_version: "2026-11-10.2".to_owned(),
             ladder: vec!["1m".to_owned()],
             manifest_key: format!("model/{}/manifest.json", record.stage_run_id),
             artifacts: files
@@ -313,7 +308,6 @@ mod tests {
     async fn a_manifest_that_disagrees_with_the_record_is_refused() {
         for mutate in [
             |manifest: &mut ModelBundleManifest| manifest.config_hash = Digest::sha256(b"other"),
-            |manifest: &mut ModelBundleManifest| manifest.model_version = "M9.9".to_owned(),
             |manifest: &mut ModelBundleManifest| manifest.data_version = Digest::sha256(b"other"),
             |manifest: &mut ModelBundleManifest| manifest.schema = "other".to_owned(),
         ] {
@@ -324,6 +318,16 @@ mod tests {
             let executor = ModelStageExecutor::new(Arc::new(model), Arc::new(objects));
             assert!(executor.execute(&record).await.is_err());
         }
+    }
+
+    #[tokio::test]
+    async fn a_registry_model_version_different_from_the_run_model_id_is_accepted() {
+        let (record, model, objects, manifest) = fixture(b"data").await;
+        assert_ne!(manifest.model_version, record.provenance.model_version);
+        assert!(!manifest.model_version.is_empty());
+        let executor = ModelStageExecutor::new(Arc::new(model), Arc::new(objects));
+        let output = executor.execute(&record).await.expect("registry version");
+        assert_eq!(output.files.len(), 2);
     }
 
     #[tokio::test]

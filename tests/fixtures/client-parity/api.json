@@ -272,8 +272,8 @@
           },
           {
             "name": "report.json",
-            "bytes": 158,
-            "sha256": "sha256:e5ea03c9e74a0c9d8d0554f268ad0e7a3548619bc6f79917570648ab60388bab"
+            "bytes": 308,
+            "sha256": "sha256:c51202f0d530c89ace6e2005966bc9f898fe836ecddbc50280016a0311e69b5c"
           }
         ]
       },
@@ -349,8 +349,8 @@
         },
         {
           "name": "report.json",
-          "bytes": 158,
-          "sha256": "sha256:e5ea03c9e74a0c9d8d0554f268ad0e7a3548619bc6f79917570648ab60388bab"
+          "bytes": 308,
+          "sha256": "sha256:c51202f0d530c89ace6e2005966bc9f898fe836ecddbc50280016a0311e69b5c"
         }
       ]
     },
@@ -369,9 +369,9 @@
     },
     {
       "name": "report.json",
-      "body": "{\"timeframes\":[{\"timeframe_secs\":900,\"bars\":0,\"expected_bars\":1,\"coverage_share\":0.0},{\"timeframe_secs\":300,\"bars\":3,\"expected_bars\":3,\"coverage_share\":1.0}]}",
-      "bytes": 158,
-      "sha256": "sha256:e5ea03c9e74a0c9d8d0554f268ad0e7a3548619bc6f79917570648ab60388bab"
+      "body": "{\"model_version\":\"1.2.0\",\"view_contract\":\"quantrule.model-view/v4\",\"data_version\":\"fixture\",\"requested_period\":{\"from\":null,\"to\":null},\"flat_report\":{\"timeframes\":[{\"timeframe_secs\":900,\"bars\":0,\"expected_bars\":1,\"coverage_share\":0.0},{\"timeframe_secs\":300,\"bars\":3,\"expected_bars\":3,\"coverage_share\":1.0}]}}",
+      "bytes": 308,
+      "sha256": "sha256:c51202f0d530c89ace6e2005966bc9f898fe836ecddbc50280016a0311e69b5c"
     }
   ]
 }

@@ -24,7 +24,7 @@ run row, canonical digest, baseline, or research record.
 
 - `cargo fmt --all -- --check` — pass.
 - `cargo clippy --workspace --all-targets -- -D warnings` — pass.
-- `cargo test --workspace --no-fail-fast` — pass; 2,229 tests passed and no
+- `cargo test --workspace --no-fail-fast` — pass; 2,231 tests passed and no
   target reported a failure.
 - `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps` — pass.
 - `bash tools/checkers.sh` — 24 checkers and their tests passed.
@@ -36,9 +36,9 @@ run row, canonical digest, baseline, or research record.
 - `python3 tools/check_doc_length.py` — pass.
 - `python3 tools/check_file_size.py` — pass.
 - `bun run check` in `apps/web` — 0 errors and 0 warnings.
-- `bun test` in `apps/web` — 130 passed.
+- `bun test` in `apps/web` — 131 passed.
 - `bun run build` in `apps/web` — pass.
-- `bunx playwright test` — 43 passed, including the 2 model-stage flows.
+- `bunx playwright test` — 44 passed, including the 2 model-stage flows and the stage profile-scope flow.
 
 The model executor is tested with the in-memory model client and object store;
 the worker's fake-executor tests remain the control-plane proof. The composed
@@ -47,21 +47,28 @@ tier and a live model-service call are not exercised by the fast gate.
 ## Learning and corrections
 
 - The model executor copies the exact bundle bytes under the stage blob
-  namespace. It verifies the manifest schema, dataset, config hash, model
-  version, sorted artifact set, and every byte before returning files; the
-  stage worker then writes its own stage manifest last.
+  namespace. It verifies the manifest schema, dataset, config hash, sorted
+  artifact set, and every byte before returning files; the stage worker then
+  writes its own stage manifest last. The manifest `model_version` is the model
+  registry version, not the run configuration's `model_id`, so the executor does
+  not compare it with the record's `model_version`.
 - The stage artifact download verifies the record's size and SHA-256 on every
   read. The shared name checker now returns a plain message so the run route can
   keep `run.invalid` and the stage route can return `stage.invalid`.
 - `stage events` reads and filters `events.csv`; it reads `report.json` only for
-  the four coverage fields. The shell converts a timeframe code to seconds and
-  otherwise leaves the published values untouched.
+  the four coverage fields, which live under the real envelope's
+  `flat_report.timeframes`. Both parsers have a regression case for that
+  envelope, not only the shared fixture. The shell converts a timeframe code to
+  seconds and otherwise leaves the published values untouched.
 - The Workbench Data tab reuses the existing Datasets panel; the Model tab uses
-  a stage store, a shared stage view module, and verified downloads. The browser
-  never computes a model value.
+  a stage store, a shared stage view module, and verified downloads. The stage
+  store is part of the profile-scope boundary, so a profile switch clears and
+  reloads it with the other four stores; an end-to-end case proves the previous
+  stage row does not survive the switch. The browser never computes a model
+  value.
 - The client-parity fixture now carries one deterministic stage response and the
-  `events.csv` / `report.json` bytes. Both clients issue the same 25 requests and
-  build the same normalized view.
+  real-envelope `events.csv` / `report.json` bytes. The shell and browser issue
+  their own request sequences (25 and 23) and build the same normalized view.
 
 ## Residual risk
 
