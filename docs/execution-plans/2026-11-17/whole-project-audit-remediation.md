@@ -244,7 +244,7 @@ not run is `Blocked`, not `Pass`.
 | V02 | P1.1 restore | All six schemas are counted, dropped, and restored; a partial target is refused or safely replaced | `tools/test_backup.sh` on a disposable stack; seeded `gateway`/`stage` rows | round trip includes `gateway` and `stage`; no partial destroy | `bash -n` passes; round-trip updated, not run (needs a disposable stack) | Pending |  |  |  |
 | V03 | P1.2 partition | A `strategy_dev` manifest with a 2024/2025 config is refused; a contained config passes | `cargo test -p quantrule-evidence-service`; new partition test | non-contained config rejected at create/submit | `cargo test -p quantrule-api`: 76 pass; evidence tests pass; a 2024 config on `model_dev` is refused | Pending |  |  |  |
 | V04 | P1.3 holdout | Every `portfolio_holdout` instrument has 2025 coverage, or the uncovered instrument is removed | `data/partitions.json`; data-change record; coverage check | no holdout instrument without 2025 data | `portfolio_holdout` now lists five instruments; COPPER/TSLA removed; the MR7 record has a dated correction; `check_partitions` passes | Pending |  |  |  |
-| V05 | P1.4 portfolio | Cash never goes negative; a halted ledger refuses an entry; funding uses the charged price | `cargo test -p quantrule-backtest`; new cash/halt/funding tests | no negative cash; tests pass |  | Pending |  |  |  |
+| V05 | P1.4 portfolio | Cash never goes negative; a halted ledger refuses an entry; funding uses the charged price | `cargo test -p quantrule-backtest`; new cash/halt/funding tests | no negative cash; tests pass | `quantrule-backtest`: 210 pass; `quantrule-app`: 164 pass; all-in entry refused; funding mark and halt tests pass; golden short unchanged | Pending |  |  |  |
 | V06 | P1.5 cancel | A succeeded run is not overwritten by a concurrent cancel; a second cancel is a conflict | Postgres concurrency test | terminal state monotonic | SQL predicate added; Postgres race test is `#[ignore]` until `QR_TEST_DATABASE_URL`; fast tests pass | Pending |  |  |  |
 | V07 | P1.6 image identity | A server without `QR_IMAGE_DIGEST` refuses a run/stage; two builds differ | `cargo test`; two-build fixture | `/health` and provenance agree | server-without-digest test passes; `make up` records the built image id; docs updated | Pending |  |  |  |
 | V08 | P2.1 session VWAP | A missing-volume session publishes null; the session event cannot fire | `cargo test -p quantrule-model`; session edge test | no fabricated VWAP |  | Pending |  |  |  |
@@ -330,7 +330,10 @@ the work item remains for the surviving findings.
   scale can change published values. A Quant Validator reproduces the old and
   new behavior; an affected baseline is recorded in
   [`docs/improvement/INVALIDATIONS.md`](../../improvement/INVALIDATIONS.md) and
-  re-run or retired before the next claim.
+  re-run or retired before the next claim. The shipped `verify-mini` portfolio
+  is all-in (10,000 cash, 10,000 fixed notional); the composed tier must re-size
+  it to a funded notional and record the new canonical digest in the next
+  release note. The golden short fixture is unchanged.
 - **The partition fix rejects existing records.** P1.2 adds a preflight check;
   existing research records are not deleted. A record outside its declared
   partition is marked `Stale` with a dated note; no new validation access is
