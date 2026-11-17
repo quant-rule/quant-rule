@@ -18,7 +18,14 @@ history is in Git and the pull requests.
 
 ## [Unreleased]
 
-No unreleased changes yet. `v1.3.0` is the current release.
+### Fixed
+
+- The model event batch and bounded history now include the extended events as
+  well as the core batch, matching the retention contract. The retention test
+  asserts both sources are present.
+- The data-v3 document no longer requires the retired policy universe; the
+  loader's non-empty instrument and ordered-ladder checks are the actual
+  admission rules.
 
 ## [1.3.0] - 2026-11-17
 

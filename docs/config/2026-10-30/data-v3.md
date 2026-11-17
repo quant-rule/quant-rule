@@ -40,7 +40,7 @@ model runs every available timeframe, subject to the model ceiling.
 | `schema` | Exactly `quantrule.data/v3` |
 | `source.kind` | Exactly `csv` |
 | `source.path` | Non-empty; resolves against the file's directory |
-| `instrument` | Non-empty; must be in the policy universe |
+| `instrument` | Non-empty source label; the retired policy universe is not an admission check |
 | `data_version` | Non-empty; caller-supplied identity |
 | `source_timeframe` | Exactly `1m` |
 | `available_timeframes` | Ascending, unique, includes `1m`; members of `1m`, `5m`, `15m`, `1h`, `4h` |
@@ -51,12 +51,14 @@ model runs every available timeframe, subject to the model ceiling.
 
 ## 4. Validation
 
+The loader requires a non-empty instrument and does not consult the retired
+policy universe.
+
 - The list is ascending by duration.
 - The list has no duplicates.
 - `1m` is present because the source is M1.
-- Every policy universe timeframe is in the available list.
 - Every model override names an available timeframe.
-- The execution fill timeframe is in the available list and the policy universe.
+- The execution fill timeframe is in the available list.
 - The source cadence must be one minute. Native M5/M15/H1/H4 files are rejected.
 - A sparse M1 file is accepted while at least one adjacent pair is one minute
   apart. A single row is accepted because its cadence cannot be measured.
