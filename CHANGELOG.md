@@ -18,7 +18,12 @@ history is in Git and the pull requests.
 
 ## [Unreleased]
 
-No unreleased changes yet. `v1.3.0` is the current release.
+### Fixed
+
+- `structure.scale` now selects the confirmed pivot scale for the structure
+  readings and the lower-high/lower-low sequence events. The default `major`
+  scale keeps the existing output; a `minor` scale now changes the structure
+  output as the registry states.
 
 ## [1.3.0] - 2026-11-17
 
