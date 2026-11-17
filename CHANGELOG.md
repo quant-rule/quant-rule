@@ -18,7 +18,12 @@ history is in Git and the pull requests.
 
 ## [Unreleased]
 
-No unreleased changes yet. `v1.3.0` is the current release.
+### Changed
+
+- The execution contract states the conservative entry-bar bracket convention:
+  OHLC cannot order a pre-trigger low or high against the entry, so the bracket
+  is live for the whole entry bar. A fixture with a pre-trigger low now proves
+  the rule; no fill behavior changed.
 
 ## [1.3.0] - 2026-11-17
 

@@ -209,6 +209,14 @@ intent is valid. A bracket entry carries the two boundary prices. An exit intent
 carries `event_condition`, `time_stop`, or `giveback`. The strategy never sets a
 fill price.
 
+On the entry bar, OHLC cannot prove whether the bar's low or high occurred
+before or after the entry trigger. The execution contract uses the conservative
+convention: the bracket is live for the whole entry bar, so a bar range that
+crosses the stop records a stop-out; a range that reaches the target without
+crossing the stop records a take-profit. The convention applies
+to market and stop entries. It can reject a candidate, but it never invents a
+fill or claims the intrabar order was observed.
+
 The evidence list carries only published signal/context inputs:
 
 | Evidence kind | Fields |
