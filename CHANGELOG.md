@@ -18,7 +18,13 @@ history is in Git and the pull requests.
 
 ## [Unreleased]
 
-No unreleased changes yet. `v1.3.0` is the current release.
+### Fixed
+
+- The strategy event snapshot excludes unregistered and `diagnostic` events,
+  and no longer exposes the raw model `ContextBar`. The model-bundle reader
+  applies the same registry filter.
+- The run loader rejects a strategy execution timeframe that differs from the
+  fill timeframe, and the coupled `run submit` rejects `quantrule.run/v3`.
 
 ## [1.3.0] - 2026-11-17
 

@@ -111,6 +111,22 @@ pub(crate) async fn submit_validated_pipeline(
     request: SubmitRunRequest,
     config: ConfigBundle,
 ) -> Result<(SubmitRunResponse, RunRecord), ApiFailure> {
+    let schema = config
+        .files
+        .get("run.json")
+        .and_then(|body| serde_json::from_str::<serde_json::Value>(body).ok())
+        .and_then(|value| {
+            value
+                .get("schema")
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned)
+        });
+    if schema.as_deref() == Some("quantrule.run/v3") {
+        return Err(failure(
+            ErrorCode::ConfigInvalid,
+            "a coupled run requires quantrule.run/v4 with a strategy",
+        ));
+    }
     let Some(config_hash) = config.config_hash.clone() else {
         return Err(failure(
             ErrorCode::ConfigInvalid,

@@ -470,6 +470,23 @@ fn a_model_ladder_must_be_in_the_data_ladder_and_contain_execution() {
 }
 
 #[test]
+fn a_strategy_execution_mismatch_is_rejected_at_load() {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../quantrule-data-service/tests/fixtures/config/valid-v4/run.json");
+    let mut config = run::RunConfig::load(&path).expect("the v4 fixture is valid");
+    config
+        .strategy
+        .as_mut()
+        .expect("the v4 fixture has a strategy")
+        .execution_timeframe = Timeframe::M5;
+    assert_rejected(
+        config.validate_cross(),
+        Inconsistent,
+        "$.execution_timeframe",
+    );
+}
+
+#[test]
 fn a_cross_config_mismatch_is_rejected() {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../quantrule-shell/tests/fixtures/config-run/run.json");
