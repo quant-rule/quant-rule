@@ -53,6 +53,10 @@ ALLOWLIST = {
     "crates/quantrule-shell/tests/architecture.rs",
     "crates/quantrule-app/src/config/tests.rs",
     "crates/quantrule-shell/tests/fixtures/config-run/model-v3.json",
+    # The research-ledger migration seeds the committed invalidation tombstones
+    # and quotes the retired label that the tombstone recorded.
+    "crates/quantrule-evidence-service/migrations/0016_research_ledger.sql",
+    "crates/quantrule-evidence-service/migrations/sqlite/0004_research_ledger.sql",
     "docs/workflows/deprecation-retirement.md",
     "docs/workflows/release-operations.md",
 }

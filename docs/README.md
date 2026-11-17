@@ -22,7 +22,7 @@ Work-item documents use `docs/<kind>/<YYYY-MM-DD>/<file>.md`: the kind comes fir
 | Workflows | The living workflow contracts, indexed by `docs/workflows/README.md`. | `docs/workflows/<file>.md` |
 | Manual | The living user manual: one chapter per journey, command and GUI reference, glossary, troubleshooting. | `docs/manual/<file>.md` |
 | Workflow templates | The skeleton for a new workflow and the data, release, deprecation, and requirements records. | `docs/workflows/templates/<file>.md` |
-| Improvement registry | The committed run index, baselines, invalidation tombstones, and run record template. | `docs/improvement/<file>.md` |
+| Improvement registry | The committed run index, baselines, invalidation tombstones, and run record template; seeded into the evidence research ledger. | `docs/improvement/<file>.md` |
 | Port parity | Golden fixtures captured from a retired implementation, and the registry the gate checks. | `docs/port-parity/README.md`; `docs/port-parity/registry.json`; `docs/port-parity/<id>.golden.json` |
 | Changelog | The grouped release history: meaningful user-facing or developer-facing changes by release and type. | `CHANGELOG.md` |
 
@@ -39,13 +39,13 @@ repeating a status.
 | Pipeline | Every stage is implemented: data, model, strategy, execution, portfolio, backtest, qualification, analytics. |
 | Surfaces | Product 1.2.0 is a distributed platform with two clients: a Svelte browser client and a command shell, both on `quantrule.api/v1`, plus the Tauri desktop package over the gateway URL. The command shell is a thin gateway client with no engine dependency; the six services are packaged in one image and nine-container stack, and the desktop installer carries the same six sidecars on embedded backends. |
 | Command surface | 37 implemented commands on the gateway-client surface in [command-surface.md](architecture/command-surface.md), including the model, strategy, and portfolio stage commands added in #852–#854 and the optional `run submit --model-artifact` flag added in #855; the previous 27-command surface was released as v0.9.0 (prepared as v1.0.0). The discovery gate passes for the implemented set. |
-| Stage surface | The stage contract, schema, worker, gateway, and the model, strategy, and portfolio slices are implemented (#850–#854); promotion is implemented (#855), and research and operations remain target (#856–#858). [stage-surface.md](architecture/stage-surface.md). |
+| Stage surface | The stage contract, schema, worker, gateway, and the model, strategy, and portfolio slices are implemented (#850–#854); promotion is implemented (#855), the research ledger and manifest v3 are implemented (#856), and the research commands and operations remain target (#857–#858). [stage-surface.md](architecture/stage-surface.md). |
 | Model | `M1.3` current; 49 indicators, 150 active events, 199 validation claims; accepted compression baselines; `M2.x` no edge; `M3.x` underpowered; `M4.x` no edge; `MR5.x` no edge; `MR6.x` no edge; `MR7.x` no edge. |
 | Strategy | No accepted strategy baseline; the tier is gated by an accepted model baseline. |
 | Portfolio | No accepted portfolio baseline; the tier is gated by an accepted strategy baseline. |
 | Data partitions | `model_dev` 2018–2020, `model_validation` 2021–2022, `strategy_dev` 2018–2022, `strategy_validation` 2024, `portfolio_dev` 2024, `portfolio_holdout` 2025; 2023 excluded. A dense Binance BTCUSDT cross-venue source exists outside the partitions. |
-| Improvement workflow | Current; the run store is implemented; the SR1/SR2 strategy runs, the SR3 feature programme, the SR4 multi-instrument fade, the SR5 absorption count gate, the SR6 VWAP rejection run, the SR7 BTC+ETH H3 cross-section, the SR8 2023 buffer test, the SR8-A 2023 archive data rejection, the SR9 15m structure campaign, and the Binance BTCUSDT cross-venue check are recorded; accepted model baselines: 1m 4 ATR compression expansion, 1m compression-range, and 5m fresh-onset range; no accepted strategy or portfolio baseline. |
-| Run contract | Current; `quantrule.improvement-run/v2` is current, v1 is historical. |
+| Improvement workflow | Current; the v3 research-ledger store is implemented; the SR1/SR2 strategy runs, the SR3 feature programme, the SR4 multi-instrument fade, the SR5 absorption count gate, the SR6 VWAP rejection run, the SR7 BTC+ETH H3 cross-section, the SR8 2023 buffer test, the SR8-A 2023 archive data rejection, the SR9 15m structure campaign, and the Binance BTCUSDT cross-venue check are recorded; accepted model baselines: 1m 4 ATR compression expansion, 1m compression-range, and 5m fresh-onset range; no accepted strategy or portfolio baseline. |
+| Run contract | Current; `quantrule.improvement-run/v3` is current, v2 is historical. |
 | Research swarm | Current contract; no active campaign. |
 | Release tags | `v1.2.0` is the latest published release (2026-11-16), the final version-alignment release, with image digest `sha256:26350916…` and both desktop assets. `v1.1.0` is the 1.1.0 alignment release (`sha256:d5ce83da…`); `v1.0.0` is the desktop release, prepared as `v1.1.0` (`sha256:a133ff14…`); `v0.9.0` is the distributed platform (`sha256:1250438f…`). The tag mapping is in `docs/releases/README.md`. |
 | Changelog | Grouped release history; `1.2.0` is the current section, and the historical headings are normalized to the current tags. |
@@ -131,7 +131,7 @@ repeating a status.
 | Analytics benchmarks | Current; buy-and-hold and matched random-timing evaluation output | `docs/config/2026-11-09/analytics-benchmarks.md` |
 | Trade context | Historical; the Python exporter was retired by DIST-105, with the artifact and mark schemas retained as a record | `docs/config/2026-11-09/trade-context.md` |
 | Strategy position excursions | Current; entry price/ATR, unrealized, MFE/MAE, giveback exit | `docs/config/2026-11-10/strategy-position-excursions.md` |
-| Improvement run contract | Current; `quantrule.improvement-run/v2` is current, v1 is historical | `docs/workflows/run-contract.md` |
+| Improvement run contract | Current; `quantrule.improvement-run/v3` is current, v2 is historical | `docs/workflows/run-contract.md` |
 
 A current run uses `quantrule.run/v4`, which references the strategy alongside
 the four engine files. `quantrule.run/v3` remains accepted for a model-only run

@@ -177,7 +177,7 @@ short map is:
 | Workflow | `docs/workflows/<name>.md` | — | Current, Target, Historical, Deprecated, Proposed, Superseded |
 | Audit | `docs/audits/<date>/<scope>-audit.md` | `AUD-<date>-NN` | Open, Triaged, Planned, In progress, Fixed, Verified, Won't fix, Duplicate, Stale |
 | Refactor | `docs/refactors/<date>/<scope>-refactor.md` | `REF-<date>-NN` | Open, Triaged, Planned, In progress, Refactored, Verified, Deferred, Won't refactor, Duplicate, Stale |
-| Improvement run | `data/improvement/<date>/<run-id>/` | `MODEL-/STRATEGY-/PORTFOLIO-<date>-NN` | pending, accepted, rejected, invalidated, no edge, new hypothesis, failed |
+| Improvement run | `research.improvement_runs` (v3); historical v2 `data/improvement/<date>/<run-id>/` | `MODEL-/STRATEGY-/PORTFOLIO-<date>-NN` | created, submitted, decided; accepted, rejected, no-edge, invalidated, new-hypothesis |
 | Programme | `docs/governance/<date>/<PROGRAM-ID>.md` | `PROGRAM-<date>-NN` | Proposed, Approved, Stopped, Closed; verdict `no_edge`, `development_only`, `candidate`, `accepted` |
 | Policy change (historical) | `docs/workflows/policy-change.md` record | `POL-<date>-NN` | Proposed, Approved, Applied, Superseded, Rejected |
 | Data change | `docs/config/` + `data/partitions.json` | `DATA-<date>-NN` | Proposed, Validated, Active, Superseded, Invalidated |

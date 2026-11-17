@@ -1,9 +1,10 @@
 # Improvement Workflow
 
 - Date: 2026-11-01 (UTC)
-- Updated: 2026-11-16 for the gateway command surface and the tier runbooks
-- Status: Current; the gateway command surface is implemented, no tiered run has used
-  it yet, and human acceptance of the surface is pending
+- Updated: 2026-11-17 for the v3 research ledger and manifest
+- Status: Current; the gateway command surface and the v3 research-ledger store are
+  implemented, no tiered run has used v3 yet, and the research commands and human
+  acceptance of the surface are pending
 - Scope: model, strategy, and portfolio improvement runs
 
 ## Purpose
@@ -25,10 +26,10 @@ Run -> Results -> Review -> New Hypothesis
 
 | Stage | Question | Owner | Output |
 |---|---|---|---|
-| Run | What is the one hypothesis, and which tier and partition test it? | Loop Governor | Pre-registered run and `manifest.json` |
+| Run | What is the one hypothesis, and which tier and partition test it? | Loop Governor | A v3 pre-registration in the evidence ledger, then a linked pipeline run |
 | Results | What did the run produce? | Result Analyst | Artifacts and a results table; no interpretation yet |
-| Review | Is the result better than the baseline after costs, on the validation data, and without post-hoc changes? | Result Analyst | `review.md` with a recommendation |
-| New Hypothesis | Do we accept a baseline, route a program defect, change one tier, or stop? | Triage Officer | `decision.md` and the next run, or `no edge` |
+| Review | Is the result better than the baseline after costs, on the validation data, and without post-hoc changes? | Result Analyst | A review record with a recommendation |
+| New Hypothesis | Do we accept a baseline, route a program defect, change one tier, or stop? | Triage Officer | The human decision note and the next run, or `no edge` |
 
 A run is not a result until its artifacts are reproducible. A result is not a
 baseline until the human accepts it.
@@ -131,9 +132,9 @@ acceptance.
 | Action | Agent | Human |
 |---|---|---|
 | Define a run under an approved tier and protocol | May | Approves the protocol |
-| Write the manifest, execute the matrix, produce artifacts | May | — |
-| Write `review.md` and propose a decision | May | — |
-| Update the generated index | May | — |
+| Create the v3 pre-registration, execute the matrix, produce artifacts | May | — |
+| Review the linked run and propose a decision | May | — |
+| Update the generated v2 index | May, for historical reproduction only | — |
 | Accept or replace a baseline | May propose only | **Accepts** |
 | Change strategy or portfolio constraints | No | **Owns** |
 | Change a partition, cost assumption, threshold, or green criterion after seeing a result | No | **New pre-registration** |
@@ -226,23 +227,23 @@ into a green one.
 
 ## Artifacts
 
-| Artifact | Path |
+| Artifact | Current path |
 |---|---|
-| Run folder (manifest, config, artifacts, results, review, decision) | `data/improvement/<YYYY-MM-DD>/<run-id>/` |
-| Machine-readable index | `data/improvement/index.json` |
-| Generated human-readable index | `data/improvement/index.md` |
-| Committed index snapshot | `docs/improvement/index.md` |
-| Baseline registry | `docs/improvement/baselines.md`; optional working copy `data/improvement/baselines.json` |
-| Invalidation tombstones | `docs/improvement/INVALIDATIONS.md`; optional working copy `data/improvement/invalidations.md` |
-| Run record template | [`docs/improvement/README.md`](../improvement/README.md) |
+| V3 pre-registration | `research.improvement_runs` in the evidence service, scoped to the active profile |
+| Pipeline link and canonical digest | `research.improvement_runs`, recorded once after submission |
+| Human decision and note | `research.improvement_runs`, recorded once |
+| Baseline registry | `docs/improvement/baselines.md`; mirrored in append-only `research.baselines` |
+| Invalidation tombstones | `docs/improvement/INVALIDATIONS.md`; mirrored in append-only `research.invalidations` |
+| Run record guide | [`docs/improvement/README.md`](../improvement/README.md) |
 
-The run-store tooling lives in `tools/improvement/` and is written in Python. It
-validates manifests, runs the current shell commands, extracts evidence, and
-generates the index. `run_current.py` and `run.py` are historical adapters for
-the retired local commands. The tooling never
-computes a signal. Baseline acceptance and invalidation are recorded in the
-committed registry by the reviewer and the human; the tooling does not accept
-them.
+The v3 record is a gateway-reference pre-registration. It does not create a local
+run folder, copy a config, or write a generated index. The local
+`data/improvement/<YYYY-MM-DD>/<run-id>/` folders, the `index.json`/`index.md`
+files, and the Python `tools/improvement/` run-store tooling are historical v2
+records. They are retained only to reproduce a pre-v3 run. The current store is
+Rust in the evidence service; it never computes a signal. Baseline acceptance and
+invalidation remain human decisions, and the committed `docs/improvement/`
+registry remains the human-owned source of truth.
 
 ## Related documents
 

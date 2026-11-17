@@ -43,7 +43,7 @@ quantrule-simulation-service ──> quantrule-simulation
 | `quantrule-data-service` | `catalog` schema, ingest, datasets, configs, inspection, ladder | Another schema or a model run |
 | `quantrule-model-service` | Model compute and content-addressed model bundles | A strategy, execution, portfolio, or database schema |
 | `quantrule-backtest-service` | Worker orchestration, strategy, execution, portfolio, stage worker, artifact objects | A catalog, run, or research schema |
-| `quantrule-evidence-service` | `runs`, `research`, and `stage` schemas, run records, stage lifecycle, provenance, digest, memory, hypotheses | An engine or `quantrule-app` |
+| `quantrule-evidence-service` | `runs`, `research`, and `stage` schemas, run records, stage lifecycle, provenance, digest, memory, hypotheses, research ledger | An engine or `quantrule-app` |
 | `quantrule-simulation-service` | `simulation` schema, research objects, eleven endpoints | A model, run artifact, strategy, or queue message |
 | `quantrule-shell` | Parsing, terminal rendering, HTTP calls | Domain logic, engine dependency |
 | `apps/web` | Svelte screens, stores, SVG chart, rendering | Domain logic, computation |

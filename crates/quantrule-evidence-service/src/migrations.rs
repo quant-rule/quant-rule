@@ -61,6 +61,11 @@ pub fn available() -> Vec<Migration> {
             name: "run-model-artifact",
             sql: include_str!("../migrations/0015_run_model_artifact.sql"),
         },
+        Migration {
+            version: 16,
+            name: "research-ledger",
+            sql: include_str!("../migrations/0016_research_ledger.sql"),
+        },
     ];
     migrations.sort_by_key(|migration| migration.version);
     migrations
@@ -88,6 +93,11 @@ pub fn sqlite() -> Vec<Migration> {
             version: 3,
             name: "run-model-artifact",
             sql: include_str!("../migrations/sqlite/0003_run_model_artifact.sql"),
+        },
+        Migration {
+            version: 4,
+            name: "research-ledger",
+            sql: include_str!("../migrations/sqlite/0004_research_ledger.sql"),
         },
     ]
 }
@@ -126,7 +136,7 @@ mod tests {
         let pending = plan(&applied, &available).expect("plan");
         assert_eq!(
             pending.iter().map(|m| m.version).collect::<Vec<_>>(),
-            vec![4, 5, 8, 9, 13, 14, 15]
+            vec![4, 5, 8, 9, 13, 14, 15, 16]
         );
     }
 
@@ -145,7 +155,7 @@ mod tests {
             .iter()
             .map(|migration| migration.version)
             .collect();
-        assert_eq!(versions, vec![2, 4, 5, 8, 9, 13, 14, 15]);
+        assert_eq!(versions, vec![2, 4, 5, 8, 9, 13, 14, 15, 16]);
     }
 
     #[test]
@@ -199,6 +209,63 @@ mod tests {
     }
 
     #[test]
+    fn the_research_ledger_migration_is_registered() {
+        let postgres = available()
+            .into_iter()
+            .find(|migration| migration.version == 16)
+            .expect("migration 16");
+        assert_eq!(postgres.name, "research-ledger");
+        for table in [
+            "research.improvement_runs",
+            "research.baselines",
+            "research.invalidations",
+        ] {
+            assert!(
+                postgres.sql.contains(table),
+                "migration 16 must create {table}"
+            );
+        }
+        assert!(postgres.sql.contains("reject_manifest_change"));
+        assert!(postgres.sql.contains("reject_append_only"));
+        assert!(
+            postgres
+                .sql
+                .contains("CHECK (decision <> 'accepted' OR canonical_digest IS NOT NULL)")
+        );
+        assert!(postgres.sql.contains("MODEL-2026-11-04-04..05"));
+        assert!(postgres.sql.contains("docs/improvement/2026-11-10/SR10.md"));
+
+        let sqlite = sqlite()
+            .into_iter()
+            .find(|migration| migration.version == 4)
+            .expect("sqlite migration 4");
+        assert_eq!(sqlite.name, "research-ledger");
+        for table in [
+            "research__improvement_runs",
+            "research__baselines",
+            "research__invalidations",
+        ] {
+            assert!(
+                sqlite.sql.contains(table),
+                "sqlite migration 4 must create {table}"
+            );
+        }
+        assert!(
+            sqlite
+                .sql
+                .contains("research__improvement_runs_manifest_immutable")
+        );
+        assert!(
+            sqlite
+                .sql
+                .contains("research__baselines_append_only_update")
+        );
+        assert!(sqlite.sql.contains("MODEL-2026-11-04-04..05"));
+        assert!(sqlite.sql.contains("docs/improvement/2026-11-10/SR10.md"));
+        assert!(sqlite.sql.contains("'default'"));
+    }
+
+    #[test]
     fn the_list_owns_only_the_evidence_schemas() {
         for migration in available() {
             for forbidden in ["catalog.", "simulation.", "gateway."] {
@@ -223,11 +290,12 @@ mod tests {
     #[test]
     fn the_sqlite_baseline_starts_at_one_and_is_complete() {
         let baseline = sqlite();
-        assert_eq!(baseline.len(), 3);
+        assert_eq!(baseline.len(), 4);
         assert_eq!(baseline[0].version, 1);
         assert_eq!(baseline[1].version, 2);
         assert_eq!(baseline[2].version, 3);
-        assert_eq!(plan(&[], &baseline).expect("plan").len(), 3);
+        assert_eq!(baseline[3].version, 4);
+        assert_eq!(plan(&[], &baseline).expect("plan").len(), 4);
     }
 
     #[test]

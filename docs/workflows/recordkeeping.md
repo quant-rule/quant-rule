@@ -23,7 +23,7 @@ to the original.
 | Workflow | `docs/workflows/<name>.md` | — | Orchestrator | Current, Target, Historical, Deprecated, Proposed, Superseded |
 | Audit | `docs/audits/<date>/<scope>-audit.md` | `AUD-<date>-NN` | Audit Agent | Open, Triaged, Planned, In progress, Fixed, Verified, Won't fix, Duplicate, Stale |
 | Refactor | `docs/refactors/<date>/<scope>-refactor.md` | `REF-<date>-NN` | Structure Auditor | Open, Triaged, Planned, In progress, Refactored, Verified, Deferred, Won't refactor, Duplicate, Stale |
-| Improvement run | `data/improvement/<date>/<run-id>/` | `MODEL-/STRATEGY-/PORTFOLIO-<date>-NN` | Loop Governor | pending, accepted, rejected, invalidated, no edge, new hypothesis, failed |
+| Improvement run | `research.improvement_runs` (v3); historical v2 `data/improvement/<date>/<run-id>/` | `MODEL-/STRATEGY-/PORTFOLIO-<date>-NN` | Loop Governor | created, submitted, decided; accepted, rejected, no-edge, invalidated, new-hypothesis |
 | Programme | `docs/governance/<date>/<PROGRAM-ID>.md` | `PROGRAM-<date>-NN` | Human + Coordinator | Proposed, Approved, Stopped, Closed; verdict `no_edge`, `development_only`, `candidate`, `accepted` |
 | Policy change | `docs/config/` + policy-change record | `POL-<date>-NN` | Human + Planner | Proposed, Approved, Applied, Superseded, Rejected |
 | Data change | `docs/config/` + `data/partitions.json` | `DATA-<date>-NN` | Data Steward | Proposed, Validated, Active, Superseded, Invalidated |
@@ -174,7 +174,7 @@ release or a dated addendum in the next release. The changelog starts at the
 | Execution plan | `docs/execution-plans/2026-11-12/dist-NNN-<slug>.md` | Orchestrator |
 | Issue | `DIST-NNN` plan ID; the GitHub number is assigned at creation | Orchestrator |
 | Pipeline run | `run_id` content hash | evidence service |
-| Improvement run | `data/improvement/<date>/<run-id>/` | Improvement Workflow |
+| Improvement run | `research.improvement_runs` (v3); historical v2 `data/improvement/<date>/<run-id>/` | Improvement Workflow |
 | Release | `vMAJOR.MINOR.PATCH` | Release |
 
 A plan ID is stable. The GitHub issue number is a pointer, never the identity of
