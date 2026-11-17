@@ -85,5 +85,8 @@ artifact, or a baseline.
   a restart.
 - The Operations screen reads the snapshot on mount and manual Refresh; it does
   not poll. A stale screen is corrected by Refresh, not by a live push.
-- The verification form reads the digest the run record already carries; it is
-  operational proof, not research evidence.
+- The verification form reads the digest the run record already carries. It
+  states that comparing two equivalent runs is what proves reproduction; the
+  recorded digest alone is not a reproduction proof.
+- Review corrected the screen copy and the stage-surface title, which still said
+  the document was a target, after every slice had landed. No behavior changed.

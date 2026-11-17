@@ -1,4 +1,4 @@
-# Stage Surface — Target Architecture
+# Stage, Research, and Operations Surface
 
 - Date: 2026-11-17 (UTC)
 - Status: Current for the stage, research, and operations slices; the stage contract and schema are merged (#850), the worker and gateway landed in #851, the model stage and Workbench Data/Model tabs landed in #852, the strategy stage and Workbench Strategy tab landed in #853, the portfolio stage and Workbench Portfolio tab landed in #854, backtest promotion landed in #855, the research ledger and manifest v3 landed in #856, the research commands and Research screen landed in #857, and the operations surface and end-to-end verification landed in #858
@@ -14,8 +14,8 @@ alone for diagnosis and iteration. It is a **diagnostic** path: a stage run has
 no canonical digest, is never a baseline, and never enters the evidence path.
 The coupled backtest remains the only evidence run.
 
-This document is the target architecture for the API, commands, services, and
-client screens. It does not claim that a target command or screen exists today.
+This document describes the implemented API, commands, services, and client
+screens. The status table in §8 names what each slice covers.
 
 ## 2. Evidence boundary
 

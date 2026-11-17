@@ -176,9 +176,10 @@
       <div class="notice error" role="alert">{verifyError}</div>
     {/if}
     <p class="muted small">
-      Verification reads the digest the run record already carries. It is
-      operational proof that the deployment reproduces, not research evidence,
-      a baseline, or a claim about profitability.
+      This reads the canonical digest the run record already carries. Compare
+      the digests of two equivalent runs, as <code>make verify</code> and the
+      composed tier do, to prove the deployment reproduces. It is not research
+      evidence, a baseline, or a claim about profitability.
     </p>
   </section>
 </section>
