@@ -206,7 +206,10 @@ impl PortfolioLedger {
             Side::Short => -amount,
         };
         self.state.cash -= signed;
-        let equity = self.state.equity - signed;
+        // The charge is taken at the boundary price. Mark the position at that
+        // price as well, so the drawdown check does not use the previous
+        // close's equity.
+        let equity = self.state.cash + self.position_value(price);
         let drawdown = self.refresh_equity_state(equity);
         self.check_halt(bar, time, equity, drawdown);
         if signed > 0.0 {
@@ -314,6 +317,9 @@ impl PortfolioLedger {
     }
 
     fn open(&mut self, fill: &Fill) -> Result<(), PortfolioLedgerError> {
+        if self.state.halted {
+            return Err(PortfolioLedgerError::Halted);
+        }
         if self.state.position.is_some() {
             return Err(PortfolioLedgerError::PositionAlreadyOpen);
         }
@@ -330,6 +336,12 @@ impl PortfolioLedger {
             OrderSide::Sell => self.state.cash + notional,
         };
         let cash = moved - fill.fee - commission;
+        if cash < 0.0 {
+            return Err(PortfolioLedgerError::InsufficientCash {
+                required: notional + fill.fee + commission,
+                available: self.state.cash,
+            });
+        }
 
         let position = OpenPosition::new(
             side,
@@ -644,6 +656,15 @@ pub enum PortfolioLedgerError {
     UnexpectedFillReason,
     /// A price is not finite or not positive.
     NonFinitePrice,
+    /// The account is halted and cannot open a position.
+    Halted,
+    /// The entry would make cash negative.
+    InsufficientCash {
+        /// The cash the entry requires.
+        required: f64,
+        /// The cash available.
+        available: f64,
+    },
 }
 
 impl fmt::Display for PortfolioLedgerError {
@@ -666,6 +687,14 @@ impl fmt::Display for PortfolioLedgerError {
                 formatter.write_str("the fill reason cannot close a position")
             }
             Self::NonFinitePrice => formatter.write_str("the price must be finite and positive"),
+            Self::Halted => formatter.write_str("the account is halted"),
+            Self::InsufficientCash {
+                required,
+                available,
+            } => write!(
+                formatter,
+                "the entry requires {required} but only {available} cash is available"
+            ),
         }
     }
 }

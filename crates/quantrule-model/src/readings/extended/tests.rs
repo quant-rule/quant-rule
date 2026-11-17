@@ -68,6 +68,33 @@ fn vwap_is_the_volume_weighted_typical_price() {
 }
 
 #[test]
+fn vwap_slope_subtracts_the_value_one_window_back() {
+    let candles = [
+        candle(0, 10.0, 11.0, 9.0, 10.0, 1.0),
+        candle(1, 20.0, 21.0, 19.0, 20.0, 1.0),
+        candle(2, 30.0, 31.0, 29.0, 30.0, 1.0),
+        candle(3, 40.0, 41.0, 39.0, 40.0, 1.0),
+    ];
+    let config = ExtendedConfig {
+        vwap_window: 2,
+        ..ExtendedConfig::DEFAULT
+    };
+    let readings_config = ReadingsConfig {
+        atr: 1,
+        ..ReadingsConfig::DEFAULT
+    };
+    let readings = Readings::compute_with_config(&candles, &readings_config);
+    let extended = ExtendedReadings::compute(&candles, &readings, &config);
+    assert_eq!(extended.vwap.get(1), Some(15.0));
+    assert_eq!(extended.vwap.get(2), Some(25.0));
+    assert_eq!(extended.vwap.get(3), Some(35.0));
+    // The documented formula is S = VWAP - VWAP[n], so bar 3 subtracts the
+    // VWAP of bar 1, not the VWAP of bar 2.
+    assert_eq!(extended.vwap_slope.get(2), None);
+    assert_eq!(extended.vwap_slope.get(3), Some(20.0));
+}
+
+#[test]
 fn vwap_is_null_without_volume() {
     let candles = [
         candle(0, 10.0, 10.0, 10.0, 10.0, 0.0),

@@ -295,6 +295,25 @@ fn a_donchian_break_is_a_level_event() {
 }
 
 #[test]
+fn a_one_bar_donchian_window_is_safe_at_bar_zero() {
+    let candles: Vec<Candle> = (0..30)
+        .map(|index| candle(index, 100.0, 101.0, 99.0, 100.0, 10.0))
+        .collect();
+    let config = ExtendedConfig {
+        donchian_window: 1,
+        ..ExtendedConfig::DEFAULT
+    };
+    let events = compute_with(&candles, config);
+    assert!(
+        events
+            .events()
+            .iter()
+            .all(|event| event.available_bar_index > 0),
+        "a one-bar window emitted a position event at bar zero"
+    );
+}
+
+#[test]
 fn a_filled_gap_is_a_level_event() {
     let mut candles: Vec<Candle> = (0..20)
         .map(|index| candle(index, 100.0, 100.5, 99.5, 100.0, 10.0))

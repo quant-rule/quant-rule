@@ -189,6 +189,30 @@ INSERT INTO runs.artifacts (run_id, name, bytes, sha256) VALUES
 INSERT INTO runs.submissions (profile_id, run_id, submitted_at)
 VALUES ('default', '$run_id', '2026-11-14T00:00:00Z');
 SQL
+# The gateway profile and diagnostic stage schemas are part of a normal stack.
+# Seed one stage row so the round trip proves those schemas are restored, not
+# merely present because the migration ran again.
+stage_run_id="sha256:$(printf 'backup-round-trip-stage' | sha256sum | cut -d' ' -f1)"
+stage_artifact_body="$work/seed/stage-model.json"
+printf '{"stage":"backup"}\n' > "$stage_artifact_body"
+stage_artifact_hex=$(backup_sha256 "$stage_artifact_body")
+stage_artifact_bytes=$(backup_file_bytes "$stage_artifact_body")
+mkdir -p "$work/seed/objects/stages/blobs"
+cp "$stage_artifact_body" "$work/seed/objects/stages/blobs/$stage_artifact_hex"
+backup_compose exec -T postgres psql -q -v ON_ERROR_STOP=1 -U "$postgres_user" -d "$postgres_db" <<SQL
+INSERT INTO stage.runs
+  (stage_run_id, kind, status, owner, config_id, input_kind, input_digest,
+   data_version, config_hash, model_version, image_digest, artifact_id, submitted_at)
+VALUES
+  ('$stage_run_id', 'model', 'succeeded', 'default', '$config_id', 'data_version',
+   '$data_version', '$data_version', '$config_hash', 'M1.3',
+   'sha256:0000000000000000000000000000000000000000000000000000000000000000',
+   'sha256:$stage_artifact_hex', '2026-11-14T00:00:00Z');
+INSERT INTO stage.submissions (profile_id, stage_run_id, submitted_at)
+VALUES ('default', '$stage_run_id', '2026-11-14T00:00:00Z');
+INSERT INTO stage.artifacts (stage_run_id, name, bytes, sha256)
+VALUES ('$stage_run_id', 'model.json', $stage_artifact_bytes, '$stage_artifact_hex');
+SQL
 tar -C "$work/seed/objects" -cf - . | backup_minio_run \
   'rm -rf /tmp/qr-test-seed
    mkdir -p /tmp/qr-test-seed
@@ -206,6 +230,10 @@ UNION ALL SELECT 'runs.stages', count(*), coalesce(md5(string_agg(t::text, E'\n'
 UNION ALL SELECT 'runs.artifacts', count(*), coalesce(md5(string_agg(t::text, E'\n' ORDER BY t::text)), '-') FROM runs.artifacts t
 UNION ALL SELECT 'runs.submissions', count(*), coalesce(md5(string_agg(t::text, E'\n' ORDER BY t::text)), '-') FROM runs.submissions t
 UNION ALL SELECT 'research.hypotheses', count(*), coalesce(md5(string_agg(t::text, E'\n' ORDER BY t::text)), '-') FROM research.hypotheses t
+UNION ALL SELECT 'gateway.profiles', count(*), coalesce(md5(string_agg(t::text, E'\n' ORDER BY t::text)), '-') FROM gateway.profiles t
+UNION ALL SELECT 'stage.runs', count(*), coalesce(md5(string_agg(t::text, E'\n' ORDER BY t::text)), '-') FROM stage.runs t
+UNION ALL SELECT 'stage.submissions', count(*), coalesce(md5(string_agg(t::text, E'\n' ORDER BY t::text)), '-') FROM stage.submissions t
+UNION ALL SELECT 'stage.artifacts', count(*), coalesce(md5(string_agg(t::text, E'\n' ORDER BY t::text)), '-') FROM stage.artifacts t
 UNION ALL SELECT 'public.schema_migrations', count(*), coalesce(md5(string_agg(t::text, E'\n' ORDER BY t::text)), '-') FROM public.schema_migrations t
 ORDER BY 1;"
 }

@@ -17,8 +17,8 @@ use super::config::PortfolioConfigError;
 
 /// How a position is sized.
 ///
-/// Both modes floor the quantity to `quantity_step`. A fixed notional ignores
-/// the account equity; an equity fraction scales with it.
+/// Both modes floor the quantity to `quantity_step`. A fixed notional is capped
+/// by the account equity; an equity fraction scales with it.
 ///
 /// # Examples
 ///
@@ -97,13 +97,14 @@ impl SizingMode {
 
     /// The notional cap for one entry.
     ///
-    /// A fixed notional returns its declared notional. An equity fraction
-    /// returns `equity * fraction * leverage`. The caller supplies the current
-    /// equity and the configured leverage; this method does not read state.
+    /// A fixed notional is `min(declared, equity * leverage)`, so it can never
+    /// spend more than the account can fund. An equity fraction returns
+    /// `equity * fraction * leverage`. The caller supplies the current equity
+    /// and the configured leverage; this method does not read state.
     #[must_use]
     pub fn max_notional(&self, equity: f64, leverage: f64) -> f64 {
         match *self {
-            Self::FixedNotional { notional, .. } => notional,
+            Self::FixedNotional { notional, .. } => notional.min(equity * leverage),
             Self::EquityFraction { fraction, .. } => equity * fraction * leverage,
         }
     }
@@ -119,10 +120,11 @@ impl SizingMode {
 
     /// Sizes one entry from the equity and price at the decision bar.
     ///
-    /// The quantity is `notional / price` or `(equity * fraction) / price`,
-    /// floored to the step. The result is never zero: a quantity below one step
-    /// returns [`SizingRejection::BelowOneStep`]. The rule is side-independent;
-    /// the engine always operates in both directions.
+    /// The quantity is `min(notional, equity) / price` or
+    /// `(equity * fraction) / price`, floored to the step. The result is never
+    /// zero: a quantity below one step returns
+    /// [`SizingRejection::BelowOneStep`]. The rule is side-independent; the
+    /// engine always operates in both directions.
     ///
     /// # Errors
     ///
@@ -159,7 +161,7 @@ impl SizingMode {
                 if quantity_step <= 0.0 {
                     return Err(SizingRejection::NonPositiveStep);
                 }
-                (notional / price, quantity_step)
+                (notional.min(equity) / price, quantity_step)
             }
             Self::EquityFraction {
                 fraction,

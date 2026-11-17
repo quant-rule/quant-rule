@@ -443,8 +443,8 @@ impl ExtendedReadings {
                 upper[bar] = Some(center + config.vwap_band_mad * deviation);
                 lower[bar] = Some(center - config.vwap_band_mad * deviation);
             }
-            if bar + 1 >= config.vwap_window {
-                let prior = bar + 1 - config.vwap_window;
+            if bar >= config.vwap_window {
+                let prior = bar - config.vwap_window;
                 if let Some(previous) = vwap[prior] {
                     slope[bar] = Some(center - previous);
                 }
