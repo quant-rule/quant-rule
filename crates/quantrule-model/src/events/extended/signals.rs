@@ -172,7 +172,8 @@ pub(crate) fn compute(
                     );
                 }
             }
-            if let Some(position) = extended.keltner_position.get(bar)
+            if bar > 0
+                && let Some(position) = extended.keltner_position.get(bar)
                 && let Some(previous) = extended.keltner_position.get(bar - 1)
             {
                 if previous <= 0.8 && position > 0.8 {
@@ -240,7 +241,8 @@ pub(crate) fn compute(
                     );
                 }
             }
-            if let Some(position) = extended.donchian_position.get(bar)
+            if bar > 0
+                && let Some(position) = extended.donchian_position.get(bar)
                 && let Some(previous) = extended.donchian_position.get(bar - 1)
             {
                 if previous <= 0.8 && position > 0.8 {

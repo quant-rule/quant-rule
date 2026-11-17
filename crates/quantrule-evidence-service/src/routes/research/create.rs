@@ -12,8 +12,8 @@ use quantrule_api::{
 use serde::Deserialize;
 
 use super::{
-    date_of, load, manifest, next_id, now, parse_state, parse_tier, refresh_digest,
-    require_coupled, store, store_failure, validation_failure,
+    date_of, ensure_partition_window, load, manifest, next_id, now, parse_state, parse_tier,
+    refresh_digest, require_coupled, store, store_failure, validation_failure,
 };
 use crate::routes::runs::{submit_validated_pipeline, validated_config};
 use crate::routes::{ApiFailure, failure, request_profile};
@@ -53,6 +53,14 @@ pub(crate) async fn create(
         .await
         .map_err(validation_failure)?;
     require_coupled(&config).map_err(|message| failure(ErrorCode::ResearchInvalid, message))?;
+    ensure_partition_window(
+        &state,
+        &profile,
+        &config,
+        request.partition,
+        &request.data_version,
+    )
+    .await?;
 
     for _ in 0..8 {
         let improvement_id = next_id(store.as_ref(), &profile, request.tier, &date).await?;
@@ -150,6 +158,14 @@ pub(crate) async fn submit(
         .await
         .map_err(validation_failure)?;
     require_coupled(&config).map_err(|message| failure(ErrorCode::ResearchInvalid, message))?;
+    ensure_partition_window(
+        &state,
+        &profile,
+        &config,
+        detail.manifest.partition,
+        &detail.manifest.data_version,
+    )
+    .await?;
     let (response, record) = submit_validated_pipeline(&state, &profile, request, config)
         .await
         .map_err(validation_failure)?;
