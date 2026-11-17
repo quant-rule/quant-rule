@@ -18,7 +18,12 @@ history is in Git and the pull requests.
 
 ## [Unreleased]
 
-No unreleased changes yet. `v1.3.0` is the current release.
+### Changed
+
+- The configuration identity is one SHA-256 across the app, catalog, run
+  record, and stage provenance. The old 64-bit FNV fingerprint is gone.
+- The canonical digest now covers every `metrics.json`, so a metrics-only change
+  cannot leave the digest unchanged.
 
 ## [1.3.0] - 2026-11-17
 

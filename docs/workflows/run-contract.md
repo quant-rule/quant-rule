@@ -95,6 +95,9 @@ A full evidence run keeps its identity:
 run_id = sha256(data_version ‖ config_hash ‖ model_version ‖ image_digest)
 ```
 
+`config_hash` is one SHA-256 over the ordered config bytes; the app, catalog,
+and stage provenance use the same value.
+
 A promoted run appends one tagged identity component:
 
 ```text
@@ -368,7 +371,7 @@ produced by submitting a pipeline run:
 |---|---|
 | `run_id` | `sha256(data_version ‖ config_hash ‖ model_version ‖ image_digest)` |
 | `data_version` | returned by the dataset upload |
-| `config_hash` | computed by the gateway at submission |
+| `config_hash` | computed by the data service: SHA-256 over the run, data, model, execution, portfolio, and optional strategy file bytes in that order, each followed by a NUL |
 | `image_digest` | reported by `/health` and recorded in provenance |
 | `canonical_digest` | returned by `GET /runs/{id}/digest` |
 
