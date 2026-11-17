@@ -183,6 +183,17 @@ mod tests {
         assert!(valid.files.contains_key("run.json"));
         assert!(valid.files.contains_key("data.json"));
 
+        // The app's `RunConfig` and the catalog must name the same identity.
+        let config = RunConfig::load(&root().join("valid/run.json")).expect("the valid config");
+        assert_eq!(
+            config.config_hash,
+            valid
+                .config_hash
+                .as_ref()
+                .expect("the catalog hash")
+                .to_string()
+        );
+
         let v4 = records
             .iter()
             .find(|record| record.name == "valid-v4/run.json")
@@ -190,6 +201,61 @@ mod tests {
         assert!(v4.valid);
         assert_eq!(v4.files.len(), 6);
         assert!(v4.files.contains_key("strategy.json"));
+    }
+
+    fn copy_tree(source: &Path, target: &Path) {
+        std::fs::create_dir_all(target).expect("create the copy");
+        for entry in std::fs::read_dir(source).expect("read the source") {
+            let entry = entry.expect("the source entry");
+            let path = entry.path();
+            let destination = target.join(entry.file_name());
+            if path.is_dir() {
+                copy_tree(&path, &destination);
+            } else {
+                std::fs::copy(&path, &destination).expect("copy the file");
+            }
+        }
+    }
+
+    #[test]
+    fn the_config_hash_covers_a_strategy_change() {
+        let source = root().join("valid-v4");
+        let target = std::env::temp_dir().join(format!(
+            "quantrule-scan-strategy-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("the clock")
+                .as_nanos()
+        ));
+        copy_tree(&source, &target);
+        let before = scan(&target, "2026-11-13T00:00:00Z").expect("scan")[0]
+            .config_hash
+            .clone()
+            .expect("the original hash");
+        let original = RunConfig::load(&target.join("run.json")).expect("the original config");
+        let strategy = target.join("strategy.json");
+        let mut text = std::fs::read_to_string(&strategy).expect("the strategy");
+        text.push('\n');
+        std::fs::write(&strategy, text).expect("write the changed strategy");
+        let after = scan(&target, "2026-11-13T00:00:00Z").expect("scan")[0]
+            .config_hash
+            .clone()
+            .expect("the changed hash");
+        assert_ne!(before, after);
+
+        // The model-input identity survives a strategy-only change.
+        let changed = RunConfig::load(&target.join("run.json")).expect("the changed config");
+        assert_eq!(original.model_input_hash, changed.model_input_hash);
+
+        // A model-config change moves it.
+        let model = target.join("model.json");
+        let mut model_text = std::fs::read_to_string(&model).expect("the model config");
+        model_text.push('\n');
+        std::fs::write(&model, model_text).expect("write the changed model");
+        let model_changed = RunConfig::load(&target.join("run.json")).expect("the model change");
+        assert_ne!(original.model_input_hash, model_changed.model_input_hash);
+        std::fs::remove_dir_all(&target).expect("remove the copy");
     }
 
     #[test]

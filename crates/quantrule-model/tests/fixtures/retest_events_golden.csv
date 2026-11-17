@@ -1,0 +1,3 @@
+row,event_code,event_type_code,event_subtype_code,source_code,timeframe_secs,occurred_bar_index,available_bar_index,direction_code,reference_code,primary_value,reference_value
+0,146,3,24,5,300,26,26,1,,101,100.5
+1,146,3,24,5,300,28,28,-1,,99.2,99.5

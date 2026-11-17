@@ -333,6 +333,14 @@ fn v4_divergence(
             )
         })?;
     }
+    if settings.window > settings.scale.lookback() {
+        return Err(ConfigError::range(
+            file,
+            &format!("{path}.window"),
+            "at most the pivot scale lookback",
+            &settings.window.to_string(),
+        ));
+    }
     Ok(settings)
 }
 

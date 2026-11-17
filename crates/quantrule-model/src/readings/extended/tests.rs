@@ -1,7 +1,7 @@
 //! Extended reading tests.
 
 use super::{ExtendedConfig, ExtendedReadings};
-use crate::readings::{PivotSeries, ReadingSeries, Readings, ReadingsConfig};
+use crate::readings::{PivotScale, PivotSeries, ReadingSeries, Readings, ReadingsConfig};
 use quantrule_data::Candle;
 
 fn candle(index: u64, open: f64, high: f64, low: f64, close: f64, volume: f64) -> Candle {
@@ -14,6 +14,40 @@ fn candle_with_optional_volume(index: u64, volume: Option<f64>) -> Candle {
 
 fn readings(candles: &[Candle]) -> Readings {
     Readings::compute_with_config(candles, &ReadingsConfig::DEFAULT)
+}
+
+#[test]
+fn structure_scale_selects_the_confirmed_pivot_scale() {
+    let highs = [
+        1.0, 2.0, 1.0, 2.0, 1.0, 10.0, 2.0, 1.0, 2.0, 3.0, 1.0, 1.5, 2.0, 0.5, 0.5, 1.0, 0.5, 0.5,
+        0.5, 0.5,
+    ];
+    let candles: Vec<Candle> = highs
+        .iter()
+        .enumerate()
+        .map(|(index, high)| {
+            let low = 0.1;
+            candle(
+                index as u64,
+                (high + low) / 2.0,
+                *high,
+                low,
+                (high + low) / 2.0,
+                1.0,
+            )
+        })
+        .collect();
+    let readings = readings(&candles);
+    let config = ExtendedConfig::DEFAULT;
+    let major = ExtendedReadings::compute(&candles, &readings, &config);
+    let minor =
+        ExtendedReadings::compute_with_scale(&candles, &readings, &config, PivotScale::Minor);
+
+    assert_eq!(major.last_pivot_high.get(7), None);
+    assert_eq!(minor.last_pivot_high.get(7), Some(10.0));
+    assert_eq!(major.last_pivot_high.get(11), Some(10.0));
+    assert_eq!(minor.last_pivot_high.get(11), Some(3.0));
+    assert_eq!(minor.lower_high_count.get(17), Some(3.0));
 }
 
 #[test]
@@ -31,6 +65,62 @@ fn vwap_is_the_volume_weighted_typical_price() {
     let extended = ExtendedReadings::compute(&candles, &readings, &config);
     assert_eq!(extended.vwap.get(2), Some(20.0));
     assert_eq!(extended.vwap.get(1), None);
+}
+
+#[test]
+fn non_atr_vwap_outputs_publish_when_atr_is_inactive() {
+    let candles: Vec<Candle> = (0..8)
+        .map(|index| {
+            let close = 10.0 + index as f64 * 0.5;
+            candle(index, close, close + 1.0, close - 1.0, close, 1.0)
+        })
+        .collect();
+    let config = ExtendedConfig {
+        vwap_window: 2,
+        range_window: 2,
+        ..ExtendedConfig::DEFAULT
+    };
+    let readings_config = ReadingsConfig {
+        atr_active: false,
+        ..ReadingsConfig::DEFAULT
+    };
+    let readings = Readings::compute_with_config(&candles, &readings_config);
+    let extended = ExtendedReadings::compute(&candles, &readings, &config);
+
+    assert_eq!(readings.atr14.get(4), None);
+    assert_eq!(extended.vwap_distance_atr.get(4), None);
+    assert!(extended.vwap_band_upper.get(4).is_some());
+    assert!(extended.vwap_band_lower.get(4).is_some());
+    assert!(extended.vwap_slope.get(4).is_some());
+    assert!(extended.range_expansion.get(4).is_some());
+}
+
+#[test]
+fn vwap_slope_subtracts_the_value_one_window_back() {
+    let candles = [
+        candle(0, 10.0, 11.0, 9.0, 10.0, 1.0),
+        candle(1, 20.0, 21.0, 19.0, 20.0, 1.0),
+        candle(2, 30.0, 31.0, 29.0, 30.0, 1.0),
+        candle(3, 40.0, 41.0, 39.0, 40.0, 1.0),
+    ];
+    let config = ExtendedConfig {
+        vwap_window: 2,
+        ..ExtendedConfig::DEFAULT
+    };
+    let readings_config = ReadingsConfig {
+        atr: 1,
+        ..ReadingsConfig::DEFAULT
+    };
+    let readings = Readings::compute_with_config(&candles, &readings_config);
+    let extended = ExtendedReadings::compute(&candles, &readings, &config);
+
+    assert_eq!(extended.vwap.get(1), Some(15.0));
+    assert_eq!(extended.vwap.get(2), Some(25.0));
+    assert_eq!(extended.vwap.get(3), Some(35.0));
+    // The documented formula is S = VWAP - VWAP[n], so bar 3 subtracts the
+    // VWAP of bar 1, not the VWAP of bar 2.
+    assert_eq!(extended.vwap_slope.get(2), None);
+    assert_eq!(extended.vwap_slope.get(3), Some(20.0));
 }
 
 #[test]

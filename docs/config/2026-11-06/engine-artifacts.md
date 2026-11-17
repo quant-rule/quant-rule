@@ -80,10 +80,13 @@ New stage bundles use `quantrule.stage-provenance/v1`:
 
 The existing model bundle keeps its `quantrule.provenance/v1` file, which carries
 `report`, `data_version`, `config_hash`, `config_files`, `config`, `period`, and
-`artifacts`. Its `config_hash` is the model stage's `config_id`. The model bundle
-does not carry `code_commit` or `source_artifacts` today; a later stage that
-consumes it records those in its own provenance. The model bundle is not
-rewritten by this contract.
+`artifacts`. Its `config_hash` is the model-input identity: the data version
+label, the model config bytes, and the effective model ladder. The strategy,
+execution, and portfolio files do not contribute, so a strategy-only change can
+reuse the same model artifact. The model stage keeps the full config identity in
+its own provenance. The model bundle does not carry `code_commit` or
+`source_artifacts` today; a later stage that consumes it records those in its own
+provenance. The model bundle is not rewritten by this contract.
 
 ## 3. Data stage
 

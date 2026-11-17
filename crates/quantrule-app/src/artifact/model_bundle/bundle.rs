@@ -223,7 +223,7 @@ fn model_bundle_with(
     let provenance = render_report::provenance_bytes(&Provenance {
         report: "model",
         data_version: &config.data.data_version,
-        config_hash: &config.config_hash,
+        config_hash: &config.model_input_hash,
         from: config.data.from.as_deref(),
         to: config.data.to.as_deref(),
         first_open_time,

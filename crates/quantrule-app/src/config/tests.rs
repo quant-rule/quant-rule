@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 
 use quantrule_data::Timeframe;
 use quantrule_model::calendar::TradingCalendar;
+use quantrule_model::readings::PivotScale;
 use serde_json::{Value, json};
 
 use super::error::ConfigErrorKind;
@@ -305,6 +306,41 @@ fn model_v4_reads_events_and_progression() {
 }
 
 #[test]
+fn model_v4_reads_the_structure_scale() {
+    let mut minor = model_v4_object();
+    minor["structure"] = json!({"scale": "minor"});
+    let config = model::parse(&minor, "model.json").expect("the minor scale loads");
+    assert_eq!(config.structure_scale, PivotScale::Minor);
+
+    let default = model::parse(&model_v4_object(), "model.json").expect("the default loads");
+    assert_eq!(default.structure_scale, PivotScale::Major);
+}
+
+#[test]
+fn model_v4_rejects_a_divergence_window_above_the_pivot_lookback() {
+    let mut too_wide = model_v4_object();
+    too_wide["defaults"]["events"]["divergence"]["window"] = json!(6);
+    assert_rejected(
+        model::parse(&too_wide, "model.json"),
+        Range,
+        "$.defaults.events.divergence.window",
+    );
+
+    let mut major_at_the_bound = model_v4_object();
+    major_at_the_bound["defaults"]["events"]["divergence"]["window"] = json!(5);
+    assert!(model::parse(&major_at_the_bound, "model.json").is_ok());
+
+    let mut minor_too_wide = model_v4_object();
+    minor_too_wide["defaults"]["events"]["divergence"]["pivot_scale"] = json!("minor");
+    minor_too_wide["defaults"]["events"]["divergence"]["window"] = json!(3);
+    assert_rejected(
+        model::parse(&minor_too_wide, "model.json"),
+        Range,
+        "$.defaults.events.divergence.window",
+    );
+}
+
+#[test]
 fn model_v4_rejects_a_4h_override() {
     assert_rejected(
         model::parse(
@@ -454,6 +490,15 @@ fn the_config_run_fixture_loads() {
     let config = run::RunConfig::load(&path).expect("the fixture config is valid");
     assert_eq!(config.name, "fixture");
     assert_eq!(config.execution.fill_timeframe, Timeframe::M5);
+}
+
+#[test]
+fn the_config_hash_is_a_sha256_identity() {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../quantrule-shell/tests/fixtures/config-run/run.json");
+    let config = run::RunConfig::load(&path).expect("the fixture config is valid");
+    assert!(config.config_hash.starts_with("sha256:"));
+    assert_eq!(config.config_hash.len(), "sha256:".len() + 64);
 }
 
 #[test]

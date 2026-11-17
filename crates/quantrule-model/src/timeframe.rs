@@ -149,7 +149,12 @@ impl TimeframeModel {
 
         let readings_config = config.readings_for(input.timeframe_secs);
         let readings = Readings::compute_with_config(input.candles, &readings_config);
-        let extended = ExtendedReadings::compute(input.candles, &readings, &config.extended());
+        let extended = ExtendedReadings::compute_with_scale(
+            input.candles,
+            &readings,
+            &config.extended(),
+            config.structure_scale,
+        );
         let event_settings = config.events_for(input.timeframe_secs);
         let progression_settings = config.progression_for(input.timeframe_secs);
         let macd = if config.macd_enabled_for(input.timeframe_secs) {
@@ -274,7 +279,8 @@ impl TimeframeModel {
             &ExtendedEventConfig::new(timeframe_secs)
                 .with_path_window(config.extended().path_window)
                 .with_fib_test_atr(config.extended().fib_test_atr)
-                .with_band_atr(config.extended().band_atr),
+                .with_band_atr(config.extended().band_atr)
+                .with_structure_scale(config.structure_scale),
         );
 
         let mut events: Vec<EventRecord> = level_events
