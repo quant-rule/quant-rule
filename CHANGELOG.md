@@ -46,6 +46,9 @@ history is in Git and the pull requests.
   cannot read past the bar on which the event claims to be knowable. The model
   v4 config now refuses a window above the pivot-scale lookback. The default
   and golden fixtures are unchanged.
+- A one-bar Donchian or Keltner window no longer indexes the previous bar at
+  bar zero; the position events require a prior bar. The normal-window golden
+  fixtures are unchanged.
 
 ## [1.3.0] - 2026-11-17
 
