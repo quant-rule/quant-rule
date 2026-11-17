@@ -16,6 +16,10 @@ use quantrule_api::{
 use serde_json::{Value, json};
 
 use super::help::run_help;
+use super::stage_commands::{
+    stage_cancel, stage_delete, stage_events_command, stage_fetch, stage_list, stage_run_model,
+    stage_show,
+};
 use super::types::{Command, GlobalOptions, Invocation};
 use crate::client::{Client, encode};
 use crate::error::RunError;
@@ -80,6 +84,30 @@ fn run(
             run_fetch(&client, globals, stdout, &run_id, &directory)
         }
         Command::RunCancel { run_id } => run_cancel(&client, globals, stdout, &run_id),
+        Command::StageRunModel {
+            data_version,
+            config_id,
+        } => stage_run_model(&client, globals, stdout, &data_version, &config_id),
+        Command::StageList {
+            kind,
+            status,
+            limit,
+        } => stage_list(&client, globals, stdout, kind, status, limit),
+        Command::StageShow { stage_run_id } => stage_show(&client, globals, stdout, &stage_run_id),
+        Command::StageEvents {
+            stage_run_id,
+            timeframe,
+        } => stage_events_command(&client, globals, stdout, &stage_run_id, &timeframe),
+        Command::StageFetch {
+            stage_run_id,
+            directory,
+        } => stage_fetch(&client, globals, stdout, &stage_run_id, &directory),
+        Command::StageCancel { stage_run_id } => {
+            stage_cancel(&client, globals, stdout, &stage_run_id)
+        }
+        Command::StageDelete { stage_run_id } => {
+            stage_delete(&client, globals, stdout, &stage_run_id)
+        }
         Command::InspectCandles { data_version } => {
             inspect_candles(&client, globals, stdout, &data_version)
         }
@@ -759,14 +787,6 @@ fn simulation_decide(
     })
 }
 
-fn with_query(path: &str, query: &[String]) -> String {
-    if query.is_empty() {
-        path.to_owned()
-    } else {
-        format!("{path}?{}", query.join("&"))
-    }
-}
-
 fn simulation_status(status: quantrule_api::SimulationStatus) -> &'static str {
     match status {
         quantrule_api::SimulationStatus::Draft => "draft",
@@ -781,27 +801,6 @@ fn mark_origin(origin: quantrule_api::MarkOrigin) -> &'static str {
     match origin {
         quantrule_api::MarkOrigin::Human => "human",
         quantrule_api::MarkOrigin::Oracle => "oracle",
-    }
-}
-
-fn safe_segments(name: &str) -> Result<Vec<&str>, RunError> {
-    if name.is_empty() || name.starts_with('/') || name.contains('\\') {
-        return Err(unsafe_name(name));
-    }
-    let segments: Vec<&str> = name.split('/').collect();
-    if segments
-        .iter()
-        .any(|segment| segment.is_empty() || *segment == "." || *segment == "..")
-    {
-        return Err(unsafe_name(name));
-    }
-    Ok(segments)
-}
-
-fn unsafe_name(name: &str) -> RunError {
-    RunError::Decode {
-        path: String::from("a run artifact"),
-        message: format!("the artifact name '{name}' is not a safe relative path"),
     }
 }
 
@@ -826,6 +825,35 @@ fn slug(name: &str) -> String {
         }
     }
     slug
+}
+
+fn with_query(path: &str, query: &[String]) -> String {
+    if query.is_empty() {
+        path.to_owned()
+    } else {
+        format!("{path}?{}", query.join("&"))
+    }
+}
+
+fn safe_segments(name: &str) -> Result<Vec<&str>, RunError> {
+    if name.is_empty() || name.starts_with('/') || name.contains('\\') {
+        return Err(unsafe_name(name));
+    }
+    let segments: Vec<&str> = name.split('/').collect();
+    if segments
+        .iter()
+        .any(|segment| segment.is_empty() || *segment == "." || *segment == "..")
+    {
+        return Err(unsafe_name(name));
+    }
+    Ok(segments)
+}
+
+fn unsafe_name(name: &str) -> RunError {
+    RunError::Decode {
+        path: String::from("a run artifact"),
+        message: format!("the artifact name '{name}' is not a safe relative path"),
+    }
 }
 
 #[cfg(test)]

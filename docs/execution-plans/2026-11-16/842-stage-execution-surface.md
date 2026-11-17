@@ -1,7 +1,7 @@
 # Stage Execution Surface — Execution Plan
 
 - Date: 2026-11-16 (UTC)
-- Status: Approved
+- Status: In Progress
 - Claim type: Behaviour Claim
 - Scope: diagnostic stage execution for the data, model, strategy, and portfolio engines; one coupled backtest evidence path; research ledger; operations verification; CLI and GUI parity; user manual
 - Owner: Human
@@ -145,15 +145,15 @@ The commands below are the reviewer checklist. `Observed` and `Status` are fille
 | P1-10 | Profile scoping | Stage artifact hidden in another profile | evidence test | Pass | — | Pending | — | — | — |
 | P1-11 | Stage manifest | `quantrule.stage-manifest/v1`; content-addressed | service-api test | Pass | — | Pending | — | — | — |
 | P1-12 | No engine in shell | Shell stage modules contain no engine calls | `cargo test -p quantrule-shell --test architecture`; `check_structure.py` | Pass | — | Pending | — | — | — |
-| P2-01 | Model stage compute | `stage run model` produces a model artifact | backtest test; CLI fixture | Pass | — | Pending | — | — | — |
-| P2-02 | Model artifact identity | Stage model artifact is the content-addressed model bundle | model-service test | Pass | — | Pending | — | — | — |
-| P2-03 | Model CLI | `stage run model`, `show`, `events`, `fetch`, `list`, `cancel` | shell printed-output tests | Pass | — | Pending | — | — | — |
-| P2-04 | Model GUI | Data + Model tabs; event browser; badge | `bun test`; Playwright fixture | Pass | — | Pending | — | — | — |
-| P2-05 | Model parity | Controls and client docs updated | parity tests; `check_client_docs.py` | Pass | — | Pending | — | — | — |
-| P2-06 | Model determinism | Same input/config/image → same artifact hash | model-service test | Pass | — | Pending | — | — | — |
-| P2-07 | Model causality | Later bars do not change an earlier output | model test | Pass | — | Pending | — | — | — |
-| P2-08 | Model evidence boundary | Stage model artifact rejected by qualification/baseline | evidence test | Stable error | — | Pending | — | — | — |
-| P2-09 | Model boundary | No strategy, fill, cash, P&L in model artifact | model-service isolation test | Pass | — | Pending | — | — | — |
+| P2-01 | Model stage compute | `stage run model` produces a model artifact | `cargo test -p quantrule-backtest-service stage::model`; `cargo test -p quantrule-shell --test http_commands stage_` | Model executor copies the bundle and shell submits a stage | backtest 6 tests and shell stage tests pass | Pass | AI (implementation) | 2026-11-17 | Model executor and printed output |
+| P2-02 | Model artifact identity | Stage model artifact is the content-addressed model bundle | `cargo test -p quantrule-model-service --test bundle`; model executor test | Stage model files equal the model bundle artifacts | Manifest fields and bytes match | Pass | AI (implementation) | 2026-11-17 | Byte-for-byte copy, no recompute |
+| P2-03 | Model CLI | `stage run model`, `show`, `events`, `fetch`, `list`, `cancel` | `cargo test -p quantrule-shell --test http_commands stage_` | All seven model-stage commands print their contract | Tests pass for run model/list/show/events/fetch/cancel/delete | Pass | AI (implementation) | 2026-11-17 | Includes error cases |
+| P2-04 | Model GUI | Data + Model tabs; event browser; badge | `bun test`; `bunx playwright test e2e/model-stage.e2e.ts` | Workbench Data/Model tabs, stage flow, events, coverage | Bun 130 pass; Playwright 2 pass | Pass | AI (implementation) | 2026-11-17 | No chart library |
+| P2-05 | Model parity | Controls and client docs updated | `bun test`; `cargo test -p quantrule-shell --test client_parity`; `python3 tools/check_client_docs.py` | Controls and client docs updated | Parity and client-doc checks pass | Pass | AI (implementation) | 2026-11-17 | Shared fixture updated |
+| P2-06 | Model determinism | Same input/config/image → same artifact hash | `cargo test -p quantrule-backtest-service stage::model::tests::the_executor_is_deterministic`; `cargo test -p quantrule-model-service --test bundle` | Same input and bundle produce the same bytes | Deterministic tests pass | Pass | AI (implementation) | 2026-11-17 | Content-addressed copy |
+| P2-07 | Model causality | Later bars do not change an earlier output | `cargo test -p quantrule-model` | Later bars do not change an earlier output | Model suite passes | Pass | AI (implementation) | 2026-11-17 | Model contract unchanged |
+| P2-08 | Model evidence boundary | Stage model artifact rejected by qualification/baseline | `cargo test -p quantrule-evidence-service --test stages a_stage_is_profile_scoped_and_never_readable_as_a_run`; `cargo test -p quantrule-evidence-service --test stages a_stage_artifact_is_downloaded_by_its_recorded_hash` | A stage is not readable through a run route | Stage and run stores/routes remain separate | Pass | AI (implementation) | 2026-11-17 | Baseline/qualification surface is P6; the existing evidence path rejects the stage id |
+| P2-09 | Model boundary | No strategy, fill, cash, P&L in model artifact | `cargo test -p quantrule-model-service --test bundle`; `cargo test -p quantrule-evidence-service --test stages` | No strategy, fill, cash, or P&L in the model artifact | Model bundle names only model artifacts; stage is diagnostic | Pass | AI (implementation) | 2026-11-17 | No strategy or portfolio executor |
 | P3-01 | Strategy stage compute | `stage run strategy` produces decisions | backtest test | Pass | — | Pending | — | — | — |
 | P3-02 | Decisions bundle | `decisions.ndjson`, `summary.txt`, `provenance.json` | app test | Pass | — | Pending | — | — | — |
 | P3-03 | Strategy explain | `stage explain` returns conditions/context | shell/app test | Pass | — | Pending | — | — | — |

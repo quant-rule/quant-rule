@@ -7,6 +7,8 @@
 mod dispatch;
 pub(crate) mod help;
 mod parse;
+pub(crate) mod stage;
+mod stage_commands;
 pub(crate) mod types;
 
 #[cfg(test)]

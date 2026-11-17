@@ -202,4 +202,5 @@ Rules:
 > **Stage-run exception.** Diagnostic stage runs are defined by
 > [ADR-2026-11-16-01](../adr/2026-11-16/01-stage-execution-and-evidence-boundary.md).
 > They are never evidence, and the coupled run remains the only canonical-digest
-> producer. The target endpoints are in [stage-surface.md](stage-surface.md).
+> producer. The implemented stage endpoints are in [stage-surface.md](stage-surface.md);
+> `GET /stages/runs/{id}/artifacts/{*name}` downloads one verified diagnostic artifact.

@@ -165,7 +165,7 @@ Details: [`services.md`](docs/architecture/services.md),
 [`control-plane.md`](docs/architecture/control-plane.md),
 [`http-api.md`](docs/architecture/http-api.md).
 
-## Commands (v1.2.0 surface)
+## Commands (current surface)
 
 The shell is a thin client over `quantrule.api/v1`; every command makes one
 gateway call. It depends only on the contract crate and its HTTP transport, and
@@ -186,6 +186,13 @@ distributed release (v0.9.0, prepared as v1.0.0).
 | `run list` | Runs | List runs with an optional state filter |
 | `run fetch` | Runs | Download a run's artifacts into a directory |
 | `run cancel` | Runs | Cancel a queued or running run |
+| `stage run model` | Stages | Submit a diagnostic model stage |
+| `stage list` | Stages | List diagnostic stage runs |
+| `stage show` | Stages | Read one stage detail and artifact files |
+| `stage events` | Stages | Read the model event batch and coverage |
+| `stage fetch` | Stages | Download a stage's verified artifacts |
+| `stage cancel` | Stages | Cancel a queued or running stage |
+| `stage delete` | Stages | Delete one diagnostic stage |
 | `inspect candles` | Inspection | Read candle counts and coverage |
 | `inspect timeframes` | Inspection | Read bars and partial buckets per timeframe |
 | `inspect events` | Inspection | Read the event batch for one timeframe |
@@ -205,9 +212,9 @@ distributed release (v0.9.0, prepared as v1.0.0).
 
 ### Target stage and research surface
 
-The next surface is additive: `stage` commands for the model, strategy, and
-portfolio engines; `research` records; `baseline` and `invalidation` reads; and
-the optional `run submit --model-artifact` flag. It is not implemented yet. The
+The next surface is additive: `stage run strategy`, `stage run portfolio`, and
+`stage explain`; `research` records; `baseline` and `invalidation` reads; and the
+optional `run submit --model-artifact` flag. It is not implemented yet. The
 target is [`docs/architecture/stage-surface.md`](docs/architecture/stage-surface.md).
 
 ## Principles

@@ -6,11 +6,13 @@
 //! runs a full backtest, writes a run row, or produces a canonical digest.
 //!
 //! The engine implementations live behind the executor trait (#852–#854). This
-//! module owns only the control-plane mechanics: cancellation boundaries,
-//! idempotent claims, retry policy, and the no-partial-publish rule.
+//! module owns the control-plane mechanics and the model executor; it never
+//! runs a strategy or portfolio stage.
 
 pub mod executor;
+pub mod model;
 pub mod worker;
 
 pub use executor::{StageDispatch, StageExecutor, StageExecutorError, StageFile, StageOutput};
+pub use model::ModelStageExecutor;
 pub use worker::{StageProcessOutcome, StageWorkerError, StageWorkerServices, process_stage};

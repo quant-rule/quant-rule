@@ -19,6 +19,14 @@ use std::time::Duration;
 
 use serde_json::{Value, json};
 
+mod stage_fixture;
+use stage_fixture::stage_route;
+#[allow(unused_imports)]
+pub use stage_fixture::{
+    client_parity_api, client_parity_view, stage_detail, stage_events_body, stage_id,
+    stage_report_body,
+};
+
 /// The binary under test.
 pub const BIN: &str = env!("CARGO_BIN_EXE_quantrule");
 
@@ -50,25 +58,6 @@ pub fn image_digest() -> String {
 /// The canonical digest fixture.
 pub fn canonical_digest() -> String {
     digest('a')
-}
-
-/// The shared client-parity responses.
-///
-/// One file serves the shell fixture server and the browser Bun test, so the
-/// two clients cannot drift onto different fixture values.
-pub fn client_parity_api() -> Value {
-    serde_json::from_str(include_str!(
-        "../../../../tests/fixtures/client-parity/api.json"
-    ))
-    .expect("the shared client-parity fixture is JSON")
-}
-
-/// The normalized view both clients must produce from [`client_parity_api`].
-pub fn client_parity_view() -> Value {
-    serde_json::from_str(include_str!(
-        "../../../../tests/fixtures/client-parity/view.json"
-    ))
-    .expect("the shared client-parity view is JSON")
 }
 
 /// One captured request.
@@ -570,11 +559,53 @@ fn hex(byte: u8) -> Option<u8> {
 /// other command keeps the mutable default fixture, so the existing
 /// printed-output tests are unchanged.
 fn parity_route(state: &FixtureState, request: &Request, segments: &[&str]) -> Option<Response> {
+    let fixture = state.parity.as_ref()?;
+    let responses = &fixture["responses"];
+    let stage_id = fixture["stage_id"].as_str().unwrap_or_default();
+    match (request.method.as_str(), segments) {
+        ("POST", ["stages", "model", "runs"]) => {
+            return responses
+                .get("stage_submit")
+                .map(|value| Response::json(202, value));
+        }
+        ("GET", ["stages", "runs"]) => {
+            return responses
+                .get("stage_list")
+                .map(|value| Response::json(200, value));
+        }
+        ("GET", ["stages", "runs", id]) if *id == stage_id => {
+            return responses
+                .get("stage")
+                .map(|value| Response::json(200, value));
+        }
+        ("POST", ["stages", "runs", id, "cancel"]) if *id == stage_id => {
+            return responses
+                .get("stage_cancelled")
+                .map(|value| Response::json(202, value));
+        }
+        ("DELETE", ["stages", "runs", id]) if *id == stage_id => {
+            return Some(Response::bytes(204, "application/json", Vec::new()));
+        }
+        ("GET", ["stages", "runs", id, "artifacts", name]) if *id == stage_id => {
+            let artifact = fixture["stage_artifacts"]
+                .as_array()?
+                .iter()
+                .find(|artifact| artifact["name"].as_str() == Some(*name))?;
+            return Some(Response::bytes(
+                200,
+                if (*name).ends_with(".json") {
+                    "application/json"
+                } else {
+                    "text/csv"
+                },
+                artifact["body"].as_str()?.as_bytes().to_vec(),
+            ));
+        }
+        _ => {}
+    }
     if request.method != "GET" {
         return None;
     }
-    let fixture = state.parity.as_ref()?;
-    let responses = &fixture["responses"];
     let key = match segments {
         ["health"] => "health",
         ["catalog", "datasets"] => "datasets",
@@ -648,6 +679,10 @@ fn handle(state: &mut FixtureState, request: &Request) -> Response {
                 &format!("profile {profile} is unknown"),
             );
         }
+    }
+
+    if let Some(response) = stage_route(request, &segments) {
+        return response;
     }
 
     match (request.method.as_str(), segments.as_slice()) {

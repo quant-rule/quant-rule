@@ -29,6 +29,11 @@ history is in Git and the pull requests.
   payloads, evidence submit/list/detail/artifacts/cancel/delete routes, the
   backtest worker's executor seam and cancellation boundaries, `QR_STAGE_RETENTION_DAYS`
   cleanup that never touches a run, and the gateway `/stages/*` proxy.
+- The model stage vertical slice: a real `StageExecutor` that reuses the
+  content-addressed model bundle byte-for-byte, verified stage artifact
+  download, the `stage run model`, `stage list`, `stage show`, `stage events`,
+  `stage fetch`, `stage cancel`, and `stage delete` shell commands, and the
+  browser Workbench Data and Model tabs with parity coverage.
 - The stage execution and evidence-boundary ADR: diagnostic stage runs are
   server-side and content-addressed, while the coupled backtest remains the only
   evidence path and canonical-digest producer.

@@ -13,6 +13,8 @@ const DIGEST = "sha256:" + "a".repeat(64);
 const DATA = "sha256:" + "b".repeat(64);
 const DEFAULT_RUN = "sha256:" + "c".repeat(64);
 const ALPHA_RUN = "sha256:" + "d".repeat(64);
+const DEFAULT_STAGE = "sha256:" + "1".repeat(64);
+const ALPHA_STAGE = "sha256:" + "2".repeat(64);
 const IMAGE = "sha256:" + "e".repeat(64);
 
 interface Profile {
@@ -59,6 +61,18 @@ function detail(runId: string, configId: string) {
     artifacts: [],
     digest: DIGEST,
     error: null,
+  };
+}
+
+function stage(stageRunId: string) {
+  return {
+    stage_run_id: stageRunId,
+    kind: "model",
+    state: "succeeded",
+    config_id: "cfg_default",
+    submitted_at: "2026-11-17T00:00:00Z",
+    artifact_id: DIGEST,
+    evidence: false,
   };
 }
 
@@ -122,6 +136,11 @@ async function install(page: Page, server: Server): Promise<void> {
     if (path === `/runs/${ALPHA_RUN}`) {
       return route.fulfill({ json: detail(ALPHA_RUN, "cfg_alpha") });
     }
+    if (path === "/stages/runs") {
+      return route.fulfill({
+        json: [profile === "alpha" ? stage(ALPHA_STAGE) : stage(DEFAULT_STAGE)],
+      });
+    }
     if (path === "/simulation/runs") {
       if (profile === "alpha" && server.gate !== null) {
         await server.gate;
@@ -164,6 +183,20 @@ test("a profile switch clears runs and simulations before the new read", async (
   await page.getByRole("button", { name: /Runs/ }).click();
   await expect(page.getByRole("row", { name: /dddddddd/ })).toBeVisible();
   await expect(page.getByText(/cccccccc/)).toHaveCount(0);
+});
+
+test("a profile switch clears and reloads stage rows", async ({ page }) => {
+  const server: Server = { online: true, gate: null };
+  await install(page, server);
+  await page.goto("/");
+
+  await page.getByRole("button", { name: /Workbench/ }).click();
+  await page.getByRole("tab", { name: "Model" }).click();
+  await expect(page.getByTestId("stage-table")).toContainText("111111");
+
+  await page.getByLabel("Active profile").selectOption("alpha");
+  await expect(page.getByTestId("stage-table")).toContainText("222222");
+  await expect(page.getByTestId("stage-table")).not.toContainText("111111");
 });
 
 test("disconnection clears the open run detail", async ({ page }) => {

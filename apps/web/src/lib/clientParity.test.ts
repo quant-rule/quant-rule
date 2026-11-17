@@ -9,10 +9,17 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 
-import { DEFAULT_PROFILE, call, currentProfile, setProfile } from "./api";
+import { DEFAULT_PROFILE, call, callVoid, currentProfile, setProfile } from "./api";
 import { downloadArtifact, sha256Hex } from "./artifacts";
 import { COMMANDS, SECTIONS, missingCommands } from "./capabilities";
 import { inspectCandles, inspectEvents, inspectTimeframes, verifyRun } from "./inspect";
+import {
+  downloadStageArtifact,
+  fetchStageArtifacts,
+  stageEventView,
+  stagePath,
+  type StageFetchView,
+} from "./stage";
 import type {
   ConfigSummary,
   DatasetRecord,
@@ -23,6 +30,10 @@ import type {
   RunDetail,
   RunDigest,
   RunSummary,
+  StageEventView,
+  StageRunDetail,
+  StageRunSummary,
+  StageSubmitResponse,
   TimeframeInspection,
 } from "./types";
 
@@ -38,6 +49,13 @@ interface ParityResponses {
   events: InspectEvents;
   digest: RunDigest;
   profiles: ProfileSummary[];
+  stage_submit: StageSubmitResponse;
+  stage_list: StageRunSummary[];
+  stage: StageRunDetail;
+  stage_cancelled: StageRunDetail;
+  stage_events: StageEventView;
+  stage_fetch: StageFetchView;
+  stage_delete: { stage_run_id: string };
 }
 
 interface ApiFixture {
@@ -46,6 +64,8 @@ interface ApiFixture {
   config_id: string;
   run_id: string;
   timeframe: string;
+  stage_id: string;
+  stage_timeframe: string;
   commands: string[];
   artifact: {
     name: string;
@@ -53,6 +73,12 @@ interface ApiFixture {
     bytes: number;
     sha256: string;
   };
+  stage_artifacts: {
+    name: string;
+    body: string;
+    bytes: number;
+    sha256: string;
+  }[];
   responses: ParityResponses;
 }
 
@@ -89,9 +115,36 @@ function install(fixture: ApiFixture): Seen[] {
   globalThis.fetch = (async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
     const url = String(input);
     const path = decodeURIComponent(url.split("?")[0]!.replace(/^\/api\/v1/, ""));
+    const method = init?.method ?? "GET";
     const headers = new Headers(init?.headers);
     seen.push({ path, profile: headers.get("X-QuantRule-Profile") });
 
+    if (path === "/stages/model/runs" && method === "POST") {
+      return respond(fixture.responses.stage_submit, 202);
+    }
+    if (path === "/stages/runs" && method === "GET") {
+      return respond(fixture.responses.stage_list);
+    }
+    if (path === `/stages/runs/${fixture.stage_id}` && method === "GET") {
+      return respond(fixture.responses.stage);
+    }
+    if (path === `/stages/runs/${fixture.stage_id}/cancel` && method === "POST") {
+      return respond(fixture.responses.stage_cancelled);
+    }
+    if (path === `/stages/runs/${fixture.stage_id}` && method === "DELETE") {
+      return new Response(null, { status: 204 });
+    }
+    const stageArtifact = fixture.stage_artifacts.find(
+      (artifact) =>
+        path ===
+        `/stages/runs/${fixture.stage_id}/artifacts/${artifact.name}`,
+    );
+    if (stageArtifact !== undefined && method === "GET") {
+      return new Response(new TextEncoder().encode(stageArtifact.body), {
+        status: 200,
+        headers: { "content-type": "application/octet-stream" },
+      });
+    }
     if (path === "/health") {
       return respond(fixture.responses.health);
     }
@@ -171,6 +224,46 @@ async function browserView(fixture: ApiFixture): Promise<View> {
     sha256: await sha256Hex(bytes),
   };
 
+  const stageSubmit = await call<StageSubmitResponse>("/stages/model/runs", {
+    method: "POST",
+    body: JSON.stringify({
+      kind: "model",
+      config_id: fixture.config_id,
+      input: { kind: "data_version", data_version: fixture.dataset_id },
+    }),
+  });
+  const stageList = await call<StageRunSummary[]>("/stages/runs?limit=100");
+  const stage = await call<StageRunDetail>(stagePath(fixture.stage_id));
+  const eventsDetail = await call<StageRunDetail>(stagePath(fixture.stage_id));
+  const eventsFile = eventsDetail.artifact?.files.find(
+    (file) => file.name === "events.csv",
+  );
+  const reportFile = eventsDetail.artifact?.files.find(
+    (file) => file.name === "report.json",
+  );
+  if (eventsFile === undefined) {
+    throw new Error("the fixture stage carries no events.csv");
+  }
+  const eventBytes = await downloadStageArtifact(fixture.stage_id, eventsFile);
+  const reportBytes =
+    reportFile === undefined
+      ? null
+      : await downloadStageArtifact(fixture.stage_id, reportFile);
+  const stageEvents = stageEventView(
+    fixture.stage_id,
+    fixture.stage_timeframe,
+    new TextDecoder().decode(eventBytes),
+    reportBytes === null ? null : new TextDecoder().decode(reportBytes),
+  );
+  const fetchDetail = await call<StageRunDetail>(stagePath(fixture.stage_id));
+  const stageFetch = await fetchStageArtifacts(fetchDetail);
+  const stageCancel = await call<StageRunDetail>(
+    `${stagePath(fixture.stage_id)}/cancel`,
+    { method: "POST" },
+  );
+  await callVoid(stagePath(fixture.stage_id), { method: "DELETE" });
+  const stageDelete = { stage_run_id: fixture.stage_id };
+
   return {
     profile: currentProfile(),
     commands,
@@ -187,6 +280,13 @@ async function browserView(fixture: ApiFixture): Promise<View> {
     digest,
     artifact,
     profiles,
+    stage_submit: stageSubmit,
+    stage_list: stageList,
+    stage,
+    stage_events: stageEvents,
+    stage_fetch: stageFetch,
+    stage_cancel: stageCancel,
+    stage_delete: stageDelete,
   };
 }
 
@@ -219,7 +319,7 @@ describe("client parity", () => {
     const view = await browserView(API);
 
     expect(difference(view, EXPECTED)).toBeNull();
-    expect(seen).toHaveLength(12);
+    expect(seen).toHaveLength(23);
     expect(seen.map((request) => request.path)).toEqual([
       "/health",
       "/catalog/datasets",
@@ -233,6 +333,17 @@ describe("client parity", () => {
       "/inspect/events",
       `/runs/${API.run_id}/digest`,
       `/runs/${API.run_id}/artifacts/${API.artifact.name}`,
+      "/stages/model/runs",
+      "/stages/runs",
+      `/stages/runs/${API.stage_id}`,
+      `/stages/runs/${API.stage_id}`,
+      `/stages/runs/${API.stage_id}/artifacts/events.csv`,
+      `/stages/runs/${API.stage_id}/artifacts/report.json`,
+      `/stages/runs/${API.stage_id}`,
+      `/stages/runs/${API.stage_id}/artifacts/events.csv`,
+      `/stages/runs/${API.stage_id}/artifacts/report.json`,
+      `/stages/runs/${API.stage_id}/cancel`,
+      `/stages/runs/${API.stage_id}`,
     ]);
     for (const request of seen) {
       expect(request.profile).toBe(API.profile);

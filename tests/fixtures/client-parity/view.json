@@ -12,6 +12,13 @@
     "run list",
     "run fetch",
     "run cancel",
+    "stage run model",
+    "stage list",
+    "stage show",
+    "stage events",
+    "stage fetch",
+    "stage cancel",
+    "stage delete",
     "inspect candles",
     "inspect timeframes",
     "inspect events",
@@ -33,8 +40,16 @@
     "v": "quantrule.api/v1",
     "state": "degraded",
     "services": [
-      { "name": "postgres", "state": "healthy", "detail": null },
-      { "name": "minio", "state": "degraded", "detail": "slow" }
+      {
+        "name": "postgres",
+        "state": "healthy",
+        "detail": null
+      },
+      {
+        "name": "minio",
+        "state": "degraded",
+        "detail": "slow"
+      }
     ],
     "queue_depth": 2,
     "workers": 1,
@@ -105,10 +120,26 @@
     "status": "succeeded",
     "owner": "default",
     "stages": [
-      { "name": "data", "state": "done", "elapsed_ms": 1200 },
-      { "name": "model", "state": "done", "elapsed_ms": 2400 },
-      { "name": "backtest", "state": "done", "elapsed_ms": 3600 },
-      { "name": "evidence", "state": "done", "elapsed_ms": 120 }
+      {
+        "name": "data",
+        "state": "done",
+        "elapsed_ms": 1200
+      },
+      {
+        "name": "model",
+        "state": "done",
+        "elapsed_ms": 2400
+      },
+      {
+        "name": "backtest",
+        "state": "done",
+        "elapsed_ms": 3600
+      },
+      {
+        "name": "evidence",
+        "state": "done",
+        "elapsed_ms": 120
+      }
     ],
     "provenance": {
       "data_version": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
@@ -137,17 +168,43 @@
   "timeframes": {
     "data_version": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
     "timeframes": [
-      { "timeframe": "1m", "bars": 3, "partial_buckets": 0, "first_bar": 1704067200, "last_bar": 1704067320 },
-      { "timeframe": "5m", "bars": 1, "partial_buckets": 1, "first_bar": 1704067200, "last_bar": 1704067200 },
-      { "timeframe": "15m", "bars": 0, "partial_buckets": 1, "first_bar": null, "last_bar": null }
+      {
+        "timeframe": "1m",
+        "bars": 3,
+        "partial_buckets": 0,
+        "first_bar": 1704067200,
+        "last_bar": 1704067320
+      },
+      {
+        "timeframe": "5m",
+        "bars": 1,
+        "partial_buckets": 1,
+        "first_bar": 1704067200,
+        "last_bar": 1704067200
+      },
+      {
+        "timeframe": "15m",
+        "bars": 0,
+        "partial_buckets": 1,
+        "first_bar": null,
+        "last_bar": null
+      }
     ]
   },
   "events": {
     "data_version": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
     "timeframe": "5m",
     "events": [
-      { "type": 1, "source": 2, "bar": 10 },
-      { "type": 2, "source": 3, "bar": 11 }
+      {
+        "type": 1,
+        "source": 2,
+        "bar": 10
+      },
+      {
+        "type": 2,
+        "source": 3,
+        "bar": 11
+      }
     ]
   },
   "digest": {
@@ -174,5 +231,132 @@
       "runs": 0,
       "simulations": 0
     }
-  ]
+  ],
+  "stage_submit": {
+    "stage_run_id": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "state": "queued",
+    "created": true
+  },
+  "stage_list": [
+    {
+      "stage_run_id": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "kind": "model",
+      "state": "succeeded",
+      "config_id": "cfg_abc",
+      "submitted_at": "2026-11-17T00:00:00Z",
+      "artifact_id": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+      "evidence": false
+    }
+  ],
+  "stage": {
+    "stage_run_id": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "kind": "model",
+    "state": "succeeded",
+    "owner": "default",
+    "config_id": "cfg_abc",
+    "input": {
+      "kind": "data_version",
+      "data_version": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    },
+    "provenance": {
+      "data_version": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "config_hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "model_version": "M1.0",
+      "image_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    },
+    "artifact": {
+      "artifact_id": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+      "files": [
+        {
+          "name": "events.csv",
+          "bytes": 62,
+          "sha256": "sha256:bea6e5e26fa7623e9c1c55ac964e28b7617c98f9542c22cd44c2d83ddeb630e1"
+        },
+        {
+          "name": "report.json",
+          "bytes": 308,
+          "sha256": "sha256:c51202f0d530c89ace6e2005966bc9f898fe836ecddbc50280016a0311e69b5c"
+        }
+      ]
+    },
+    "submitted_at": "2026-11-17T00:00:00Z",
+    "error": null,
+    "attempts": 1,
+    "evidence": false
+  },
+  "stage_events": {
+    "stage_run_id": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "timeframe": "5m",
+    "columns": [
+      "timeframe_secs",
+      "event_index",
+      "event_code"
+    ],
+    "events": [
+      {
+        "timeframe_secs": "300",
+        "event_index": "0",
+        "event_code": "1"
+      },
+      {
+        "timeframe_secs": "300",
+        "event_index": "1",
+        "event_code": "3"
+      }
+    ],
+    "coverage": [
+      {
+        "timeframe_secs": 300,
+        "bars": 3,
+        "expected_bars": 3,
+        "coverage_share": 1.0
+      },
+      {
+        "timeframe_secs": 900,
+        "bars": 0,
+        "expected_bars": 1,
+        "coverage_share": 0.0
+      }
+    ]
+  },
+  "stage_fetch": {
+    "stage_run_id": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "artifacts": [
+      {
+        "name": "events.csv",
+        "bytes": 62,
+        "sha256": "sha256:bea6e5e26fa7623e9c1c55ac964e28b7617c98f9542c22cd44c2d83ddeb630e1"
+      },
+      {
+        "name": "report.json",
+        "bytes": 308,
+        "sha256": "sha256:c51202f0d530c89ace6e2005966bc9f898fe836ecddbc50280016a0311e69b5c"
+      }
+    ]
+  },
+  "stage_cancel": {
+    "stage_run_id": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "kind": "model",
+    "state": "cancelled",
+    "owner": "default",
+    "config_id": "cfg_abc",
+    "input": {
+      "kind": "data_version",
+      "data_version": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    },
+    "provenance": {
+      "data_version": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "config_hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "model_version": "M1.0",
+      "image_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    },
+    "artifact": null,
+    "submitted_at": "2026-11-17T00:00:00Z",
+    "error": null,
+    "attempts": 1,
+    "evidence": false
+  },
+  "stage_delete": {
+    "stage_run_id": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+  }
 }
