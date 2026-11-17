@@ -177,6 +177,30 @@ async fn a_missing_upstream_blob_fails_the_strategy_stage() {
 }
 
 #[tokio::test]
+async fn a_corrupt_upstream_blob_fails_the_strategy_stage() {
+    let fixture = fixture().await;
+    let (evidence, upstream) = upstream_stage(&fixture).await;
+    let record = strategy_record(&upstream, &fixture);
+    let artifact = upstream.artifact.as_ref().expect("the upstream artifact");
+    let first = artifact.files.first().expect("the first upstream artifact");
+    fixture
+        .objects
+        .put(&StageManifest::blob_key(&first.sha256), b"corrupt".to_vec())
+        .await
+        .expect("overwrite the blob");
+    let executor = StrategyStageExecutor::new(
+        Arc::new(evidence),
+        Arc::clone(&fixture.services.data),
+        Arc::new(fixture.objects.clone()),
+    );
+    let error = executor.execute(&record).await.expect_err("corrupt blob");
+    assert!(
+        error.to_string().contains("does not match its manifest"),
+        "{error}"
+    );
+}
+
+#[tokio::test]
 async fn a_strategy_stage_with_another_kind_is_refused() {
     let fixture = fixture().await;
     let (evidence, upstream) = upstream_stage(&fixture).await;
