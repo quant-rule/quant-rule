@@ -152,7 +152,7 @@ const COMMANDS: &[CommandHelp] = &[
     },
     CommandHelp {
         name: "stage list",
-        usage: "stage list [--kind model] [--status <state>] [--limit <n>]",
+        usage: "stage list [--kind model|strategy] [--status <state>] [--limit <n>]",
         summary: "List diagnostic stage runs in the active profile.",
         output: "one line per stage: stage_run_id, kind, state, config, submitted_at, artifact",
         notes: &["Rows are newest first, then by stage_run_id."],

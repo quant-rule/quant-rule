@@ -120,17 +120,19 @@ async fn execute(
         .iter()
         .map(|(name, text)| (name.clone(), text.as_bytes().to_vec()))
         .collect();
+    let strategy_relative = strategy_path(&config_files)?;
 
     let staging = Staging::new();
     let out = staging.path().join("out");
     let result = tokio::task::spawn_blocking(move || {
         write_files(&staging.path().join("model"), &model_files)?;
         write_files(&staging.path().join("config"), &config_files)?;
-        let strategy = staging.path().join("config").join("strategy.json");
+        let strategy = staging.path().join("config").join(&strategy_relative);
         if !strategy.is_file() {
-            return Err(StageExecutorError(
-                "the strategy config bundle has no strategy.json".to_owned(),
-            ));
+            return Err(StageExecutorError(format!(
+                "the strategy config bundle has no {}",
+                strategy_relative.display()
+            )));
         }
         let outcome = run(&StrategyRunRequest {
             model: &staging.path().join("model"),
@@ -191,7 +193,30 @@ fn verify_upstream(
             "the upstream model stage belongs to another dataset".to_owned(),
         ));
     }
+    if upstream.provenance.model_version != record.provenance.model_version {
+        return Err(StageExecutorError(
+            "the upstream model stage uses another model version".to_owned(),
+        ));
+    }
     Ok(())
+}
+
+/// Resolve the strategy file named by the run config, refusing an unsafe path.
+fn strategy_path(files: &[(String, Vec<u8>)]) -> Result<PathBuf, StageExecutorError> {
+    let run = files
+        .iter()
+        .find(|(name, _)| name == "run.json")
+        .ok_or_else(|| StageExecutorError("the config bundle has no run.json".to_owned()))?;
+    let value: serde_json::Value = serde_json::from_slice(&run.1)
+        .map_err(|error| StageExecutorError(format!("run.json is not valid JSON: {error}")))?;
+    let name = value
+        .get("strategy")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| {
+            StageExecutorError("the run config does not name a strategy file".to_owned())
+        })?;
+    safe_segments(name)?;
+    Ok(PathBuf::from(name))
 }
 
 /// Load the upstream stage manifest and every verified artifact blob.

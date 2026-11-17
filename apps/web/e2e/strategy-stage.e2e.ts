@@ -8,6 +8,9 @@ const CONFIG = "sha256:" + "d".repeat(64);
 const IMAGE = "sha256:" + "e".repeat(64);
 const MODEL = "sha256:" + "9".repeat(64);
 const STAGE = "sha256:" + "8".repeat(64);
+const MODEL_STAGE = "sha256:" + "6".repeat(64);
+const MODEL_SHORT = "sha256:66666666";
+const STAGE_SHORT = "sha256:88888888";
 const DECISIONS =
   '{"schema":"quantrule.strategy-decision/v1","timeframe_secs":60,"bar_index":0,' +
   '"decision":"enter","side":"long","reason":"entry","position_before":"flat",' +
@@ -64,6 +67,28 @@ function detail(state: string) {
   };
 }
 
+function modelDetail() {
+  return {
+    stage_run_id: MODEL_STAGE,
+    kind: "model",
+    state: "succeeded",
+    owner: "default",
+    config_id: "cfg_abc",
+    input: { kind: "data_version", data_version: DATA },
+    provenance: {
+      data_version: DATA,
+      config_hash: CONFIG,
+      model_version: "M1.0",
+      image_digest: IMAGE,
+    },
+    artifact: null,
+    submitted_at: "2026-11-17T00:00:00Z",
+    error: null,
+    attempts: 1,
+    evidence: false,
+  };
+}
+
 async function shell(route: Route): Promise<boolean> {
   const path = new URL(route.request().url()).pathname.replace("/api/v1", "");
   if (path === "/version") {
@@ -105,6 +130,15 @@ async function mockStrategy(page: Page): Promise<void> {
       return route.fulfill({
         json: [
           {
+            stage_run_id: MODEL_STAGE,
+            kind: "model",
+            state: "succeeded",
+            config_id: "cfg_abc",
+            submitted_at: "2026-11-17T00:00:00Z",
+            artifact_id: null,
+            evidence: false,
+          },
+          {
             stage_run_id: STAGE,
             kind: "strategy",
             state: "succeeded",
@@ -121,6 +155,9 @@ async function mockStrategy(page: Page): Promise<void> {
         status: 202,
         json: { stage_run_id: STAGE, state: "queued", created: true },
       });
+    }
+    if (path === `/stages/runs/${MODEL_STAGE}` && request.method() === "GET") {
+      return route.fulfill({ json: modelDetail() });
     }
     if (path === `/stages/runs/${STAGE}` && request.method() === "GET") {
       return route.fulfill({ json: detail("succeeded") });
@@ -164,4 +201,24 @@ test("submits, explains, downloads, and shows the no-P&L boundary", async ({ pag
   const download = await pending;
   expect(download.suggestedFilename()).toBe("decisions.ndjson");
   await expect(page.getByText("decisions.ndjson matched the stage record and was saved.")).toBeVisible();
+});
+
+test("a model stage does not leak into the strategy tab", async ({ page }) => {
+  await mockStrategy(page);
+  await page.goto("/");
+  await page.getByRole("button", { name: /Workbench/ }).click();
+  await page.getByRole("tab", { name: "Model" }).click();
+
+  await expect(page.getByTestId("stage-table")).toBeVisible();
+  await expect(page.getByTestId("stage-table")).not.toContainText(STAGE_SHORT);
+  await page.getByRole("button", { name: `Open ${MODEL_STAGE}` }).click();
+  await expect(page.getByTestId("stage-detail")).toContainText(MODEL_SHORT);
+
+  await page.getByRole("tab", { name: "Strategy" }).click();
+  await expect(page.getByTestId("strategy-detail")).toHaveCount(0);
+  await expect(page.getByTestId("strategy-table")).not.toContainText(MODEL_SHORT);
+
+  await page.getByRole("tab", { name: "Model" }).click();
+  await expect(page.getByTestId("stage-detail")).toHaveCount(0);
+  await expect(page.getByTestId("stage-table")).toBeVisible();
 });

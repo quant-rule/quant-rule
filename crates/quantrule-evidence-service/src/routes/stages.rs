@@ -245,6 +245,12 @@ pub(crate) async fn submit_stage(
                         ),
                     )
                 })?;
+            if model_version != upstream.provenance.model_version {
+                return Err(failure(
+                    ErrorCode::StageInvalid,
+                    "the strategy config model_version disagrees with the upstream model stage",
+                ));
+            }
             if let Some(supplied) = &supplied_data_version
                 && supplied != &upstream.provenance.data_version
             {

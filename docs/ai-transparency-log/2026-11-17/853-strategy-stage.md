@@ -75,6 +75,22 @@ the fast gate.
   and browser issue their own request sequences (29 and 27) and build the same
   normalized view.
 
+## Review corrections
+
+- The strategy submission now rejects a config whose `run.json` `model_id`
+  disagrees with the upstream model stage's `provenance.model_version`; the
+  executor checks the same identity before reading a blob. The route and worker
+  tests cover a mismatch and a matching success.
+- The executor resolves the strategy file from the run config's `"strategy"`
+  key, validates it as a safe relative path, and follows a nested name. A test
+  proves a `rules/entry.json` strategy runs.
+- The Workbench model and strategy tables filter by kind, the shared selection
+  is cleared on a tab switch, and the stage store loads decisions only for a
+  strategy detail. A Playwright case proves a model detail does not leak into
+  the Strategy tab and the model table excludes strategy rows.
+- `stage list` help now advertises `--kind model|strategy`; the docs index row
+  names the model and strategy slices as implemented.
+
 ## Residual risk
 
 - The executor is exercised with in-memory clients; a live internal lookup and a

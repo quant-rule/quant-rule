@@ -137,7 +137,7 @@
     <div class="notice error" role="alert">{view.error}</div>
   {/if}
 
-  {#if view.selected}
+  {#if view.selected && (view.detail === null || view.detail.kind === "strategy")}
     <section class="detail stack" data-testid="strategy-detail">
       <div class="row">
         <button onclick={clearSelection} aria-label="Back to strategies">Back</button>

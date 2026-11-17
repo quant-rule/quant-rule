@@ -178,7 +178,14 @@ export async function submitStrategy(
 /** Read one stage detail. */
 export async function loadDetail(stageRunId: string): Promise<void> {
   const at = generation;
-  current = { ...current, detailLoading: true, error: null };
+  current = {
+    ...current,
+    detailLoading: true,
+    error: null,
+    decisions: [],
+    decisionsError: null,
+    decisionsLoading: false,
+  };
   try {
     const detail = await call<StageRunDetail>(stagePath(stageRunId));
     if (at !== generation) {
@@ -197,6 +204,9 @@ export async function loadDetail(stageRunId: string): Promise<void> {
       decisionsError: null,
       decisionsLoading: false,
     };
+    if (detail.kind === "strategy") {
+      await loadDecisions();
+    }
   } catch (error) {
     if (at !== generation) {
       return;
@@ -226,7 +236,6 @@ export async function select(stageRunId: string): Promise<void> {
     decisionsLoading: false,
   };
   await loadDetail(stageRunId);
-  await loadDecisions();
 }
 
 /** Return to the table and drop the open detail. */
@@ -358,15 +367,15 @@ export async function loadDecisions(): Promise<void> {
   const at = generation;
   const detail = current.detail;
   current = { ...current, decisionsLoading: true, decisionsError: null };
-  if (detail === null || detail.artifact === null) {
-    current = { ...current, decisionsLoading: false };
+  if (detail === null || detail.kind !== "strategy" || detail.artifact === null) {
+    current = { ...current, decisionsLoading: false, decisions: [] };
     return;
   }
   const decisionsFile = detail.artifact.files.find(
     (file) => file.name === "decisions.ndjson",
   );
   if (decisionsFile === undefined) {
-    current = { ...current, decisionsLoading: false };
+    current = { ...current, decisions: [], decisionsLoading: false };
     return;
   }
   try {

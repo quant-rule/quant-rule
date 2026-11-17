@@ -16,6 +16,7 @@
   import type { ArtifactRef, StageState } from "./types";
 
   const view = $derived(stages());
+  const rows = $derived(view.items.filter((item) => item.kind === "model"));
   let dataVersion = $state("");
   let configId = $state("cfg_abc");
   let submitting = $state(false);
@@ -102,7 +103,7 @@
 <section class="stack">
   <div class="row">
     <h2>Model stage</h2>
-    <span class="badge">{view.items.length} total</span>
+    <span class="badge">{rows.length} total</span>
     <button onclick={() => void load()} disabled={view.loading}>Refresh</button>
   </div>
 
@@ -130,7 +131,7 @@
     <div class="notice error" role="alert">{view.error}</div>
   {/if}
 
-  {#if view.selected}
+  {#if view.selected && (view.detail === null || view.detail.kind === "model")}
     <section class="detail stack" data-testid="stage-detail">
       <div class="row">
         <button onclick={clearSelection} aria-label="Back to stages">Back</button>
@@ -263,9 +264,9 @@
         {/if}
       {/if}
     </section>
-  {:else if view.loading && view.items.length === 0}
+  {:else if view.loading && rows.length === 0}
     <div class="notice">Loading stages…</div>
-  {:else if view.items.length === 0}
+  {:else if rows.length === 0}
     <div class="notice">No stage runs. Submit a model stage above.</div>
   {:else}
     <table data-testid="stage-table" aria-busy={view.loading}>
@@ -275,7 +276,7 @@
         </tr>
       </thead>
       <tbody>
-        {#each view.items as item (item.stage_run_id)}
+        {#each rows as item (item.stage_run_id)}
           <tr>
             <td>
               <button class="link" onclick={() => void select(item.stage_run_id)} aria-label={`Open ${item.stage_run_id}`}>

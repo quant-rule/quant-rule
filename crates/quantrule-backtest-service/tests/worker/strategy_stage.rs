@@ -1,5 +1,7 @@
 //! The strategy stage executor over a real model bundle and config fixture.
 
+use std::collections::BTreeMap;
+use std::path::Path;
 use std::sync::Arc;
 
 use quantrule_api::{
@@ -8,7 +10,7 @@ use quantrule_api::{
 use quantrule_backtest_service::stage::{StageExecutor, StrategyStageExecutor};
 use quantrule_runtime::adapters::ObjectStore;
 use quantrule_runtime::client::{MemoryStageClient, StageClient};
-use quantrule_service_api::{NewStageRun, StageManifest, StageRecord};
+use quantrule_service_api::{ConfigBundle, NewStageRun, StageManifest, StageRecord};
 
 use crate::support::{Fixture, fixture};
 
@@ -126,6 +128,10 @@ async fn the_strategy_stage_publishes_only_decisions_and_provenance() {
     let fixture = fixture().await;
     let (evidence, upstream) = upstream_stage(&fixture).await;
     let record = strategy_record(&upstream, &fixture);
+    assert_eq!(
+        record.provenance.model_version, upstream.provenance.model_version,
+        "the success case must match the upstream model version"
+    );
     let executor = StrategyStageExecutor::new(
         Arc::new(evidence),
         Arc::clone(&fixture.services.data),
@@ -197,6 +203,78 @@ async fn a_corrupt_upstream_blob_fails_the_strategy_stage() {
     assert!(
         error.to_string().contains("does not match its manifest"),
         "{error}"
+    );
+}
+
+#[tokio::test]
+async fn a_model_version_mismatch_fails_the_strategy_stage() {
+    let fixture = fixture().await;
+    let (evidence, upstream) = upstream_stage(&fixture).await;
+    let mut record = strategy_record(&upstream, &fixture);
+    record.provenance.model_version = "M9.9".to_owned();
+    let executor = StrategyStageExecutor::new(
+        Arc::new(evidence),
+        Arc::clone(&fixture.services.data),
+        Arc::new(fixture.objects.clone()),
+    );
+    let error = executor.execute(&record).await.expect_err("model mismatch");
+    assert!(error.to_string().contains("model version"), "{error}");
+}
+
+fn nested_strategy_bundle() -> ConfigBundle {
+    let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config/valid-v4");
+    let mut files = BTreeMap::new();
+    for name in [
+        "run.json",
+        "data.json",
+        "model.json",
+        "execution.json",
+        "portfolio.json",
+        "strategy.json",
+    ] {
+        files.insert(
+            name.to_owned(),
+            std::fs::read_to_string(source.join(name)).expect("the config file"),
+        );
+    }
+    let mut run: serde_json::Value =
+        serde_json::from_str(files.get("run.json").expect("run.json")).expect("run JSON");
+    run["strategy"] = serde_json::json!("rules/entry.json");
+    files.insert("run.json".to_owned(), run.to_string());
+    let strategy = files.remove("strategy.json").expect("strategy file");
+    files.insert("rules/entry.json".to_owned(), strategy);
+    ConfigBundle {
+        config_id: "cfg_nested".to_owned(),
+        files,
+        valid: true,
+        message: None,
+        config_hash: Some(Digest::sha256(b"nested-strategy")),
+    }
+}
+
+#[tokio::test]
+async fn the_executor_uses_the_strategy_file_named_by_the_run_config() {
+    let fixture = fixture().await;
+    let (evidence, upstream) = upstream_stage(&fixture).await;
+    let config = nested_strategy_bundle();
+    let config_hash = config.config_hash.clone().expect("the nested config hash");
+    fixture.data.add_config(&profile(), config);
+    let mut record = strategy_record(&upstream, &fixture);
+    record.config_id = "cfg_nested".to_owned();
+    record.provenance.config_hash = config_hash;
+    let executor = StrategyStageExecutor::new(
+        Arc::new(evidence),
+        Arc::clone(&fixture.services.data),
+        Arc::new(fixture.objects.clone()),
+    );
+    let output = executor
+        .execute(&record)
+        .await
+        .expect("nested strategy stage");
+    let names: Vec<&str> = output.files.iter().map(|file| file.name.as_str()).collect();
+    assert_eq!(
+        names,
+        vec!["decisions.ndjson", "summary.txt", "provenance.json"]
     );
 }
 
