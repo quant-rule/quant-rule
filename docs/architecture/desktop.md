@@ -65,14 +65,16 @@ QR_DATA_DIR/
 | `data` | `catalog` | `catalog` | `catalog__datasets`, `catalog__configs`, `catalog__config_bundles` | `0001_catalog.sql` |
 | `evidence` | `runs` | `runs` | `runs__runs`, `runs__stages`, `runs__artifacts`, `runs__submissions` | `0001_runs_research.sql` |
 | `evidence` | `runs` | `research` | `research__hypotheses` | `0001_runs_research.sql` |
+| `evidence` | `runs` | `research` | `research__improvement_runs`, `research__baselines`, `research__invalidations` | `0004_research_ledger.sql` |
 | `evidence` | `runs` | `stage` | `stage__runs`, `stage__submissions`, `stage__artifacts` | `0002_stage.sql` |
 | `simulation` | `simulation` | `simulation` | `simulation__runs`, `simulation__marks` | `0001_simulation.sql` |
 | runtime queue | none | `queue` | `queue__dead_letter`, `queue__messages` | adapter-owned DDL |
 
 Evidence owns three prefixes and one ledger, so its history stays forward-only.
-The run and research tables share the version-1 baseline; the stage tables are an
-additive version-2 migration, so an existing desktop database keeps its rows. The
-runtime queue has no service ledger and no binary of its own:
+The run and hypothesis tables share the version-1 baseline; the stage tables are
+an additive version-2 migration, the run model-artifact column is version 3, and
+the research-ledger tables are version 4, so an existing desktop database keeps
+its rows. The runtime queue has no service ledger and no binary of its own:
 `InProcessQueue` owns two idempotent `CREATE TABLE` statements in
 `src/adapters/inprocess.rs`, because the queue is runtime infrastructure rather
 than a service schema. The guard records that exception and still checks its

@@ -58,6 +58,18 @@ history is in Git and the pull requests.
 - The `docs/manual` user-manual kind and its 12-chapter skeleton; the status
   index now names the accepted model baselines and no strategy or portfolio
   baseline.
+- The research-ledger schema and manifest v3: `quantrule.improvement-run/v3`
+  gateway-reference pre-registrations in the evidence service, a one-time
+  pipeline run and canonical-digest link, a one-time human decision with a note,
+  append-only baseline and invalidation registries, Postgres `0016` and SQLite
+  `0004` migrations, and the committed model baselines and tombstones seeded for
+  the `default` profile.
+
+### Changed
+
+- The Improvement Run Contract now treats `quantrule.improvement-run/v3` as
+  current and v2 as historical; the v3 pre-registration lives in the evidence
+  service and the committed `docs/improvement/` registry remains human-owned.
 
 ### Fixed
 

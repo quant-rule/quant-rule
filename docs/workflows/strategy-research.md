@@ -156,7 +156,7 @@ quantrule verify <run_id>
 | Backtest bundle | `<out>/backtest/` |
 | Qualification bundle | `<out>/qualification/` |
 | Analytics bundle | `<out>/analytics/` |
-| Run record | `data/improvement/<date>/<run-id>/` |
+| V3 pre-registration | `research.improvement_runs`; historical v2 folder `data/improvement/<date>/<run-id>/` |
 
 ## 8. Green criteria
 
@@ -202,7 +202,7 @@ A strategy run is green when:
 |---|---|
 | Strategy config | `config/strategy/<name>.json` or the declared path |
 | Qualification criteria | `config/qualification/<name>.json` |
-| Run record | `data/improvement/<date>/<run-id>/` |
+| V3 pre-registration | `research.improvement_runs`; historical v2 folder `data/improvement/<date>/<run-id>/` |
 | Baseline | `docs/improvement/baselines.md` |
 | Invalidation | `docs/improvement/INVALIDATIONS.md` |
 | Changelog | `CHANGELOG.md` |

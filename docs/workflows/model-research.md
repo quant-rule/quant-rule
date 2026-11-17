@@ -207,7 +207,7 @@ A model run is green when:
 | Program manifest | `config/research/<PROGRAM-ID>/program.json` |
 | Cell result | `data/research/<PROGRAM-ID>/<phase>/<CELL-ID>/cell-result.json` |
 | Program report | `data/research/<PROGRAM-ID>/program-results/` |
-| Run record | `data/improvement/<date>/<run-id>/` |
+| V3 pre-registration | `research.improvement_runs`; historical v2 folder `data/improvement/<date>/<run-id>/` |
 | Baseline | `docs/improvement/baselines.md` |
 | Invalidation | `docs/improvement/INVALIDATIONS.md` |
 | Model family registry | `docs/model/2026-11-05/model-families.md` |

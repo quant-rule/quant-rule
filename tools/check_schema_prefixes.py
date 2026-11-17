@@ -95,11 +95,11 @@ class Violation:
 
 # The complete SQLite inventory. `runs`, `research`, and `stage` share one
 # ledger and one forward-only history: the run and research tables start at
-# version 1, the diagnostic stage tables are version 2, and the run model
-# artifact column is the additive version 3. The table set is written per prefix
-# so it stays explicit. `queue` has no baseline and no binary: the runtime
-# adapter owns its two tables, so `baseline` and `main` are `None` on purpose,
-# not an omission.
+# version 1, the diagnostic stage tables are version 2, the run model artifact
+# column is the additive version 3, and the research ledger tables are the
+# additive version 4. The table set is written per prefix so it stays explicit.
+# `queue` has no baseline and no binary: the runtime adapter owns its two
+# tables, so `baseline` and `main` are `None` on purpose, not an omission.
 LEDGERS = (
     Ledger(
         name="gateway",
@@ -144,6 +144,19 @@ LEDGERS = (
         prefix="research",
         tables=("research__hypotheses",),
         baseline="migrations/sqlite/0001_runs_research.sql",
+        store="src/sqlite/mod.rs",
+        main="src/main.rs",
+    ),
+    Ledger(
+        name="runs",
+        crate="quantrule-evidence-service",
+        prefix="research",
+        tables=(
+            "research__improvement_runs",
+            "research__baselines",
+            "research__invalidations",
+        ),
+        baseline="migrations/sqlite/0004_research_ledger.sql",
         store="src/sqlite/mod.rs",
         main="src/main.rs",
     ),

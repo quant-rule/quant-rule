@@ -8,10 +8,12 @@
 //! so the async route shape is unchanged.
 //!
 //! The tables are the double-prefix spelling of the Postgres relations:
-//! `runs.runs` is `runs__runs`, `runs.stages` is `runs__stages`, and
-//! `research.hypotheses` is `research__hypotheses`. Evidence names only its own
-//! `runs__` and `research__` prefixes; the shared ledger and the other service
-//! baselines live in the runtime and their owning crates.
+//! `runs.runs` is `runs__runs`, `runs.stages` is `runs__stages`,
+//! `research.hypotheses` is `research__hypotheses`, and the research-ledger
+//! tables are `research__improvement_runs`, `research__baselines`, and
+//! `research__invalidations`. Evidence names only its own `runs__` and
+//! `research__` prefixes; the shared ledger and the other service baselines
+//! live in the runtime and their owning crates.
 //!
 //! A state transition runs inside `BEGIN IMMEDIATE` and re-reads the run inside
 //! that transaction. SQLite has no `SELECT ... FOR UPDATE`: the write lock taken
@@ -35,6 +37,12 @@ pub(crate) const ARTIFACTS_TABLE: &str = "runs__artifacts";
 pub(crate) const SUBMISSIONS_TABLE: &str = "runs__submissions";
 /// The sealed hypothesis table.
 pub(crate) const HYPOTHESES_TABLE: &str = "research__hypotheses";
+/// The pre-registered improvement-run table.
+pub(crate) const IMPROVEMENT_RUNS_TABLE: &str = "research__improvement_runs";
+/// The accepted-baseline registry table.
+pub(crate) const BASELINES_TABLE: &str = "research__baselines";
+/// The append-only invalidation registry table.
+pub(crate) const INVALIDATIONS_TABLE: &str = "research__invalidations";
 
 #[cfg(test)]
 mod tests {
@@ -74,6 +82,24 @@ mod tests {
                 .expect("the hypothesis table")
         );
         assert_eq!(
+            IMPROVEMENT_RUNS_TABLE,
+            Dialect::Sqlite
+                .table(Schema::Research, "improvement_runs")
+                .expect("the improvement-run table")
+        );
+        assert_eq!(
+            BASELINES_TABLE,
+            Dialect::Sqlite
+                .table(Schema::Research, "baselines")
+                .expect("the baseline table")
+        );
+        assert_eq!(
+            INVALIDATIONS_TABLE,
+            Dialect::Sqlite
+                .table(Schema::Research, "invalidations")
+                .expect("the invalidation table")
+        );
+        assert_eq!(
             Dialect::Postgres
                 .table(Schema::Runs, "runs")
                 .expect("the Postgres name"),
@@ -95,6 +121,9 @@ mod tests {
             ARTIFACTS_TABLE,
             SUBMISSIONS_TABLE,
             HYPOTHESES_TABLE,
+            IMPROVEMENT_RUNS_TABLE,
+            BASELINES_TABLE,
+            INVALIDATIONS_TABLE,
         ] {
             assert!(
                 table.starts_with("runs__") || table.starts_with("research__"),

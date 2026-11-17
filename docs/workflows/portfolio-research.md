@@ -145,7 +145,7 @@ quantrule verify <run_id>
 | Backtest bundle | `<out>/backtest/` |
 | Qualification bundle | `<out>/qualification/` |
 | Analytics bundle | `<out>/analytics/` |
-| Run record | `data/improvement/<date>/<run-id>/` |
+| V3 pre-registration | `research.improvement_runs`; historical v2 folder `data/improvement/<date>/<run-id>/` |
 
 ## 9. Green criteria
 
@@ -205,7 +205,7 @@ criterion. It is not a strategy signal and it does not enter the model.
 | Execution config | `config/execution/<name>.json` |
 | Portfolio config | `config/portfolio/<name>.json` |
 | Qualification criteria | `config/qualification/<name>.json` |
-| Run record | `data/improvement/<date>/<run-id>/` |
+| V3 pre-registration | `research.improvement_runs`; historical v2 folder `data/improvement/<date>/<run-id>/` |
 | Baseline | `docs/improvement/baselines.md` |
 | Invalidation | `docs/improvement/INVALIDATIONS.md` |
 | Changelog | `CHANGELOG.md` |
