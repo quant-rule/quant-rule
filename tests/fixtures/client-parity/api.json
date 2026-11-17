@@ -304,7 +304,7 @@
           {
             "name": "report.json",
             "bytes": 308,
-            "sha256": "sha256:d1ed2114f59f4d251178fa5c2d2bda06d73842383d79bb2d98ddcffe4d256220"
+            "sha256": "sha256:9a9cf9a7f6cb6015af5a3e473f9e70601377b08b23ff2b39cf5e58960064cae2"
           }
         ]
       },
@@ -381,7 +381,7 @@
         {
           "name": "report.json",
           "bytes": 308,
-          "sha256": "sha256:d1ed2114f59f4d251178fa5c2d2bda06d73842383d79bb2d98ddcffe4d256220"
+          "sha256": "sha256:9a9cf9a7f6cb6015af5a3e473f9e70601377b08b23ff2b39cf5e58960064cae2"
         }
       ]
     },
@@ -759,9 +759,9 @@
     },
     {
       "name": "report.json",
-      "body": "{\"model_version\":\"2.0.0\",\"view_contract\":\"quantrule.model-view/v4\",\"data_version\":\"fixture\",\"requested_period\":{\"from\":null,\"to\":null},\"flat_report\":{\"timeframes\":[{\"timeframe_secs\":900,\"bars\":0,\"expected_bars\":1,\"coverage_share\":0.0},{\"timeframe_secs\":300,\"bars\":3,\"expected_bars\":3,\"coverage_share\":1.0}]}}",
+      "body": "{\"model_version\":\"1.3.0\",\"view_contract\":\"quantrule.model-view/v4\",\"data_version\":\"fixture\",\"requested_period\":{\"from\":null,\"to\":null},\"flat_report\":{\"timeframes\":[{\"timeframe_secs\":900,\"bars\":0,\"expected_bars\":1,\"coverage_share\":0.0},{\"timeframe_secs\":300,\"bars\":3,\"expected_bars\":3,\"coverage_share\":1.0}]}}",
       "bytes": 308,
-      "sha256": "sha256:d1ed2114f59f4d251178fa5c2d2bda06d73842383d79bb2d98ddcffe4d256220"
+      "sha256": "sha256:9a9cf9a7f6cb6015af5a3e473f9e70601377b08b23ff2b39cf5e58960064cae2"
     }
   ],
   "strategy_stage_id": "sha256:8888888888888888888888888888888888888888888888888888888888888888",

@@ -37,8 +37,8 @@ repeating a status.
 | Area | Status |
 |---|---|
 | Pipeline | Every stage is implemented: data, model, strategy, execution, portfolio, backtest, qualification, analytics. |
-| Surfaces | Product 2.0.0 is a distributed platform with two clients: a Svelte browser client and a command shell, both on `quantrule.api/v1`, plus the Tauri desktop package over the gateway URL. The command shell is a thin gateway client with no engine dependency; the six services are packaged in one image and nine-container stack, and the desktop installer carries the same six sidecars on embedded backends. |
-| Command surface | 46 implemented commands on the gateway-client surface in [command-surface.md](architecture/command-surface.md), including the model, strategy, and portfolio stage commands added in #852–#854, the optional `run submit --model-artifact` flag added in #855, and the research, registry, operations, and manual work through #859; the surface is released as v2.0.0, and the previous 27-command surface was released as v0.9.0 (prepared as v1.0.0). The discovery gate passes for the implemented set. |
+| Surfaces | Product 1.3.0 is a distributed platform with two clients: a Svelte browser client and a command shell, both on `quantrule.api/v1`, plus the Tauri desktop package over the gateway URL. The command shell is a thin gateway client with no engine dependency; the six services are packaged in one image and nine-container stack, and the desktop installer carries the same six sidecars on embedded backends. |
+| Command surface | 46 implemented commands on the gateway-client surface in [command-surface.md](architecture/command-surface.md), including the model, strategy, and portfolio stage commands added in #852–#854, the optional `run submit --model-artifact` flag added in #855, and the research, registry, operations, and manual work through #859; the surface is released as v1.3.0, and the previous 27-command surface was released as v0.9.0 (prepared as v1.0.0). The discovery gate passes for the implemented set. |
 | Stage surface | The stage contract, schema, worker, gateway, and the model, strategy, and portfolio slices are implemented (#850–#854); promotion is implemented (#855), the research ledger and manifest v3 are implemented (#856), the research commands and Research screen are implemented (#857), the operations surface and end-to-end verification are implemented (#858), and the 12-chapter user manual and checker are implemented (#859). [stage-surface.md](architecture/stage-surface.md). |
 | Model | `M1.3` current; 49 indicators, 150 active events, 199 validation claims; accepted compression baselines; `M2.x` no edge; `M3.x` underpowered; `M4.x` no edge; `MR5.x` no edge; `MR6.x` no edge; `MR7.x` no edge. |
 | Strategy | No accepted strategy baseline; the tier is gated by an accepted model baseline. |
@@ -47,8 +47,8 @@ repeating a status.
 | Improvement workflow | Current; the v3 research-ledger store, research commands, and Research screen are implemented; the SR1/SR2 strategy runs, the SR3 feature programme, the SR4 multi-instrument fade, the SR5 absorption count gate, the SR6 VWAP rejection run, the SR7 BTC+ETH H3 cross-section, the SR8 2023 buffer test, the SR8-A 2023 archive data rejection, the SR9 15m structure campaign, and the Binance BTCUSDT cross-venue check are recorded; accepted model baselines: 1m 4 ATR compression expansion, 1m compression-range, and 5m fresh-onset range; no accepted strategy or portfolio baseline. |
 | Run contract | Current; `quantrule.improvement-run/v3` is current, v2 is historical. |
 | Research swarm | Current contract; no active campaign. |
-| Release tags | `v2.0.0` is the current release (2026-11-17), the stage execution surface; its image digest and desktop assets are recorded in the release note after the tag run. `v1.2.0` is the version-alignment release (`sha256:26350916…`); `v1.1.0` is the 1.1.0 alignment release (`sha256:d5ce83da…`); `v1.0.0` is the desktop release, prepared as `v1.1.0` (`sha256:a133ff14…`); `v0.9.0` is the distributed platform (`sha256:1250438f…`). The tag mapping is in `docs/releases/README.md`. |
-| Changelog | Grouped release history; `2.0.0` is the current section, and the historical headings are normalized to the current tags. |
+| Release tags | `v1.3.0` is the current release (2026-11-17), the stage execution surface; its image digest and desktop assets are recorded in the release note after the tag run. `v1.2.0` is the version-alignment release (`sha256:26350916…`); `v1.1.0` is the 1.1.0 alignment release (`sha256:d5ce83da…`); `v1.0.0` is the desktop release, prepared as `v1.1.0` (`sha256:a133ff14…`); `v0.9.0` is the distributed platform (`sha256:1250438f…`). The tag mapping is in `docs/releases/README.md`. |
+| Changelog | Grouped release history; `1.3.0` is the current section, and the historical headings are normalized to the current tags. |
 | Tooling | The shell is the agent command path; it makes one gateway call per command. The improvement run store records evidence; the gateway `run submit` is the current execution path. `tools/gate.sh` runs the workspace gate. The distributed stack adds `make` targets and six services, specified in [deployment.md](architecture/deployment.md). The `simulation` service and the browser client own chart-first research; the Python simulation, chart, oracle, and trade tools are retired by DIST-105. Python is confined to repository governance; the product image carries none ([ADR-10](adr/2026-11-12/10-python-boundary.md)). |
 | Manual | Current; 12 chapters, the command and GUI references, the glossary, and troubleshooting (#859). [docs/manual/README.md](manual/README.md) |
 
@@ -60,7 +60,7 @@ repeating a status.
 | Code module map | Current; crate, module, reading order, and where-to-add guide | `docs/architecture/module-map.md` |
 | The Trustworthy Backtest Kata | Current | `docs/architecture/kata.md` |
 | Architecture characteristics | Current | `docs/architecture/characteristics.md` |
-| Command surface | Current; 46-command gateway-client registry and drift gate, released as v2.0.0; extended through #859 | `docs/architecture/command-surface.md` |
+| Command surface | Current; 46-command gateway-client registry and drift gate, released as v1.3.0; extended through #859 | `docs/architecture/command-surface.md` |
 | S3.x command-surface plan | Approved 2026-11-06; all phases merged; human acceptance pending | `docs/execution-plans/2026-11-06/s3-command-surface.md` |
 
 ## Current course deliverables
@@ -119,9 +119,9 @@ repeating a status.
 | Run v4 and the strategy | Current; `run v4` binds the strategy to the run; data schema 3, model schema 4, `execution v2`, `portfolio v2` | `docs/config/2026-11-13/run-v4-strategy.md` |
 | Run v3 and portfolio constraints | Accepted for a model-only run; `run v3` must not carry a strategy | `docs/config/2026-11-11/run-v3-and-portfolio-constraints.md` |
 | Local research memory | Historical; the local SQLite module was removed on 2026-11-16; memory lives in the evidence service (#661) | `docs/config/2026-11-11/research-memory-v1.md` |
-| Client surfaces | Product 2.0.0: Svelte browser client, command shell, and a Tauri desktop package over the gateway URL | `docs/architecture/client.md` |
+| Client surfaces | Product 1.3.0: Svelte browser client, command shell, and a Tauri desktop package over the gateway URL | `docs/architecture/client.md` |
 | Distribution | Current; container image and GitHub Release assets. The static page was retired | `ADR-2026-11-12-08` |
-| Desktop profile | Current for product 2.0.0 (current tag `v2.0.0`): embedded SQLite/filesystem/durable-queue profile, six-sidecar supervisor, Linux and Windows installers, and server↔desktop parity verified. The current release note is `2026-11-17/v2.0.0.md`. | [`apps/desktop-shell/README.md`](../apps/desktop-shell/README.md) |
+| Desktop profile | Current for product 1.3.0 (current tag `v1.3.0`): embedded SQLite/filesystem/durable-queue profile, six-sidecar supervisor, Linux and Windows installers, and server↔desktop parity verified. The current release note is `2026-11-17/v1.3.0.md`. | [`apps/desktop-shell/README.md`](../apps/desktop-shell/README.md) |
 | Policy blueprint | Historical; superseded by run v3 | `docs/config/2026-10-30/policy-and-strategy.md` |
 | Config tree | Current; current, evidence, and historical directories | `config/README.md` |
 | Available timeframes | `quantrule.data/v3` | `docs/config/2026-10-30/data-v3.md` |
@@ -269,7 +269,7 @@ pre-cutover runs. The boundary is recorded in
 | Release | Tag | Notes |
 |---|---|---|
 | Release index and tag rule | — | [`docs/releases/README.md`](releases/README.md) |
-| Stage execution surface | `v2.0.0` | [`docs/releases/2026-11-17/v2.0.0.md`](releases/2026-11-17/v2.0.0.md) |
+| Stage execution surface | `v1.3.0` | [`docs/releases/2026-11-17/v1.3.0.md`](releases/2026-11-17/v1.3.0.md) |
 | Version alignment | `v1.2.0` | [`docs/releases/2026-11-16/v1.2.0.md`](releases/2026-11-16/v1.2.0.md) |
 | 1.1.0 alignment | `v1.1.0` | [`docs/releases/2026-11-16/v1.1.0.md`](releases/2026-11-16/v1.1.0.md) |
 | Desktop profile | `v1.0.0` | [`docs/releases/2026-11-15/v1.0.0.md`](releases/2026-11-15/v1.0.0.md) |

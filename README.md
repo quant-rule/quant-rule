@@ -5,7 +5,7 @@ evidence — and keeps that evidence auditable after the client that submitted i
 has closed. It is candles-only, rule-based, and deterministic. There is no
 account, no cloud provider, and no live trading.
 
-> **Status.** The current release tag is **v2.0.0** (2026-11-17), the stage
+> **Status.** The current release tag is **v1.3.0** (2026-11-17), the stage
 > execution surface release: diagnostic model, strategy, and portfolio stages,
 > verified stage artifacts and Workbench tabs, promoted
 > `run submit --model-artifact`, the v3 research ledger and Research screen,
@@ -16,7 +16,7 @@ account, no cloud provider, and no live trading.
 > and desktop shell share one `quantrule.api/v1` contract. The previous tag,
 > **v1.2.0**, is the version-alignment release; **v1.1.0** is the 1.1.0
 > alignment release; **v1.0.0** is the desktop release. Current note:
-> [`docs/releases/2026-11-17/v2.0.0.md`](docs/releases/2026-11-17/v2.0.0.md);
+> [`docs/releases/2026-11-17/v1.3.0.md`](docs/releases/2026-11-17/v1.3.0.md);
 > previous note:
 > [`docs/releases/2026-11-16/v1.2.0.md`](docs/releases/2026-11-16/v1.2.0.md);
 > mapping: [`docs/releases/README.md`](docs/releases/README.md). The
@@ -49,7 +49,7 @@ make up
 `make up` builds the image, starts the stack, waits for health, and prints:
 
 ```text
-QuantRule v2.0.0 ready → http://localhost:8080
+QuantRule v1.3.0 ready → http://localhost:8080
 ```
 
 `make` is the Linux and macOS path. Windows runs the same Compose file directly,
@@ -124,7 +124,7 @@ Docker requirement, no engine in the shell, and no local data read by the shell;
 the server remains the same stack and the same HTTP contract. The packaged
 desktop profile and the server profile both reproduce canonical digest
 `sha256:453c90b4442dd049074e126bb46b400b6f61baa986443c97fa27c3edd41c1daa` for
-the verification fixture. The current release is `v2.0.0`; `v1.2.0` is the
+the verification fixture. The current release is `v1.3.0`; `v1.2.0` is the
 version-alignment release, `v1.0.0` is the desktop release, and `v0.9.0` the
 distributed platform release.
 Details: [`apps/desktop-shell/README.md`](apps/desktop-shell/README.md) and
