@@ -55,7 +55,7 @@ def tree(root: Path, *, ports: list | None = None, **fixture_overrides: object) 
             {
                 "id": "PORT-001",
                 "source": source,
-                "target": TARGET,
+                "targets": [TARGET],
                 "test": TEST,
                 "fixture": FIXTURE,
                 "status": "active",
@@ -133,7 +133,7 @@ class PortParityCheckerTests(unittest.TestCase):
             root = Path(temporary)
             tree(root)
             registry = json.loads((root / check_port_parity.REGISTRY).read_text())
-            registry["ports"][0]["target"] = "../outside.rs"
+            registry["ports"][0]["targets"] = ["../outside.rs"]
             write(root / check_port_parity.REGISTRY, json.dumps(registry))
             problems = check_port_parity.check(root)
             self.assertTrue(any("inside the repository" in problem for problem in problems))

@@ -61,7 +61,9 @@ sibling as input data.
     {
       "id": "PORT-001",
       "source": "tools/retired.py at commit 0123456",
-      "target": "crates/quantrule-example/src/ported.rs",
+      "targets": [
+        "crates/quantrule-example/src/ported.rs"
+      ],
       "test": "crates/quantrule-example/tests/port_parity.rs",
       "fixture": "docs/port-parity/PORT-001.golden.json",
       "status": "active"
@@ -74,7 +76,7 @@ sibling as input data.
 |---|---|
 | `id` | Stable `PORT-NNN` identifier, assigned once and never reused |
 | `source` | The retired implementation and the commit or date it was captured from |
-| `target` | The Rust source file that carries the ported computation |
+| `targets` | The Rust source files that carry the ported computation; every marked file must be listed |
 | `test` | The Rust test that reads the fixture and compares every case |
 | `fixture` | Must be `docs/port-parity/<id>.golden.json` |
 | `status` | `active` or `retired` |
