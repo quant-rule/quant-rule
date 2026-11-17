@@ -129,6 +129,34 @@ impl StageStore for MemoryStages {
         })
     }
 
+    fn find_by_artifact(
+        &self,
+        profile: ProfileId,
+        kind: StageKind,
+        artifact_id: Digest,
+    ) -> BoxFuture<Result<Option<StageRecord>, StageStoreError>> {
+        let inner = Arc::clone(&self.inner);
+        Box::pin(async move {
+            let state = lock(&inner)?;
+            Ok(state
+                .runs
+                .values()
+                .find(|record| {
+                    record.state == StageState::Succeeded
+                        && record.kind == kind
+                        && record
+                            .artifact
+                            .as_ref()
+                            .is_some_and(|artifact| artifact.artifact_id == artifact_id)
+                        && state.submissions.contains(&(
+                            profile.as_str().to_owned(),
+                            record.stage_run_id.to_string(),
+                        ))
+                })
+                .cloned())
+        })
+    }
+
     fn claim(
         &self,
         stage_run_id: String,

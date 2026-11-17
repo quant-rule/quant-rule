@@ -1,8 +1,9 @@
 <script lang="ts">
   import DatasetsPanel from "./DatasetsPanel.svelte";
   import ModelStagePanel from "./ModelStagePanel.svelte";
+  import StrategyStagePanel from "./StrategyStagePanel.svelte";
 
-  let tab = $state<"data" | "model">("data");
+  let tab = $state<"data" | "model" | "strategy">("data");
 </script>
 
 <section class="stack">
@@ -23,12 +24,22 @@
     >
       Model
     </button>
+    <button
+      role="tab"
+      aria-selected={tab === "strategy"}
+      class:active={tab === "strategy"}
+      onclick={() => (tab = "strategy")}
+    >
+      Strategy
+    </button>
   </div>
 
   {#if tab === "data"}
     <DatasetsPanel />
-  {:else}
+  {:else if tab === "model"}
     <ModelStagePanel />
+  {:else}
+    <StrategyStagePanel />
   {/if}
 </section>
 

@@ -102,6 +102,20 @@ pub(crate) enum Command {
         /// The configuration to apply.
         config_id: String,
     },
+    /// Submit a strategy stage run.
+    StageRunStrategy {
+        /// The frozen model artifact the strategy reads.
+        model_artifact_id: String,
+        /// The configuration to apply.
+        config_id: String,
+    },
+    /// Explain one strategy decision bar.
+    StageExplain {
+        /// The stage run id.
+        stage_run_id: String,
+        /// The zero-based execution bar.
+        bar: usize,
+    },
     /// List diagnostic stage runs.
     StageList {
         /// Only this stage kind.

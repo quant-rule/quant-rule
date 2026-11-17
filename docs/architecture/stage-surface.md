@@ -1,7 +1,7 @@
 # Stage Surface — Target Architecture
 
 - Date: 2026-11-17 (UTC)
-- Status: Current for the model slice; the stage contract and schema are merged (#850), the worker and gateway landed in #851, and the model stage and Workbench Data/Model tabs landed in #852; strategy, portfolio, and research land in #853–#858
+- Status: Current for the model and strategy slices; the stage contract and schema are merged (#850), the worker and gateway landed in #851, the model stage and Workbench Data/Model tabs landed in #852, and the strategy stage and Workbench Strategy tab landed in #853; portfolio and research land in #854–#858
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 - Decision: [ADR-2026-11-16-01](../adr/2026-11-16/01-stage-execution-and-evidence-boundary.md)
@@ -48,17 +48,25 @@ stage and research additions are:
 | GET | `/research/baselines` | Read the baseline registry |
 | GET | `/research/invalidations` | Read the invalidation tombstones |
 
+A strategy submission keeps the input
+`{kind:"model_artifact", model_artifact_id}`. The server resolves the succeeded
+model stage in the active profile and derives `data_version` from its
+provenance; a supplied `data_version` that disagrees is refused. An unknown or
+non-model artifact returns `stage.not_found`, and a mismatch returns
+`stage.invalid`.
+
 The gateway proxies `/stages/*` and `/research/*` with the same profile header,
 bearer token, path allowlist, and error envelope as every other route. The
 gateway never reaches an engine.
 
 ## 4. Command surface
 
-The current 34 commands are in [`command-surface.md`](command-surface.md). The
+The current 36 commands are in [`command-surface.md`](command-surface.md). The
 model stage commands (`stage run model`, `stage list`, `stage show`,
 `stage events`, `stage fetch`, `stage cancel`, and `stage delete`) are
-implemented (#852). The strategy, portfolio, promotion, research, and operations
-rows below remain target:
+implemented (#852), and `stage run strategy` and `stage explain` are implemented
+(#853). The portfolio, promotion, research, and operations rows below remain
+target:
 
 | Command | Purpose |
 |---|---|
@@ -77,6 +85,13 @@ rows below remain target:
 A target command appears in `help` and the README only when it is implemented and
 tested. The command-surface checker keeps planned and implemented commands
 separate.
+
+The standalone strategy stage simulates its own position; the coupled backtest
+passes the position execution actually holds. When execution rejects an entry,
+the coupled strategy sees a flat position on the next bar, while the stage still
+holds the position it entered. The decision sequences can therefore differ, and
+a stage decision is never fed into a backtest. The divergence is deliberate and
+is covered by the worker's rejected-entry test.
 
 ## 5. Clients
 
@@ -124,7 +139,7 @@ profile-scoped and content-addressed.
 | Stage API types, internal contract, `stage` schema, and store | Implemented (#850) |
 | Stage worker, queue, retention, and gateway proxy | Implemented (#851) |
 | Model stage vertical slice and Workbench Data/Model tabs | Implemented (#852) |
-| Strategy stage vertical slice and Workbench Strategy tab | Target (#853) |
+| Strategy stage vertical slice and Workbench Strategy tab | Implemented (#853) |
 | Portfolio stage vertical slice and Workbench Portfolio tab | Target (#854) |
 | Backtest promotion with a frozen model artifact | Target (#855) |
 | Research ledger and Research screens | Target (#856–#857) |

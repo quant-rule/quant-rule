@@ -12,7 +12,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex};
 
-use quantrule_api::{Digest, ProfileId, StageArtifact, StageRunId, StageState};
+use quantrule_api::{Digest, ProfileId, StageArtifact, StageKind, StageRunId, StageState};
 use quantrule_service_api::{
     NewStageRun, StageClaim, StageClaimOutcome, StageComputed, StageFailed, StageRecord,
 };
@@ -33,6 +33,14 @@ pub trait StageClient: Send + Sync {
     fn get_stage(
         &self,
         stage_run_id: String,
+    ) -> BoxFuture<Result<Option<StageRecord>, ClientError>>;
+
+    /// Read the succeeded stage of `kind` that a profile's artifact names.
+    fn get_stage_by_artifact(
+        &self,
+        profile: ProfileId,
+        kind: StageKind,
+        artifact_id: Digest,
     ) -> BoxFuture<Result<Option<StageRecord>, ClientError>>;
 
     /// Record the content-addressed artifact and finish the stage.
@@ -92,6 +100,28 @@ impl StageClient for HttpServiceClient {
                     Service::Evidence,
                     None,
                     format!("/internal/v1/stages/{stage_run_id}"),
+                )
+                .await
+        })
+    }
+
+    fn get_stage_by_artifact(
+        &self,
+        profile: ProfileId,
+        kind: StageKind,
+        artifact_id: Digest,
+    ) -> BoxFuture<Result<Option<StageRecord>, ClientError>> {
+        let client = self.clone();
+        Box::pin(async move {
+            client
+                .get_json(
+                    Service::Evidence,
+                    Some(&profile),
+                    format!(
+                        "/internal/v1/stages/by-artifact/{}/{}",
+                        kind.as_str(),
+                        artifact_id
+                    ),
                 )
                 .await
         })
@@ -254,6 +284,34 @@ impl StageClient for MemoryStageClient {
         stage_run_id: String,
     ) -> BoxFuture<Result<Option<StageRecord>, ClientError>> {
         self.get_any(stage_run_id)
+    }
+
+    fn get_stage_by_artifact(
+        &self,
+        profile: ProfileId,
+        kind: StageKind,
+        artifact_id: Digest,
+    ) -> BoxFuture<Result<Option<StageRecord>, ClientError>> {
+        let inner = Arc::clone(&self.inner);
+        Box::pin(async move {
+            let state = lock(&inner)?;
+            Ok(state
+                .0
+                .values()
+                .find(|record| {
+                    record.state == StageState::Succeeded
+                        && record.kind == kind
+                        && record
+                            .artifact
+                            .as_ref()
+                            .is_some_and(|artifact| artifact.artifact_id == artifact_id)
+                        && state.1.contains(&(
+                            profile.as_str().to_owned(),
+                            record.stage_run_id.to_string(),
+                        ))
+                })
+                .cloned())
+        })
     }
 
     fn stage_computed(

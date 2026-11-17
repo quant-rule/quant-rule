@@ -14,7 +14,7 @@
 export const SECTIONS = [
   { id: "connection", label: "Connection", hint: "Gateway and services" },
   { id: "profiles", label: "Profiles", hint: "Research lines" },
-  { id: "workbench", label: "Workbench", hint: "Data and model stages" },
+  { id: "workbench", label: "Workbench", hint: "Data, model, and strategy stages" },
   { id: "datasets", label: "Datasets", hint: "Candles by content" },
   { id: "configs", label: "Configs", hint: "Hypotheses and runs" },
   { id: "runs", label: "Runs", hint: "Queued and finished" },
@@ -54,6 +54,8 @@ export const COMMANDS: CommandCapability[] = [
   { command: "run fetch", section: "runs", control: "Verified artifact download", component: "RunDetail.svelte", testId: "run-fetch" },
   { command: "run cancel", section: "runs", control: "Cancel action", component: "RunsPanel.svelte", testId: "run-cancel" },
   { command: "stage run model", section: "workbench", control: "Model stage submit form", component: "ModelStagePanel.svelte", testId: "stage-submit" },
+  { command: "stage run strategy", section: "workbench", control: "Strategy stage submit form", component: "StrategyStagePanel.svelte", testId: "strategy-submit" },
+  { command: "stage explain", section: "workbench", control: "Strategy decision explain control", component: "StrategyStagePanel.svelte", testId: "strategy-explain" },
   { command: "stage list", section: "workbench", control: "Stage table", component: "ModelStagePanel.svelte", testId: "stage-table" },
   { command: "stage show", section: "workbench", control: "Stage detail view", component: "ModelStagePanel.svelte", testId: "stage-detail" },
   { command: "stage events", section: "workbench", control: "Event table and coverage", component: "ModelStagePanel.svelte", testId: "stage-events" },

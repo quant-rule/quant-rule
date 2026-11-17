@@ -6,4 +6,5 @@ mod cancel;
 mod failure;
 mod path;
 mod source;
+mod strategy_stage;
 mod support;

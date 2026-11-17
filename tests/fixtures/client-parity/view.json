@@ -13,6 +13,8 @@
     "run fetch",
     "run cancel",
     "stage run model",
+    "stage run strategy",
+    "stage explain",
     "stage list",
     "stage show",
     "stage events",
@@ -246,6 +248,15 @@
       "submitted_at": "2026-11-17T00:00:00Z",
       "artifact_id": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
       "evidence": false
+    },
+    {
+      "stage_run_id": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+      "kind": "strategy",
+      "state": "succeeded",
+      "config_id": "cfg_abc",
+      "submitted_at": "2026-11-17T00:00:01Z",
+      "artifact_id": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+      "evidence": false
     }
   ],
   "stage": {
@@ -358,5 +369,62 @@
   },
   "stage_delete": {
     "stage_run_id": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+  },
+  "strategy_stage_submit": {
+    "stage_run_id": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+    "state": "queued",
+    "created": true
+  },
+  "strategy_stage": {
+    "stage_run_id": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+    "kind": "strategy",
+    "state": "succeeded",
+    "owner": "default",
+    "config_id": "cfg_abc",
+    "input": {
+      "kind": "model_artifact",
+      "model_artifact_id": "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+    },
+    "provenance": {
+      "data_version": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "config_hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "model_version": "M1.0",
+      "image_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    },
+    "artifact": {
+      "artifact_id": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+      "files": [
+        {
+          "name": "decisions.ndjson",
+          "bytes": 372,
+          "sha256": "sha256:fdd628046295a39b3ec7206b2320a83c8d8c7b9ab315a212bba61aa58d32eea3"
+        },
+        {
+          "name": "provenance.json",
+          "bytes": 85,
+          "sha256": "sha256:118dab77361fb7c28fe565c5dcd888bd175272edbcb647378177f34bac8035e6"
+        },
+        {
+          "name": "summary.txt",
+          "bytes": 23,
+          "sha256": "sha256:76ee540848ee7e58ba1273fd0e239b651998ae6ced343d0c5887bb19421cf4a2"
+        }
+      ]
+    },
+    "submitted_at": "2026-11-17T00:00:01Z",
+    "error": null,
+    "attempts": 1,
+    "evidence": false
+  },
+  "strategy_explain": {
+    "schema": "quantrule.strategy-decision/v1",
+    "timeframe_secs": 60,
+    "bar_index": 1,
+    "decision": "hold",
+    "side": null,
+    "reason": null,
+    "position_before": "long",
+    "position_after": "long",
+    "atr14": 1.5
   }
 }

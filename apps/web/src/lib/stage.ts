@@ -13,6 +13,7 @@ import type {
   ArtifactRef,
   Digest,
   StageCoverage,
+  StageDecision,
   StageEventRow,
   StageEventView,
   StageRunDetail,
@@ -195,6 +196,35 @@ export async function fetchStageArtifacts(
     });
   }
   return { stage_run_id: detail.stage_run_id, artifacts: verified };
+}
+
+/** Parse a `decisions.ndjson` artifact into published records. */
+export function stageDecisions(text: string): StageDecision[] {
+  const decisions: StageDecision[] = [];
+  for (const line of text.split("\n")) {
+    const trimmed = line.trim();
+    if (trimmed === "") {
+      continue;
+    }
+    const value = JSON.parse(trimmed) as unknown;
+    if (value === null || typeof value !== "object") {
+      throw new Error("a decision record is not an object");
+    }
+    decisions.push(value as StageDecision);
+  }
+  return decisions;
+}
+
+/** Select the published decision at one execution bar. */
+export function explainDecision(
+  decisions: StageDecision[],
+  bar: number,
+): StageDecision {
+  const found = decisions.find((decision) => decision.bar_index === bar);
+  if (found === undefined) {
+    throw new Error(`the strategy stage has no decision for bar ${bar}`);
+  }
+  return found;
 }
 
 /** A compact stage or data id for a table cell. */

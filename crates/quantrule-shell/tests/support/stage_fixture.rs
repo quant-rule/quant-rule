@@ -77,6 +77,56 @@ pub fn client_parity_view() -> Value {
     .expect("the shared client-parity view is JSON")
 }
 
+/// The strategy-stage fixture id.
+pub fn strategy_stage_id() -> String {
+    digest('8')
+}
+
+/// The strategy decisions fixture.
+pub fn strategy_decisions_body() -> Vec<u8> {
+    b"{\"schema\":\"quantrule.strategy-decision/v1\",\"timeframe_secs\":60,\"bar_index\":0,\"decision\":\"enter\",\"side\":\"long\",\"reason\":\"entry\",\"position_before\":\"flat\",\"position_after\":\"long\",\"atr14\":1.5}\n{\"schema\":\"quantrule.strategy-decision/v1\",\"timeframe_secs\":60,\"bar_index\":1,\"decision\":\"hold\",\"side\":null,\"reason\":null,\"position_before\":\"long\",\"position_after\":\"long\",\"atr14\":1.5}\n".to_vec()
+}
+
+/// A strategy stage detail with the decision bundle.
+pub fn strategy_stage_detail(state: &str) -> Value {
+    let decisions = strategy_decisions_body();
+    let summary = b"QuantRule strategy run\n".to_vec();
+    let provenance = b"{\"schema\":\"quantrule.stage-provenance/v1\",\"stage\":\"strategy\",\"artifact\":\"decisions\"}\n".to_vec();
+    json!({
+        "stage_run_id": strategy_stage_id(),
+        "kind": "strategy",
+        "state": state,
+        "owner": "default",
+        "config_id": "cfg_abc",
+        "input": {
+            "kind": "model_artifact",
+            "model_artifact_id": digest('9'),
+        },
+        "provenance": {
+            "data_version": data_version(),
+            "config_hash": config_hash(),
+            "model_version": "M1.0",
+            "image_digest": image_digest(),
+        },
+        "artifact": if state == "succeeded" {
+            json!({
+                "artifact_id": digest('7'),
+                "files": [
+                    { "name": "decisions.ndjson", "bytes": decisions.len(), "sha256": quantrule_api::Digest::sha256(&decisions).to_string() },
+                    { "name": "provenance.json", "bytes": provenance.len(), "sha256": quantrule_api::Digest::sha256(&provenance).to_string() },
+                    { "name": "summary.txt", "bytes": summary.len(), "sha256": quantrule_api::Digest::sha256(&summary).to_string() },
+                ],
+            })
+        } else {
+            Value::Null
+        },
+        "submitted_at": "2026-11-17T00:00:01Z",
+        "error": Value::Null,
+        "attempts": 1,
+        "evidence": false,
+    })
+}
+
 /// Answer one default-fixture stage route.
 pub(super) fn stage_route(request: &super::Request, segments: &[&str]) -> Option<Response> {
     match (request.method.as_str(), segments) {
@@ -84,6 +134,14 @@ pub(super) fn stage_route(request: &super::Request, segments: &[&str]) -> Option
             202,
             &json!({
                 "stage_run_id": stage_id(),
+                "state": "queued",
+                "created": true,
+            }),
+        )),
+        ("POST", ["stages", "strategy", "runs"]) => Some(Response::json(
+            202,
+            &json!({
+                "stage_run_id": strategy_stage_id(),
                 "state": "queued",
                 "created": true,
             }),
@@ -103,6 +161,9 @@ pub(super) fn stage_route(request: &super::Request, segments: &[&str]) -> Option
         ("GET", ["stages", "runs", id]) if id.starts_with("sha256:9") => {
             Some(Response::error(404, "stage.not_found", "stage is unknown"))
         }
+        ("GET", ["stages", "runs", id]) if *id == strategy_stage_id() => {
+            Some(Response::json(200, &strategy_stage_detail("succeeded")))
+        }
         ("GET", ["stages", "runs", _]) => Some(Response::json(200, &stage_detail("succeeded"))),
         ("POST", ["stages", "runs", id, "cancel"]) if *id == stage_id() => {
             Some(Response::json(202, &stage_detail("cancelled")))
@@ -115,6 +176,29 @@ pub(super) fn stage_route(request: &super::Request, segments: &[&str]) -> Option
         }
         ("DELETE", ["stages", "runs", _]) => {
             Some(Response::error(404, "stage.not_found", "stage is unknown"))
+        }
+        ("GET", ["stages", "runs", id, "artifacts", "decisions.ndjson"])
+            if *id == strategy_stage_id() =>
+        {
+            Some(Response::bytes(200, "application/x-ndjson", strategy_decisions_body()))
+        }
+        ("GET", ["stages", "runs", id, "artifacts", "summary.txt"])
+            if *id == strategy_stage_id() =>
+        {
+            Some(Response::bytes(
+                200,
+                "text/plain; charset=utf-8",
+                b"QuantRule strategy run\n".to_vec(),
+            ))
+        }
+        ("GET", ["stages", "runs", id, "artifacts", "provenance.json"])
+            if *id == strategy_stage_id() =>
+        {
+            Some(Response::bytes(
+                200,
+                "application/json",
+                b"{\"schema\":\"quantrule.stage-provenance/v1\",\"stage\":\"strategy\",\"artifact\":\"decisions\"}\n".to_vec(),
+            ))
         }
         ("GET", ["stages", "runs", _, "artifacts", "events.csv"]) => {
             Some(Response::bytes(200, "text/csv", stage_events_body()))

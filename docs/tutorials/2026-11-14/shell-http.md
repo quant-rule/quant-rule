@@ -83,7 +83,29 @@ published `events.csv` and `report.json`; it filters the event rows and prints
 the report coverage without computing a model value. `stage fetch` checks every
 artifact against the stage record before writing it.
 
-## 5. Simulation research
+## 5. A strategy stage
+
+```bash
+quantrule stage run strategy <model_artifact_id> <config_id>
+quantrule stage show <stage_run_id>
+quantrule stage explain <stage_run_id> --bar 12
+quantrule stage explain <stage_run_id> --bar 12 --json
+quantrule stage fetch <stage_run_id> ./strategy-bundle
+```
+
+`stage run strategy` names the `model_artifact_id` a succeeded model stage
+published; the server derives the dataset from that upstream stage. The stage
+artifact is only `decisions.ndjson`, `summary.txt`, and `provenance.json`. It
+carries no fills, cash, P&L, exposure, drawdown, or canonical digest, and it is
+never evidence. `stage explain` selects the published record whose `bar_index`
+matches `--bar`; it does not recompute the decision.
+
+The strategy simulates its own position. The coupled backtest passes the
+position execution actually holds, so a rejected entry can make the standalone
+decision sequence differ from the coupled run. That divergence is deliberate:
+stage decisions never feed a backtest.
+
+## 6. Simulation research
 
 ```bash
 quantrule simulation create \
@@ -103,7 +125,7 @@ The server assigns `sim_id` and `marked_time_utc`. The client clock is not
 trusted. `check` refuses fewer than 30 events, and marking after a decision is
 refused with `simulation.locked`.
 
-## 6. Help and JSON
+## 7. Help and JSON
 
 ```bash
 quantrule help

@@ -1,32 +1,44 @@
 //! The `stage` family parser.
 //!
-//! The family owns one command per implemented stage use case. Strategy and
-//! portfolio run are not parsed: they remain planned until their slices land.
+//! The family owns one command per implemented stage use case. Portfolio run is
+//! not parsed: it remains planned until its slice lands.
 
 use super::{pair, parse_limit, parse_options, single, usage};
 use crate::command::types::{Command, ParseError};
 
 pub(super) fn parse_stage(args: &[String]) -> Result<Command, ParseError> {
-    const FAMILY: &str = "usage: stage run model <data_version> <config_id>|list|show <stage_run_id>|events <stage_run_id> --timeframe <tf>|fetch <stage_run_id> <directory>|cancel <stage_run_id>|delete <stage_run_id>";
+    const FAMILY: &str = "usage: stage run model|strategy <input> <config_id>|explain <stage_run_id> --bar <n>|list|show <stage_run_id>|events <stage_run_id> --timeframe <tf>|fetch <stage_run_id> <directory>|cancel <stage_run_id>|delete <stage_run_id>";
     let (name, rest) = args
         .split_first()
         .ok_or_else(|| ParseError::Usage(String::from(FAMILY)))?;
     match name.as_str() {
         "run" => {
-            let line = usage("stage run model");
-            let usage = line.as_str();
             let (kind, rest) = rest
                 .split_first()
                 .ok_or_else(|| ParseError::Usage(String::from(FAMILY)))?;
-            if kind != "model" {
-                return Err(ParseError::Usage(format!(
-                    "only the model stage is implemented\n{usage}"
-                )));
+            match kind.as_str() {
+                "model" => {
+                    let line = usage("stage run model");
+                    let usage = line.as_str();
+                    pair(rest, usage).map(|(data_version, config_id)| Command::StageRunModel {
+                        data_version,
+                        config_id,
+                    })
+                }
+                "strategy" => {
+                    let line = usage("stage run strategy");
+                    let usage = line.as_str();
+                    pair(rest, usage).map(|(model_artifact_id, config_id)| {
+                        Command::StageRunStrategy {
+                            model_artifact_id,
+                            config_id,
+                        }
+                    })
+                }
+                _ => Err(ParseError::Usage(format!(
+                    "stage run expects model or strategy\n{FAMILY}"
+                ))),
             }
-            pair(rest, usage).map(|(data_version, config_id)| Command::StageRunModel {
-                data_version,
-                config_id,
-            })
         }
         "list" => {
             let line = usage("stage list");
@@ -55,6 +67,16 @@ pub(super) fn parse_stage(args: &[String]) -> Result<Command, ParseError> {
             let line = usage("stage show");
             let usage = line.as_str();
             single(rest, usage).map(|stage_run_id| Command::StageShow { stage_run_id })
+        }
+        "explain" => {
+            let line = usage("stage explain");
+            let usage = line.as_str();
+            let options = parse_options(rest, usage, &["bar"], &[])?;
+            options.expect_positionals(1, usage)?;
+            Ok(Command::StageExplain {
+                stage_run_id: options.positional(0, "the stage run id", usage)?.to_owned(),
+                bar: parse_bar(options.required("bar", usage)?, usage)?,
+            })
         }
         "events" => {
             let line = usage("stage events");
@@ -88,6 +110,12 @@ pub(super) fn parse_stage(args: &[String]) -> Result<Command, ParseError> {
             "unknown stage command '{other}'\n{FAMILY}"
         ))),
     }
+}
+
+fn parse_bar(value: &str, usage: &str) -> Result<usize, ParseError> {
+    value
+        .parse::<usize>()
+        .map_err(|_| ParseError::Usage(format!("--bar expects a non-negative integer\n{usage}")))
 }
 
 fn parse_stage_kind(value: &str, usage: &str) -> Result<quantrule_api::StageKind, ParseError> {

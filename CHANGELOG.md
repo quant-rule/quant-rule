@@ -34,6 +34,11 @@ history is in Git and the pull requests.
   download, the `stage run model`, `stage list`, `stage show`, `stage events`,
   `stage fetch`, `stage cancel`, and `stage delete` shell commands, and the
   browser Workbench Data and Model tabs with parity coverage.
+- The strategy stage vertical slice: a profile-scoped artifact lookup that
+  derives the dataset from a succeeded model stage, a strategy executor that
+  writes only `decisions.ndjson`, `summary.txt`, and `provenance.json`, the
+  `stage run strategy` and `stage explain` shell commands, and the browser
+  Workbench Strategy tab with parity and divergence coverage.
 - The stage execution and evidence-boundary ADR: diagnostic stage runs are
   server-side and content-addressed, while the coupled backtest remains the only
   evidence path and canonical-digest producer.

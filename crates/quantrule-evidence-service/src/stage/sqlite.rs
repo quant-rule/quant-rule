@@ -442,6 +442,47 @@ impl StageStore for SqliteStageStore {
         })
     }
 
+    fn find_by_artifact(
+        &self,
+        profile: ProfileId,
+        kind: StageKind,
+        artifact_id: Digest,
+    ) -> BoxFuture<Result<Option<StageRecord>, StageStoreError>> {
+        let database = self.database.clone();
+        Box::pin(async move {
+            let profile_id = profile.as_str().to_owned();
+            let kind = kind.as_str().to_owned();
+            let artifact_id = artifact_id.to_string();
+            database
+                .call(move |connection| {
+                    let sql = format!(
+                        "SELECT r.stage_run_id
+                           FROM {STAGE_RUNS_TABLE} r
+                           JOIN {STAGE_SUBMISSIONS_TABLE} s
+                             ON s.stage_run_id = r.stage_run_id
+                          WHERE s.profile_id = ?1
+                            AND r.kind = ?2
+                            AND r.status = 'succeeded'
+                            AND r.artifact_id = ?3
+                          ORDER BY r.submitted_at DESC, r.stage_run_id ASC
+                          LIMIT 1"
+                    );
+                    let id: Option<String> = connection
+                        .query_row(&sql, params![profile_id, kind, artifact_id], |row| {
+                            row.get(0)
+                        })
+                        .optional()
+                        .map_err(store_error)?;
+                    match id {
+                        Some(id) => load_stage(connection, Some(&profile_id), &id),
+                        None => Ok(None),
+                    }
+                })
+                .await
+                .map_err(|error| StageStoreError(error.to_string()))
+        })
+    }
+
     fn claim(
         &self,
         stage_run_id: String,

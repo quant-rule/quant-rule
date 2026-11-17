@@ -17,8 +17,8 @@ use serde_json::{Value, json};
 
 use super::help::run_help;
 use super::stage_commands::{
-    stage_cancel, stage_delete, stage_events_command, stage_fetch, stage_list, stage_run_model,
-    stage_show,
+    stage_cancel, stage_delete, stage_events_command, stage_explain, stage_fetch, stage_list,
+    stage_run_model, stage_run_strategy, stage_show,
 };
 use super::types::{Command, GlobalOptions, Invocation};
 use crate::client::{Client, encode};
@@ -88,6 +88,13 @@ fn run(
             data_version,
             config_id,
         } => stage_run_model(&client, globals, stdout, &data_version, &config_id),
+        Command::StageRunStrategy {
+            model_artifact_id,
+            config_id,
+        } => stage_run_strategy(&client, globals, stdout, &model_artifact_id, &config_id),
+        Command::StageExplain { stage_run_id, bar } => {
+            stage_explain(&client, globals, stdout, &stage_run_id, bar)
+        }
         Command::StageList {
             kind,
             status,

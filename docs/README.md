@@ -38,7 +38,7 @@ repeating a status.
 |---|---|
 | Pipeline | Every stage is implemented: data, model, strategy, execution, portfolio, backtest, qualification, analytics. |
 | Surfaces | Product 1.2.0 is a distributed platform with two clients: a Svelte browser client and a command shell, both on `quantrule.api/v1`, plus the Tauri desktop package over the gateway URL. The command shell is a thin gateway client with no engine dependency; the six services are packaged in one image and nine-container stack, and the desktop installer carries the same six sidecars on embedded backends. |
-| Command surface | 34 implemented commands on the gateway-client surface in [command-surface.md](architecture/command-surface.md), including the model stage commands added in #852; the previous 27-command surface was released as v0.9.0 (prepared as v1.0.0). The discovery gate passes for the implemented set. |
+| Command surface | 36 implemented commands on the gateway-client surface in [command-surface.md](architecture/command-surface.md), including the model stage commands added in #852 and the strategy stage commands added in #853; the previous 27-command surface was released as v0.9.0 (prepared as v1.0.0). The discovery gate passes for the implemented set. |
 | Stage surface | The stage contract, schema, worker, gateway, and model slice are implemented (#850–#852); strategy, portfolio, promotion, research, and operations remain target (#853–#858). [stage-surface.md](architecture/stage-surface.md). |
 | Model | `M1.3` current; 49 indicators, 150 active events, 199 validation claims; accepted compression baselines; `M2.x` no edge; `M3.x` underpowered; `M4.x` no edge; `MR5.x` no edge; `MR6.x` no edge; `MR7.x` no edge. |
 | Strategy | No accepted strategy baseline; the tier is gated by an accepted model baseline. |
@@ -101,7 +101,7 @@ repeating a status.
 | Qualification lab tutorial | Historical; v0.3.0 qualification | `docs/tutorials/2026-11-06/qualification-lab.md` |
 | Analytics lab tutorial | Historical; v0.3.0 analytics | `docs/tutorials/2026-11-06/analytics-lab.md` |
 | Pipeline lab tutorial | Historical; the v0.3.0 stage surface | `docs/tutorials/2026-11-06/pipeline-lab.md` |
-| Shell HTTP tutorial | Current; the 34-command gateway client, profiles, runs, model stage, and simulation verbs | `docs/tutorials/2026-11-14/shell-http.md` |
+| Shell HTTP tutorial | Current; the 36-command gateway client, profiles, runs, model and strategy stages, and simulation verbs | `docs/tutorials/2026-11-14/shell-http.md` |
 | Run a backtest tutorial | Current; the distributed stack through the browser and `make` | `docs/tutorials/2026-11-12/01-run-a-backtest.md` |
 | Verify determinism tutorial | Current; the canonical digest and a repeat run | `docs/tutorials/2026-11-12/02-verify-determinism.md` |
 | Remote compute tutorial | Current; a second host and the gateway URL | `docs/tutorials/2026-11-12/03-remote-compute.md` |
