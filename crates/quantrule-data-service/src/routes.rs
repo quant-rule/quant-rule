@@ -253,8 +253,13 @@ async fn upload_config(
     payload: Result<Json<UploadConfigRequest>, JsonRejection>,
 ) -> Result<(StatusCode, Json<ConfigSummary>), ApiFailure> {
     let profile = request_profile(&headers)?;
-    let Json(request) = payload
-        .map_err(|_| failure(ErrorCode::ConfigInvalid, "the body is not a config bundle"))?;
+    let Json(request) = payload.map_err(|rejection| {
+        if rejection.status() == StatusCode::PAYLOAD_TOO_LARGE {
+            failure(ErrorCode::UploadTooLarge, "a config bundle exceeds 4 MiB")
+        } else {
+            failure(ErrorCode::ConfigInvalid, "the body is not a config bundle")
+        }
+    })?;
     let store = state
         .configs
         .as_ref()

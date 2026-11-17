@@ -1,7 +1,7 @@
 # Engine Execution Workflow
 
 - Date: 2026-11-16 (UTC)
-- Status: Target; the contract is approved, the stage commands land in #850–#854
+- Status: Current; the stage commands shipped in v1.3.0 (#850–#854)
 - Scope: diagnostic execution of the data, model, strategy, and portfolio engines
 - Owner: Quant Researcher (iteration), Quant Validator (evidence boundary), Implementation (commands)
 - Contract: [ADR-2026-11-16-01](../adr/2026-11-16/01-stage-execution-and-evidence-boundary.md), [stage execution plan](../execution-plans/2026-11-16/842-stage-execution-surface.md)

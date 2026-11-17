@@ -22,8 +22,9 @@ ARCHITECTURE = ROOT / "docs/architecture"
 # Per-file overrides for reference documents that are large by nature.
 OVERRIDES = {
     "command-surface.md": 330,
-    "http-api.md": 210,
+    "http-api.md": 230,
 }
+INDEX_CAP = 330
 DEFAULT_ARCHITECTURE = 170
 ADR_CAP = 110
 TUTORIAL_CAP = 200
@@ -42,6 +43,9 @@ def current_since(path: Path) -> bool:
 
 def targets() -> list[tuple[Path, int]]:
     found: list[tuple[Path, int]] = []
+    index = ROOT / "docs" / "README.md"
+    if index.is_file():
+        found.append((index, INDEX_CAP))
     if ARCHITECTURE.is_dir():
         for path in sorted(ARCHITECTURE.glob("*.md")):
             found.append((path, OVERRIDES.get(path.name, DEFAULT_ARCHITECTURE)))

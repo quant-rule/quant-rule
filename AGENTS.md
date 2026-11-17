@@ -8,7 +8,7 @@ QuantRule ships as a distributed, single-operator research platform reached by t
 
 The system is deterministic. Given the same input data and the same configuration, it must produce the same output every time. Any behavior that depends on wall-clock time, unseeded randomness, or iteration order of unordered collections is a defect, not a limitation. See section 12.
 
-The system is improved through explicit workflows, indexed in [`docs/workflows/README.md`](docs/workflows/README.md): a human-owned strategy blueprint, an Engine Execution Workflow (diagnostic stage runs), a Backtest Workflow (coupled evidence), an End-to-End Verification Workflow (deployment proof), an Improvement Workflow (run, results, review, new hypothesis), tier runbooks for model research, model change, strategy research, and portfolio/execution research, an Audit Workflow (audit, remediation plan, execution, verification), a Refactor Workflow (structural assessment, refactor plan, behavior-neutral execution, equivalence verification), a Data Lifecycle Workflow, Requirements & Design, Release & Operations, Deprecation & Retirement, Recordkeeping, an Engineering Swarm, and a Quant Swarm. The human remains at the highest abstraction level; the workflows never replace human acceptance. The Improvement Workflow may conclude "no edge" and stop. The change history is recorded in [`CHANGELOG.md`](CHANGELOG.md).
+The system is improved through explicit workflows, indexed in [`docs/workflows/README.md`](docs/workflows/README.md): Engine Execution, Backtest, End-to-End Verification, Improvement, Model Research, Model Change, Strategy Research, Portfolio Research, Simulation Research, Data Lifecycle, Requirements & Design, Execution Plan, Release & Operations, Deprecation & Retirement, Recordkeeping, Audit, Refactor, and the Research Swarm. The index is the authority; the Engineering and Quant swarms are role groups, not workflow documents, and the strategy blueprint is the human-owned input, not a workflow. The human remains at the highest abstraction level; the workflows never replace human acceptance. The Improvement Workflow may conclude "no edge" and stop. The change history is recorded in [`CHANGELOG.md`](CHANGELOG.md).
 
 ## 2. Architecture and Data Flow
 
@@ -27,7 +27,7 @@ The application service is not a fifth stage. It wraps the pipeline: it owns wor
 
 The deployment splits the system into two planes. The **data plane** is synchronous and deterministic: one run, a fixed order, content-addressed references. The **control plane** is asynchronous: submission, queue, retry, cancellation. Events never carry a model reading, never sit between pipeline stages, and never influence a strategy decision.
 
-- **GATEWAY and WORKERS — the services.** Six services, six binaries, one image. `gateway` owns the HTTP boundary and the static client; `data` owns ingestion and the catalog; `model` owns measurements; `backtest` orchestrates a run and owns strategy, execution, and portfolio; `evidence` owns provenance, the canonical digest, run records, and memory; `simulation` owns chart-first research. The engines are unchanged; every pipeline service is a thin adapter over `quantrule-app`. A service never reads another service's schema, never accepts a client path, and never renders a label.
+- **GATEWAY and WORKERS — the services.** Six services, six binaries, one image. `gateway` owns the HTTP boundary and the static client; `data` owns ingestion and the catalog; `model` owns measurements; `backtest` orchestrates a run and owns strategy, execution, and portfolio; `evidence` owns provenance, the canonical digest, run records, and memory; `simulation` owns chart-first research. The engines are unchanged; data, model, and backtest are thin adapters over `quantrule-app`, evidence uses `quantrule-research`, and simulation uses `quantrule-simulation`. A service never reads another service's schema, never accepts a client path, and never renders a label.
 
 - **THE RESEARCH PLANE.** `simulation` is a third plane: synchronous, interactive, and hindsight by design. It reads a recorded bundle and never computes a model; it never writes a run artifact; no strategy, execution, or portfolio code may read it; it has no `run_id`, no canonical digest, and no queue message. A simulation run records an inputs digest and no output digest, because human marks are judgment, not computation.
 
@@ -45,7 +45,7 @@ Invariants that the pipeline depends on:
 - Availability, not occurrence: a measurement that becomes knowable only later — a confirmed swing pivot, a divergence — records both when it occurred and when it became knowable, and it never reaches an earlier bar.
 - No double counting: a reading may feed more than one event, but each event states its own definition, and a correlated event is not a second vote. A strategy names each event it uses once.
 
-The Rust workspace holds one crate per pipeline stage, a shared application service, two contract crates, a shared runtime, the six services, and the command shell:
+The Rust workspace holds one crate per pipeline stage, a shared application service, two domain crates, two contract crates, a shared runtime, the six services, and the command shell:
 
 - `crates/quantrule-data` — the data engine.
 - `crates/quantrule-model` — the model engine, which depends on `quantrule-data`.
@@ -53,6 +53,8 @@ The Rust workspace holds one crate per pipeline stage, a shared application serv
 - `crates/quantrule-app` — the application service: workspace, dataset, configuration, model run, export, and the shared use cases both clients call. It depends on the three engine crates and holds no transport or research memory.
 - `crates/quantrule-api` — the `quantrule.api/v1` contract types, including run, research, and diagnostic stage types. It depends on no engine crate.
 - `crates/quantrule-service-api` — the `quantrule.internal/v1` contract types, including the run and diagnostic stage lifecycle and manifest types. It depends on no engine, runtime, or service crate.
+- `crates/quantrule-research` — the research domain: hypothesis evaluation, expectancy, significance, drawdown, and comparison. It is pure and depends on no engine crate.
+- `crates/quantrule-simulation` — the research plane: deterministic windows, marks, the hindsight oracle, check, and exit lab. It is pure and never feeds the signal path.
 - `crates/quantrule-runtime` — configuration, health, storage, queue, migrations, shutdown, and the service client. It depends on `quantrule-api` and `quantrule-service-api`, never on an engine or `quantrule-app`.
 - `crates/quantrule-gateway` — the gateway: profiles in the `gateway` schema, the static client, the proxy table, and health. It links no app, engine, or domain service crate.
 - `crates/quantrule-data-service` — `qr-data`: the `catalog` schema, ingest, datasets, configs, inspection, and ladder.
@@ -62,7 +64,7 @@ The Rust workspace holds one crate per pipeline stage, a shared application serv
 - `crates/quantrule-simulation-service` — `qr-simulation`: the `simulation` schema and the research plane.
 - `crates/quantrule-shell` — the command shell, an HTTP client that depends only on `quantrule-api`.
 
-The analytics research engine was retired in P3. Historical research output contracts remain under `docs/analytics/` as history; there is no current analytics crate.
+The analytics research engine was retired in P3. Historical research output contracts remain under `docs/analytics/` as history; `quantrule-research` is the current research-domain crate, not the retired analytics engine.
 
 The distributed platform's implementation status (prepared as v1.0.0, released as v0.9.0) is tracked by `DIST-000` and specified in `docs/architecture/`. The current tree implements the 46-command gateway surface in `docs/architecture/command-surface.md` section 3, which the shell `help` renders from the same registry: `health`; `dataset list`, `dataset show`, `dataset upload`; `config list`, `config show`; `run submit`, `run status`, `run list`, `run fetch`, `run cancel`; `stage run model`, `stage run strategy`, `stage run portfolio`, `stage explain`, `stage list`, `stage show`, `stage events`, `stage fetch`, `stage cancel`, `stage delete`; `research create`, `research submit`, `research list`, `research show`, `research compare`, `research decide`, `baseline list`, `baseline show`, `invalidation list`; `inspect candles`, `inspect timeframes`, `inspect events`; `verify`; `profile list`, `profile create`, `profile use`; `simulation list`, `simulation create`, `simulation windows`, `simulation mark`, `simulation marks`, `simulation oracle`, `simulation check`, `simulation decide`; and `help`. `run submit` also accepts the optional `--model-artifact <id>` flag for a promoted run. The stage contract and the discovery gate are in the same document.
 
@@ -1135,12 +1137,13 @@ Follow these stages in order for planned work.
 
 The human or the owning workflow defines the work. Select the workflow from
 [`docs/workflows/README.md`](docs/workflows/README.md): Audit, Refactor,
+Engine Execution, Backtest, End-to-End Verification, Improvement,
 Model Research, Model Change, Strategy Research, Portfolio Research,
-Data Lifecycle, Requirements & Design, Release & Operations,
-Deprecation & Retirement, Recordkeeping, or the Improvement Workflow. The audit,
-run, assessment, charter, or requirements record exists; when the work changes
-code, the Planner has a plan and the human has approved it. No implementation
-starts before this gate.
+Simulation Research, Data Lifecycle, Requirements & Design, Execution Plan,
+Release & Operations, Deprecation & Retirement, Recordkeeping, or the Research
+Swarm. The audit, run, assessment, charter, or requirements record exists; when
+the work changes code, the Planner has a plan and the human has approved it. No
+implementation starts before this gate.
 
 ### Stage 1 — Read-only Preflight
 

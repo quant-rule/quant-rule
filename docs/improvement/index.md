@@ -43,7 +43,6 @@ view for the local store.
 | `PROGRAM-2026-11-08-03` | 2026-11-08 | model | MR7.x opening-range sweep/reclaim; 5 hypotheses × 3 configs; no primary passed | model | strategy, portfolio | — | `model_dev` | no edge | [record](2026-11-08/MR7-DEV-SWARM.md) |
 | `STRATEGY-2026-11-08-01` | 2026-11-08 | strategy | 1m compression-breakout fade; 10/15 cells; stopped by the feasibility screen | strategy | model, portfolio | MODEL-2026-11-04-04..05 | `strategy_dev` | stopped — infeasible | [record](2026-11-08/STRATEGY-2026-11-08-01-sr1-fade.md) |
 | `STRATEGY-2026-11-08-02` | 2026-11-08 | strategy | Dual fade: 1h 1:3 and 15m 1:4; 30 cells; no edge | strategy | model, portfolio | MODEL-2026-11-04-04..05 | `strategy_dev` | no edge | [record](2026-11-08/STRATEGY-2026-11-08-02-sr2-dual.md) |
-
 | `PROGRAM-2026-11-04-05` | 2026-11-04 | model | V5 Phase 2 price-only spike; three candidates no edge; volume blocked | model | strategy, portfolio | — | `model_dev` | no edge | [record](2026-11-04/V5-PHASE2-SPIKE.md) |
 | `STRATEGY-2026-11-04-02` | 2026-11-04 | strategy | 1m compression bracket; all folds halted | strategy | model, portfolio | MODEL-2026-11-04-06..07 | `strategy_dev` | no edge | [record](2026-11-04/STRATEGY-2026-11-04-02-compression-bracket.md) |
 | `STRATEGY-2026-11-04-01` | 2026-11-04 | strategy | Directional 1m compression strategy | strategy | model, portfolio | MODEL-2026-11-04-04..05 | `strategy_dev` | no edge | [record](2026-11-04/STRATEGY-2026-11-04-01-compression-strategy.md) |

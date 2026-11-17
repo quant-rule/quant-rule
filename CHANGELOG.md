@@ -18,7 +18,16 @@ history is in Git and the pull requests.
 
 ## [Unreleased]
 
-No unreleased changes yet. `v1.3.0` is the current release.
+### Fixed
+
+- Current documentation now matches the tree: the `AGENTS.md` crate and workflow
+  map, the workflow and stage status, the HTTP stage routes, the config-upload
+  cap, the service digest ownership, the improvement index table, and the
+  `docs/README.md` length cap.
+
+### Changed
+
+- The documentation-length checker now covers `docs/README.md`.
 
 ## [1.3.0] - 2026-11-17
 

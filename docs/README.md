@@ -187,32 +187,10 @@ improvement runs under the current run contract and are not imported as baseline
 
 ## Current workflows
 
-The workflow index, selection guide, status vocabulary, and record map are in
-[`docs/workflows/README.md`](workflows/README.md). The index is the single source
-of workflow status; this page does not repeat it.
-
-| Workflow | Path |
-|---|---|
-| Audit | `docs/workflows/audit-workflow.md` |
-| Refactor | `docs/workflows/refactor-workflow.md` |
-| Engine execution | `docs/workflows/engine-execution.md` |
-| Backtest | `docs/workflows/backtest.md` |
-| End-to-end verification | `docs/workflows/end-to-end-verification.md` |
-| Improvement | `docs/workflows/improvement-workflow.md` |
-| Run contract | `docs/workflows/run-contract.md` |
-| Research swarm | `docs/workflows/research-swarm.md` |
-| Model research | `docs/workflows/model-research.md` |
-| Model change | `docs/workflows/model-change.md` |
-| Simulation research | `docs/workflows/simulation-research.md` |
-| Strategy research | `docs/workflows/strategy-research.md` |
-| Portfolio research | `docs/workflows/portfolio-research.md` |
-| Policy change (historical) | `docs/workflows/policy-change.md` |
-| Data lifecycle | `docs/workflows/data-lifecycle.md` |
-| Requirements and design | `docs/workflows/requirements-design.md` |
-| Execution plan | `docs/workflows/execution-plan.md` |
-| Release and operations | `docs/workflows/release-operations.md` |
-| Deprecation and retirement | `docs/workflows/deprecation-retirement.md` |
-| Recordkeeping | `docs/workflows/recordkeeping.md` |
+The workflow index, selection guide, status vocabulary, record map, and the
+per-workflow paths are in [`docs/workflows/README.md`](workflows/README.md).
+The index is the single source of workflow status; this page does not repeat it.
+The documents are `docs/workflows/audit-workflow.md`, `refactor-workflow.md`, `engine-execution.md`, `backtest.md`, `end-to-end-verification.md`, `improvement-workflow.md`, `run-contract.md`, `research-swarm.md`, `model-research.md`, `model-change.md`, `simulation-research.md`, `strategy-research.md`, `portfolio-research.md`, `policy-change.md`, `data-lifecycle.md`, `requirements-design.md`, `execution-plan.md`, `release-operations.md`, `deprecation-retirement.md`, and `recordkeeping.md`.
 
 ## Current roles
 

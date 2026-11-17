@@ -1,6 +1,6 @@
 # HTTP API — `quantrule.api/v1`
 
-- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); unchanged in the v1.0.0 desktop release; approved 2026-11-12
+- Status: Current; released as v1.3.0 on 2026-11-17; the stage routes are part of this contract
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 
@@ -54,6 +54,22 @@ never renders a label, and never returns a raw engine type.
 | GET | `/inspect/timeframes` | `data_version` | bars and partial buckets per timeframe |
 | GET | `/inspect/events` | `data_version`, `timeframe` | event batch |
 | `GET/POST` | `/research/runs`, `/research/runs/{id}`, `/research/runs/{id}/submit`, `/research/runs/{id}/compare`, `/research/runs/{id}/decision`, `/research/baselines`, `/research/baselines/{tier}`, `/research/invalidations` | v3 pre-registration, coupled submit, compare, decision, registries | records; `accepted` requires a succeeded run and digest |
+
+### 2.1 Diagnostic stage extension
+
+The stage surface is the extension contract in
+[`stage-surface.md`](stage-surface.md). It is diagnostic only and never
+evidence.
+
+| Method | Path | Request | Response |
+|---|---|---|---|
+| POST | `/stages/{kind}/runs` | model, strategy, or portfolio input | `202` stage run |
+| GET | `/stages/runs` | `kind`, `state`, `limit` | stage summaries |
+| GET | `/stages/runs/{id}` | — | stage state, provenance, artifact |
+| DELETE | `/stages/runs/{id}` | — | `204` after the artifact is removed |
+| GET | `/stages/runs/{id}/artifacts` | — | artifact files |
+| GET | `/stages/runs/{id}/artifacts/{*name}` | — | one verified artifact |
+| POST | `/stages/runs/{id}/cancel` | — | `202` or `409` |
 
 The gateway owns `/profiles` and proxies `/catalog/*`, `/datasets/*`,
 `/inspect/*`, `/model/compute`, `/runs/*`, `/stages/*`, `/research/*`, and
