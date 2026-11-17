@@ -39,6 +39,9 @@ history is in Git and the pull requests.
   that would make cash negative or a halted account, and marks funding at the
   charge price. The golden short fixture is unchanged; the long-entry tests use
   a funded account.
+- Session VWAP no longer substitutes zero for a missing candle volume; it is
+  unavailable from the first missing-volume bar for the rest of the session and
+  resets at the next session. The normal-volume golden fixture is unchanged.
 
 ## [1.3.0] - 2026-11-17
 
