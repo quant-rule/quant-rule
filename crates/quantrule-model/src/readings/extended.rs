@@ -419,10 +419,11 @@ impl ExtendedReadings {
         let mut lower = vec![None; len];
         for (bar, value) in vwap.iter().enumerate() {
             let Some(center) = value else { continue };
-            let Some(atr) = readings.atr14.get(bar).filter(|atr| *atr > 0.0) else {
-                continue;
-            };
-            distance[bar] = Some((candles[bar].close() - center) / atr);
+            // Only the ATR distance needs ATR. The bands and the slope are
+            // VWAP/MAD only and must publish when ATR is disabled.
+            if let Some(atr) = readings.atr14.get(bar).filter(|atr| *atr > 0.0) {
+                distance[bar] = Some((candles[bar].close() - center) / atr);
+            }
             if let Some(deviation) = mad[bar] {
                 upper[bar] = Some(center + config.vwap_band_mad * deviation);
                 lower[bar] = Some(center - config.vwap_band_mad * deviation);

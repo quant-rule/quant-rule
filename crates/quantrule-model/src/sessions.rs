@@ -378,6 +378,10 @@ mod tests {
         let readings = SessionReadings::compute(&candles, &readings, &SessionConfig::london());
         assert_eq!(readings.session_code.get(0), Some(1.0));
         assert_eq!(readings.session_age.get(0), Some(0.0));
+        assert_eq!(
+            readings.session_vwap.get(0),
+            Some((101.0 + 99.0 + 100.5) / 3.0)
+        );
         assert_eq!(readings.opening_range_high.get(1), Some(102.0));
         assert!(readings.session_range_atr.get(3).is_none());
         assert_eq!(readings.calendar_bucket.get(0), Some(101.0));
