@@ -36,7 +36,7 @@ The state machine is `created -> submitted -> decided`:
 
 | State | Meaning | Write |
 |---|---|---|
-| `created` | The v3 pre-registration exists; no pipeline run is linked | Create once; an identical create is idempotent by profile and improvement id |
+| `created` | The v3 pre-registration exists; no pipeline run is linked | The public create assigns the next id and writes one record; an internal same-id create is idempotent, and a different manifest under that id is refused |
 | `submitted` | One pipeline run is linked; the canonical digest may still be pending | Link the run once; record the digest once when the run produces it |
 | `decided` | The human decision and note are recorded | Decide once; an `accepted` decision requires the digest |
 
@@ -166,6 +166,12 @@ strategy or portfolio run without `criteria_id`; a `command` other than
 `run submit`; and a `config_id`, `criteria_id`, or `baseline` that looks like a
 filesystem path. `data_version` is a digest, so a path cannot deserialize.
 
+A model-tier research run is still a coupled run. Its config must contain a
+`run.json` with a `strategy` key; a model-only config is refused with
+`research.invalid`. The model report supplies the comparison coverage, while
+strategy, execution, and portfolio remain frozen and are recomputed by the
+coupled run.
+
 ### Example manifest
 
 ```json
@@ -198,34 +204,34 @@ filesystem path. `data_version` is a digest, so a path cannot deserialize.
 
 ## Current execution flow
 
-The gateway is the execution path: `run submit`, `run status`, and
-`run fetch`. The improvement record is created before submission and linked
-after the worker has produced a canonical digest.
+The gateway is the execution path. A research run is a **coupled evidence run**,
+including a model-tier run: its config must carry a strategy, and the model
+report is the comparison source. A model-tier run does not submit a model-only
+config.
 
-1. Create the v3 record in the active profile. The evidence service validates the
-   manifest and writes `state = created`; an identical create returns the same
-   record, and a different manifest under the same id is refused.
-2. Submit the pipeline run through the gateway:
-
-   ```text
-   quantrule run submit <data_version> <config_id>
-   quantrule run status <run_id>
-   quantrule run fetch <run_id> <root>
-   ```
-
-   A strategy or portfolio run is submitted only after its model baseline is
-   accepted. A model run uses a model-only config and produces no strategy
-   artifact.
-3. Link the pipeline `run_id` once and move the record to `state = submitted`;
-   a second link is refused. The canonical digest is still unknown for a queued
-   run.
-4. Record the canonical digest once when the run produces it. A digest can be
-   linked while the record is `submitted` or later; it can never be changed once
+1. Pre-register with `research create`. The evidence service assigns the next
+   id and the UTC timestamp, validates the manifest, checks the dataset and
+   config through data, and writes `state = created`. A repeated public create
+   is a new pre-registration with a new id; only an internal same-id create is
+   idempotent, and a different manifest under that id is refused.
+2. Submit with `research submit <improvement_id>`. It submits the coupled run
+   through the same run use case, links the pipeline `run_id`, and moves the
+   record to `state = submitted`. A duplicate submit is a conflict.
+3. `research show` links the canonical digest lazily once the pipeline run
+   succeeds. A failed run remains submitted with no digest. A digest can be
+   linked while the record is `submitted` or later; it can never change once
    present.
-5. The human records exactly one decision — `accepted`, `rejected`, `no-edge`,
-   `invalidated`, or `new-hypothesis` — with a non-empty note. An `accepted`
-   decision requires the digest; a non-accepted decision may be recorded without
-   one. A second decision is refused.
+4. `research compare <improvement_id> [--baseline <id>]` reads the candidate and
+   baseline pipeline artifacts and prints published-number rows. A model-tier
+   candidate reads `model/report.json` coverage; a strategy or portfolio
+   candidate reads `portfolio/metrics.json`. A historical baseline with no
+   pipeline run has null baseline values and a note. A failed or queued run is a
+   conflict.
+5. `research decide <improvement_id> --decision <decision> --note <text>` records
+   exactly one human decision. `accepted` requires a succeeded pipeline run and
+   canonical digest and appends one baseline row in the same transaction;
+   `invalidated` appends one tombstone; `rejected`, `no-edge`, and
+   `new-hypothesis` record only the decision. A second decision is a conflict.
 
 A non-zero pipeline exit is a failure. The pipeline run remains available for
 diagnosis, but the improvement record is not decided as accepted evidence.

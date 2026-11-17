@@ -6,6 +6,7 @@
   import HelpPanel from "./lib/HelpPanel.svelte";
   import InspectPanel from "./lib/InspectPanel.svelte";
   import ProfilesPanel from "./lib/ProfilesPanel.svelte";
+  import ResearchPanel from "./lib/ResearchPanel.svelte";
   import RunsPanel from "./lib/RunsPanel.svelte";
   import ProfileSwitcher from "./lib/ProfileSwitcher.svelte";
   import SimulationChartHarness from "./lib/SimulationChartHarness.svelte";
@@ -82,6 +83,8 @@
         <ConfigsPanel onOpenRuns={() => (section = "runs")} />
       {:else if section === "runs"}
         <RunsPanel />
+      {:else if section === "research"}
+        <ResearchPanel />
       {:else if section === "simulation"}
         <SimulationRunsPanel />
       {:else if section === "inspect"}

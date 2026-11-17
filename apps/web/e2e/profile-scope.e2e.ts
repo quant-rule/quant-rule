@@ -64,6 +64,44 @@ function detail(runId: string, configId: string) {
   };
 }
 
+function researchSummary(profile: string) {
+  return {
+    improvement_id: profile === "alpha" ? "MODEL-ALPHA-01" : "MODEL-DEFAULT-01",
+    tier: "model",
+    state: "created",
+    decision: null,
+    created_at: "2026-11-17T00:00:00Z",
+    submitted_at: null,
+    decided_at: null,
+  };
+}
+
+function researchBaseline(profile: string) {
+  return {
+    baseline_id: profile === "alpha" ? "BASE-ALPHA" : "BASE-DEFAULT",
+    tier: "model",
+    run_id: profile === "alpha" ? "MODEL-ALPHA-01" : "MODEL-DEFAULT-01",
+    improvement_id: null,
+    accepted_by: "Human",
+    accepted_on: "2026-11-04",
+    scope: "the profile fixture",
+    supersedes: null,
+    created_at: "2026-11-04T00:00:00Z",
+  };
+}
+
+function researchInvalidation(profile: string) {
+  return {
+    invalidation_id: profile === "alpha" ? "INV-ALPHA" : "INV-DEFAULT",
+    date: "2026-11-10",
+    commit: "worktree",
+    removed: profile === "alpha" ? "MODEL-ALPHA-01" : "MODEL-DEFAULT-01",
+    reason: "the profile fixture",
+    superseded_by: null,
+    created_at: "2026-11-10T00:00:00Z",
+  };
+}
+
 function stage(stageRunId: string) {
   return {
     stage_run_id: stageRunId,
@@ -141,6 +179,15 @@ async function install(page: Page, server: Server): Promise<void> {
         json: [profile === "alpha" ? stage(ALPHA_STAGE) : stage(DEFAULT_STAGE)],
       });
     }
+    if (path === "/research/runs") {
+      return route.fulfill({ json: [researchSummary(profile)] });
+    }
+    if (path === "/research/baselines") {
+      return route.fulfill({ json: [researchBaseline(profile)] });
+    }
+    if (path === "/research/invalidations") {
+      return route.fulfill({ json: [researchInvalidation(profile)] });
+    }
     if (path === "/simulation/runs") {
       if (profile === "alpha" && server.gate !== null) {
         await server.gate;
@@ -197,6 +244,25 @@ test("a profile switch clears and reloads stage rows", async ({ page }) => {
   await page.getByLabel("Active profile").selectOption("alpha");
   await expect(page.getByTestId("stage-table")).toContainText("222222");
   await expect(page.getByTestId("stage-table")).not.toContainText("111111");
+});
+
+test("a profile switch clears and reloads research rows and registries", async ({ page }) => {
+  const server: Server = { online: true, gate: null };
+  await install(page, server);
+  await page.goto("/");
+
+  await page.getByRole("button", { name: /^Research/ }).click();
+  await expect(page.getByTestId("research-table")).toContainText("MODEL-DEFAULT-01");
+  await expect(page.getByTestId("baseline-table")).toContainText("BASE-DEFAULT");
+  await expect(page.getByTestId("invalidation-list")).toContainText("INV-DEFAULT");
+
+  await page.getByLabel("Active profile").selectOption("alpha");
+  await expect(page.getByTestId("research-table")).toContainText("MODEL-ALPHA-01");
+  await expect(page.getByTestId("research-table")).not.toContainText("MODEL-DEFAULT-01");
+  await expect(page.getByTestId("baseline-table")).toContainText("BASE-ALPHA");
+  await expect(page.getByTestId("baseline-table")).not.toContainText("BASE-DEFAULT");
+  await expect(page.getByTestId("invalidation-list")).toContainText("INV-ALPHA");
+  await expect(page.getByTestId("invalidation-list")).not.toContainText("INV-DEFAULT");
 });
 
 test("disconnection clears the open run detail", async ({ page }) => {

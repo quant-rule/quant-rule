@@ -43,6 +43,21 @@ impl CreateOutcome {
     }
 }
 
+/// One decision write, including the optional registry row.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DecisionWrite {
+    /// The human decision.
+    pub decision: ImprovementDecision,
+    /// The non-empty note.
+    pub note: String,
+    /// The UTC decision time.
+    pub decided_at: String,
+    /// The accepted baseline row, for an accepted decision.
+    pub baseline: Option<BaselineRecord>,
+    /// The invalidation tombstone, for an invalidated decision.
+    pub invalidation: Option<InvalidationRecord>,
+}
+
 /// Where research-ledger records live.
 pub trait ImprovementStore: Send + Sync {
     /// Create one v3 pre-registration for a profile.
@@ -75,6 +90,18 @@ pub trait ImprovementStore: Send + Sync {
         profile: ProfileId,
         improvement_id: String,
         canonical_digest: Digest,
+    ) -> BoxFuture<Result<ImprovementRunDetail, ImprovementStoreError>>;
+
+    /// Record the human decision and its registry row in one transaction.
+    ///
+    /// An accepted decision requires a baseline row; an invalidated decision
+    /// requires an invalidation row. The run update and the registry insert
+    /// commit together, so a failure cannot leave a decision without its row.
+    fn decide_with_registry(
+        &self,
+        profile: ProfileId,
+        improvement_id: String,
+        write: DecisionWrite,
     ) -> BoxFuture<Result<ImprovementRunDetail, ImprovementStoreError>>;
 
     /// Record the human decision once, after both the run and digest are linked.
@@ -181,4 +208,47 @@ pub(super) fn validate_invalidation(
         }
     }
     Ok(())
+}
+
+pub(super) fn validate_decision_registry(
+    decision: ImprovementDecision,
+    baseline: Option<&BaselineRecord>,
+    invalidation: Option<&InvalidationRecord>,
+) -> Result<(), ImprovementStoreError> {
+    match decision {
+        ImprovementDecision::Accepted => {
+            let Some(baseline) = baseline else {
+                return Err(ImprovementStoreError(
+                    "an accepted decision needs a baseline row".to_owned(),
+                ));
+            };
+            if invalidation.is_some() {
+                return Err(ImprovementStoreError(
+                    "an accepted decision cannot carry an invalidation row".to_owned(),
+                ));
+            }
+            validate_baseline(baseline)
+        }
+        ImprovementDecision::Invalidated => {
+            let Some(invalidation) = invalidation else {
+                return Err(ImprovementStoreError(
+                    "an invalidated decision needs an invalidation row".to_owned(),
+                ));
+            };
+            if baseline.is_some() {
+                return Err(ImprovementStoreError(
+                    "an invalidated decision cannot carry a baseline row".to_owned(),
+                ));
+            }
+            validate_invalidation(invalidation)
+        }
+        _ => {
+            if baseline.is_some() || invalidation.is_some() {
+                return Err(ImprovementStoreError(
+                    "only an accepted or invalidated decision carries a registry row".to_owned(),
+                ));
+            }
+            Ok(())
+        }
+    }
 }

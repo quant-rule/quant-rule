@@ -155,12 +155,44 @@ async fn a_run_detail_artifact_and_digest_path_is_forwarded() {
         "/runs/sha256:abc/artifacts/results.json",
         "/runs/sha256:abc/digest",
         "/hypotheses/fingerprint",
+        "/research/runs",
+        "/research/runs/MODEL-2026-11-17-01",
+        "/research/runs/MODEL-2026-11-17-01/compare",
+        "/research/baselines",
+        "/research/baselines/model",
+        "/research/invalidations",
     ] {
         let response = router(gateway(address).await)
             .oneshot(
                 Request::get(path)
                     .header(PROFILE_HEADER, "default")
                     .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::ACCEPTED, "{path}");
+        let value: serde_json::Value =
+            serde_json::from_slice(&body_bytes(response).await).expect("json");
+        assert_eq!(value["path"], path, "{path}");
+        assert_eq!(value["profiles"], serde_json::json!(["default"]), "{path}");
+    }
+    handle.abort();
+}
+
+#[tokio::test]
+async fn research_submit_and_decision_paths_are_forwarded_to_evidence() {
+    let (address, handle) = start(Fake::default()).await;
+    for path in [
+        "/research/runs/MODEL-2026-11-17-01/submit",
+        "/research/runs/MODEL-2026-11-17-01/decision",
+    ] {
+        let response = router(gateway(address).await)
+            .oneshot(
+                Request::post(path)
+                    .header(PROFILE_HEADER, "default")
+                    .header("content-type", "application/json")
+                    .body(Body::from("{}"))
                     .expect("request"),
             )
             .await
@@ -217,6 +249,9 @@ async fn an_artifact_traversal_never_reaches_the_upstream() {
         "/api/v1/runs/sha256:abc/artifacts/execution%2Ffills.csv",
         "/api/v1/runs/sha256:abc/artifacts/execution%5Cfills.csv",
         "/api/v1/runs/sha256:abc/artifacts/",
+        "/api/v1/research/../internal",
+        "/api/v1/research/%2e%2e/internal",
+        "/api/v1/researchX",
     ] {
         let response = router(gateway(address).await)
             .oneshot(

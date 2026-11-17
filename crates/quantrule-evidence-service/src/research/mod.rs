@@ -10,7 +10,7 @@ pub mod ledger;
 pub mod store;
 
 pub use ledger::{
-    CreateOutcome, ImprovementStore, ImprovementStoreError, MemoryImprovementStore,
+    CreateOutcome, DecisionWrite, ImprovementStore, ImprovementStoreError, MemoryImprovementStore,
     PgImprovementStore, SqliteImprovementStore, seeded_baselines,
 };
 pub use store::{HypothesisStore, MemoryStore, StoreError};

@@ -212,6 +212,84 @@ const COMMANDS: &[CommandHelp] = &[
         notes: &["A run and a research record are never touched."],
     },
     CommandHelp {
+        name: "research create",
+        usage: "research create --tier <model|strategy|portfolio> --hypothesis <text> --partition <name> --data-version <digest> --config <config_id> [--criteria <criteria_id>] --green-criteria <json> --code-commit <commit> [--baseline <id>] [--seed <n>] [--analytics <true|false>]",
+        summary: "Create one v3 improvement-run pre-registration.",
+        output: "improvement_id, tier, state, manifest fields, and timestamps",
+        notes: &[
+            "The server assigns the improvement_id and created_utc; the manifest is immutable.",
+            "A repeated public create is a new pre-registration; an internal same-id create is idempotent.",
+            "A research run is a coupled run: the config must carry a strategy, and model tier still runs strategy and portfolio.",
+            "--criteria is required for a strategy or portfolio run; it is optional for model.",
+        ],
+    },
+    CommandHelp {
+        name: "research submit",
+        usage: "research submit <improvement_id>",
+        summary: "Submit the coupled pipeline run for a created pre-registration.",
+        output: "the improvement detail with pipeline_run_id and state=submitted",
+        notes: &[
+            "A duplicate submit is refused with research.conflict.",
+            "The canonical digest is linked when the run produces it, not at submission.",
+        ],
+    },
+    CommandHelp {
+        name: "research list",
+        usage: "research list [--tier <tier>] [--state <state>] [--limit <n>]",
+        summary: "List improvement runs in the active profile.",
+        output: "one line per run: improvement_id, tier, state, decision, created_at, submitted_at, decided_at",
+        notes: &["Rows are newest first."],
+    },
+    CommandHelp {
+        name: "research show",
+        usage: "research show <improvement_id>",
+        summary: "Read one improvement run and lazily link a successful digest.",
+        output: "state, decision, note, manifest, pipeline run, canonical digest, and timestamps",
+        notes: &["A failed run remains submitted with no digest."],
+    },
+    CommandHelp {
+        name: "research compare",
+        usage: "research compare <improvement_id> [--baseline <id>]",
+        summary: "Compare the candidate's published numbers with a baseline.",
+        output: "candidate and baseline ids and digests, metric rows, and an unavailability note",
+        notes: &[
+            "The comparison reads model/report.json coverage or portfolio/metrics.json; it never recomputes a model or metric.",
+            "A historical baseline row with no pipeline run has null baseline values.",
+        ],
+    },
+    CommandHelp {
+        name: "research decide",
+        usage: "research decide <improvement_id> --decision <accepted|rejected|no-edge|invalidated|new-hypothesis> --note <text>",
+        summary: "Record exactly one human decision and its registry row.",
+        output: "the decided improvement detail",
+        notes: &[
+            "A non-empty note is required; an accepted decision also requires a succeeded run and canonical digest.",
+            "A second decision is refused with research.conflict.",
+            "An accepted decision appends one baseline; an invalidated decision appends one tombstone.",
+        ],
+    },
+    CommandHelp {
+        name: "baseline list",
+        usage: "baseline list",
+        summary: "List accepted baselines in the active profile.",
+        output: "one line per baseline: baseline_id, tier, run_id, improvement_id, accepted_by, accepted_on, scope, supersedes",
+        notes: &["Historical baseline rows are retained; no row is deleted."],
+    },
+    CommandHelp {
+        name: "baseline show",
+        usage: "baseline show <model|strategy|portfolio>",
+        summary: "Show the current accepted baseline for one tier.",
+        output: "the baseline row",
+        notes: &["A tier with no accepted baseline returns research.not_found."],
+    },
+    CommandHelp {
+        name: "invalidation list",
+        usage: "invalidation list",
+        summary: "List append-only invalidation tombstones.",
+        output: "one line per tombstone: invalidation_id, date, commit, removed, reason, superseded_by",
+        notes: &["The tombstone survives artifact cleanup."],
+    },
+    CommandHelp {
         name: "inspect candles",
         usage: "inspect candles <data_version>",
         summary: "Read a dataset's candle count and coverage.",
@@ -482,6 +560,15 @@ mod tests {
             "stage fetch",
             "stage cancel",
             "stage delete",
+            "research create",
+            "research submit",
+            "research list",
+            "research show",
+            "research compare",
+            "research decide",
+            "baseline list",
+            "baseline show",
+            "invalidation list",
             "inspect candles",
             "inspect timeframes",
             "inspect events",
@@ -501,7 +588,7 @@ mod tests {
         ] {
             assert!(is_command(name), "{name} must be documented");
         }
-        assert_eq!(COMMANDS.len(), 37);
+        assert_eq!(COMMANDS.len(), 46);
     }
 
     #[test]

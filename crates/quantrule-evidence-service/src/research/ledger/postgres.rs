@@ -16,8 +16,8 @@ use quantrule_runtime::adapters::BoxFuture;
 use sqlx::PgPool;
 
 use super::store::{
-    CreateOutcome, ImprovementStore, ImprovementStoreError, validate_baseline,
-    validate_invalidation,
+    CreateOutcome, DecisionWrite, ImprovementStore, ImprovementStoreError, validate_baseline,
+    validate_decision_registry, validate_invalidation,
 };
 
 /// A research ledger backed by Postgres.
@@ -405,6 +405,164 @@ impl ImprovementStore for PgImprovementStore {
         })
     }
 
+    fn decide_with_registry(
+        &self,
+        profile: ProfileId,
+        improvement_id: String,
+        write: DecisionWrite,
+    ) -> BoxFuture<Result<ImprovementRunDetail, ImprovementStoreError>> {
+        let pool = self.pool.clone();
+        Box::pin(async move {
+            let DecisionWrite {
+                decision,
+                note,
+                decided_at,
+                baseline,
+                invalidation,
+            } = write;
+            if note.trim().is_empty() {
+                return Err(ImprovementStoreError(
+                    "a decision needs a non-empty note".to_owned(),
+                ));
+            }
+            validate_decision_registry(decision, baseline.as_ref(), invalidation.as_ref())?;
+            let profile_id = profile.as_str().to_owned();
+            let mut tx = pool
+                .begin()
+                .await
+                .map_err(|error| ImprovementStoreError(error.to_string()))?;
+            let row: Option<(String, Option<String>)> = sqlx::query_as(
+                "SELECT state, canonical_digest FROM research.improvement_runs
+                  WHERE profile_id = $1 AND improvement_id = $2 FOR UPDATE",
+            )
+            .bind(&profile_id)
+            .bind(&improvement_id)
+            .fetch_optional(&mut *tx)
+            .await
+            .map_err(|error| ImprovementStoreError(error.to_string()))?;
+            let Some((state, digest)) = row else {
+                return Err(ImprovementStoreError(
+                    "the improvement record is unknown".to_owned(),
+                ));
+            };
+            if state == ImprovementRunState::Created.as_str() {
+                return Err(ImprovementStoreError(
+                    "a decision needs a submitted pipeline run".to_owned(),
+                ));
+            }
+            if state == ImprovementRunState::Decided.as_str() {
+                return Err(ImprovementStoreError(
+                    "the decision is already recorded".to_owned(),
+                ));
+            }
+            if decision == ImprovementDecision::Accepted && digest.is_none() {
+                return Err(ImprovementStoreError(
+                    "an accepted decision needs the canonical digest".to_owned(),
+                ));
+            }
+            if let Some(baseline) = &baseline {
+                let existing: Option<(i32,)> = sqlx::query_as(
+                    "SELECT 1 FROM research.baselines
+                      WHERE profile_id = $1 AND baseline_id = $2",
+                )
+                .bind(&profile_id)
+                .bind(&baseline.baseline_id)
+                .fetch_optional(&mut *tx)
+                .await
+                .map_err(|error| ImprovementStoreError(error.to_string()))?;
+                if existing.is_some() {
+                    return Err(ImprovementStoreError(
+                        "the baseline id already exists".to_owned(),
+                    ));
+                }
+            }
+            if let Some(invalidation) = &invalidation {
+                let existing: Option<(i32,)> = sqlx::query_as(
+                    "SELECT 1 FROM research.invalidations
+                      WHERE profile_id = $1 AND invalidation_id = $2",
+                )
+                .bind(&profile_id)
+                .bind(&invalidation.invalidation_id)
+                .fetch_optional(&mut *tx)
+                .await
+                .map_err(|error| ImprovementStoreError(error.to_string()))?;
+                if existing.is_some() {
+                    return Err(ImprovementStoreError(
+                        "the invalidation id already exists".to_owned(),
+                    ));
+                }
+            }
+            let changed = sqlx::query(
+                "UPDATE research.improvement_runs
+                    SET state = 'decided', decision = $3, decision_note = $4,
+                        decided_at = $5::timestamptz
+                  WHERE profile_id = $1 AND improvement_id = $2 AND state = 'submitted'",
+            )
+            .bind(&profile_id)
+            .bind(&improvement_id)
+            .bind(decision.as_str())
+            .bind(&note)
+            .bind(&decided_at)
+            .execute(&mut *tx)
+            .await
+            .map_err(|error| ImprovementStoreError(error.to_string()))?
+            .rows_affected();
+            if changed != 1 {
+                return Err(ImprovementStoreError(
+                    "the decision was not recorded".to_owned(),
+                ));
+            }
+            if let Some(baseline) = baseline {
+                sqlx::query(
+                    "INSERT INTO research.baselines
+                         (profile_id, baseline_id, tier, run_id, improvement_id,
+                          accepted_by, accepted_on, scope, supersedes, created_at)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7::date, $8, $9, $10::timestamptz)",
+                )
+                .bind(&profile_id)
+                .bind(&baseline.baseline_id)
+                .bind(baseline.tier.as_str())
+                .bind(baseline.run_id.as_deref())
+                .bind(baseline.improvement_id.as_deref())
+                .bind(&baseline.accepted_by)
+                .bind(&baseline.accepted_on)
+                .bind(&baseline.scope)
+                .bind(baseline.supersedes.as_deref())
+                .bind(&baseline.created_at)
+                .execute(&mut *tx)
+                .await
+                .map_err(|error| ImprovementStoreError(error.to_string()))?;
+            }
+            if let Some(invalidation) = invalidation {
+                sqlx::query(
+                    "INSERT INTO research.invalidations
+                         (profile_id, invalidation_id, date, \"commit\", removed,
+                          reason, superseded_by, created_at)
+                     VALUES ($1, $2, $3::date, $4, $5, $6, $7, $8::timestamptz)",
+                )
+                .bind(&profile_id)
+                .bind(&invalidation.invalidation_id)
+                .bind(&invalidation.date)
+                .bind(&invalidation.commit)
+                .bind(&invalidation.removed)
+                .bind(&invalidation.reason)
+                .bind(invalidation.superseded_by.as_deref())
+                .bind(&invalidation.created_at)
+                .execute(&mut *tx)
+                .await
+                .map_err(|error| ImprovementStoreError(error.to_string()))?;
+            }
+            tx.commit()
+                .await
+                .map_err(|error| ImprovementStoreError(error.to_string()))?;
+            load_detail(&pool, &profile_id, &improvement_id)
+                .await?
+                .ok_or_else(|| {
+                    ImprovementStoreError("the improvement record is unknown".to_owned())
+                })
+        })
+    }
+
     fn decide(
         &self,
         profile: ProfileId,
@@ -595,7 +753,7 @@ impl ImprovementStore for PgImprovementStore {
                                 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')
                    FROM research.baselines
                   WHERE profile_id = $1
-                  ORDER BY accepted_on DESC, baseline_id",
+                  ORDER BY accepted_on DESC, created_at DESC, baseline_id",
             )
             .bind(profile.as_str())
             .fetch_all(&pool)

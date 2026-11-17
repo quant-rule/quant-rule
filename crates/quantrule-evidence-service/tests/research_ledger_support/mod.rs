@@ -269,6 +269,49 @@ pub async fn ledger_conformance(store: &dyn ImprovementStore, owner: &ProfileId)
     );
 }
 
+/// Two baselines on one date: the later `created_at` must be first.
+pub async fn baseline_order_conformance(store: &dyn ImprovementStore, owner: &ProfileId) {
+    let earlier = BaselineRecord {
+        baseline_id: format!("BASELINE-{}-A", owner.as_str()),
+        tier: ImprovementTier::Model,
+        run_id: Some(format!("MODEL-{}-A", owner.as_str())),
+        improvement_id: None,
+        accepted_by: "Human".to_owned(),
+        accepted_on: "2026-11-17".to_owned(),
+        scope: "the earlier same-day baseline".to_owned(),
+        supersedes: None,
+        created_at: "2026-11-17T00:00:00Z".to_owned(),
+    };
+    let later = BaselineRecord {
+        baseline_id: format!("BASELINE-{}-Z", owner.as_str()),
+        tier: ImprovementTier::Model,
+        run_id: Some(format!("MODEL-{}-Z", owner.as_str())),
+        improvement_id: None,
+        accepted_by: "Human".to_owned(),
+        accepted_on: "2026-11-17".to_owned(),
+        scope: "the later same-day baseline".to_owned(),
+        supersedes: None,
+        created_at: "2026-11-17T01:00:00Z".to_owned(),
+    };
+    store
+        .add_baseline(owner.clone(), earlier)
+        .await
+        .expect("the earlier baseline");
+    store
+        .add_baseline(owner.clone(), later.clone())
+        .await
+        .expect("the later baseline");
+    let rows = store
+        .baselines(owner.clone())
+        .await
+        .expect("the ordered baselines");
+    assert_eq!(rows[0].baseline_id, later.baseline_id);
+    assert_eq!(
+        rows[1].baseline_id,
+        format!("BASELINE-{}-A", owner.as_str())
+    );
+}
+
 pub async fn registry_conformance(store: &dyn ImprovementStore, owner: &ProfileId) {
     let other = profile(&format!("{}-other", owner.as_str()));
     let empty = profile(&format!("{}-empty", owner.as_str()));

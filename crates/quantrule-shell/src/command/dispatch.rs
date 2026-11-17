@@ -16,6 +16,10 @@ use quantrule_api::{
 use serde_json::{Value, json};
 
 use super::help::run_help;
+use super::research_commands::{
+    baseline_list, baseline_show, invalidation_list, research_compare, research_create,
+    research_decide, research_list, research_show, research_submit,
+};
 use super::stage_commands::{
     stage_cancel, stage_delete, stage_events_command, stage_explain, stage_fetch, stage_list,
     stage_run_model, stage_run_portfolio, stage_run_strategy, stage_show,
@@ -127,6 +131,61 @@ fn run(
         Command::StageDelete { stage_run_id } => {
             stage_delete(&client, globals, stdout, &stage_run_id)
         }
+        Command::ResearchCreate {
+            tier,
+            hypothesis,
+            partition,
+            data_version,
+            config_id,
+            criteria_id,
+            green_criteria,
+            baseline,
+            code_commit,
+            seed,
+            analytics,
+        } => research_create(
+            &client,
+            globals,
+            stdout,
+            tier,
+            &hypothesis,
+            partition,
+            &data_version,
+            &config_id,
+            criteria_id.as_deref(),
+            &green_criteria,
+            baseline.as_deref(),
+            &code_commit,
+            seed,
+            analytics,
+        ),
+        Command::ResearchSubmit { improvement_id } => {
+            research_submit(&client, globals, stdout, &improvement_id)
+        }
+        Command::ResearchList { tier, state, limit } => {
+            research_list(&client, globals, stdout, tier, state, limit)
+        }
+        Command::ResearchShow { improvement_id } => {
+            research_show(&client, globals, stdout, &improvement_id)
+        }
+        Command::ResearchCompare {
+            improvement_id,
+            baseline,
+        } => research_compare(
+            &client,
+            globals,
+            stdout,
+            &improvement_id,
+            baseline.as_deref(),
+        ),
+        Command::ResearchDecide {
+            improvement_id,
+            decision,
+            note,
+        } => research_decide(&client, globals, stdout, &improvement_id, decision, &note),
+        Command::BaselineList => baseline_list(&client, globals, stdout),
+        Command::BaselineShow { tier } => baseline_show(&client, globals, stdout, tier),
+        Command::InvalidationList => invalidation_list(&client, globals, stdout),
         Command::InspectCandles { data_version } => {
             inspect_candles(&client, globals, stdout, &data_version)
         }

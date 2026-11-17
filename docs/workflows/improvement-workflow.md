@@ -2,9 +2,9 @@
 
 - Date: 2026-11-01 (UTC)
 - Updated: 2026-11-17 for the v3 research ledger and manifest
-- Status: Current; the gateway command surface and the v3 research-ledger store are
-  implemented, no tiered run has used v3 yet, and the research commands and human
-  acceptance of the surface are pending
+- Status: Current; the gateway command surface, the v3 research-ledger store, and
+  the research commands and Research screen are implemented, no tiered run has
+  used v3 yet, and human acceptance of the surface is pending
 - Scope: model, strategy, and portfolio improvement runs
 
 ## Purpose
@@ -27,12 +27,15 @@ Run -> Results -> Review -> New Hypothesis
 | Stage | Question | Owner | Output |
 |---|---|---|---|
 | Run | What is the one hypothesis, and which tier and partition test it? | Loop Governor | A v3 pre-registration in the evidence ledger, then a linked pipeline run |
-| Results | What did the run produce? | Result Analyst | Artifacts and a results table; no interpretation yet |
+| Results | What did the run produce? | Result Analyst | Artifacts, a results table, and the `research compare` published-number table |
 | Review | Is the result better than the baseline after costs, on the validation data, and without post-hoc changes? | Result Analyst | A review record with a recommendation |
-| New Hypothesis | Do we accept a baseline, route a program defect, change one tier, or stop? | Triage Officer | The human decision note and the next run, or `no edge` |
+| New Hypothesis | Do we accept a baseline, route a program defect, change one tier, or stop? | Triage Officer | One explicit `research decide` note and the next run, or `no edge` |
 
 A run is not a result until its artifacts are reproducible. A result is not a
-baseline until the human accepts it.
+baseline until the human accepts it with `research decide`. The research
+commands are explicit: nothing submits, compares, or accepts automatically. A
+model-tier research run is still a coupled full run with a strategy file; it is
+not a model-only run.
 
 ## Tiers
 

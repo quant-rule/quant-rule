@@ -13,7 +13,9 @@ use quantrule_api::{
 use super::help::{is_command, usage as registered_usage};
 use super::types::{Command, GlobalOptions, HelpTopic, Invocation, ParseError};
 
+mod parse_research;
 mod parse_stage;
+use self::parse_research::{parse_baseline, parse_invalidation, parse_research};
 use self::parse_stage::parse_stage;
 use crate::token::BearerToken;
 
@@ -285,6 +287,9 @@ fn parse_command(rest: &[String]) -> Result<Command, ParseError> {
         "config" => parse_config(args),
         "run" => parse_run(args),
         "stage" => parse_stage(args),
+        "research" => parse_research(args),
+        "baseline" => parse_baseline(args),
+        "invalidation" => parse_invalidation(args),
         "inspect" => parse_inspect(args),
         "verify" => single(args, registered_usage("verify").unwrap_or("verify"))
             .map(|run_id| Command::Verify { run_id }),

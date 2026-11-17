@@ -52,19 +52,16 @@ never renders a label, and never returns a raw engine type.
 | GET | `/inspect/candles` | `data_version` | counts and coverage |
 | GET | `/inspect/timeframes` | `data_version` | bars and partial buckets per timeframe |
 | GET | `/inspect/events` | `data_version`, `timeframe` | event batch |
+| `GET/POST` | `/research/runs`, `/research/runs/{id}`, `/research/runs/{id}/submit`, `/research/runs/{id}/compare`, `/research/runs/{id}/decision`, `/research/baselines`, `/research/baselines/{tier}`, `/research/invalidations` | v3 pre-registration, coupled submit, compare, decision, registries | records; `accepted` requires a succeeded run and digest |
 
 The gateway owns `/profiles` and proxies `/catalog/*`, `/datasets/*`,
 `/inspect/candles`, and `/inspect/timeframes` to `qr-data`. `/inspect/events`
 computes a model, so the gateway forwards it to `qr-model`'s internal event-batch
 route; the data service never runs a model. The gateway also proxies
-`/model/compute` to `qr-model`. A proxied response keeps its status, body,
-content type, and ETag; a closed upstream is `503 service.unavailable`.
-The data service trusts the profile the gateway injects and never reads the
-profile table.
+`/model/compute` to `qr-model`. A proxied response keeps its status, body, content type, and ETag; a closed
+upstream is `503 service.unavailable`. The data service trusts the injected profile.
 
-A run or simulation count is read from the service that owns the record and is
-bounded by that service's list page (200 records); a profile with more records
-reports the page rather than an invented total.
+A count is bounded by the service's 200-record list page, not an invented total.
 
 The browser client checks `/version` and `/health` and reports `connected`,
 `degraded`, `mismatch`, or `unreachable`. A different API version is a mismatch:
@@ -136,6 +133,9 @@ comparison names the context it reads.
 | `run.invalid` | 400 | Malformed run id or submission |
 | `run.model_artifact_invalid` | 400 | Unknown, non-succeeded, or mismatched frozen model artifact |
 | `run.conflict` | 409 | Cancel after completion |
+| `research.not_found` | 404 | Unknown improvement id or tier baseline |
+| `research.invalid` | 400 | Bad pre-registration, config, dataset, or note |
+| `research.conflict` | 409 | Duplicate submit/decision, or accepted without a succeeded digest |
 | `upload.too_large` | 413 | Over the configured limit |
 | `queue.unavailable` | 503 | Broker unreachable |
 | `service.unavailable` | 503 | A downstream service is unreachable or refused the proxied call |

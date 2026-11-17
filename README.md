@@ -196,6 +196,15 @@ distributed release (v0.9.0, prepared as v1.0.0).
 | `stage fetch` | Stages | Download a stage's verified artifacts |
 | `stage cancel` | Stages | Cancel a queued or running stage |
 | `stage delete` | Stages | Delete one diagnostic stage |
+| `research create` | Research | Pre-register a v3 improvement run |
+| `research submit` | Research | Submit the coupled pipeline run |
+| `research list` | Research | List improvement runs |
+| `research show` | Research | Read one improvement run and lazy digest |
+| `research compare` | Research | Compare published numbers with a baseline |
+| `research decide` | Research | Record one human decision and registry row |
+| `baseline list` | Research | List accepted baselines |
+| `baseline show` | Research | Show the current tier baseline |
+| `invalidation list` | Research | List invalidation tombstones |
 | `inspect candles` | Inspection | Read candle counts and coverage |
 | `inspect timeframes` | Inspection | Read bars and partial buckets per timeframe |
 | `inspect events` | Inspection | Read the event batch for one timeframe |

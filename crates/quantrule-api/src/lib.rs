@@ -32,7 +32,8 @@ pub use digest::{Digest, DigestError};
 pub use error::{ApiError, ErrorCode, ErrorEnvelope};
 pub use health::{HealthReport, ServiceHealth, ServiceState, VersionInfo};
 pub use improvement::{
-    BaselineRecord, HoldoutAccess, IMPROVEMENT_RUN_SCHEMA, IMPROVEMENT_RUN_SCHEMA_V2,
+    BaselineRecord, ComparisonRow, CreateImprovementRequest, DecideImprovementRequest,
+    HoldoutAccess, IMPROVEMENT_RUN_SCHEMA, IMPROVEMENT_RUN_SCHEMA_V2, ImprovementComparison,
     ImprovementDecision, ImprovementManifest, ImprovementManifestError, ImprovementPartition,
     ImprovementRunDetail, ImprovementRunState, ImprovementRunSummary, ImprovementTier,
     InvalidationRecord,

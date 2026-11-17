@@ -20,6 +20,7 @@ use std::time::Duration;
 use serde_json::{Value, json};
 
 mod parity;
+mod research;
 mod stage_fixture;
 use parity::parity_route;
 use stage_fixture::stage_route;
@@ -608,6 +609,9 @@ fn handle(state: &mut FixtureState, request: &Request) -> Response {
     }
 
     if let Some(response) = stage_route(request, &segments) {
+        return response;
+    }
+    if let Some(response) = research::route(request, &segments) {
         return response;
     }
 

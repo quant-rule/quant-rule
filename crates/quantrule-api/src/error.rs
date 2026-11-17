@@ -52,6 +52,15 @@ pub enum ErrorCode {
     /// The requested stage transition is not allowed in its current state.
     #[serde(rename = "stage.conflict")]
     StageConflict,
+    /// The improvement run is unknown.
+    #[serde(rename = "research.not_found")]
+    ResearchNotFound,
+    /// An improvement-run request is invalid.
+    #[serde(rename = "research.invalid")]
+    ResearchInvalid,
+    /// The requested improvement-run transition is not allowed.
+    #[serde(rename = "research.conflict")]
+    ResearchConflict,
     /// The upload exceeded the configured limit.
     #[serde(rename = "upload.too_large")]
     UploadTooLarge,
@@ -100,6 +109,9 @@ impl ErrorCode {
             Self::StageNotFound => "stage.not_found",
             Self::StageInvalid => "stage.invalid",
             Self::StageConflict => "stage.conflict",
+            Self::ResearchNotFound => "research.not_found",
+            Self::ResearchInvalid => "research.invalid",
+            Self::ResearchConflict => "research.conflict",
             Self::UploadTooLarge => "upload.too_large",
             Self::QueueUnavailable => "queue.unavailable",
             Self::ServiceUnavailable => "service.unavailable",
@@ -125,15 +137,18 @@ impl ErrorCode {
             | Self::RunInvalid
             | Self::RunModelArtifactInvalid
             | Self::StageInvalid
+            | Self::ResearchInvalid
             | Self::SimulationMarkInvalid => 400,
             Self::ProfileNotFound
             | Self::DatasetNotFound
             | Self::HypothesisNotFound
             | Self::RunNotFound
             | Self::StageNotFound
+            | Self::ResearchNotFound
             | Self::SimulationNotFound => 404,
             Self::RunConflict
             | Self::StageConflict
+            | Self::ResearchConflict
             | Self::SimulationCheckIncomplete
             | Self::SimulationLocked => 409,
             Self::Unauthorized => 401,
@@ -194,7 +209,7 @@ impl ErrorEnvelope {
 mod tests {
     use super::*;
 
-    const ALL: [ErrorCode; 22] = [
+    const ALL: [ErrorCode; 25] = [
         ErrorCode::ProfileNotFound,
         ErrorCode::ProfileInvalid,
         ErrorCode::HypothesisNotFound,
@@ -208,6 +223,9 @@ mod tests {
         ErrorCode::StageNotFound,
         ErrorCode::StageInvalid,
         ErrorCode::StageConflict,
+        ErrorCode::ResearchNotFound,
+        ErrorCode::ResearchInvalid,
+        ErrorCode::ResearchConflict,
         ErrorCode::UploadTooLarge,
         ErrorCode::QueueUnavailable,
         ErrorCode::ServiceUnavailable,
