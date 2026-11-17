@@ -18,6 +18,13 @@ history is in Git and the pull requests.
 
 ## [Unreleased]
 
+### Changed
+
+- The configuration identity is one SHA-256 across the app, catalog, run
+  record, and stage provenance. The old 64-bit FNV fingerprint is gone.
+- The canonical digest now covers every `metrics.json`, so a metrics-only change
+  cannot leave the digest unchanged.
+
 ### Fixed
 
 - `portfolio_holdout` excludes `COPPERCMDUSD` and `TSLAUSUSD` until a 2025

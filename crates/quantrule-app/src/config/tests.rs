@@ -493,6 +493,15 @@ fn the_config_run_fixture_loads() {
 }
 
 #[test]
+fn the_config_hash_is_a_sha256_identity() {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../quantrule-shell/tests/fixtures/config-run/run.json");
+    let config = run::RunConfig::load(&path).expect("the fixture config is valid");
+    assert!(config.config_hash.starts_with("sha256:"));
+    assert_eq!(config.config_hash.len(), "sha256:".len() + 64);
+}
+
+#[test]
 fn a_model_ladder_must_be_in_the_data_ladder_and_contain_execution() {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../quantrule-shell/tests/fixtures/config-run/run.json");
