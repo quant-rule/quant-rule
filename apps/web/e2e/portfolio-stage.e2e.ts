@@ -13,7 +13,7 @@ const METRICS =
   '{"schema":"quantrule.portfolio-metrics/v1","initial_cash":10000.0,' +
   '"final_equity":10020.0,"net_pnl":20.0,"execution_fees":1.0,' +
   '"commission":2.0,"funding_paid":3.0,"funding_received":0.0,' +
-  '"max_drawdown":0.01,"halted":false}\n';
+  '"max_drawdown":0.01,"exposure":0.5,"halted":false}\n';
 const FILLS = "fill_id,side,quantity,price,bar\n0,buy,10,100.0,1\n";
 const ORDERS = "order_id,side,state\n0,buy,filled\n";
 const REJECTIONS = "order_id,reason\n";
@@ -167,6 +167,8 @@ test("submits, reads the published bundles, and downloads a nested artifact", as
   await page.getByRole("button", { name: `Open ${STAGE}` }).click();
   await expect(page.getByTestId("portfolio-detail")).toContainText("not an accepted result");
   await expect(page.getByTestId("portfolio-metrics")).toContainText("10020");
+  await expect(page.getByTestId("portfolio-metrics")).toContainText("Exposure");
+  await expect(page.getByTestId("portfolio-metrics")).toContainText("0.500000");
   await expect(page.getByTestId("portfolio-execution-summary")).toContainText("slippage=2");
   await expect(page.getByTestId("portfolio-fills")).toContainText("buy");
   await expect(page.getByTestId("portfolio-orders")).toContainText("filled");

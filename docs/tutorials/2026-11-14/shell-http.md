@@ -122,9 +122,11 @@ upstream stage. The artifact carries two prefixed bundles: `execution/` with
 `provenance.json`.
 
 The stage replays the frozen decisions through execution and portfolio
-accounting. The published P&L is diagnostic accounting, not an accepted result;
-it carries no canonical digest and is never evidence or a baseline. A coupled
-backtest recomputes strategy, execution, and portfolio.
+accounting. `stage show` lists the artifacts; `stage fetch` is the CLI
+inspection path for the published `portfolio/metrics.json`, including fees,
+funding, drawdown, and exposure. The published P&L is diagnostic accounting, not
+an accepted result; it carries no canonical digest and is never evidence or a
+baseline. A coupled backtest recomputes strategy, execution, and portfolio.
 
 ## 7. Simulation research
 

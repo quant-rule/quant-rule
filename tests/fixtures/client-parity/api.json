@@ -506,8 +506,8 @@
           },
           {
             "name": "portfolio/metrics.json",
-            "bytes": 218,
-            "sha256": "sha256:2be3cb2fae969f65084bf628a26b44ff3f605d56f55f100090a0bace85fbe2e7"
+            "bytes": 234,
+            "sha256": "sha256:fb2e67cfbcb34e19e49c554106719e6fc45fcae5469faf7f1db757c0eb18eaef"
           },
           {
             "name": "portfolio/summary.txt",
@@ -624,9 +624,9 @@
     },
     {
       "name": "portfolio/metrics.json",
-      "body": "{\"schema\":\"quantrule.portfolio-metrics/v1\",\"initial_cash\":10000.0,\"final_equity\":10000.0,\"net_pnl\":0.0,\"execution_fees\":0.0,\"commission\":0.0,\"funding_paid\":0.0,\"funding_received\":0.0,\"max_drawdown\":0.0,\"halted\":false}\n",
-      "bytes": 218,
-      "sha256": "sha256:2be3cb2fae969f65084bf628a26b44ff3f605d56f55f100090a0bace85fbe2e7"
+      "body": "{\"schema\":\"quantrule.portfolio-metrics/v1\",\"initial_cash\":10000.0,\"final_equity\":10000.0,\"net_pnl\":0.0,\"execution_fees\":0.0,\"commission\":0.0,\"funding_paid\":0.0,\"funding_received\":0.0,\"max_drawdown\":0.0,\"exposure\":null,\"halted\":false}\n",
+      "bytes": 234,
+      "sha256": "sha256:fb2e67cfbcb34e19e49c554106719e6fc45fcae5469faf7f1db757c0eb18eaef"
     },
     {
       "name": "portfolio/summary.txt",

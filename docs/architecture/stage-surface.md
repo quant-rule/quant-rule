@@ -92,6 +92,10 @@ A target command appears in `help` and the README only when it is implemented an
 tested. The command-surface checker keeps planned and implemented commands
 separate.
 
+`stage show` lists a stage's artifacts; `stage fetch` is the CLI inspection path
+for a published bundle such as `portfolio/metrics.json`, including fees,
+funding, drawdown, and exposure.
+
 The standalone strategy stage simulates its own position; the coupled backtest
 passes the position execution actually holds. When execution rejects an entry,
 the coupled strategy sees a flat position on the next bar, while the stage still

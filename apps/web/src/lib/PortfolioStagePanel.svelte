@@ -226,6 +226,7 @@
                 <tr><th>Funding paid</th><td>{number(view.portfolio.metrics.funding_paid)}</td></tr>
                 <tr><th>Funding received</th><td>{number(view.portfolio.metrics.funding_received)}</td></tr>
                 <tr><th>Max drawdown</th><td>{number(view.portfolio.metrics.max_drawdown)}</td></tr>
+                <tr><th>Exposure</th><td>{view.portfolio.metrics.exposure === null ? "—" : number(view.portfolio.metrics.exposure)}</td></tr>
                 <tr><th>Halted</th><td>{view.portfolio.metrics.halted}</td></tr>
               </tbody>
             </table>

@@ -508,8 +508,8 @@
         },
         {
           "name": "portfolio/metrics.json",
-          "bytes": 218,
-          "sha256": "sha256:2be3cb2fae969f65084bf628a26b44ff3f605d56f55f100090a0bace85fbe2e7"
+          "bytes": 234,
+          "sha256": "sha256:fb2e67cfbcb34e19e49c554106719e6fc45fcae5469faf7f1db757c0eb18eaef"
         },
         {
           "name": "portfolio/summary.txt",

@@ -149,6 +149,7 @@ const COMMANDS: &[CommandHelp] = &[
             "The stage replays execution fills through portfolio accounting; it does not decide a signal.",
             "The execution and portfolio bundles are diagnostic and carry no canonical digest.",
             "The stage artifact is never a backtest input or a baseline.",
+            "`stage show` lists the artifacts; use `stage fetch` to read portfolio/metrics.json and its exposure.",
         ],
     },
     CommandHelp {

@@ -11,7 +11,7 @@ const METRICS =
   '{"schema":"quantrule.portfolio-metrics/v1","initial_cash":10000.0,' +
   '"final_equity":10020.0,"net_pnl":20.0,"execution_fees":1.0,' +
   '"commission":2.0,"funding_paid":3.0,"funding_received":4.0,' +
-  '"max_drawdown":0.01,"halted":false}\n';
+  '"max_drawdown":0.01,"exposure":null,"halted":false}\n';
 const CSV = "fill_id,side,quantity\n0,buy,10\n1,sell,10\n";
 const SUMMARY = "QuantRule portfolio replay\nfinal_equity: 10020\nhalted: false\n";
 
@@ -46,6 +46,7 @@ describe("portfolio artifacts", () => {
     const metrics = parsePortfolioMetrics(METRICS);
     expect(metrics.final_equity).toBe(10020);
     expect(metrics.net_pnl).toBe(20);
+    expect(metrics.exposure).toBeNull();
     expect(metrics.halted).toBe(false);
     expect(parseSummary(SUMMARY)).toEqual([
       { label: "QuantRule portfolio replay", value: "" },

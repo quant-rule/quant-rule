@@ -72,6 +72,9 @@ export function parsePortfolioMetrics(text: string): PortfolioMetrics {
       throw new Error(`metrics.json has no numeric ${field}`);
     }
   }
+  if (metrics.exposure !== null && typeof metrics.exposure !== "number") {
+    throw new Error("metrics.json has no numeric or null exposure");
+  }
   if (typeof metrics.halted !== "boolean") {
     throw new Error("metrics.json has no boolean halted");
   }

@@ -280,6 +280,7 @@ export interface PortfolioMetrics {
   funding_paid: number;
   funding_received: number;
   max_drawdown: number;
+  exposure: number | null;
   halted: boolean;
   [key: string]: unknown;
 }

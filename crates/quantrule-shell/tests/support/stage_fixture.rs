@@ -184,7 +184,7 @@ pub fn portfolio_files() -> Vec<(String, Vec<u8>)> {
         ),
         (
             "portfolio/metrics.json".to_owned(),
-            b"{\"schema\":\"quantrule.portfolio-metrics/v1\",\"initial_cash\":10000.0,\"final_equity\":10000.0,\"net_pnl\":0.0,\"execution_fees\":0.0,\"commission\":0.0,\"funding_paid\":0.0,\"funding_received\":0.0,\"max_drawdown\":0.0,\"halted\":false}\n".to_vec(),
+            b"{\"schema\":\"quantrule.portfolio-metrics/v1\",\"initial_cash\":10000.0,\"final_equity\":10000.0,\"net_pnl\":0.0,\"execution_fees\":0.0,\"commission\":0.0,\"funding_paid\":0.0,\"funding_received\":0.0,\"max_drawdown\":0.0,\"exposure\":null,\"halted\":false}\n".to_vec(),
         ),
         (
             "portfolio/summary.txt".to_owned(),
