@@ -53,6 +53,10 @@ history is in Git and the pull requests.
   (`S[t] = VWAP[t] - VWAP[t - window]`), matching the registered formula. The
   first value appears at bar `2*window - 1`, and the extended readings and
   event goldens were regenerated deliberately.
+- `structure.scale` now selects the confirmed pivot scale for the structure
+  readings and the lower-high/lower-low sequence events. The default `major`
+  scale keeps the existing output; a `minor` scale now changes the structure
+  output as the registry states.
 
 ## [1.3.0] - 2026-11-17
 

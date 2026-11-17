@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 
 use quantrule_data::Timeframe;
 use quantrule_model::calendar::TradingCalendar;
+use quantrule_model::readings::PivotScale;
 use serde_json::{Value, json};
 
 use super::error::ConfigErrorKind;
@@ -302,6 +303,17 @@ fn model_v4_reads_events_and_progression() {
         Range,
         "$.defaults.ema.periods",
     );
+}
+
+#[test]
+fn model_v4_reads_the_structure_scale() {
+    let mut minor = model_v4_object();
+    minor["structure"] = json!({"scale": "minor"});
+    let config = model::parse(&minor, "model.json").expect("the minor scale loads");
+    assert_eq!(config.structure_scale, PivotScale::Minor);
+
+    let default = model::parse(&model_v4_object(), "model.json").expect("the default loads");
+    assert_eq!(default.structure_scale, PivotScale::Major);
 }
 
 #[test]

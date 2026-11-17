@@ -1,7 +1,7 @@
 //! Extended reading tests.
 
 use super::{ExtendedConfig, ExtendedReadings};
-use crate::readings::{PivotSeries, ReadingSeries, Readings, ReadingsConfig};
+use crate::readings::{PivotScale, PivotSeries, ReadingSeries, Readings, ReadingsConfig};
 use quantrule_data::Candle;
 
 fn candle(index: u64, open: f64, high: f64, low: f64, close: f64, volume: f64) -> Candle {
@@ -14,6 +14,40 @@ fn candle_with_optional_volume(index: u64, volume: Option<f64>) -> Candle {
 
 fn readings(candles: &[Candle]) -> Readings {
     Readings::compute_with_config(candles, &ReadingsConfig::DEFAULT)
+}
+
+#[test]
+fn structure_scale_selects_the_confirmed_pivot_scale() {
+    let highs = [
+        1.0, 2.0, 1.0, 2.0, 1.0, 10.0, 2.0, 1.0, 2.0, 3.0, 1.0, 1.5, 2.0, 0.5, 0.5, 1.0, 0.5, 0.5,
+        0.5, 0.5,
+    ];
+    let candles: Vec<Candle> = highs
+        .iter()
+        .enumerate()
+        .map(|(index, high)| {
+            let low = 0.1;
+            candle(
+                index as u64,
+                (high + low) / 2.0,
+                *high,
+                low,
+                (high + low) / 2.0,
+                1.0,
+            )
+        })
+        .collect();
+    let readings = readings(&candles);
+    let config = ExtendedConfig::DEFAULT;
+    let major = ExtendedReadings::compute(&candles, &readings, &config);
+    let minor =
+        ExtendedReadings::compute_with_scale(&candles, &readings, &config, PivotScale::Minor);
+
+    assert_eq!(major.last_pivot_high.get(7), None);
+    assert_eq!(minor.last_pivot_high.get(7), Some(10.0));
+    assert_eq!(major.last_pivot_high.get(11), Some(10.0));
+    assert_eq!(minor.last_pivot_high.get(11), Some(3.0));
+    assert_eq!(minor.lower_high_count.get(17), Some(3.0));
 }
 
 #[test]
