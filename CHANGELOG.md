@@ -18,7 +18,13 @@ history is in Git and the pull requests.
 
 ## [Unreleased]
 
-No unreleased changes yet. `v1.3.0` is the current release.
+### Changed
+
+- Event edge evidence now names an event-constructing suite that covers the
+  empty, single, short, flat, zero-volume, missing-volume, equal-tie, and gap
+  inputs. The checker rejects a readings-only test as event-edge evidence.
+- The breakout-retest-hold event has its own golden fixture, and the extended
+  indicators' edge evidence names the family tests that check their readings.
 
 ## [1.3.0] - 2026-11-17
 
