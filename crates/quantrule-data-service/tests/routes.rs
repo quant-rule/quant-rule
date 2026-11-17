@@ -627,3 +627,21 @@ async fn a_tolerant_upload_with_no_valid_row_is_refused() {
         .expect("response");
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
+
+#[tokio::test]
+async fn an_oversized_config_bundle_is_refused() {
+    let state = state_with_catalog().await;
+    let response = router(state)
+        .oneshot(
+            Request::post("/catalog/configs")
+                .header(PROFILE_HEADER, "default")
+                .header("content-type", "application/json")
+                .body(Body::from("x".repeat(5 * 1024 * 1024)))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let text = String::from_utf8(body_bytes(response).await).expect("utf8");
+    assert!(text.contains("upload.too_large"), "{text}");
+}

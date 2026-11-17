@@ -47,7 +47,7 @@ The remaining workflows keep their stages and gates.
 |---|---|---|---|---|
 | [`audit-workflow.md`](audit-workflow.md) | Is the program correct and consistent with its contracts? | Engineering assessment | Current | Yes |
 | [`refactor-workflow.md`](refactor-workflow.md) | Is the structure cheap to change and provable? | Engineering improvement | Current | Yes |
-| [`engine-execution.md`](engine-execution.md) | How is one engine run alone, and what does its output prove? | Execution diagnostic | Target | Commands land in #850–#854 |
+| [`engine-execution.md`](engine-execution.md) | How is one engine run alone, and what does its output prove? | Execution diagnostic | Current | Yes; shipped in v1.3.0 |
 | [`backtest.md`](backtest.md) | What did the frozen full configuration do, and can it be reproduced? | Execution evidence | Current | Yes |
 | [`end-to-end-verification.md`](end-to-end-verification.md) | Does a clean deployment reproduce a verified digest? | Operations verification | Current | Yes |
 | [`improvement-workflow.md`](improvement-workflow.md) | Does a change improve the trading system? | Quant spine | Current | Yes; no tiered run yet |

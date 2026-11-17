@@ -155,7 +155,7 @@ profile-scoped and content-addressed.
 | Backtest promotion with a frozen model artifact | Implemented (#855) |
 | Research ledger and Research screens | Implemented (#856–#857) |
 | Operations surface and end-to-end verification | Implemented (#858) |
-| Manual chapters and command/GUI reference | Target (#859) |
+| Manual chapters and command/GUI reference | Implemented (#859) |
 
 ## 9. Related documents
 

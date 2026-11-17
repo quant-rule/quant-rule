@@ -20,6 +20,10 @@ history is in Git and the pull requests.
 
 ### Fixed
 
+### Changed
+
+- The documentation-length checker now covers `docs/README.md`.
+
 ### Fixed
 
 - The configuration identity is one SHA-256 across the app, catalog, run
@@ -88,6 +92,10 @@ history is in Git and the pull requests.
 - The data-v3 document no longer requires the retired policy universe; the
   loader's non-empty instrument and ordered-ladder checks are the actual
   admission rules.
+- Current documentation now matches the tree: the `AGENTS.md` crate and workflow
+  map, the workflow and stage status, the HTTP stage routes, the config-upload
+  cap, the service digest ownership, the improvement index table, and the
+  `docs/README.md` length cap.
 
 ## [1.3.0] - 2026-11-17
 

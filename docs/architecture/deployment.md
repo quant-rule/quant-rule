@@ -130,12 +130,12 @@ to start.
 | `QR_SIMULATION_URL` | compose value | Simulation service, used by the gateway |
 | `QR_OBJECT_STORE_URL` | compose value | MinIO endpoint |
 | `QR_QUEUE_URL` | compose value | RabbitMQ |
-| `QR_UPLOAD_LIMIT_BYTES` | `536870912` | Upload cap |
+| `QR_UPLOAD_LIMIT_BYTES` | `536870912` | Dataset upload cap; a config bundle is capped at 4 MiB separately |
 | `QR_BEARER_TOKEN` | empty | Enables the token check when set |
 | `QR_BACKTEST_CONCURRENCY` | `1` | Runs per worker |
 | `QR_STAGE_RETENTION_DAYS` | `30` | Diagnostic stage retention in days |
 
-Secrets come from the environment. No secret is committed.
+A config bundle is capped at 4 MiB by the config route, independently of `QR_UPLOAD_LIMIT_BYTES`; a larger config returns `413 upload.too_large`. Secrets come from the environment; no secret is committed.
 
 ## 5. Two distribution profiles
 
