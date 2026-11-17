@@ -122,7 +122,7 @@ to start.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `QR_IMAGE_DIGEST` | image label | Reported by `/health` and written to provenance |
+| `QR_IMAGE_DIGEST` | image label; `make up` records the built image id | Required for a run/stage submission; reported by `/health` and written to provenance. A server without it refuses the submission. |
 | `QR_DATABASE_URL` | compose value | Postgres |
 | `QR_DATA_URL` | compose value | Data service, used by the gateway and the backtest worker |
 | `QR_MODEL_URL` | compose value | Model service, used by the gateway |

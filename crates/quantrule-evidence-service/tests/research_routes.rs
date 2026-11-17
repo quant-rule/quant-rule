@@ -11,8 +11,8 @@ use quantrule_api::{
 };
 use quantrule_evidence_service::research::ImprovementStore;
 use research_routes_support::{
-    artifact, create, create_body, error_code, fail_run, harness, link, link_digest, profile, send,
-    show, succeed_run, succeed_seeded,
+    artifact, config_with_window, create, create_body, error_code, fail_run, harness, link,
+    link_digest, profile, send, show, succeed_run, succeed_seeded,
 };
 
 #[tokio::test]
@@ -49,6 +49,27 @@ async fn create_rejects_a_model_only_config_with_research_invalid() {
     let harness = harness();
     let mut body = create_body(ImprovementTier::Model, ImprovementPartition::ModelDev);
     body["config_id"] = serde_json::json!("cfg_model_only");
+    let response = send(
+        harness.state.clone(),
+        "default",
+        Method::POST,
+        "/research/runs",
+        Some(body),
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(error_code(response).await, "research.invalid");
+}
+
+#[tokio::test]
+async fn create_rejects_a_config_outside_the_partition() {
+    let harness = harness();
+    harness.data.add_config(
+        &profile("default"),
+        config_with_window("cfg_outside", b"outside", "2024-01-01", "2024-12-31"),
+    );
+    let mut body = create_body(ImprovementTier::Model, ImprovementPartition::ModelDev);
+    body["config_id"] = serde_json::json!("cfg_outside");
     let response = send(
         harness.state.clone(),
         "default",

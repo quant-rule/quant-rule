@@ -300,11 +300,13 @@ fn a_max_notional_caps_the_filled_quantity() {
 }
 
 #[test]
-fn the_position_bracket_is_live_on_the_entry_bar() {
+fn the_position_bracket_is_live_when_ohlc_cannot_order_the_entry_bar() {
     let mut engine = test_engine();
     let first = first_bar();
-    // The long entry triggers at 105; the same bar then trades through the
-    // 1 ATR stop at 104.
+    // The long entry triggers at 105. The same bar's low of 103.9 is below the
+    // 1 ATR stop at 104, but OHLC cannot prove whether that low happened before
+    // or after the 105 trigger. The conservative entry-bar rule treats the
+    // bracket as live for the whole bar, so this is a stop-out.
     let second = candle(1, 900, 104.5, 106.0, 103.9, 104.5, Some(10.0));
     step(&mut engine, &first, Some(1.0), bracket(1));
     let batch = step(&mut engine, &second, Some(1.0), OrderIntent::Hold);
