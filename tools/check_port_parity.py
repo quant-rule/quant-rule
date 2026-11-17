@@ -120,7 +120,7 @@ def entry_problems(root: Path, entry: object, seen: set[str]) -> list[str]:
     if not isinstance(entry, dict):
         return ["registry entries must be objects"]
 
-    required = {"id", "source", "target", "test", "fixture", "status"}
+    required = {"id", "source", "targets", "test", "fixture", "status"}
     optional = {"notes"}
     missing = required - entry.keys()
     unknown = entry.keys() - required - optional
@@ -148,17 +148,37 @@ def entry_problems(root: Path, entry: object, seen: set[str]) -> list[str]:
     if not isinstance(fixture, str) or not fixture:
         problems.append(f"{entry_id}: fixture must be a non-empty string")
 
-    target, error = relative(entry["target"], "target")
-    if error:
-        problems.append(f"{entry_id}: {error}")
-    elif target.suffix != ".rs":
-        problems.append(f"{entry_id}: target must be a Rust source file")
-    elif not (root / target).is_file():
-        problems.append(f"{entry_id}: target {target} is missing")
-    else:
-        text = (root / target).read_text(encoding="utf-8", errors="ignore")
-        if f"port-parity: {entry_id}" not in text:
-            problems.append(f"{entry_id}: target needs the marker port-parity: {entry_id}")
+    targets = entry["targets"]
+    if not isinstance(targets, list) or not targets:
+        problems.append(f"{entry_id}: targets must be a non-empty array")
+        targets = []
+    registered: set[PurePosixPath] = set()
+    for raw in targets:
+        target, error = relative(raw, "target")
+        if error:
+            problems.append(f"{entry_id}: {error}")
+            continue
+        registered.add(target)
+        if target.suffix != ".rs":
+            problems.append(f"{entry_id}: target must be a Rust source file")
+        elif not (root / target).is_file():
+            problems.append(f"{entry_id}: target {target} is missing")
+        else:
+            text = (root / target).read_text(encoding="utf-8", errors="ignore")
+            if f"port-parity: {entry_id}" not in text:
+                problems.append(
+                    f"{entry_id}: target {target} needs the marker port-parity: {entry_id}"
+                )
+    marker = f"port-parity: {entry_id}"
+    for path in sorted((root / "crates").rglob("*.rs")):
+        relative_path = path.relative_to(root)
+        if relative_path in registered:
+            continue
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        if marker in text:
+            problems.append(
+                f"{entry_id}: unregistered target {relative_path} carries the marker"
+            )
 
     test, error = relative(entry["test"], "test")
     if error:
