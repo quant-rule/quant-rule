@@ -42,6 +42,10 @@ history is in Git and the pull requests.
 - Session VWAP no longer substitutes zero for a missing candle volume; it is
   unavailable from the first missing-volume bar for the rest of the session and
   resets at the next session. The normal-volume golden fixture is unchanged.
+- A divergence RSI window is clamped to the pivot's availability bar, so it
+  cannot read past the bar on which the event claims to be knowable. The model
+  v4 config now refuses a window above the pivot-scale lookback. The default
+  and golden fixtures are unchanged.
 
 ## [1.3.0] - 2026-11-17
 
