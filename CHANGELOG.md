@@ -18,7 +18,11 @@ history is in Git and the pull requests.
 
 ## [Unreleased]
 
-No unreleased changes yet. `v1.3.0` is the current release.
+### Fixed
+
+- Session VWAP no longer substitutes zero for a missing candle volume; it is
+  unavailable from the first missing-volume bar for the rest of the session and
+  resets at the next session. The normal-volume golden fixture is unchanged.
 
 ## [1.3.0] - 2026-11-17
 
