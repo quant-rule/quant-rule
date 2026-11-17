@@ -32,7 +32,7 @@ pub(crate) struct RunListQuery {
 }
 
 /// The model identity recorded in a run config, or `none` when absent.
-fn model_version(body: &str) -> String {
+pub(crate) fn model_version(body: &str) -> String {
     serde_json::from_str::<serde_json::Value>(body)
         .ok()
         .and_then(|value| {

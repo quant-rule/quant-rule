@@ -99,6 +99,18 @@ impl ObjectStore for MemoryObjects {
                 .contains_key(&key))
         })
     }
+
+    fn delete(&self, key: &str) -> BoxFuture<Result<(), StoreError>> {
+        let inner = Arc::clone(&self.inner);
+        let key = key.to_owned();
+        Box::pin(async move {
+            inner
+                .lock()
+                .map_err(|_| StoreError("the object lock is poisoned".to_owned()))?
+                .remove(&key);
+            Ok(())
+        })
+    }
 }
 
 #[cfg(test)]

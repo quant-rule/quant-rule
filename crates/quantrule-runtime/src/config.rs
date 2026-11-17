@@ -20,6 +20,8 @@ pub const DEFAULT_OBJECT_BUCKET: &str = "quantrule";
 pub const DEFAULT_QUEUE_URL: &str = "amqp://quantrule:quantrule@rabbitmq:5672/%2f";
 /// The default upload limit: 512 MiB.
 pub const DEFAULT_UPLOAD_LIMIT: u64 = 512 * 1024 * 1024;
+/// The default diagnostic stage retention, in days.
+pub const DEFAULT_STAGE_RETENTION_DAYS: u64 = 30;
 
 /// The deployment profile.
 ///
@@ -107,6 +109,8 @@ pub struct Config {
     pub config_root: PathBuf,
     /// Runs a backtest worker executes at once.
     pub backtest_concurrency: u32,
+    /// How long a diagnostic stage run and its artifacts are retained.
+    pub stage_retention_days: u64,
     /// The image digest that serves the request.
     pub image_digest: Option<Digest>,
     /// Whether this process applies pending migrations at startup.
@@ -128,6 +132,7 @@ impl Default for Config {
             static_dir: None,
             config_root: PathBuf::from("config"),
             backtest_concurrency: 1,
+            stage_retention_days: DEFAULT_STAGE_RETENTION_DAYS,
             image_digest: None,
             migrate: true,
         }
@@ -246,6 +251,21 @@ impl Config {
                 }
             };
         }
+        if let Some(value) = values.get("QR_STAGE_RETENTION_DAYS") {
+            let parsed: u64 = value.parse().map_err(|_| ConfigError::Invalid {
+                name: "QR_STAGE_RETENTION_DAYS",
+                value: value.clone(),
+                reason: "must be a positive integer",
+            })?;
+            if parsed == 0 {
+                return Err(ConfigError::Invalid {
+                    name: "QR_STAGE_RETENTION_DAYS",
+                    value: value.clone(),
+                    reason: "must be at least one day",
+                });
+            }
+            config.stage_retention_days = parsed;
+        }
         if let Some(value) = values.get("QR_IMAGE_DIGEST") {
             config.image_digest = Some(Digest::parse(value).map_err(|_| ConfigError::Invalid {
                 name: "QR_IMAGE_DIGEST",
@@ -281,6 +301,7 @@ mod tests {
         assert!(config.data_dir.is_none());
         assert_eq!(config.upload_limit_bytes, DEFAULT_UPLOAD_LIMIT);
         assert_eq!(config.backtest_concurrency, 1);
+        assert_eq!(config.stage_retention_days, DEFAULT_STAGE_RETENTION_DAYS);
         assert!(config.bearer_token.is_none());
         assert!(config.static_dir.is_none());
         assert_eq!(config.config_root, PathBuf::from("config"));
@@ -371,6 +392,19 @@ mod tests {
     #[test]
     fn concurrency_zero_is_rejected() {
         assert!(Config::from_map(&map(&[("QR_BACKTEST_CONCURRENCY", "0")])).is_err());
+    }
+
+    #[test]
+    fn a_stage_retention_is_read_and_zero_is_rejected() {
+        let config =
+            Config::from_map(&map(&[("QR_STAGE_RETENTION_DAYS", "7")])).expect("retention");
+        assert_eq!(config.stage_retention_days, 7);
+        for value in ["0", "-1", "week"] {
+            assert!(
+                Config::from_map(&map(&[("QR_STAGE_RETENTION_DAYS", value)])).is_err(),
+                "{value} was accepted"
+            );
+        }
     }
 
     #[test]

@@ -12,6 +12,30 @@
 //! ([`docs/architecture/control-plane.md`](../../../docs/architecture/control-plane.md)
 //! section 3); the queue records the visibility the caller asks for. A queue
 //! that invented a second policy would diverge from the RabbitMQ profile.
+//!
+//! # Stage topology
+//!
+//! Diagnostic stage work travels on its own queue:
+//!
+//! ```text
+//! exchange  quantrule.runs        (direct, durable)
+//! queue     runs.backtest         run.requested, run.cancelled
+//! queue     runs.evidence         run.computed
+//! queue     runs.dead-letter      run.dead
+//! queue     stages.worker         stage.requested, stage.cancelled
+//! ```
+//!
+//! `stage.computed` and `stage.failed` are notifications with no required
+//! consumer, exactly like `run.failed`; they name the stage row whose state is
+//! authoritative. The stage queue is separate from `runs.backtest` so a long
+//! diagnostic stage cannot delay an evidence run, and the backtest worker
+//! registers the run consumer first. The stage consumer also declares a lower
+//! RabbitMQ consumer priority (`x-priority = -1`) than the run consumer, which
+//! is the default `0`.
+//!
+//! Every stage message carries only the stage run id. It never carries a
+//! reading, a candle, an artifact, or a client path; the stage row holds the
+//! input and the artifact manifest.
 
 /// The run-request work queue.
 pub const QUEUE_BACKTEST: &str = "runs.backtest";
@@ -19,6 +43,8 @@ pub const QUEUE_BACKTEST: &str = "runs.backtest";
 pub const QUEUE_EVIDENCE: &str = "runs.evidence";
 /// The exhausted-retry queue.
 pub const QUEUE_DEAD_LETTER: &str = "runs.dead-letter";
+/// The diagnostic stage work queue.
+pub const QUEUE_STAGE: &str = "stages.worker";
 
 /// A run is ready to execute.
 pub const ROUTING_REQUESTED: &str = "run.requested";
@@ -30,6 +56,30 @@ pub const ROUTING_FAILED: &str = "run.failed";
 pub const ROUTING_CANCELLED: &str = "run.cancelled";
 /// A run spent its retry budget.
 pub const ROUTING_DEAD: &str = "run.dead";
+
+/// A diagnostic stage is ready to execute.
+pub const ROUTING_STAGE_REQUESTED: &str = "stage.requested";
+/// A diagnostic stage recorded its artifact.
+pub const ROUTING_STAGE_COMPUTED: &str = "stage.computed";
+/// A diagnostic stage failed terminally.
+pub const ROUTING_STAGE_FAILED: &str = "stage.failed";
+/// A diagnostic stage was cancelled.
+pub const ROUTING_STAGE_CANCELLED: &str = "stage.cancelled";
+
+/// Whether a routing key belongs to the diagnostic stage surface.
+///
+/// Evidence and workers use this to keep the two surfaces apart: a stage key
+/// never selects a run handler and a run key never selects a stage handler.
+#[must_use]
+pub fn is_stage_routing_key(key: &str) -> bool {
+    matches!(
+        key,
+        ROUTING_STAGE_REQUESTED
+            | ROUTING_STAGE_COMPUTED
+            | ROUTING_STAGE_FAILED
+            | ROUTING_STAGE_CANCELLED
+    )
+}
 
 /// One claimed message and the lease that owns it.
 ///
@@ -88,13 +138,22 @@ mod tests {
 
     #[test]
     fn each_queue_and_routing_key_has_one_name() {
-        let queues = [QUEUE_BACKTEST, QUEUE_EVIDENCE, QUEUE_DEAD_LETTER];
+        let queues = [
+            QUEUE_BACKTEST,
+            QUEUE_EVIDENCE,
+            QUEUE_DEAD_LETTER,
+            QUEUE_STAGE,
+        ];
         let keys = [
             ROUTING_REQUESTED,
             ROUTING_COMPUTED,
             ROUTING_FAILED,
             ROUTING_CANCELLED,
             ROUTING_DEAD,
+            ROUTING_STAGE_REQUESTED,
+            ROUTING_STAGE_COMPUTED,
+            ROUTING_STAGE_FAILED,
+            ROUTING_STAGE_CANCELLED,
         ];
         for (index, name) in queues.iter().enumerate() {
             assert!(!name.is_empty());
@@ -106,6 +165,29 @@ mod tests {
         }
         assert_ne!(QUEUE_BACKTEST, QUEUE_EVIDENCE);
         assert_ne!(QUEUE_EVIDENCE, QUEUE_DEAD_LETTER);
+        assert_ne!(QUEUE_STAGE, QUEUE_BACKTEST);
+    }
+
+    #[test]
+    fn the_stage_surface_is_separate_from_the_run_surface() {
+        for key in [
+            ROUTING_STAGE_REQUESTED,
+            ROUTING_STAGE_COMPUTED,
+            ROUTING_STAGE_FAILED,
+            ROUTING_STAGE_CANCELLED,
+        ] {
+            assert!(is_stage_routing_key(key), "{key}");
+            assert!(key.starts_with("stage."), "{key}");
+        }
+        for key in [
+            ROUTING_REQUESTED,
+            ROUTING_COMPUTED,
+            ROUTING_FAILED,
+            ROUTING_CANCELLED,
+            ROUTING_DEAD,
+        ] {
+            assert!(!is_stage_routing_key(key), "{key}");
+        }
     }
 
     #[test]

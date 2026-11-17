@@ -1,0 +1,362 @@
+//! Execute one claimed diagnostic stage.
+//!
+//! The stage worker claims the row through evidence, checks cancellation,
+//! invokes the executor seam, writes content-addressed blobs and then the
+//! manifest to the stage object namespace, and records the artifact through
+//! evidence. It publishes `stage.computed`, `stage.failed`, or neither; it never
+//! writes a run, a run artifact, a canonical digest, or a label.
+//!
+//! The manifest is the visible edge of the bundle. A failure before it is
+//! written leaves no stage artifact, and a cancellation checked before the first
+//! CAS write leaves the stage cancelled with no artifact. A repeated delivery
+//! is a lookup: a succeeded stage republishes `stage.computed` and does not run
+//! again.
+
+use std::collections::BTreeMap;
+use std::sync::Arc;
+use std::time::Duration;
+
+use quantrule_api::{Digest, StageArtifact, StageRunId, StageState};
+use quantrule_runtime::adapters::{ObjectStore, Queue};
+use quantrule_runtime::client::{ClientError, StageClient};
+use quantrule_runtime::queue::{ROUTING_STAGE_COMPUTED, ROUTING_STAGE_FAILED};
+use quantrule_service_api::{StageClaimOutcome, StageManifest, StageRecord};
+
+use crate::backtest::retry::{self, RetryDecision};
+use crate::stage::executor::{StageDispatch, StageFile};
+
+/// A stage worker failure with a human-readable message.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StageWorkerError(pub String);
+
+impl std::fmt::Display for StageWorkerError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for StageWorkerError {}
+
+/// What one stage delivery did.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StageProcessOutcome {
+    /// The artifact was recorded and `stage.computed` was published.
+    Computed,
+    /// The stage failed terminally on this attempt.
+    Failed,
+    /// A retryable failure; hold the delivery for the delay and try again.
+    Retry {
+        /// How long to wait before the next attempt.
+        delay: Duration,
+    },
+    /// The retry budget is spent; the stage is failed.
+    Exhausted,
+    /// There was nothing to do: missing, running, terminal, or cancelled.
+    Skipped,
+}
+
+/// The stores a stage worker needs.
+pub struct StageWorkerServices {
+    /// The evidence stage lifecycle.
+    pub evidence: Arc<dyn StageClient>,
+    /// The object store.
+    pub objects: Arc<dyn ObjectStore>,
+    /// The control-plane queue.
+    pub queue: Arc<dyn Queue>,
+}
+
+/// Process one `stage.requested` stage run id.
+///
+/// `redelivered` is the broker's flag. It is the only proof that the previous
+/// holder is gone, so it is what lets a running stage be reclaimed.
+///
+/// # Errors
+///
+/// Returns [`StageWorkerError`] when the evidence lifecycle or a message publish
+/// is unavailable. An executor failure is recorded and returned as an outcome,
+/// not an error, so the consumer acknowledges it.
+pub async fn process_stage(
+    stage_run_id: String,
+    redelivered: bool,
+    services: &StageWorkerServices,
+    dispatch: &StageDispatch,
+) -> Result<StageProcessOutcome, StageWorkerError> {
+    let record = match services
+        .evidence
+        .claim_stage(stage_run_id.clone(), redelivered)
+        .await
+        .map_err(stage_error)?
+    {
+        StageClaimOutcome::Claimed(record) => record,
+        StageClaimOutcome::Terminal(record) => {
+            if record.state == StageState::Succeeded && record.artifact.is_some() {
+                // The row is authoritative; republishing closes a lost publish.
+                publish(&services.queue, ROUTING_STAGE_COMPUTED, &stage_run_id).await?;
+            }
+            return Ok(StageProcessOutcome::Skipped);
+        }
+        StageClaimOutcome::Running(record) => {
+            if record.artifact.is_some() {
+                publish(&services.queue, ROUTING_STAGE_COMPUTED, &stage_run_id).await?;
+            }
+            return Ok(StageProcessOutcome::Skipped);
+        }
+        StageClaimOutcome::Exhausted(record) => {
+            return exhaust(
+                services,
+                &stage_run_id,
+                "the retry budget was exhausted",
+                record.attempts,
+            )
+            .await;
+        }
+        StageClaimOutcome::Missing => return Ok(StageProcessOutcome::Skipped),
+    };
+    let attempts = record.attempts;
+
+    // A cancel between the claim and the engine call writes nothing.
+    match cancelled(services, &stage_run_id).await? {
+        Cancellation::Gone | Cancellation::Cancelled => {
+            remove_manifest(&services.objects, &record).await;
+            return Ok(StageProcessOutcome::Skipped);
+        }
+        Cancellation::Live => {}
+    }
+
+    let Some(executor) = dispatch.executor(record.kind) else {
+        return fail(
+            services,
+            &stage_run_id,
+            &format!(
+                "no executor is configured for the {} stage",
+                record.kind.as_str()
+            ),
+        )
+        .await;
+    };
+    let output = match executor.execute(&record).await {
+        Ok(output) => output,
+        Err(error) => return fail(services, &stage_run_id, &error.to_string()).await,
+    };
+
+    // A cancel before the first CAS write must leave no manifest.
+    match cancelled(services, &stage_run_id).await? {
+        Cancellation::Gone | Cancellation::Cancelled => {
+            remove_manifest(&services.objects, &record).await;
+            return Ok(StageProcessOutcome::Skipped);
+        }
+        Cancellation::Live => {}
+    }
+
+    let artifact = match publish_artifact(&services.objects, &record, output.files).await {
+        Ok(artifact) => artifact,
+        Err(error) => {
+            return retry_or_exhaust(services, &stage_run_id, &error.to_string(), attempts).await;
+        }
+    };
+    let stored = match services
+        .evidence
+        .stage_computed(stage_run_id.clone(), artifact)
+        .await
+    {
+        Ok(record) => record,
+        Err(error) => {
+            return retry_or_exhaust(services, &stage_run_id, &error.to_string(), attempts).await;
+        }
+    };
+    if stored.state != StageState::Succeeded {
+        // A cancel or a competing terminal transition won the race after the
+        // manifest was written. The row stays authoritative; remove the visible
+        // edge so no artifact is exposed.
+        remove_manifest(&services.objects, &record).await;
+        return Ok(StageProcessOutcome::Skipped);
+    }
+    publish(&services.queue, ROUTING_STAGE_COMPUTED, &stage_run_id).await?;
+    Ok(StageProcessOutcome::Computed)
+}
+
+/// Whether a stage was cancelled or deleted between two worker boundaries.
+enum Cancellation {
+    /// The stage is still running.
+    Live,
+    /// The operator cancelled it.
+    Cancelled,
+    /// Explicit cleanup deleted the row.
+    Gone,
+}
+
+async fn cancelled(
+    services: &StageWorkerServices,
+    stage_run_id: &str,
+) -> Result<Cancellation, StageWorkerError> {
+    let record = services
+        .evidence
+        .get_stage(stage_run_id.to_owned())
+        .await
+        .map_err(stage_error)?;
+    Ok(match record {
+        None => Cancellation::Gone,
+        Some(record) if record.state == StageState::Cancelled => Cancellation::Cancelled,
+        Some(_) => Cancellation::Live,
+    })
+}
+
+async fn publish_artifact(
+    objects: &Arc<dyn ObjectStore>,
+    record: &StageRecord,
+    files: Vec<StageFile>,
+) -> Result<StageArtifact, StageWorkerError> {
+    let files = normalize(files)?;
+    let mut entries = Vec::with_capacity(files.len());
+    let mut seen: BTreeMap<Digest, Vec<u8>> = BTreeMap::new();
+    for file in files {
+        let sha256 = Digest::sha256(&file.bytes);
+        let bytes = file.bytes.len() as u64;
+        entries.push(quantrule_api::ArtifactRef {
+            name: file.name,
+            bytes,
+            sha256: sha256.clone(),
+        });
+        seen.entry(sha256).or_insert(file.bytes);
+    }
+    for (sha256, bytes) in seen {
+        let key = StageManifest::blob_key(&sha256);
+        let present = objects
+            .exists(&key)
+            .await
+            .map_err(|error| StageWorkerError(error.to_string()))?;
+        if !present {
+            objects
+                .put(&key, bytes)
+                .await
+                .map_err(|error| StageWorkerError(error.to_string()))?;
+        }
+    }
+    let artifact =
+        StageArtifact::from_files(entries).map_err(|error| StageWorkerError(error.to_string()))?;
+    let manifest = StageManifest::new(
+        record.stage_run_id.clone(),
+        record.kind,
+        record.config_id.clone(),
+        &record.provenance,
+        record.input.clone(),
+        artifact.files.clone(),
+    )
+    .map_err(|error| StageWorkerError(error.to_string()))?;
+    let bytes = manifest
+        .to_bytes()
+        .map_err(|error| StageWorkerError(error.to_string()))?;
+    objects
+        .put(&StageManifest::key(&record.stage_run_id), bytes)
+        .await
+        .map_err(|error| StageWorkerError(error.to_string()))?;
+    Ok(artifact)
+}
+
+fn normalize(files: Vec<StageFile>) -> Result<Vec<StageFile>, StageWorkerError> {
+    if files.is_empty() {
+        return Err(StageWorkerError(
+            "a stage executor produced no files".to_owned(),
+        ));
+    }
+    let mut sorted = files;
+    sorted.sort_by(|left, right| left.name.cmp(&right.name));
+    if sorted.windows(2).any(|pair| pair[0].name == pair[1].name) {
+        return Err(StageWorkerError(
+            "a stage executor named a file twice".to_owned(),
+        ));
+    }
+    if sorted.iter().any(|file| file.name.is_empty()) {
+        return Err(StageWorkerError(
+            "a stage executor produced an empty file name".to_owned(),
+        ));
+    }
+    Ok(sorted)
+}
+
+async fn remove_manifest(objects: &Arc<dyn ObjectStore>, record: &StageRecord) {
+    // Best effort: the row is the source of truth, and a failed delete only
+    // leaves an unreferenced key that retention cannot expose.
+    if let Err(error) = objects
+        .delete(&StageManifest::key(&record.stage_run_id))
+        .await
+    {
+        tracing::warn!(stage_run_id = %record.stage_run_id, %error, "the stage manifest was not removed");
+    }
+}
+
+async fn remove_manifest_by_id(objects: &Arc<dyn ObjectStore>, stage_run_id: &str) {
+    let Ok(id) = Digest::parse(stage_run_id) else {
+        return;
+    };
+    if let Err(error) = objects.delete(&StageManifest::key(&StageRunId(id))).await {
+        tracing::warn!(%stage_run_id, %error, "the stage manifest was not removed");
+    }
+}
+
+async fn retry_or_exhaust(
+    services: &StageWorkerServices,
+    stage_run_id: &str,
+    message: &str,
+    attempts: u32,
+) -> Result<StageProcessOutcome, StageWorkerError> {
+    match retry::decide(attempts) {
+        RetryDecision::Retry(delay) => Ok(StageProcessOutcome::Retry { delay }),
+        RetryDecision::DeadLetter => exhaust(services, stage_run_id, message, attempts).await,
+    }
+}
+
+async fn exhaust(
+    services: &StageWorkerServices,
+    stage_run_id: &str,
+    message: &str,
+    _attempts: u32,
+) -> Result<StageProcessOutcome, StageWorkerError> {
+    let record = services
+        .evidence
+        .stage_failed(stage_run_id.to_owned(), message.to_owned())
+        .await
+        .map_err(stage_error)?;
+    if record.state != StageState::Failed {
+        return Ok(StageProcessOutcome::Skipped);
+    }
+    remove_manifest_by_id(&services.objects, stage_run_id).await;
+    publish(&services.queue, ROUTING_STAGE_FAILED, stage_run_id).await?;
+    Ok(StageProcessOutcome::Exhausted)
+}
+
+async fn fail(
+    services: &StageWorkerServices,
+    stage_run_id: &str,
+    message: &str,
+) -> Result<StageProcessOutcome, StageWorkerError> {
+    let record = services
+        .evidence
+        .stage_failed(stage_run_id.to_owned(), message.to_owned())
+        .await
+        .map_err(stage_error)?;
+    if record.state != StageState::Failed {
+        return Ok(StageProcessOutcome::Skipped);
+    }
+    publish(&services.queue, ROUTING_STAGE_FAILED, stage_run_id).await?;
+    Ok(StageProcessOutcome::Failed)
+}
+
+async fn publish(
+    queue: &Arc<dyn Queue>,
+    routing_key: &str,
+    stage_run_id: &str,
+) -> Result<(), StageWorkerError> {
+    queue
+        .publish(
+            routing_key,
+            serde_json::to_vec(&serde_json::json!({ "stage_run_id": stage_run_id }))
+                .map_err(|error| StageWorkerError(error.to_string()))?,
+        )
+        .await
+        .map_err(|error| StageWorkerError(error.to_string()))
+}
+
+fn stage_error(error: ClientError) -> StageWorkerError {
+    StageWorkerError(error.to_string())
+}

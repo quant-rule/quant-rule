@@ -25,6 +25,10 @@ history is in Git and the pull requests.
   `quantrule.stage-manifest/v1` with a computed bundle digest and
   `evidence: false`; and the evidence service's profile-scoped `stage` schema
   with Postgres and SQLite migrations and a content-addressed stage store.
+- The diagnostic stage control plane: `stage.*` queue routes with id-only
+  payloads, evidence submit/list/detail/artifacts/cancel/delete routes, the
+  backtest worker's executor seam and cancellation boundaries, `QR_STAGE_RETENTION_DAYS`
+  cleanup that never touches a run, and the gateway `/stages/*` proxy.
 - The stage execution and evidence-boundary ADR: diagnostic stage runs are
   server-side and content-addressed, while the coupled backtest remains the only
   evidence path and canonical-digest producer.

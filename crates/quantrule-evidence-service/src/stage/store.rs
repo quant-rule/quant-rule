@@ -6,7 +6,9 @@
 //! rules: the id is content-derived, the input belongs to the kind, a stage is
 //! profile-scoped through a submission row, and only a running stage can finish.
 
-use quantrule_api::{ProfileId, StageArtifact, StageInput, StageKind, StageState};
+use quantrule_api::{
+    Digest, ProfileId, StageArtifact, StageInput, StageKind, StageRunId, StageState,
+};
 use quantrule_runtime::adapters::BoxFuture;
 
 pub use quantrule_service_api::{
@@ -50,6 +52,35 @@ impl StageCreateOutcome {
     }
 }
 
+/// What an explicit stage deletion removed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StageDeletion {
+    /// The stage that was deleted.
+    pub stage_run_id: StageRunId,
+    /// The artifact hashes its rows referenced.
+    pub artifact_hashes: Vec<Digest>,
+}
+
+/// What a retention pass removed from the stage tables.
+///
+/// The ids name the manifests to delete; the hashes are candidates whose blobs
+/// are removed only when no remaining stage artifact references them.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct StageExpiry {
+    /// The expired stage runs, in id order.
+    pub stage_run_ids: Vec<StageRunId>,
+    /// The artifact hashes the expired rows referenced.
+    pub artifact_hashes: Vec<Digest>,
+}
+
+impl StageExpiry {
+    /// Whether the pass removed nothing.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.stage_run_ids.is_empty()
+    }
+}
+
 /// Where stage runs live.
 ///
 /// A stage row is never visible through [`crate::runs::RunStore`]: the two
@@ -67,6 +98,7 @@ pub trait StageStore: Send + Sync {
     fn list(
         &self,
         profile: ProfileId,
+        kind: Option<StageKind>,
         state: Option<StageState>,
         limit: usize,
     ) -> BoxFuture<Result<Vec<quantrule_api::StageRunSummary>, StageStoreError>>;
@@ -112,6 +144,26 @@ pub trait StageStore: Send + Sync {
         profile: ProfileId,
         stage_run_id: String,
     ) -> BoxFuture<Result<StageCancelOutcome, StageStoreError>>;
+
+    /// Delete one stage within a profile and return its object references.
+    ///
+    /// The row, its submission, and its artifact rows are removed in one
+    /// transaction. A run row is never named: the stage schema is separate.
+    fn delete(
+        &self,
+        profile: ProfileId,
+        stage_run_id: String,
+    ) -> BoxFuture<Result<Option<StageDeletion>, StageStoreError>>;
+
+    /// Delete every stage whose submission is older than `cutoff`.
+    ///
+    /// `cutoff` is an RFC 3339 UTC instant; the stored instants have one fixed
+    /// spelling, so string order is time order. The stage tables are the only
+    /// relations named.
+    fn purge_expired(&self, cutoff: &str) -> BoxFuture<Result<StageExpiry, StageStoreError>>;
+
+    /// Whether any remaining stage artifact references a hash.
+    fn artifact_referenced(&self, sha256: Digest) -> BoxFuture<Result<bool, StageStoreError>>;
 }
 
 /// Reject a submission whose identity or input contradicts the contract.

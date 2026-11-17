@@ -474,6 +474,16 @@ impl StageManifest {
         format!("stages/{stage_run_id}/manifest.json")
     }
 
+    /// The object key of one content-addressed stage blob.
+    ///
+    /// The blob namespace is disjoint from a run's `artifacts/{sha256}` key, so
+    /// stage retention can delete a stage blob without ever reaching a run
+    /// artifact. Identical stage bytes share one blob.
+    #[must_use]
+    pub fn blob_key(sha256: &Digest) -> String {
+        format!("stages/blobs/{}", sha256.as_hex())
+    }
+
     /// The bundle digest recomputed from the entries.
     ///
     /// This is the `model_artifact_id`, `decisions_artifact_id`, or
@@ -696,6 +706,8 @@ mod tests {
         assert!(!decoded.evidence);
         assert_eq!(decoded.schema, STAGE_MANIFEST_SCHEMA);
         assert!(StageManifest::key(&decoded.stage_run_id).starts_with("stages/"));
+        assert!(StageManifest::blob_key(&digest(b"bytes")).starts_with("stages/blobs/"));
+        assert!(!StageManifest::blob_key(&digest(b"bytes")).starts_with("artifacts/"));
     }
 
     #[test]

@@ -323,6 +323,159 @@ async fn the_internal_run_route_is_not_proxied() {
 }
 
 #[tokio::test]
+async fn a_stage_submission_and_its_read_paths_are_forwarded_unchanged() {
+    let (address, handle) = start(Fake::default()).await;
+    let payload = serde_json::json!({
+        "kind": "model",
+        "config_id": "cfg_valid",
+        "input": {
+            "kind": "data_version",
+            "data_version": format!("sha256:{}", "a".repeat(64)),
+        },
+    })
+    .to_string();
+    let response = router(gateway(address).await)
+        .oneshot(
+            Request::post("/api/v1/stages/model/runs?limit=10")
+                .header(PROFILE_HEADER, "default")
+                .header("content-type", "application/json")
+                .body(Body::from(payload.clone()))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::ACCEPTED);
+    let value: serde_json::Value =
+        serde_json::from_slice(&body_bytes(response).await).expect("json");
+    assert_eq!(value["path"], "/api/v1/stages/model/runs");
+    assert_eq!(value["query"], "limit=10");
+    assert_eq!(value["body"], payload);
+    assert_eq!(value["profiles"], serde_json::json!(["default"]));
+
+    for (method, path) in [
+        (axum::http::Method::GET, "/stages/runs"),
+        (axum::http::Method::GET, "/stages/runs/sha256:abc"),
+        (axum::http::Method::GET, "/stages/runs/sha256:abc/artifacts"),
+        (axum::http::Method::POST, "/stages/runs/sha256:abc/cancel"),
+        (axum::http::Method::DELETE, "/stages/runs/sha256:abc"),
+    ] {
+        let response = router(gateway(address).await)
+            .oneshot(
+                Request::builder()
+                    .method(method.clone())
+                    .uri(path)
+                    .header(PROFILE_HEADER, "default")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::ACCEPTED, "{method} {path}");
+        let value: serde_json::Value =
+            serde_json::from_slice(&body_bytes(response).await).expect("json");
+        assert_eq!(value["path"], path, "{method} {path}");
+        assert_eq!(
+            value["profiles"],
+            serde_json::json!(["default"]),
+            "{method} {path}"
+        );
+    }
+    handle.abort();
+}
+
+#[tokio::test]
+async fn a_stage_path_is_never_rewritten_into_a_run_path() {
+    let (address, handle) = start(Fake::default()).await;
+    let response = router(gateway(address).await)
+        .oneshot(
+            Request::get("/stages/runs")
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    let value: serde_json::Value =
+        serde_json::from_slice(&body_bytes(response).await).expect("json");
+    assert_eq!(value["path"], "/stages/runs");
+    assert_ne!(value["path"], "/runs");
+    handle.abort();
+}
+
+#[tokio::test]
+async fn a_stage_traversal_never_reaches_the_upstream() {
+    let fake = Fake::default();
+    let hits = Arc::clone(&fake.hits);
+    let (address, handle) = start(fake).await;
+    for path in [
+        "/stages/runs/%2e%2e/secret",
+        "/stages/runs/../secret",
+        "/stages/runs/sha256:abc/artifacts/execution/../../secret",
+        "/stages/runs/sha256:abc/artifacts//etc/passwd",
+        "/stages/runs/sha256:abc/artifacts/execution%2Ffills.csv",
+        "/stages/%2e%2e/internal",
+    ] {
+        let response = router(gateway(address).await)
+            .oneshot(
+                Request::get(path)
+                    .header(PROFILE_HEADER, "default")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::NOT_FOUND, "{path}");
+        assert_eq!(hits.load(Ordering::SeqCst), 0, "{path}");
+    }
+    handle.abort();
+}
+
+#[tokio::test]
+async fn a_stage_route_validates_the_profile_like_every_other_proxy() {
+    let fake = Fake::default();
+    let hits = Arc::clone(&fake.hits);
+    let (address, handle) = start(fake).await;
+    let response = router(gateway(address).await)
+        .oneshot(
+            Request::get("/stages/runs")
+                .header(PROFILE_HEADER, "ghost")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    let text = String::from_utf8(body_bytes(response).await).expect("utf8");
+    assert!(text.contains("profile.not_found"), "{text}");
+    assert_eq!(hits.load(Ordering::SeqCst), 0);
+    handle.abort();
+}
+
+#[tokio::test]
+async fn the_internal_stage_route_is_not_proxied() {
+    let fake = Fake::default();
+    let hits = Arc::clone(&fake.hits);
+    let (address, handle) = start(fake).await;
+    for path in [
+        "/internal/v1/stages/sha256:abc",
+        "/internal/v1/stages/sha256:abc/claim",
+    ] {
+        let response = router(gateway(address).await)
+            .oneshot(
+                Request::get(path)
+                    .header(PROFILE_HEADER, "default")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::NOT_FOUND, "{path}");
+        assert_eq!(hits.load(Ordering::SeqCst), 0, "{path}");
+    }
+    handle.abort();
+}
+
+#[tokio::test]
 async fn the_gateway_has_no_run_or_research_store() {
     use std::path::PathBuf;
 
@@ -336,14 +489,21 @@ async fn the_gateway_has_no_run_or_research_store() {
         for forbidden in [
             "runs.runs",
             "runs.submissions",
+            "stage.runs",
+            "stage.submissions",
             "research.hypotheses",
             "PgRunStore",
+            "PgStageStore",
             "PgHypothesisStore",
             "MemoryRuns",
+            "MemoryStages",
+            "StageStore",
             "HypothesisStore",
             "submit_run",
+            "submit_stage",
             "create_hypothesis",
             "ROUTING_REQUESTED",
+            "ROUTING_STAGE_REQUESTED",
             "ROUTING_CANCELLED",
         ] {
             assert!(

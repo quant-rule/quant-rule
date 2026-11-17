@@ -2,13 +2,15 @@
 //!
 //! The gateway serves `/health`, `/version`, and profiles. The data, model,
 //! evidence, and simulation surfaces are proxied: `/catalog/*`, `/datasets/*`,
-//! `/inspect/*`, `/model/*`, `/runs/*`, `/hypotheses/*`, and `/simulation/*` are
-//! forwarded to their service with the validated profile header, the method, the
-//! path, the query, and a streamed body. The one rewritten route is
-//! `/inspect/events`: inspection computes a model, so the gateway forwards it to
-//! the model service's internal event-batch route instead of the data service.
-//! The gateway has no dataset, config, inspection, model, run, research, or
-//! simulation handler.
+//! `/inspect/*`, `/model/*`, `/runs/*`, `/stages/*`, `/hypotheses/*`, and
+//! `/simulation/*` are forwarded to their service with the validated profile
+//! header, the method, the path, the query, and a streamed body. The one
+//! rewritten route is `/inspect/events`: inspection computes a model, so the
+//! gateway forwards it to the model service's internal event-batch route
+//! instead of the data service. The gateway has no dataset, config, inspection,
+//! model, run, stage, research, or simulation handler. `/stages` is a distinct
+//! prefix from `/runs`: a diagnostic stage path is forwarded unchanged and is
+//! never rewritten into a run path.
 //!
 //! Every API route passes through the bearer seam when `QR_BEARER_TOKEN` is set;
 //! the static client is served by the fallback outside that layer.
@@ -168,6 +170,8 @@ fn routes() -> Router<Arc<AppState>> {
         .route("/runs/{id}/artifacts/{*name}", any(proxy_evidence))
         .route("/hypotheses", any(proxy_evidence))
         .route("/hypotheses/{*rest}", any(proxy_evidence))
+        .route("/stages", any(proxy_evidence))
+        .route("/stages/{*rest}", any(proxy_evidence))
         .route("/catalog", any(proxy_data))
         .route("/catalog/{*rest}", any(proxy_data))
         .route("/datasets/{*rest}", any(proxy_data))
@@ -610,7 +614,7 @@ async fn forward_evidence(
 /// a `.` or `..` segment, a backslash, or an encoded separator or parent path
 /// is refused before it reaches evidence.
 fn evidence_path_allowed(path: &str) -> bool {
-    const PREFIXES: [&str; 2] = ["/runs", "/hypotheses"];
+    const PREFIXES: [&str; 3] = ["/runs", "/stages", "/hypotheses"];
     let lowered = path.to_ascii_lowercase();
     if lowered.contains("%2e") || lowered.contains("%2f") || lowered.contains("%5c") {
         return false;

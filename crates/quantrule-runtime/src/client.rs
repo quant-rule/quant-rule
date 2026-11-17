@@ -26,10 +26,12 @@ use crate::adapters::BoxFuture;
 mod counts;
 mod evidence;
 mod model;
+mod stage;
 
 pub use counts::{COUNT_PAGE, MemoryCounts, RunCounter, SimulationCounter};
 pub use evidence::{EvidenceClient, MemoryEvidence};
 pub use model::{MemoryModel, ModelClient};
+pub use stage::{MemoryStageClient, StageClient};
 
 /// A service reachable on the internal network.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

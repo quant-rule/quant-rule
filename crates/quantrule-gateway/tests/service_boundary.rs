@@ -83,7 +83,7 @@ const SERVICES: [Service; 6] = [
     Service {
         package: "quantrule-evidence-service",
         binary: "qr-evidence",
-        schemas: &["runs", "research"],
+        schemas: &["runs", "research", "stage"],
         imports: &[
             "quantrule_api",
             "quantrule_evidence_service",
@@ -106,7 +106,14 @@ const SERVICES: [Service; 6] = [
 ];
 
 /// Every schema a service owns in v1.0.0.
-const SCHEMAS: [&str; 5] = ["catalog", "runs", "research", "simulation", "gateway"];
+const SCHEMAS: [&str; 6] = [
+    "catalog",
+    "runs",
+    "stage",
+    "research",
+    "simulation",
+    "gateway",
+];
 
 /// The packages the gateway must never reach, directly or transitively.
 const GATEWAY_FORBIDDEN: [&str; 9] = [

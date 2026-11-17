@@ -315,6 +315,13 @@ pub trait ObjectStore: Send + Sync {
 
     /// Whether a key exists.
     fn exists(&self, key: &str) -> BoxFuture<Result<bool, StoreError>>;
+
+    /// Delete the bytes under a key.
+    ///
+    /// Deleting a key that does not exist succeeds: retention is idempotent, and
+    /// a cleanup that races a second cleanup must not fail. A run artifact is
+    /// never deleted; only the caller that owns a key namespace calls this.
+    fn delete(&self, key: &str) -> BoxFuture<Result<(), StoreError>>;
 }
 
 /// The control-plane queue.
@@ -369,6 +376,15 @@ mod tests {
             let inner = Arc::clone(&self.inner);
             let key = key.to_owned();
             Box::pin(async move { Ok(inner.lock().expect("lock").contains_key(&key)) })
+        }
+
+        fn delete(&self, key: &str) -> BoxFuture<Result<(), StoreError>> {
+            let inner = Arc::clone(&self.inner);
+            let key = key.to_owned();
+            Box::pin(async move {
+                inner.lock().expect("lock").remove(&key);
+                Ok(())
+            })
         }
     }
 

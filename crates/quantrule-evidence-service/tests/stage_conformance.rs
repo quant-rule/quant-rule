@@ -165,28 +165,28 @@ async fn run_conformance(store: &dyn StageStore, token: &str) {
 
     assert_eq!(
         store
-            .list(alpha.clone(), None, 50)
+            .list(alpha.clone(), None, None, 50)
             .await
             .expect("alpha list"),
         vec![record.summary()]
     );
     assert!(
         store
-            .list(gamma.clone(), None, 50)
+            .list(gamma.clone(), None, None, 50)
             .await
             .expect("gamma list")
             .is_empty()
     );
     assert_eq!(
         store
-            .list(alpha.clone(), Some(StageState::Queued), 50)
+            .list(alpha.clone(), None, Some(StageState::Queued), 50)
             .await
             .expect("the queued list"),
         vec![record.summary()]
     );
     assert!(
         store
-            .list(alpha.clone(), Some(StageState::Succeeded), 50)
+            .list(alpha.clone(), None, Some(StageState::Succeeded), 50)
             .await
             .expect("the succeeded list")
             .is_empty()
@@ -200,13 +200,30 @@ async fn run_conformance(store: &dyn StageStore, token: &str) {
     assert!(second.created());
     assert_eq!(second.record().kind, StageKind::Strategy);
     let second_id = second.record().stage_run_id.to_string();
-    let listed = store.list(alpha.clone(), None, 50).await.expect("the list");
+    let listed = store
+        .list(alpha.clone(), None, None, 50)
+        .await
+        .expect("the list");
     assert_eq!(listed.len(), 2);
     assert_eq!(listed[0].stage_run_id, second.record().stage_run_id);
     assert_eq!(listed[1].stage_run_id, record.stage_run_id);
+    let kind_filtered = store
+        .list(alpha.clone(), Some(StageKind::Strategy), None, 50)
+        .await
+        .expect("the kind filter");
+    assert_eq!(kind_filtered.len(), 1);
+    assert_eq!(kind_filtered[0].stage_run_id, second.record().stage_run_id);
     assert_eq!(
         store
-            .list(alpha.clone(), None, 1)
+            .list(alpha.clone(), Some(StageKind::Portfolio), None, 50)
+            .await
+            .expect("the empty kind filter")
+            .len(),
+        0
+    );
+    assert_eq!(
+        store
+            .list(alpha.clone(), None, None, 1)
             .await
             .expect("the limit")
             .len(),
@@ -411,6 +428,65 @@ async fn run_conformance(store: &dyn StageStore, token: &str) {
             .await
             .is_err(),
         "a failure of an unknown stage succeeded"
+    );
+
+    let fourth = new_run(token, "fourth", StageKind::Model, "2026-11-17T00:00:03Z");
+    let fourth = store
+        .create(alpha.clone(), fourth)
+        .await
+        .expect("the fourth stage");
+    let fourth_id = fourth.record().stage_run_id.to_string();
+    store
+        .claim(fourth_id.clone(), false)
+        .await
+        .expect("the fourth claim");
+    let unique = StageArtifact::from_files(vec![ArtifactRef {
+        name: "unique.json".to_owned(),
+        bytes: 6,
+        sha256: digest(format!("unique-{token}")),
+    }])
+    .expect("the unique artifact");
+    store
+        .complete(fourth_id.clone(), unique.clone())
+        .await
+        .expect("the fourth completion");
+    let unique_hash = unique.files[0].sha256.clone();
+
+    assert!(
+        store
+            .delete(beta.clone(), fourth_id.clone())
+            .await
+            .expect("the other profile delete")
+            .is_none(),
+        "another profile deleted a stage it did not submit"
+    );
+    let deletion = store
+        .delete(alpha.clone(), fourth_id.clone())
+        .await
+        .expect("the delete")
+        .expect("the deleted stage");
+    assert_eq!(deletion.stage_run_id.to_string(), fourth_id);
+    assert_eq!(deletion.artifact_hashes, vec![unique_hash.clone()]);
+    assert_eq!(
+        store
+            .get(alpha.clone(), fourth_id)
+            .await
+            .expect("the deleted get"),
+        None
+    );
+    assert!(
+        !store
+            .artifact_referenced(unique_hash)
+            .await
+            .expect("the artifact reference"),
+        "a deleted stage still references its artifact"
+    );
+    assert!(
+        store
+            .artifact_referenced(artifacts().files[0].sha256.clone())
+            .await
+            .expect("the shared artifact reference"),
+        "the delete removed another stage's artifact reference"
     );
 }
 

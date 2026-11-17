@@ -16,16 +16,20 @@
 
 pub mod memory;
 pub mod postgres;
+pub mod retention;
 pub mod sqlite;
 pub mod store;
+pub mod verify;
 
 pub use memory::MemoryStages;
 pub use postgres::PgStageStore;
 pub use quantrule_service_api::{
     MAX_ATTEMPTS, NewStageRun, StageCancelOutcome, StageClaimOutcome, StageRecord,
 };
+pub use retention::{RetentionError, RetentionReport, cutoff, purge_expired, remove_deleted};
 pub use sqlite::SqliteStageStore;
-pub use store::{StageCreateOutcome, StageStore, StageStoreError};
+pub use store::{StageCreateOutcome, StageDeletion, StageExpiry, StageStore, StageStoreError};
+pub use verify::{StageVerifyError, record_computed};
 
 #[cfg(test)]
 mod tests {

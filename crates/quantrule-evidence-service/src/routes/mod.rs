@@ -8,6 +8,8 @@
 pub mod hypotheses;
 pub mod internal;
 pub mod runs;
+pub mod stage_internal;
+pub mod stages;
 
 use std::sync::Arc;
 
@@ -60,6 +62,17 @@ fn routes() -> Router<Arc<EvidenceState>> {
         .route("/runs/{id}/digest", get(runs::get_run_digest))
         .route("/hypotheses", post(hypotheses::create_hypothesis))
         .route("/hypotheses/{fingerprint}", get(hypotheses::get_hypothesis))
+        .route("/stages/{kind}/runs", post(stages::submit_stage))
+        .route("/stages/runs", get(stages::list_stages))
+        .route(
+            "/stages/runs/{id}",
+            get(stages::get_stage).delete(stages::delete_stage),
+        )
+        .route(
+            "/stages/runs/{id}/artifacts",
+            get(stages::get_stage_artifacts),
+        )
+        .route("/stages/runs/{id}/cancel", post(stages::cancel_stage))
         .route("/internal/v1/runs/{id}", get(internal::get_run))
         .route("/internal/v1/runs/{id}/claim", post(internal::claim_run))
         .route(
@@ -67,6 +80,19 @@ fn routes() -> Router<Arc<EvidenceState>> {
             post(internal::computed_run),
         )
         .route("/internal/v1/runs/{id}/failed", post(internal::failed_run))
+        .route("/internal/v1/stages/{id}", get(stage_internal::get_stage))
+        .route(
+            "/internal/v1/stages/{id}/claim",
+            post(stage_internal::claim_stage),
+        )
+        .route(
+            "/internal/v1/stages/{id}/computed",
+            post(stage_internal::computed_stage),
+        )
+        .route(
+            "/internal/v1/stages/{id}/failed",
+            post(stage_internal::failed_stage),
+        )
 }
 
 /// Build the service router.
