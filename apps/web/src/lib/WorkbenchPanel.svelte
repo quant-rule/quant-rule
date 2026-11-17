@@ -1,12 +1,13 @@
 <script lang="ts">
   import DatasetsPanel from "./DatasetsPanel.svelte";
   import ModelStagePanel from "./ModelStagePanel.svelte";
+  import PortfolioStagePanel from "./PortfolioStagePanel.svelte";
   import StrategyStagePanel from "./StrategyStagePanel.svelte";
   import { clearSelection } from "./stages.svelte";
 
-  let tab = $state<"data" | "model" | "strategy">("data");
+  let tab = $state<"data" | "model" | "strategy" | "portfolio">("data");
 
-  function switchTab(next: "data" | "model" | "strategy"): void {
+  function switchTab(next: "data" | "model" | "strategy" | "portfolio"): void {
     if (next === tab) {
       return;
     }
@@ -41,14 +42,24 @@
     >
       Strategy
     </button>
+    <button
+      role="tab"
+      aria-selected={tab === "portfolio"}
+      class:active={tab === "portfolio"}
+      onclick={() => switchTab("portfolio")}
+    >
+      Portfolio
+    </button>
   </div>
 
   {#if tab === "data"}
     <DatasetsPanel />
   {:else if tab === "model"}
     <ModelStagePanel />
-  {:else}
+  {:else if tab === "strategy"}
     <StrategyStagePanel />
+  {:else}
+    <PortfolioStagePanel />
   {/if}
 </section>
 

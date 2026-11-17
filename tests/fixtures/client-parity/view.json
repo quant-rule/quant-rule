@@ -14,6 +14,7 @@
     "run cancel",
     "stage run model",
     "stage run strategy",
+    "stage run portfolio",
     "stage explain",
     "stage list",
     "stage show",
@@ -257,6 +258,15 @@
       "submitted_at": "2026-11-17T00:00:01Z",
       "artifact_id": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
       "evidence": false
+    },
+    {
+      "stage_run_id": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+      "kind": "portfolio",
+      "state": "succeeded",
+      "config_id": "cfg_abc",
+      "submitted_at": "2026-11-17T00:00:02Z",
+      "artifact_id": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+      "evidence": false
     }
   ],
   "stage": {
@@ -426,5 +436,96 @@
     "position_before": "long",
     "position_after": "long",
     "atr14": 1.5
+  },
+  "portfolio_stage_submit": {
+    "stage_run_id": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+    "state": "queued",
+    "created": true
+  },
+  "portfolio_stage": {
+    "stage_run_id": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+    "kind": "portfolio",
+    "state": "succeeded",
+    "owner": "default",
+    "config_id": "cfg_abc",
+    "input": {
+      "kind": "decisions_artifact",
+      "decisions_artifact_id": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+    },
+    "provenance": {
+      "data_version": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "config_hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "model_version": "M1.0",
+      "image_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    },
+    "artifact": {
+      "artifact_id": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+      "files": [
+        {
+          "name": "execution/orders.csv",
+          "bytes": 199,
+          "sha256": "sha256:632061ec3bd8638ccedb0605795e6e11df870256ce67fec2fea9bd699a89bade"
+        },
+        {
+          "name": "execution/fills.csv",
+          "bytes": 121,
+          "sha256": "sha256:f1026cb1bde82dc07527de08b5bbe058e9ecadaab6323b4049bebb07baf60457"
+        },
+        {
+          "name": "execution/rejections.csv",
+          "bytes": 25,
+          "sha256": "sha256:ab8f57d4fc9e27cd750b8555ee5a1d8e4520e9297db2ad2dc56f255e5b4f9ab8"
+        },
+        {
+          "name": "execution/summary.txt",
+          "bytes": 63,
+          "sha256": "sha256:1ab0f97afde9586b9debc8960fef0417e5e9256e1a27c273c192eb4f4997d313"
+        },
+        {
+          "name": "execution/provenance.json",
+          "bytes": 129,
+          "sha256": "sha256:4f2de6c1741f339f3a686d222521facb03abe4586820f78f57d64813b72168cb"
+        },
+        {
+          "name": "portfolio/trades.csv",
+          "bytes": 176,
+          "sha256": "sha256:57f1d4277319d6eb7d23836bd91d676c8789a579e968f77857b45d07afce4a0e"
+        },
+        {
+          "name": "portfolio/equity.csv",
+          "bytes": 53,
+          "sha256": "sha256:74ca75c248223962a0aa5a5851f66d931a473f9bbc843293d50a98c5a4ff2f4c"
+        },
+        {
+          "name": "portfolio/funding.csv",
+          "bytes": 36,
+          "sha256": "sha256:f5f1a91d91b1ee4f6b5d7846e7ba13210b3b299c2a9fbab633ac25102668a3d0"
+        },
+        {
+          "name": "portfolio/risk_events.csv",
+          "bytes": 43,
+          "sha256": "sha256:53944a721adfa0996702e9a5f498de1f1015a4c84e68c786620aaf4b191e11c3"
+        },
+        {
+          "name": "portfolio/metrics.json",
+          "bytes": 218,
+          "sha256": "sha256:2be3cb2fae969f65084bf628a26b44ff3f605d56f55f100090a0bace85fbe2e7"
+        },
+        {
+          "name": "portfolio/summary.txt",
+          "bytes": 68,
+          "sha256": "sha256:185efa3ac1aef1f0527f4c16facae09ec7c4912819256a392c97fe5bbae0f7a4"
+        },
+        {
+          "name": "portfolio/provenance.json",
+          "bytes": 133,
+          "sha256": "sha256:522ccc6ccdf4cec2f74a0ab5ad4534de6fcf2f0e0cb9cc9580e478f8764b242b"
+        }
+      ]
+    },
+    "submitted_at": "2026-11-17T00:00:02Z",
+    "error": null,
+    "attempts": 1,
+    "evidence": false
   }
 }

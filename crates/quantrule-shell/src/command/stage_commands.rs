@@ -95,6 +95,37 @@ pub(crate) fn stage_run_strategy(
     })
 }
 
+pub(crate) fn stage_run_portfolio(
+    client: &Client,
+    globals: &GlobalOptions,
+    stdout: &mut impl Write,
+    decisions_artifact_id: &str,
+    config_id: &str,
+) -> Result<(), RunError> {
+    let artifact = Digest::parse(decisions_artifact_id)
+        .map_err(|error| RunError::Usage(format!("decisions_artifact_id {error}")))?;
+    let request = StageRunRequest {
+        kind: StageKind::Portfolio,
+        config_id: config_id.to_owned(),
+        input: StageInput::DecisionsArtifact {
+            decisions_artifact_id: artifact,
+        },
+    };
+    let body = serde_json::to_string(&request)
+        .map_err(|error| RunError::decode("the stage submission", error))?;
+    let response = client.post_json("/stages/portfolio/runs", &body)?;
+    let submitted: StageSubmitResponse =
+        decode!(StageSubmitResponse, response, "/stages/portfolio/runs")?;
+    output::emit(globals.json, json_view!(&submitted)?, stdout, |writer| {
+        output::stage_submitted(
+            writer,
+            &submitted.stage_run_id.to_string(),
+            submitted.state.as_str(),
+            submitted.created,
+        )
+    })
+}
+
 pub(crate) fn stage_explain(
     client: &Client,
     globals: &GlobalOptions,

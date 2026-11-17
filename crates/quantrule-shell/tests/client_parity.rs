@@ -142,6 +142,23 @@ fn shell_view(fixture: &Fixture) -> Value {
         fixture,
         &["stage", "explain", strategy_stage_id, "--bar", "1"],
     );
+    let portfolio_stage_id = api["portfolio_stage_id"]
+        .as_str()
+        .expect("the fixture portfolio stage id");
+    let portfolio_decisions_artifact = api["portfolio_decisions_artifact_id"]
+        .as_str()
+        .expect("the fixture portfolio decisions artifact id");
+    let portfolio_stage_submit = command(
+        fixture,
+        &[
+            "stage",
+            "run",
+            "portfolio",
+            portfolio_decisions_artifact,
+            config_id,
+        ],
+    );
+    let portfolio_stage = command(fixture, &["stage", "show", portfolio_stage_id]);
 
     json!({
         "profile": PROFILE,
@@ -176,6 +193,8 @@ fn shell_view(fixture: &Fixture) -> Value {
         "strategy_stage_submit": strategy_stage_submit,
         "strategy_stage": strategy_stage,
         "strategy_explain": strategy_explain,
+        "portfolio_stage_submit": portfolio_stage_submit,
+        "portfolio_stage": portfolio_stage,
     })
 }
 
@@ -200,7 +219,7 @@ fn the_shell_view_matches_the_shared_client_parity_view() {
     }
 
     let requests = fixture.requests();
-    assert_eq!(requests.len(), 29, "one request per parity operation");
+    assert_eq!(requests.len(), 31, "one request per parity operation");
     let api = client_parity_api();
     let dataset_id = api["dataset_id"].as_str().expect("the fixture dataset id");
     let run_id = api["run_id"].as_str().expect("the fixture run id");
@@ -208,6 +227,9 @@ fn the_shell_view_matches_the_shared_client_parity_view() {
     let strategy_stage_id = api["strategy_stage_id"]
         .as_str()
         .expect("the fixture strategy stage id");
+    let portfolio_stage_id = api["portfolio_stage_id"]
+        .as_str()
+        .expect("the fixture portfolio stage id");
     let paths: Vec<String> = requests
         .iter()
         .map(|request| request.path.clone())
@@ -244,6 +266,8 @@ fn the_shell_view_matches_the_shared_client_parity_view() {
             format!("/stages/runs/{strategy_stage_id}"),
             format!("/stages/runs/{strategy_stage_id}"),
             format!("/stages/runs/{strategy_stage_id}/artifacts/decisions.ndjson"),
+            String::from("/stages/portfolio/runs"),
+            format!("/stages/runs/{portfolio_stage_id}"),
         ]
     );
     let methods: Vec<&str> = requests
@@ -255,7 +279,7 @@ fn the_shell_view_matches_the_shared_client_parity_view() {
         vec![
             "GET", "GET", "GET", "GET", "GET", "GET", "GET", "GET", "GET", "GET", "GET", "GET",
             "GET", "GET", "POST", "GET", "GET", "GET", "GET", "GET", "GET", "GET", "GET", "POST",
-            "DELETE", "POST", "GET", "GET", "GET",
+            "DELETE", "POST", "GET", "GET", "GET", "POST", "GET",
         ]
     );
     for request in &requests {

@@ -1,4 +1,5 @@
 import { call, callVoid, errorText } from "./api";
+import { portfolioView } from "./portfolio";
 import {
   downloadStageArtifact,
   explainDecision,
@@ -7,6 +8,7 @@ import {
   stagePath,
 } from "./stage";
 import type {
+  PortfolioView,
   StageDecision,
   StageEventView,
   StageRunDetail,
@@ -33,7 +35,21 @@ export interface Stages {
   decisions: StageDecision[];
   decisionsError: string | null;
   decisionsLoading: boolean;
+  portfolio: PortfolioView | null;
+  portfolioError: string | null;
+  portfolioLoading: boolean;
 }
+
+const PORTFOLIO_FILES = [
+  "execution/orders.csv",
+  "execution/fills.csv",
+  "execution/rejections.csv",
+  "execution/summary.txt",
+  "portfolio/trades.csv",
+  "portfolio/risk_events.csv",
+  "portfolio/metrics.json",
+  "portfolio/summary.txt",
+];
 
 let current = $state<Stages>({
   items: [],
@@ -53,6 +69,9 @@ let current = $state<Stages>({
   decisions: [],
   decisionsError: null,
   decisionsLoading: false,
+  portfolio: null,
+  portfolioError: null,
+  portfolioLoading: false,
 });
 
 /** A counter that makes an in-flight read from a previous profile stale. */
@@ -79,6 +98,9 @@ export function reset(): void {
     decisions: [],
     decisionsError: null,
     decisionsLoading: false,
+    portfolio: null,
+    portfolioError: null,
+    portfolioLoading: false,
   };
 }
 
@@ -175,6 +197,42 @@ export async function submitStrategy(
   }
 }
 
+/** Submit one portfolio stage, then reload the list. */
+export async function submitPortfolio(
+  decisionsArtifactId: string,
+  configId: string,
+): Promise<StageSubmitResponse | null> {
+  const at = generation;
+  current = { ...current, error: null };
+  try {
+    const response = await call<StageSubmitResponse>("/stages/portfolio/runs", {
+      method: "POST",
+      body: JSON.stringify({
+        kind: "portfolio",
+        config_id: configId,
+        input: {
+          kind: "decisions_artifact",
+          decisions_artifact_id: decisionsArtifactId,
+        },
+      }),
+    });
+    if (at !== generation) {
+      return null;
+    }
+    await load();
+    if (at !== generation) {
+      return null;
+    }
+    return response;
+  } catch (error) {
+    if (at !== generation) {
+      return null;
+    }
+    current = { ...current, error: errorText(error) };
+    return null;
+  }
+}
+
 /** Read one stage detail. */
 export async function loadDetail(stageRunId: string): Promise<void> {
   const at = generation;
@@ -185,6 +243,9 @@ export async function loadDetail(stageRunId: string): Promise<void> {
     decisions: [],
     decisionsError: null,
     decisionsLoading: false,
+    portfolio: null,
+    portfolioError: null,
+    portfolioLoading: false,
   };
   try {
     const detail = await call<StageRunDetail>(stagePath(stageRunId));
@@ -206,6 +267,8 @@ export async function loadDetail(stageRunId: string): Promise<void> {
     };
     if (detail.kind === "strategy") {
       await loadDecisions();
+    } else if (detail.kind === "portfolio") {
+      await loadPortfolio();
     }
   } catch (error) {
     if (at !== generation) {
@@ -234,6 +297,9 @@ export async function select(stageRunId: string): Promise<void> {
     decisions: [],
     decisionsError: null,
     decisionsLoading: false,
+    portfolio: null,
+    portfolioError: null,
+    portfolioLoading: false,
   };
   await loadDetail(stageRunId);
 }
@@ -252,6 +318,9 @@ export function clearSelection(): void {
     decisions: [],
     decisionsError: null,
     decisionsLoading: false,
+    portfolio: null,
+    portfolioError: null,
+    portfolioLoading: false,
   };
 }
 
@@ -295,6 +364,9 @@ export async function remove(stageRunId: string): Promise<void> {
       decisions: [],
       decisionsError: null,
       decisionsLoading: false,
+      portfolio: null,
+      portfolioError: null,
+      portfolioLoading: false,
     };
     await load();
   } catch (error) {
@@ -358,6 +430,51 @@ export async function loadEvents(timeframe: string): Promise<void> {
       events: null,
       eventsLoading: false,
       eventsError: errorText(error),
+    };
+  }
+}
+
+/** Read the published execution and portfolio bundles for the open stage. */
+export async function loadPortfolio(): Promise<void> {
+  const at = generation;
+  const detail = current.detail;
+  current = {
+    ...current,
+    portfolioLoading: true,
+    portfolioError: null,
+    portfolio: null,
+  };
+  if (detail === null || detail.kind !== "portfolio" || detail.artifact === null) {
+    current = { ...current, portfolioLoading: false };
+    return;
+  }
+  const texts: Record<string, string> = {};
+  try {
+    for (const name of PORTFOLIO_FILES) {
+      const file = detail.artifact.files.find((artifact) => artifact.name === name);
+      if (file === undefined) {
+        throw new Error(`the stage artifact has no ${name}`);
+      }
+      const bytes = await downloadStageArtifact(detail.stage_run_id, file);
+      if (at !== generation) {
+        return;
+      }
+      texts[name] = new TextDecoder().decode(bytes);
+    }
+    current = {
+      ...current,
+      portfolio: portfolioView(texts),
+      portfolioLoading: false,
+    };
+  } catch (error) {
+    if (at !== generation) {
+      return;
+    }
+    current = {
+      ...current,
+      portfolio: null,
+      portfolioLoading: false,
+      portfolioError: errorText(error),
     };
   }
 }

@@ -127,6 +127,114 @@ pub fn strategy_stage_detail(state: &str) -> Value {
     })
 }
 
+/// The portfolio-stage fixture id.
+pub fn portfolio_stage_id() -> String {
+    digest('6')
+}
+
+/// The decisions artifact the portfolio fixture consumes.
+pub fn portfolio_decisions_artifact_id() -> String {
+    digest('7')
+}
+
+/// The published execution and portfolio fixture files.
+pub fn portfolio_files() -> Vec<(String, Vec<u8>)> {
+    vec![
+        (
+            "execution/orders.csv".to_owned(),
+            b"order_id,submitted_bar,submitted_time,side,quantity,reason,trigger_kind,trigger_price,state,filled_bar,filled_time,fill_id,rejection_reason
+0,0,1704067200,buy,10,entry,market,,filled,1,1704067260,0,
+".to_vec(),
+        ),
+        (
+            "execution/fills.csv".to_owned(),
+            b"fill_id,side,quantity,reference_price,price,slippage,fee,bar,time,reason
+0,buy,10,100.0,100.0,0.0,0.0,1,1704067260,entry
+".to_vec(),
+        ),
+        (
+            "execution/rejections.csv".to_owned(),
+            b"order_id,bar,time,reason
+".to_vec(),
+        ),
+        (
+            "execution/summary.txt".to_owned(),
+            b"QuantRule execution run\nfills: count=1\ncosts: fee=0 slippage=0\n".to_vec(),
+        ),
+        (
+            "execution/provenance.json".to_owned(),
+            b"{\"schema\":\"quantrule.stage-provenance/v1\",\"stage\":\"execution\",\"artifact\":\"fills\",\"data_version\":\"fixture\",\"config_id\":\"fixture\"}\n".to_vec(),
+        ),
+        (
+            "portfolio/trades.csv".to_owned(),
+            b"trade_id,side,quantity,entry_bar,entry_time,entry_price,exit_bar,exit_time,exit_price,gross_pnl,execution_fees,commission,funding,net_pnl,return_fraction,hold_bars,exit_reason
+".to_vec(),
+        ),
+        (
+            "portfolio/equity.csv".to_owned(),
+            b"date,cash,position_value,equity,peak_equity,drawdown\n".to_vec(),
+        ),
+        (
+            "portfolio/funding.csv".to_owned(),
+            b"bar,time,rate,price,quantity,amount\n".to_vec(),
+        ),
+        (
+            "portfolio/risk_events.csv".to_owned(),
+            b"bar,time,drawdown,equity,peak_equity,limit\n".to_vec(),
+        ),
+        (
+            "portfolio/metrics.json".to_owned(),
+            b"{\"schema\":\"quantrule.portfolio-metrics/v1\",\"initial_cash\":10000.0,\"final_equity\":10000.0,\"net_pnl\":0.0,\"execution_fees\":0.0,\"commission\":0.0,\"funding_paid\":0.0,\"funding_received\":0.0,\"max_drawdown\":0.0,\"halted\":false}\n".to_vec(),
+        ),
+        (
+            "portfolio/summary.txt".to_owned(),
+            b"QuantRule portfolio replay\nnet_pnl: 0\nfunding_paid: 0\nhalted: false\n".to_vec(),
+        ),
+        (
+            "portfolio/provenance.json".to_owned(),
+            b"{\"schema\":\"quantrule.stage-provenance/v1\",\"stage\":\"portfolio\",\"artifact\":\"portfolio\",\"data_version\":\"fixture\",\"config_id\":\"fixture\"}\n".to_vec(),
+        ),
+    ]
+}
+
+/// A portfolio stage detail with prefixed artifact names.
+pub fn portfolio_stage_detail(state: &str) -> Value {
+    let files = portfolio_files();
+    json!({
+        "stage_run_id": portfolio_stage_id(),
+        "kind": "portfolio",
+        "state": state,
+        "owner": "default",
+        "config_id": "cfg_abc",
+        "input": {
+            "kind": "decisions_artifact",
+            "decisions_artifact_id": portfolio_decisions_artifact_id(),
+        },
+        "provenance": {
+            "data_version": data_version(),
+            "config_hash": config_hash(),
+            "model_version": "M1.0",
+            "image_digest": image_digest(),
+        },
+        "artifact": if state == "succeeded" {
+            json!({
+                "artifact_id": digest('5'),
+                "files": files.iter().map(|(name, bytes)| json!({
+                    "name": name,
+                    "bytes": bytes.len(),
+                    "sha256": quantrule_api::Digest::sha256(bytes).to_string(),
+                })).collect::<Vec<Value>>(),
+            })
+        } else {
+            Value::Null
+        },
+        "submitted_at": "2026-11-17T00:00:02Z",
+        "error": Value::Null,
+        "attempts": 1,
+        "evidence": false,
+    })
+}
+
 /// Answer one default-fixture stage route.
 pub(super) fn stage_route(request: &super::Request, segments: &[&str]) -> Option<Response> {
     match (request.method.as_str(), segments) {
@@ -142,6 +250,14 @@ pub(super) fn stage_route(request: &super::Request, segments: &[&str]) -> Option
             202,
             &json!({
                 "stage_run_id": strategy_stage_id(),
+                "state": "queued",
+                "created": true,
+            }),
+        )),
+        ("POST", ["stages", "portfolio", "runs"]) => Some(Response::json(
+            202,
+            &json!({
+                "stage_run_id": portfolio_stage_id(),
                 "state": "queued",
                 "created": true,
             }),
@@ -163,6 +279,9 @@ pub(super) fn stage_route(request: &super::Request, segments: &[&str]) -> Option
         }
         ("GET", ["stages", "runs", id]) if *id == strategy_stage_id() => {
             Some(Response::json(200, &strategy_stage_detail("succeeded")))
+        }
+        ("GET", ["stages", "runs", id]) if *id == portfolio_stage_id() => {
+            Some(Response::json(200, &portfolio_stage_detail("succeeded")))
         }
         ("GET", ["stages", "runs", _]) => Some(Response::json(200, &stage_detail("succeeded"))),
         ("POST", ["stages", "runs", id, "cancel"]) if *id == stage_id() => {
@@ -199,6 +318,23 @@ pub(super) fn stage_route(request: &super::Request, segments: &[&str]) -> Option
                 "application/json",
                 b"{\"schema\":\"quantrule.stage-provenance/v1\",\"stage\":\"strategy\",\"artifact\":\"decisions\"}\n".to_vec(),
             ))
+        }
+        ("GET", ["stages", "runs", id, "artifacts", prefix, name])
+            if *id == portfolio_stage_id() =>
+        {
+            let artifact = format!("{prefix}/{name}");
+            portfolio_files()
+                .into_iter()
+                .find(|(artifact_name, _)| *artifact_name == artifact)
+                .map(|(_, bytes)| Response::bytes(200, "application/octet-stream", bytes))
+        }
+        ("GET", ["stages", "runs", id, "artifacts", name])
+            if *id == portfolio_stage_id() =>
+        {
+            portfolio_files()
+                .into_iter()
+                .find(|(artifact_name, _)| artifact_name == name)
+                .map(|(_, bytes)| Response::bytes(200, "application/octet-stream", bytes))
         }
         ("GET", ["stages", "runs", _, "artifacts", "events.csv"]) => {
             Some(Response::bytes(200, "text/csv", stage_events_body()))

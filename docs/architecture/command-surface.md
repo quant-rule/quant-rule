@@ -1,6 +1,6 @@
 # Command Surface — the Gateway Client
 
-- Status: Current; the gateway-client surface was released as v0.9.0 (prepared as v1.0.0) and is unchanged through v1.2.0; the model stage adds seven implemented commands in #852 and the strategy stage adds two in #853
+- Status: Current; the gateway-client surface was released as v0.9.0 (prepared as v1.0.0) and is unchanged through v1.2.0; the model stage adds seven implemented commands in #852, the strategy stage adds two in #853, and the portfolio stage adds one in #854
 - Owner: Human
 - Part of: [`docs/architecture/README.md`](README.md)
 - Claim type: Behaviour Claim
@@ -97,7 +97,7 @@ enforces the distinction.
 | `help` | Implemented | topic | the command map |
 | `stage run model` | Implemented | `data_version`, `config_id` | `stage_run_id`, model artifact |
 | `stage run strategy` | Implemented | `model_artifact_id`, `config_id` | `stage_run_id`, decisions artifact |
-| `stage run portfolio` | Planned | `decisions_artifact_id`, `config_id` | `stage_run_id`, fills and metrics |
+| `stage run portfolio` | Implemented | `decisions_artifact_id`, `config_id` | `stage_run_id`, execution and portfolio artifacts |
 | `stage list` | Implemented | kind, status, limit | stage summaries |
 | `stage show` | Implemented | `stage_run_id` | stage detail and provenance |
 | `stage events` | Implemented | `stage_run_id`, timeframe | model event batch |

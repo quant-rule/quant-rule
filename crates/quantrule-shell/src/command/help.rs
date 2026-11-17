@@ -141,6 +141,17 @@ const COMMANDS: &[CommandHelp] = &[
         ],
     },
     CommandHelp {
+        name: "stage run portfolio",
+        usage: "stage run portfolio <decisions_artifact_id> <config_id>",
+        summary: "Submit a diagnostic portfolio stage over a frozen decisions artifact.",
+        output: "stage_run_id, state, created",
+        notes: &[
+            "The stage replays execution fills through portfolio accounting; it does not decide a signal.",
+            "The execution and portfolio bundles are diagnostic and carry no canonical digest.",
+            "The stage artifact is never a backtest input or a baseline.",
+        ],
+    },
+    CommandHelp {
         name: "stage explain",
         usage: "stage explain <stage_run_id> --bar <n>",
         summary: "Read one published strategy decision record.",
@@ -152,7 +163,7 @@ const COMMANDS: &[CommandHelp] = &[
     },
     CommandHelp {
         name: "stage list",
-        usage: "stage list [--kind model|strategy] [--status <state>] [--limit <n>]",
+        usage: "stage list [--kind model|strategy|portfolio] [--status <state>] [--limit <n>]",
         summary: "List diagnostic stage runs in the active profile.",
         output: "one line per stage: stage_run_id, kind, state, config, submitted_at, artifact",
         notes: &["Rows are newest first, then by stage_run_id."],
@@ -461,6 +472,7 @@ mod tests {
             "run cancel",
             "stage run model",
             "stage run strategy",
+            "stage run portfolio",
             "stage explain",
             "stage list",
             "stage show",
@@ -487,7 +499,7 @@ mod tests {
         ] {
             assert!(is_command(name), "{name} must be documented");
         }
-        assert_eq!(COMMANDS.len(), 36);
+        assert_eq!(COMMANDS.len(), 37);
     }
 
     #[test]

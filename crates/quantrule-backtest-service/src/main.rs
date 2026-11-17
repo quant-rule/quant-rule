@@ -10,9 +10,9 @@
 //!
 //! The same process also consumes `stages.worker` (`stage.requested` and
 //! `stage.cancelled`) through the diagnostic stage worker. The run consumer is
-//! registered first, so a stage cannot delay an evidence run. The stage
-//! executors land in #852–#854; until then a stage fails with a clear message
-//! instead of succeeding without an engine.
+//! registered first, so a stage cannot delay an evidence run. The model,
+//! strategy, and portfolio executors are wired here; a stage never writes a run
+//! row, a canonical digest, or an evidence record.
 //!
 //! The worker selects the same backend set as every other service. On the
 //! desktop profile it opens the shared SQLite file only for the durable queue,
@@ -26,8 +26,8 @@ use std::sync::Arc;
 use quantrule_api::StageKind;
 use quantrule_backtest_service::backtest::{ProcessOutcome, WorkerServices, process};
 use quantrule_backtest_service::stage::{
-    ModelStageExecutor, StageDispatch, StageProcessOutcome, StageWorkerServices,
-    StrategyStageExecutor, process_stage,
+    ModelStageExecutor, PortfolioStageExecutor, StageDispatch, StageProcessOutcome,
+    StageWorkerServices, StrategyStageExecutor, process_stage,
 };
 use quantrule_runtime::adapters::{
     Message, MessageHandler, ObjectStore, Queue, QueueConsumer, QueueError,
@@ -75,6 +75,9 @@ async fn main() -> Result<(), RuntimeError> {
     let stage_model: Arc<dyn ModelClient> = Arc::clone(&model);
     let stage_data: Arc<dyn DataClient> = Arc::clone(&data);
     let stage_strategy_evidence: Arc<dyn StageClient> = Arc::clone(&stage_evidence);
+    let stage_portfolio_evidence: Arc<dyn StageClient> = Arc::clone(&stage_evidence);
+    let stage_portfolio_data: Arc<dyn DataClient> = Arc::clone(&data);
+    let stage_portfolio_objects: Arc<dyn ObjectStore> = Arc::clone(&stage_objects);
     let services = Arc::new(WorkerServices {
         evidence,
         data,
@@ -101,7 +104,15 @@ async fn main() -> Result<(), RuntimeError> {
                 Arc::new(StrategyStageExecutor::new(
                     stage_strategy_evidence,
                     stage_data,
-                    stage_objects,
+                    Arc::clone(&stage_objects),
+                )),
+            )
+            .with(
+                StageKind::Portfolio,
+                Arc::new(PortfolioStageExecutor::new(
+                    stage_portfolio_evidence,
+                    stage_portfolio_data,
+                    stage_portfolio_objects,
                 )),
             ),
     );

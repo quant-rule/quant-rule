@@ -55,6 +55,7 @@ export const COMMANDS: CommandCapability[] = [
   { command: "run cancel", section: "runs", control: "Cancel action", component: "RunsPanel.svelte", testId: "run-cancel" },
   { command: "stage run model", section: "workbench", control: "Model stage submit form", component: "ModelStagePanel.svelte", testId: "stage-submit" },
   { command: "stage run strategy", section: "workbench", control: "Strategy stage submit form", component: "StrategyStagePanel.svelte", testId: "strategy-submit" },
+  { command: "stage run portfolio", section: "workbench", control: "Portfolio stage submit form", component: "PortfolioStagePanel.svelte", testId: "portfolio-submit" },
   { command: "stage explain", section: "workbench", control: "Strategy decision explain control", component: "StrategyStagePanel.svelte", testId: "strategy-explain" },
   { command: "stage list", section: "workbench", control: "Stage table", component: "ModelStagePanel.svelte", testId: "stage-table" },
   { command: "stage show", section: "workbench", control: "Stage detail view", component: "ModelStagePanel.svelte", testId: "stage-detail" },

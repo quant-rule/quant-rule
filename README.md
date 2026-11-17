@@ -188,6 +188,7 @@ distributed release (v0.9.0, prepared as v1.0.0).
 | `run cancel` | Runs | Cancel a queued or running run |
 | `stage run model` | Stages | Submit a diagnostic model stage |
 | `stage run strategy` | Stages | Submit a strategy stage over a frozen model artifact |
+| `stage run portfolio` | Stages | Submit a portfolio stage over a frozen decisions artifact |
 | `stage explain` | Stages | Read one published strategy decision |
 | `stage list` | Stages | List diagnostic stage runs |
 | `stage show` | Stages | Read one stage detail and artifact files |
@@ -214,9 +215,9 @@ distributed release (v0.9.0, prepared as v1.0.0).
 
 ### Target stage and research surface
 
-The next surface is additive: `stage run portfolio`; `research` records;
-`baseline` and `invalidation` reads; and the optional
-`run submit --model-artifact` flag. It is not implemented yet. The target is
+The next surface is additive: `research` records; `baseline` and `invalidation`
+reads; and the optional `run submit --model-artifact` flag. It is not
+implemented yet. The target is
 [`docs/architecture/stage-surface.md`](docs/architecture/stage-surface.md).
 
 ## Principles

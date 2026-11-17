@@ -261,12 +261,41 @@ pub(crate) async fn submit_stage(
             }
             upstream.provenance.data_version
         }
-        StageKind::Portfolio => supplied_data_version.clone().ok_or_else(|| {
-            failure(
-                ErrorCode::StageInvalid,
-                "a portfolio stage must name the dataset its frozen input record",
-            )
-        })?,
+        StageKind::Portfolio => {
+            let artifact_id = body.input.decisions_artifact_id().cloned().ok_or_else(|| {
+                failure(
+                    ErrorCode::StageInvalid,
+                    "a portfolio stage needs a decisions artifact input",
+                )
+            })?;
+            let upstream = stages
+                .find_by_artifact(profile.clone(), StageKind::Strategy, artifact_id.clone())
+                .await
+                .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?
+                .ok_or_else(|| {
+                    failure(
+                        ErrorCode::StageNotFound,
+                        format!(
+                            "no succeeded strategy stage publishes artifact {artifact_id} in this profile"
+                        ),
+                    )
+                })?;
+            if model_version != upstream.provenance.model_version {
+                return Err(failure(
+                    ErrorCode::StageInvalid,
+                    "the portfolio config model_version disagrees with the upstream strategy stage",
+                ));
+            }
+            if let Some(supplied) = &supplied_data_version
+                && supplied != &upstream.provenance.data_version
+            {
+                return Err(failure(
+                    ErrorCode::StageInvalid,
+                    "the supplied data_version disagrees with the upstream strategy stage",
+                ));
+            }
+            upstream.provenance.data_version
+        }
     };
     if kind == StageKind::Model {
         supplied(body.data_version.clone(), &data_version, "data_version")?;

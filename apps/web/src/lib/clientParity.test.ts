@@ -61,6 +61,8 @@ interface ParityResponses {
   stage_run_strategy: StageSubmitResponse;
   strategy_stage: StageRunDetail;
   strategy_explain: Record<string, unknown>;
+  stage_run_portfolio: StageSubmitResponse;
+  portfolio_stage: StageRunDetail;
 }
 
 interface ApiFixture {
@@ -73,6 +75,8 @@ interface ApiFixture {
   stage_timeframe: string;
   strategy_stage_id: string;
   strategy_model_artifact_id: string;
+  portfolio_stage_id: string;
+  portfolio_decisions_artifact_id: string;
   commands: string[];
   artifact: {
     name: string;
@@ -87,6 +91,12 @@ interface ApiFixture {
     sha256: string;
   }[];
   strategy_artifacts: {
+    name: string;
+    body: string;
+    bytes: number;
+    sha256: string;
+  }[];
+  portfolio_artifacts: {
     name: string;
     body: string;
     bytes: number;
@@ -137,6 +147,15 @@ function install(fixture: ApiFixture): Seen[] {
     }
     if (path === "/stages/strategy/runs" && method === "POST") {
       return respond(fixture.responses.stage_run_strategy, 202);
+    }
+    if (path === "/stages/portfolio/runs" && method === "POST") {
+      return respond(fixture.responses.stage_run_portfolio, 202);
+    }
+    if (
+      path === `/stages/runs/${fixture.portfolio_stage_id}` &&
+      method === "GET"
+    ) {
+      return respond(fixture.responses.portfolio_stage);
     }
     if (
       path === `/stages/runs/${fixture.strategy_stage_id}` &&
@@ -328,6 +347,23 @@ async function browserView(fixture: ApiFixture): Promise<View> {
     stageDecisions(new TextDecoder().decode(decisionBytes)),
     1,
   );
+  const portfolioSubmit = await call<StageSubmitResponse>(
+    "/stages/portfolio/runs",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        kind: "portfolio",
+        config_id: fixture.config_id,
+        input: {
+          kind: "decisions_artifact",
+          decisions_artifact_id: fixture.portfolio_decisions_artifact_id,
+        },
+      }),
+    },
+  );
+  const portfolioStage = await call<StageRunDetail>(
+    stagePath(fixture.portfolio_stage_id),
+  );
 
   return {
     profile: currentProfile(),
@@ -355,6 +391,8 @@ async function browserView(fixture: ApiFixture): Promise<View> {
     strategy_stage_submit: strategySubmit,
     strategy_stage: strategyStage,
     strategy_explain: strategyExplain,
+    portfolio_stage_submit: portfolioSubmit,
+    portfolio_stage: portfolioStage,
   };
 }
 
@@ -387,7 +425,7 @@ describe("client parity", () => {
     const view = await browserView(API);
 
     expect(difference(view, EXPECTED)).toBeNull();
-    expect(seen).toHaveLength(27);
+    expect(seen).toHaveLength(29);
     expect(seen.map((request) => request.path)).toEqual([
       "/health",
       "/catalog/datasets",
@@ -416,6 +454,8 @@ describe("client parity", () => {
       `/stages/runs/${API.strategy_stage_id}`,
       `/stages/runs/${API.strategy_stage_id}`,
       `/stages/runs/${API.strategy_stage_id}/artifacts/decisions.ndjson`,
+      "/stages/portfolio/runs",
+      `/stages/runs/${API.portfolio_stage_id}`,
     ]);
     for (const request of seen) {
       expect(request.profile).toBe(API.profile);
