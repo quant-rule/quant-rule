@@ -37,6 +37,9 @@ pub enum ErrorCode {
     /// A run submission or query is invalid.
     #[serde(rename = "run.invalid")]
     RunInvalid,
+    /// The frozen model artifact named by a promoted run is invalid.
+    #[serde(rename = "run.model_artifact_invalid")]
+    RunModelArtifactInvalid,
     /// The requested transition is not allowed in the current state.
     #[serde(rename = "run.conflict")]
     RunConflict,
@@ -92,6 +95,7 @@ impl ErrorCode {
             Self::HypothesisInvalid => "hypothesis.invalid",
             Self::RunNotFound => "run.not_found",
             Self::RunInvalid => "run.invalid",
+            Self::RunModelArtifactInvalid => "run.model_artifact_invalid",
             Self::RunConflict => "run.conflict",
             Self::StageNotFound => "stage.not_found",
             Self::StageInvalid => "stage.invalid",
@@ -119,6 +123,7 @@ impl ErrorCode {
             | Self::ConfigInvalid
             | Self::HypothesisInvalid
             | Self::RunInvalid
+            | Self::RunModelArtifactInvalid
             | Self::StageInvalid
             | Self::SimulationMarkInvalid => 400,
             Self::ProfileNotFound

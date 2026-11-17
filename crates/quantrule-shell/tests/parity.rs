@@ -36,6 +36,7 @@ fn the_shell_prints_the_browser_run_detail_fixture() {
          data_version: {data}\n\
          config_hash: {config}\n\
          model_version: M1.0\n\
+         model_artifact_id: none\n\
          image_digest: {image}\n\
          stages: 4\n\
          stage data: done 1200ms\n\

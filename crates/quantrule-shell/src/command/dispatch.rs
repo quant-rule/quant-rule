@@ -77,7 +77,15 @@ fn run(
         Command::RunSubmit {
             data_version,
             config_id,
-        } => run_submit(&client, globals, stdout, &data_version, &config_id),
+            model_artifact_id,
+        } => run_submit(
+            &client,
+            globals,
+            stdout,
+            &data_version,
+            &config_id,
+            model_artifact_id.as_deref(),
+        ),
         Command::RunStatus { run_id } => run_status(&client, globals, stdout, &run_id),
         Command::RunList { status, limit } => run_list(&client, globals, stdout, status, limit),
         Command::RunFetch { run_id, directory } => {
@@ -334,12 +342,18 @@ fn run_submit(
     stdout: &mut impl Write,
     data_version: &str,
     config_id: &str,
+    model_artifact_id: Option<&str>,
 ) -> Result<(), RunError> {
     let digest = Digest::parse(data_version)
         .map_err(|error| RunError::Usage(format!("data_version {error}")))?;
+    let model_artifact_id = model_artifact_id
+        .map(Digest::parse)
+        .transpose()
+        .map_err(|error| RunError::Usage(format!("model_artifact_id {error}")))?;
     let request = SubmitRunRequest {
         data_version: digest,
         config_id: config_id.to_owned(),
+        model_artifact_id,
     };
     let body = serde_json::to_string(&request)
         .map_err(|error| RunError::decode("the run submission", error))?;

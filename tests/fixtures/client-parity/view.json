@@ -158,7 +158,8 @@
       }
     ],
     "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    "error": null
+    "error": null,
+    "model_artifact_id": null
   },
   "candles": {
     "data_version": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",

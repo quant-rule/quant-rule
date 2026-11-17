@@ -1,6 +1,6 @@
 # Command Surface — the Gateway Client
 
-- Status: Current; the gateway-client surface was released as v0.9.0 (prepared as v1.0.0) and is unchanged through v1.2.0; the model stage adds seven implemented commands in #852, the strategy stage adds two in #853, and the portfolio stage adds one in #854
+- Status: Current; the gateway-client surface was released as v0.9.0 (prepared as v1.0.0) and is unchanged through v1.2.0; the model stage adds seven implemented commands in #852, the strategy stage adds two in #853, the portfolio stage adds one in #854, and promotion adds the optional `run submit --model-artifact` flag in #855
 - Owner: Human
 - Part of: [`docs/architecture/README.md`](README.md)
 - Claim type: Behaviour Claim
@@ -74,7 +74,7 @@ enforces the distinction.
 | `dataset upload` | Implemented | CSV file, optional name | `data_version` and quality |
 | `config list` | Implemented | — | configs with validity |
 | `config show` | Implemented | `config_id` | one configuration summary |
-| `run submit` | Implemented | `data_version`, `config_id` | `run_id`, state |
+| `run submit` | Implemented | `data_version`, `config_id`, optional `model_artifact_id` | `run_id`, state |
 | `run status` | Implemented | `run_id` | state, stages, provenance, digest |
 | `run list` | Implemented | `status`, `limit` | run summaries |
 | `run fetch` | Implemented | `run_id`, directory | artifact set |

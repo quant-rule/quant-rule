@@ -39,6 +39,38 @@ pub fn derive_run_id(
     RunId(Digest::sha256(&bytes))
 }
 
+/// Derive a run id with an optional frozen model artifact component.
+///
+/// The full-run id is exactly [`derive_run_id`]. A promoted run appends a
+/// tagged `model-artifact` component and its digest, so it is a distinct run
+/// while the data/config/model/image inputs remain the same.
+#[must_use]
+pub fn derive_run_id_with_model(
+    data_version: &Digest,
+    config_hash: &Digest,
+    model_version: &str,
+    image_digest: &Digest,
+    model_artifact_id: Option<&Digest>,
+) -> RunId {
+    let Some(artifact) = model_artifact_id else {
+        return derive_run_id(data_version, config_hash, model_version, image_digest);
+    };
+    let mut bytes = b"quantrule.run/v1\n".to_vec();
+    for part in [
+        data_version.to_string(),
+        config_hash.to_string(),
+        model_version.to_owned(),
+        image_digest.to_string(),
+    ] {
+        bytes.extend_from_slice(part.as_bytes());
+        bytes.push(b'\n');
+    }
+    bytes.extend_from_slice(b"model-artifact\n");
+    bytes.extend_from_slice(artifact.to_string().as_bytes());
+    bytes.push(b'\n');
+    RunId(Digest::sha256(&bytes))
+}
+
 /// A new submission.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -55,6 +87,9 @@ pub struct NewRun {
     pub model_version: String,
     /// The image that will execute it.
     pub image_digest: Digest,
+    /// The frozen model artifact reused, when this is a promoted run.
+    #[serde(default)]
+    pub model_artifact_id: Option<Digest>,
     /// The first submitter.
     pub owner: String,
     /// The submission time, RFC 3339 UTC.
@@ -80,6 +115,9 @@ pub struct RunRecord {
     pub model_version: String,
     /// The image digest.
     pub image_digest: Digest,
+    /// The frozen model artifact reused, when this is a promoted run.
+    #[serde(default)]
+    pub model_artifact_id: Option<Digest>,
     /// The submission time.
     pub submitted_at: String,
     /// Per-stage progress.
@@ -107,6 +145,7 @@ impl RunRecord {
             config_hash: run.config_hash.clone(),
             model_version: run.model_version.clone(),
             image_digest: run.image_digest.clone(),
+            model_artifact_id: run.model_artifact_id.clone(),
             submitted_at: run.submitted_at.clone(),
             stages: [
                 StageName::Data,
@@ -149,6 +188,7 @@ impl RunRecord {
             status: self.status,
             owner: self.owner.clone(),
             stages: self.stages.clone(),
+            model_artifact_id: self.model_artifact_id.clone(),
             provenance: Provenance {
                 data_version: self.data_version.clone(),
                 config_hash: self.config_hash.clone(),
@@ -243,6 +283,7 @@ mod tests {
             config_hash: digest(b"config"),
             model_version: "M1.3".to_owned(),
             image_digest: digest(b"image"),
+            model_artifact_id: None,
             owner: "operator".to_owned(),
             submitted_at: "2026-11-14T00:00:00Z".to_owned(),
         }
@@ -293,6 +334,38 @@ mod tests {
         assert_eq!(back, record);
         assert_eq!(record.summary().run_id, record.run_id);
         assert_eq!(record.detail().provenance.model_version, "M1.3");
+    }
+
+    #[test]
+    fn a_promoted_run_id_appends_the_model_artifact() {
+        let data = digest(b"data");
+        let config = digest(b"config");
+        let image = digest(b"image");
+        let artifact = digest(b"artifact");
+        let full = derive_run_id(&data, &config, "M1.0", &image);
+        assert_eq!(
+            derive_run_id_with_model(&data, &config, "M1.0", &image, None),
+            full
+        );
+        let promoted = derive_run_id_with_model(&data, &config, "M1.0", &image, Some(&artifact));
+        assert_ne!(promoted, full);
+        assert_eq!(
+            promoted,
+            derive_run_id_with_model(&data, &config, "M1.0", &image, Some(&artifact))
+        );
+        assert_ne!(
+            promoted,
+            derive_run_id_with_model(&data, &config, "M1.0", &image, Some(&digest(b"other")))
+        );
+    }
+
+    #[test]
+    fn a_promoted_record_keeps_the_model_artifact() {
+        let mut run = new_run();
+        run.model_artifact_id = Some(digest(b"artifact"));
+        let record = RunRecord::queued(&run);
+        assert_eq!(record.model_artifact_id, run.model_artifact_id);
+        assert_eq!(record.detail().model_artifact_id, run.model_artifact_id);
     }
 
     #[test]

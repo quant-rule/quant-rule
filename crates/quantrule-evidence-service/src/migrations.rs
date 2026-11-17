@@ -56,6 +56,11 @@ pub fn available() -> Vec<Migration> {
             name: "stage",
             sql: include_str!("../migrations/0014_stage.sql"),
         },
+        Migration {
+            version: 15,
+            name: "run-model-artifact",
+            sql: include_str!("../migrations/0015_run_model_artifact.sql"),
+        },
     ];
     migrations.sort_by_key(|migration| migration.version);
     migrations
@@ -78,6 +83,11 @@ pub fn sqlite() -> Vec<Migration> {
             version: 2,
             name: "stage",
             sql: include_str!("../migrations/sqlite/0002_stage.sql"),
+        },
+        Migration {
+            version: 3,
+            name: "run-model-artifact",
+            sql: include_str!("../migrations/sqlite/0003_run_model_artifact.sql"),
         },
     ]
 }
@@ -116,7 +126,7 @@ mod tests {
         let pending = plan(&applied, &available).expect("plan");
         assert_eq!(
             pending.iter().map(|m| m.version).collect::<Vec<_>>(),
-            vec![4, 5, 8, 9, 13, 14]
+            vec![4, 5, 8, 9, 13, 14, 15]
         );
     }
 
@@ -135,7 +145,7 @@ mod tests {
             .iter()
             .map(|migration| migration.version)
             .collect();
-        assert_eq!(versions, vec![2, 4, 5, 8, 9, 13, 14]);
+        assert_eq!(versions, vec![2, 4, 5, 8, 9, 13, 14, 15]);
     }
 
     #[test]
@@ -173,6 +183,22 @@ mod tests {
     }
 
     #[test]
+    fn the_model_artifact_migration_is_registered() {
+        let migration = available()
+            .into_iter()
+            .find(|migration| migration.version == 15)
+            .expect("migration 15");
+        assert_eq!(migration.name, "run-model-artifact");
+        assert!(migration.sql.contains("ADD COLUMN model_artifact_id"));
+        let sqlite = sqlite()
+            .into_iter()
+            .find(|migration| migration.version == 3)
+            .expect("sqlite migration 3");
+        assert_eq!(sqlite.name, "run-model-artifact");
+        assert!(sqlite.sql.contains("ADD COLUMN model_artifact_id"));
+    }
+
+    #[test]
     fn the_list_owns_only_the_evidence_schemas() {
         for migration in available() {
             for forbidden in ["catalog.", "simulation.", "gateway."] {
@@ -197,10 +223,11 @@ mod tests {
     #[test]
     fn the_sqlite_baseline_starts_at_one_and_is_complete() {
         let baseline = sqlite();
-        assert_eq!(baseline.len(), 2);
+        assert_eq!(baseline.len(), 3);
         assert_eq!(baseline[0].version, 1);
         assert_eq!(baseline[1].version, 2);
-        assert_eq!(plan(&[], &baseline).expect("plan").len(), 2);
+        assert_eq!(baseline[2].version, 3);
+        assert_eq!(plan(&[], &baseline).expect("plan").len(), 3);
     }
 
     #[test]

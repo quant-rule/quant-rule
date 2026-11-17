@@ -36,6 +36,7 @@ type RunRow = (
     Option<String>,
     Option<String>,
     i32,
+    Option<String>,
 );
 
 fn run_digest(
@@ -79,7 +80,7 @@ async fn load_run_rows(
                 "SELECT r.run_id, r.status, r.owner, r.config_id, r.data_version,
                         r.config_hash, r.model_version, r.image_digest,
                         to_char(r.submitted_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'),
-                        r.digest, r.error, r.attempts
+                        r.digest, r.error, r.attempts, r.model_artifact_id
                  FROM runs.runs r
                  JOIN runs.submissions s ON s.run_id = r.run_id
                  WHERE s.profile_id = $1 AND r.run_id = $2",
@@ -94,7 +95,7 @@ async fn load_run_rows(
                 "SELECT r.run_id, r.status, r.owner, r.config_id, r.data_version,
                         r.config_hash, r.model_version, r.image_digest,
                         to_char(r.submitted_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'),
-                        r.digest, r.error, r.attempts
+                        r.digest, r.error, r.attempts, r.model_artifact_id
                  FROM runs.runs r
                  WHERE r.run_id = $1",
             )
@@ -170,6 +171,15 @@ async fn load_run_rows(
         attempts: u32::try_from(row.11).map_err(|_| {
             crate::runs::RunStoreError("a stored attempt count is negative".to_owned())
         })?,
+        model_artifact_id: row
+            .12
+            .map(|value| quantrule_api::Digest::parse(&value))
+            .transpose()
+            .map_err(|error| {
+                crate::runs::RunStoreError(format!(
+                    "a stored model artifact id is malformed: {error}"
+                ))
+            })?,
     }))
 }
 
@@ -196,8 +206,8 @@ impl crate::runs::RunStore for PgRunStore {
             let inserted = sqlx::query(
                 "INSERT INTO runs.runs
                      (run_id, config_id, data_version, owner, status, submitted_at,
-                      config_hash, model_version, image_digest)
-                 VALUES ($1, $2, $3, $4, 'queued', $5::timestamptz, $6, $7, $8)
+                      config_hash, model_version, image_digest, model_artifact_id)
+                 VALUES ($1, $2, $3, $4, 'queued', $5::timestamptz, $6, $7, $8, $9)
                  ON CONFLICT (run_id) DO NOTHING",
             )
             .bind(run.run_id.to_string())
@@ -208,6 +218,7 @@ impl crate::runs::RunStore for PgRunStore {
             .bind(run.config_hash.to_string())
             .bind(&run.model_version)
             .bind(run.image_digest.to_string())
+            .bind(run.model_artifact_id.as_ref().map(ToString::to_string))
             .execute(&mut *transaction)
             .await
             .map_err(|error| crate::runs::RunStoreError(error.to_string()))?;

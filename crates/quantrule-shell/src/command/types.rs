@@ -70,6 +70,8 @@ pub(crate) enum Command {
         data_version: String,
         /// The configuration to apply.
         config_id: String,
+        /// The frozen model artifact to reuse, when this is a promoted run.
+        model_artifact_id: Option<String>,
     },
     /// Read one run.
     RunStatus {

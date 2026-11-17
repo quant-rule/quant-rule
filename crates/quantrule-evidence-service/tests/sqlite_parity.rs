@@ -34,6 +34,8 @@ const HYPOTHESIS_PROFILE: &str =
     "crates/quantrule-evidence-service/migrations/0008_hypothesis_profile.sql";
 const SUBMISSIONS: &str = "crates/quantrule-evidence-service/migrations/0009_run_submissions.sql";
 const ATTEMPTS: &str = "crates/quantrule-evidence-service/migrations/0013_run_attempts.sql";
+const MODEL_ARTIFACT: &str =
+    "crates/quantrule-evidence-service/migrations/0015_run_model_artifact.sql";
 const STAGE: &str = "crates/quantrule-evidence-service/migrations/0014_stage.sql";
 const SQLITE: &str = "crates/quantrule-evidence-service/migrations/sqlite/0001_runs_research.sql";
 const SQLITE_STAGE: &str = "crates/quantrule-evidence-service/migrations/sqlite/0002_stage.sql";
@@ -131,6 +133,7 @@ fn expected_tables() -> Vec<(&'static str, Vec<(String, String)>)> {
     let mut runs = create_table_columns(RUNS, "runs.runs");
     runs.extend(added_columns(SUBMISSIONS, "runs.runs"));
     runs.extend(added_columns(ATTEMPTS, "runs.runs"));
+    runs.extend(added_columns(MODEL_ARTIFACT, "runs.runs"));
     let mut hypotheses = create_table_columns(RESEARCH, "research.hypotheses");
     hypotheses.extend(added_columns(HYPOTHESIS_BODY, "research.hypotheses"));
     hypotheses.extend(added_columns(HYPOTHESIS_PROFILE, "research.hypotheses"));
@@ -620,7 +623,7 @@ async fn the_baseline_is_idempotent_and_a_changed_body_is_refused() {
         apply_migrations_in(&database, "runs", &migrations::sqlite())
             .await
             .expect("the first apply"),
-        2
+        3
     );
     assert_eq!(
         apply_migrations_in(&database, "runs", &migrations::sqlite())
@@ -647,22 +650,22 @@ async fn the_baseline_is_idempotent_and_a_changed_body_is_refused() {
 async fn a_database_ahead_or_an_unknown_applied_version_is_refused() {
     let ahead = SqliteDatabase::open_in_memory().expect("the database opens");
     baseline(&ahead).await;
-    insert_ledger_row(&ahead, 3).await;
+    insert_ledger_row(&ahead, 4).await;
     assert_eq!(
         apply_migrations_in(&ahead, "runs", &migrations::sqlite())
             .await
             .expect_err("the database is ahead"),
         MigrationError::DatabaseAhead {
-            applied: 3,
-            available: 2
+            applied: 4,
+            available: 3
         }
     );
 
     let unknown = SqliteDatabase::open_in_memory().expect("the database opens");
     baseline(&unknown).await;
-    insert_ledger_row(&unknown, 3).await;
+    insert_ledger_row(&unknown, 4).await;
     let probe = Migration {
-        version: 4,
+        version: 5,
         name: "probe",
         sql: "CREATE TABLE probe_version (id TEXT PRIMARY KEY) STRICT;",
     };
@@ -672,7 +675,7 @@ async fn a_database_ahead_or_an_unknown_applied_version_is_refused() {
         apply_migrations_in(&unknown, "runs", &available)
             .await
             .expect_err("the unknown applied version"),
-        MigrationError::UnknownApplied(3)
+        MigrationError::UnknownApplied(4)
     );
     assert!(
         !table_exists(&unknown, "probe_version").await,
@@ -687,6 +690,13 @@ async fn a_database_ahead_or_an_unknown_applied_version_is_refused() {
         checksum(migrations::sqlite()[1].sql),
         checksum(include_str!("../migrations/sqlite/0002_stage.sql")),
         "the stage migration checksum is not the checked-in body"
+    );
+    assert_eq!(
+        checksum(migrations::sqlite()[2].sql),
+        checksum(include_str!(
+            "../migrations/sqlite/0003_run_model_artifact.sql"
+        )),
+        "the model-artifact migration checksum is not the checked-in body"
     );
 }
 
@@ -714,6 +724,7 @@ async fn the_ledger_holds_only_the_evidence_migrations() {
         vec![
             ("runs".to_owned(), 1, "runs-research".to_owned()),
             ("runs".to_owned(), 2, "stage".to_owned()),
+            ("runs".to_owned(), 3, "run-model-artifact".to_owned()),
         ],
         "the evidence ledger holds another service's rows"
     );

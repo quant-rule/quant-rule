@@ -1,7 +1,7 @@
 # Backtest Workflow
 
 - Date: 2026-11-16 (UTC)
-- Status: Current; the model-artifact reuse path lands in #855
+- Status: Current; the model-artifact reuse path is implemented (#855)
 - Scope: the coupled evidence run from a frozen configuration and a declared window
 - Owner: Quant Validator (evidence), Implementation (run path), Human (acceptance)
 - Contract: [Run Contract](run-contract.md), [ADR-2026-11-16-01](../adr/2026-11-16/01-stage-execution-and-evidence-boundary.md)
@@ -82,6 +82,7 @@ A failed preflight stops the run. It is not a failed result.
 quantrule config list
 quantrule config show <config_id>
 quantrule run submit <data_version> <config_id>
+quantrule run submit <data_version> <config_id> --model-artifact <model_artifact_id>
 quantrule run status <run_id>
 quantrule run list --status running --limit 20
 quantrule run cancel <run_id>
@@ -89,6 +90,9 @@ quantrule run cancel <run_id>
 
 `run submit` returns immediately. The run is server state; closing the shell does
 not stop it. A duplicate submission returns the existing run with `created=false`.
+`--model-artifact` reuses a succeeded model stage as the frozen model input; the
+run record shows the artifact id, and strategy, execution, and portfolio are
+recomputed. The model bytes and canonical digest must equal a full run.
 
 A run is not split across backtest workers. The stages are `data`, `model`,
 `backtest`, and `evidence`; the backtest stage is sequential.

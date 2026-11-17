@@ -380,6 +380,7 @@ mod tests {
             config_hash: Digest::sha256(b"config"),
             model_version: "M1.0".to_owned(),
             image_digest: Digest::sha256(b"image"),
+            model_artifact_id: None,
             owner: "default".to_owned(),
             submitted_at: "2026-11-13T00:00:00Z".to_owned(),
         }
@@ -515,6 +516,7 @@ mod worker_tests {
             config_hash: Digest::sha256(b"config"),
             model_version: "M1.0".to_owned(),
             image_digest: Digest::sha256(b"image"),
+            model_artifact_id: None,
             owner: "default".to_owned(),
             submitted_at: "2026-11-13T00:00:00Z".to_owned(),
         }

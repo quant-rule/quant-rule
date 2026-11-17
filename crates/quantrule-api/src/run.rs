@@ -246,6 +246,9 @@ pub struct RunDetail {
     pub owner: String,
     /// Per-stage progress.
     pub stages: Vec<StageProgress>,
+    /// The frozen model artifact the run reused, when it is a promoted run.
+    #[serde(default)]
+    pub model_artifact_id: Option<Digest>,
     /// What produced the run.
     pub provenance: Provenance,
     /// The artifact set, once complete.
@@ -264,6 +267,9 @@ pub struct SubmitRunRequest {
     pub data_version: Digest,
     /// The configuration to apply.
     pub config_id: String,
+    /// The frozen model artifact to reuse, when this is a promoted run.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model_artifact_id: Option<Digest>,
 }
 
 /// The response to a submission.
@@ -327,6 +333,20 @@ mod tests {
     }
 
     #[test]
+    fn a_submission_accepts_an_optional_model_artifact() {
+        let data = "a".repeat(64);
+        let old = format!("{{\"data_version\":\"sha256:{data}\",\"config_id\":\"cfg\"}}");
+        let request: SubmitRunRequest = serde_json::from_str(&old).expect("old body");
+        assert_eq!(request.model_artifact_id, None);
+        let new = format!(
+            "{{\"data_version\":\"sha256:{data}\",\"config_id\":\"cfg\",\
+             \"model_artifact_id\":\"sha256:{data}\"}}"
+        );
+        let request: SubmitRunRequest = serde_json::from_str(&new).expect("new body");
+        assert_eq!(request.model_artifact_id, Some(digest()));
+    }
+
+    #[test]
     fn provenance_rejects_an_unknown_field() {
         let text = format!(
             "{{\"data_version\":\"sha256:{d}\",\"config_hash\":\"sha256:{d}\",\
@@ -368,6 +388,7 @@ mod tests {
                 state: StageStatus::Done,
                 elapsed_ms: Some(1_200),
             }],
+            model_artifact_id: None,
             provenance: Provenance {
                 data_version: digest(),
                 config_hash: digest(),

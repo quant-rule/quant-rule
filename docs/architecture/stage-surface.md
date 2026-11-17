@@ -1,7 +1,7 @@
 # Stage Surface — Target Architecture
 
 - Date: 2026-11-17 (UTC)
-- Status: Current for the model, strategy, and portfolio slices; the stage contract and schema are merged (#850), the worker and gateway landed in #851, the model stage and Workbench Data/Model tabs landed in #852, the strategy stage and Workbench Strategy tab landed in #853, and the portfolio stage and Workbench Portfolio tab landed in #854; promotion and research land in #855–#858
+- Status: Current for the model, strategy, portfolio, and promotion slices; the stage contract and schema are merged (#850), the worker and gateway landed in #851, the model stage and Workbench Data/Model tabs landed in #852, the strategy stage and Workbench Strategy tab landed in #853, the portfolio stage and Workbench Portfolio tab landed in #854, and backtest promotion landed in #855; research lands in #856–#858
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 - Decision: [ADR-2026-11-16-01](../adr/2026-11-16/01-stage-execution-and-evidence-boundary.md)
@@ -84,7 +84,7 @@ research, and operations rows below remain target:
 | `stage explain <stage_run_id> --bar <n>` | Explain one strategy decision |
 | `stage fetch <stage_run_id> <dir>` | Download the verified artifact set |
 | `stage list`, `stage cancel`, `stage delete` | Manage diagnostic stage runs |
-| `run submit <data_version> <config_id> [--model-artifact <id>]` | Coupled evidence run with an optional frozen model artifact |
+| `run submit <data_version> <config_id> [--model-artifact <id>]` | Coupled evidence run with an optional frozen model artifact (#855) |
 | `research create/submit/list/show/compare/decide` | Governed improvement-run records |
 | `baseline list/show`, `invalidation list` | Read the registries |
 
@@ -151,7 +151,7 @@ profile-scoped and content-addressed.
 | Model stage vertical slice and Workbench Data/Model tabs | Implemented (#852) |
 | Strategy stage vertical slice and Workbench Strategy tab | Implemented (#853) |
 | Portfolio stage vertical slice and Workbench Portfolio tab | Implemented (#854) |
-| Backtest promotion with a frozen model artifact | Target (#855) |
+| Backtest promotion with a frozen model artifact | Implemented (#855) |
 | Research ledger and Research screens | Target (#856–#857) |
 | Operations and end-to-end verification screens | Target (#858) |
 | Manual chapters and command/GUI reference | Target (#859) |

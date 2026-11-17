@@ -406,6 +406,7 @@ fn new_run(seed: &[u8]) -> quantrule_evidence_service::runs::NewRun {
         config_hash,
         model_version: "M1.0".to_owned(),
         image_digest: image,
+        model_artifact_id: None,
         owner: "default".to_owned(),
         submitted_at: "2026-11-14T00:00:00Z".to_owned(),
     }

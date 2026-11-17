@@ -22,7 +22,7 @@ pub use manifest::{
 };
 pub use run::{
     MAX_ATTEMPTS, NewRun, RunCancelOutcome, RunClaimOutcome, RunClaimRequest, RunComputed,
-    RunFailed, RunRecord, derive_run_id,
+    RunFailed, RunRecord, derive_run_id, derive_run_id_with_model,
 };
 pub use stage::{
     NewStageRun, STAGE_MANIFEST_SCHEMA, StageCancelOutcome, StageClaim, StageClaimOutcome,
