@@ -9,6 +9,8 @@
 - Claim type: behavior-neutral module split. No formula, event, strategy,
   execution, portfolio, analytics, command, or output change.
 
+- AI log: [refactor-workflow.md](../../ai-transparency-log/2026-11-06/refactor-workflow.md)
+
 ## 1. Intent
 
 Split `crates/quantrule-shell/src/command/report_run.rs` along the seams that

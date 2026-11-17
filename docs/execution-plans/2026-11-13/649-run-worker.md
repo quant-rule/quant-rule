@@ -7,6 +7,8 @@
 - Claim type: Behaviour Claim
 - Workflow: [Execution Plan](../../workflows/execution-plan.md), [Improvement Workflow](../../workflows/improvement-workflow.md)
 
+- AI log: [649-run-worker-plan.md](../../ai-transparency-log/2026-11-13/649-run-worker-plan.md)
+
 ## 1. Intent
 
 Turn a queued `run.requested` message into a finished run: load the dataset and

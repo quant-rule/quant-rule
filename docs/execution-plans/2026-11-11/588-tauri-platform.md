@@ -9,6 +9,8 @@
 - Owner: Human (approval), Orchestrator (coordination), Architect (design), Implementer (execution), Reviewer (verification)
 - Workflow: [Execution Plan](../../workflows/execution-plan.md)
 
+- AI log: [593-tauri-platform-definition.md](../../ai-transparency-log/2026-11-11/593-tauri-platform-definition.md)
+
 ## 1. Intent
 
 Ship a local-first, single-user desktop research workstation for the solo

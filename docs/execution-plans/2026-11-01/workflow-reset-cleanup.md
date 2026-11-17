@@ -6,6 +6,8 @@
 - Parent: [`workflow-reset`](workflow-reset.md)
 - Invalidation log: [`docs/improvement/INVALIDATIONS.md`](../../improvement/INVALIDATIONS.md)
 
+- AI log: [workflow-reset.md](../../ai-transparency-log/2026-11-01/workflow-reset.md)
+
 ## 1. Intent
 
 Remove pre-reset records and legacy paths so a reader cannot compare a current

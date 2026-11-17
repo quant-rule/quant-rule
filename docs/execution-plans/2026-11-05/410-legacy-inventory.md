@@ -9,6 +9,8 @@
 - Naming registry: [`docs/model/2026-11-05/model-families.md`](../../model/2026-11-05/model-families.md)
 - Claim type: repository inventory; no behavior change
 
+- AI log: [468-legacy-inventory.md](../../ai-transparency-log/2026-11-05/468-legacy-inventory.md)
+
 ## 1. Decision rule
 
 The human’s instruction is: keep the **history records**, erase the **legacy

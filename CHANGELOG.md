@@ -97,6 +97,12 @@ history is in Git and the pull requests.
   cap, the service digest ownership, the improvement index table, and the
   `docs/README.md` length cap.
 
+### Changed
+
+- The documentation-length checker now covers `docs/README.md`.
+- An execution plan must resolve to a same-name AI transparency log or carry a
+  recorded `- AI log:` link; the execution-plan checker enforces it.
+
 ## [1.3.0] - 2026-11-17
 
 The stage execution surface release. QuantRule now runs the model, strategy, and
