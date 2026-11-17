@@ -41,7 +41,7 @@
 | `python3 tools/check_execution_plans.py` | current plans carry a claim type, verification table, and an AI log resolution |
 | `cd tools && python3 -m unittest test_check_execution_plans` | 13 passed |
 | `python3 tools/check_links.py` | 1,026 Markdown files; no broken relative links |
-| `tools/gate.sh` | run after this log; the result is recorded in the task report |
+| `tools/gate.sh` | pass: 2,322 passed, 0 failed, 16 ignored; 25 checkers |
 
 ## Limits
 

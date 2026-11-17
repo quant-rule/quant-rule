@@ -44,7 +44,7 @@
 | `python3 tools/check_workflows.py` | 20 workflows, 8 templates, 20 index rows |
 | `python3 tools/check_command_surface.py` | 46 implemented, 0 planned |
 | `cargo test -p quantrule-data-service --test routes an_oversized_config_bundle_is_refused` | 1 passed; `413` and `upload.too_large` |
-| `tools/gate.sh` | run after this log; the result is recorded in the task report |
+| `tools/gate.sh` | pass: 2,322 passed, 0 failed, 16 ignored; 25 checkers |
 
 ## Limits
 
