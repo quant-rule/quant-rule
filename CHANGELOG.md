@@ -20,6 +20,9 @@ history is in Git and the pull requests.
 
 ### Fixed
 
+- A run config reference is confined to the config directory: an absolute path
+  or a `..` component in `run.json` is refused before the loader reads it.
+
 ### Changed
 
 - The documentation-length checker now covers `docs/README.md`.

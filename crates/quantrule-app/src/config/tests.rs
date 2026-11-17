@@ -484,6 +484,28 @@ fn the_example_config_loads_and_resolves() {
 }
 
 #[test]
+fn a_run_reference_cannot_escape_the_config_directory() {
+    let mut object = run_object();
+    object["data"] = json!("../outside.json");
+    let directory = std::env::temp_dir().join(format!(
+        "quantrule-config-escape-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("the clock")
+            .as_nanos()
+    ));
+    std::fs::create_dir_all(&directory).expect("the test directory");
+    let path = directory.join("run.json");
+    std::fs::write(&path, serde_json::to_vec(&object).expect("run JSON"))
+        .expect("write the run config");
+    let error = run::RunConfig::load(&path).expect_err("the escape is refused");
+    assert_eq!(error.kind(), Range);
+    assert_eq!(error.path(), "$.data");
+    std::fs::remove_dir_all(&directory).expect("remove the test directory");
+}
+
+#[test]
 fn the_config_run_fixture_loads() {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../quantrule-shell/tests/fixtures/config-run/run.json");

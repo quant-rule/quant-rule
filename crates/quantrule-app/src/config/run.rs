@@ -7,12 +7,12 @@
 //! file. No candle is read and no output is written here: a config error
 //! leaves the filesystem untouched.
 //!
-//! The current run has no strategy or analytics file. S3.x passes the strategy
-//! file and the qualification criteria as explicit command arguments; the run
-//! schema is `quantrule.run/v3`.
+//! A `quantrule.run/v4` file names the strategy and the four engine files; a
+//! `quantrule.run/v3` file is model-only and must not carry a strategy. The
+//! qualification criteria remain explicit command arguments.
 
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use quantrule_api::Digest;
 use quantrule_backtest::portfolio::PortfolioConfig;
@@ -102,11 +102,15 @@ impl RunConfig {
 
         let paths = ConfigPaths {
             run: path.to_path_buf(),
-            data: base.join(&run.data),
-            model: base.join(&run.model),
-            execution: base.join(&run.execution),
-            portfolio: base.join(&run.portfolio),
-            strategy: run.strategy.as_ref().map(|name| base.join(name)),
+            data: referenced_path(base, &run.data, run_name, "$.data")?,
+            model: referenced_path(base, &run.model, run_name, "$.model")?,
+            execution: referenced_path(base, &run.execution, run_name, "$.execution")?,
+            portfolio: referenced_path(base, &run.portfolio, run_name, "$.portfolio")?,
+            strategy: run
+                .strategy
+                .as_deref()
+                .map(|name| referenced_path(base, name, run_name, "$.strategy"))
+                .transpose()?,
         };
 
         let data = data::parse(
@@ -506,6 +510,33 @@ fn file_name(path: &Path) -> &str {
     path.file_name()
         .and_then(|name| name.to_str())
         .unwrap_or("run.json")
+}
+
+/// Resolve one config reference inside the run file's directory.
+///
+/// A client never sends a filesystem path; a `run.json` reference is a name
+/// inside the bundle. An absolute path or a `..` component is refused before
+/// the loader reads it, so an uploaded bundle cannot escape its staging root.
+fn referenced_path(
+    base: &Path,
+    name: &str,
+    run_name: &str,
+    field: &str,
+) -> Result<PathBuf, ConfigError> {
+    let path = Path::new(name);
+    if path.is_absolute()
+        || path
+            .components()
+            .any(|component| !matches!(component, Component::Normal(_) | Component::CurDir))
+    {
+        return Err(ConfigError::range(
+            run_name,
+            field,
+            "a relative path inside the config directory",
+            name,
+        ));
+    }
+    Ok(base.join(path))
 }
 
 /// The referenced name's final component, for the same reason.
