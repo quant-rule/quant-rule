@@ -85,10 +85,25 @@ The human authorized `v1.3.0` before any tag was created. The previously
 prepared release records were renamed and retargeted to `v1.3.0`; no earlier
 tag or release exists, and the historical `1.2.0` evidence is unchanged.
 
+## Tag and release
+
+- The annotated tag `v1.3.0` is object
+  `9e764f22abf9ef5b7566667bd57d5a18e3b0ab58`; it targets
+  `a07def5c` on `main`.
+- Release run
+  [`44074799596`](https://github.com/quant-rule/quant-rule/actions/runs/44074799596)
+  completed: Gate, Image and digest, Desktop (ubuntu-latest), Desktop
+  (windows-latest), and Publish all succeeded.
+- Registry digest:
+  `sha256:d9b8daa10fd1b9770c9ccb6dec871a8c5f76d91222d4e6b6e76e4fb98d639bea`.
+- Assets: `QuantRule_1.3.0_amd64.AppImage` (147,229,176 bytes) and
+  `QuantRule_1.3.0_x64-setup.exe` (38,609,996 bytes), both attached to the
+  GitHub release.
+- Release: <https://github.com/quant-rule/quant-rule/releases/tag/v1.3.0>.
+
 ## Residual risk
 
-- The release note is prepared, not released; the image digest and desktop
-  asset names remain unrecorded until the human-authorized tag run.
+- The tag and GitHub release are published; the note file is the authoritative release record and the GitHub release body also carries the workflow-appended image and asset section.
 - Cross-machine determinism is reviewer-executed; this record claims the local
   gate and the canonical digest only.
 - The opt-in Postgres research tests ran only through the Compose service path,
