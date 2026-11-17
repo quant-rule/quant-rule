@@ -58,6 +58,7 @@ fn run(seed: &[u8], submitted_at: &str) -> NewRun {
         config_hash: digest(b"config"),
         model_version: "M1.3".to_owned(),
         image_digest: digest(b"image"),
+        model_artifact_id: None,
         owner: "default".to_owned(),
         submitted_at: submitted_at.to_owned(),
     }

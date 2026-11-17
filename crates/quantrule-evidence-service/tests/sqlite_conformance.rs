@@ -22,7 +22,7 @@ use quantrule_evidence_service::migrations;
 use quantrule_evidence_service::postgres::{PgHypothesisStore, PgRunStore};
 use quantrule_evidence_service::research::HypothesisStore;
 use quantrule_evidence_service::runs::{
-    CancelOutcome, ClaimOutcome, NewRun, RunStore, SubmitOutcome, derive,
+    CancelOutcome, ClaimOutcome, NewRun, RunStore, SubmitOutcome, derive, derive_with_model,
 };
 use quantrule_evidence_service::sqlite::{SqliteHypothesisStore, SqliteRunStore};
 use quantrule_research::{CostModel, Hypothesis, Partition, SealedHypothesis, Split};
@@ -56,6 +56,7 @@ fn new_run(token: &str, name: &str, submitted_at: &str) -> NewRun {
         config_hash,
         model_version: "M1.0".to_owned(),
         image_digest,
+        model_artifact_id: None,
         owner: "conformance".to_owned(),
         submitted_at: submitted_at.to_owned(),
     }
@@ -510,6 +511,44 @@ fn sealed(token: &str) -> SealedHypothesis {
     .expect("the seal")
 }
 
+async fn model_artifact_conformance(store: &dyn RunStore, token: &str) {
+    let owner = profile("promoted", token);
+    let data_version = Digest::sha256(format!("promoted-data-{token}").as_bytes());
+    let config_hash = Digest::sha256(format!("promoted-config-{token}").as_bytes());
+    let image_digest = Digest::sha256(format!("promoted-image-{token}").as_bytes());
+    let artifact = Digest::sha256(format!("promoted-model-{token}").as_bytes());
+    let mut run = NewRun {
+        run_id: derive(&data_version, &config_hash, "M1.0", &image_digest),
+        config_id: "cfg_conformance".to_owned(),
+        data_version: data_version.clone(),
+        config_hash: config_hash.clone(),
+        model_version: "M1.0".to_owned(),
+        image_digest: image_digest.clone(),
+        model_artifact_id: None,
+        owner: "conformance".to_owned(),
+        submitted_at: "2026-11-17T00:00:00Z".to_owned(),
+    };
+    run.model_artifact_id = Some(artifact.clone());
+    run.run_id = derive_with_model(
+        &data_version,
+        &config_hash,
+        "M1.0",
+        &image_digest,
+        Some(&artifact),
+    );
+    let created = store
+        .submit(owner.clone(), run.clone())
+        .await
+        .expect("the promoted submission");
+    assert!(created.created());
+    let loaded = store
+        .get(owner, run.run_id.to_string())
+        .await
+        .expect("the promoted read")
+        .expect("the promoted row");
+    assert_eq!(loaded.model_artifact_id, Some(artifact));
+}
+
 async fn hypothesis_conformance(store: &dyn HypothesisStore, token: &str) {
     let alpha = profile("alpha", token);
     let beta = profile("beta", token);
@@ -568,7 +607,8 @@ async fn the_sqlite_run_store_conforms() {
     apply_migrations_in(&database, "runs", &migrations::sqlite())
         .await
         .expect("the evidence baseline");
-    run_conformance(&SqliteRunStore::new(database), &token()).await;
+    run_conformance(&SqliteRunStore::new(database.clone()), &token()).await;
+    model_artifact_conformance(&SqliteRunStore::new(database), &token()).await;
 }
 
 #[tokio::test]
@@ -593,5 +633,6 @@ async fn the_postgres_stores_conform() {
         .expect("the evidence migrations");
     let token = token();
     run_conformance(&PgRunStore::new(database.pool().clone()), &token).await;
+    model_artifact_conformance(&PgRunStore::new(database.pool().clone()), &token).await;
     hypothesis_conformance(&PgHypothesisStore::new(database.pool().clone()), &token).await;
 }

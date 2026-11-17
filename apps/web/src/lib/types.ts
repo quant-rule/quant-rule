@@ -132,6 +132,7 @@ export interface RunDetail {
   status: RunState;
   owner: string;
   stages: StageProgress[];
+  model_artifact_id: Digest | null;
   provenance: Provenance;
   artifacts: ArtifactRef[];
   digest: Digest | null;

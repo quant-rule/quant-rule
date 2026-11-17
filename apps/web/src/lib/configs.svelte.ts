@@ -57,13 +57,23 @@ export async function load(): Promise<void> {
 }
 
 /** Submit a run for one valid config and dataset. */
-export async function submit(configId: string, dataVersion: Digest): Promise<void> {
+export async function submit(
+  configId: string,
+  dataVersion: Digest,
+  modelArtifactId: Digest | null = null,
+): Promise<void> {
   const at = generation;
   current = { ...current, submitting: configId, error: null, lastRun: null };
   try {
     const response = await call<SubmitRunResponse>("/runs", {
       method: "POST",
-      body: JSON.stringify({ data_version: dataVersion, config_id: configId }),
+      body: JSON.stringify({
+        data_version: dataVersion,
+        config_id: configId,
+        ...(modelArtifactId === null
+          ? {}
+          : { model_artifact_id: modelArtifactId }),
+      }),
     });
     if (at !== generation) {
       return;

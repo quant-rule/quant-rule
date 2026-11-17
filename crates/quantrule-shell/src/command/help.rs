@@ -80,11 +80,12 @@ const COMMANDS: &[CommandHelp] = &[
     },
     CommandHelp {
         name: "run submit",
-        usage: "run submit <data_version> <config_id>",
+        usage: "run submit <data_version> <config_id> [--model-artifact <id>]",
         summary: "Submit a run and print its id and initial state.",
         output: "run_id, status, created",
         notes: &[
             "The gateway validates the dataset and config before accepting the run.",
+            "`--model-artifact` reuses a frozen model stage artifact; strategy, execution, and portfolio are recomputed.",
             "A duplicate submission returns the existing run with created=false.",
         ],
     },
@@ -92,7 +93,7 @@ const COMMANDS: &[CommandHelp] = &[
         name: "run status",
         usage: "run status <run_id>",
         summary: "Read one run's stages, provenance, artifacts, and digest.",
-        output: "run identity, stage lines, artifact lines, canonical digest, error",
+        output: "run identity, optional frozen model artifact reference, stage lines, artifact lines, canonical digest, error",
         notes: &["A failed run prints its error line and no digest."],
     },
     CommandHelp {

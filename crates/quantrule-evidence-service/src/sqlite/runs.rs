@@ -57,6 +57,7 @@ type RunRow = (
     Option<String>,
     Option<String>,
     i64,
+    Option<String>,
 );
 
 fn store_error(error: rusqlite::Error) -> RunStoreError {
@@ -90,6 +91,7 @@ fn run_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<RunRow> {
         row.get(9)?,
         row.get(10)?,
         row.get(11)?,
+        row.get(12)?,
     ))
 }
 
@@ -164,7 +166,7 @@ fn load_run(
 ) -> Result<Option<RunRecord>, RunStoreError> {
     let columns = "r.run_id, r.status, r.owner, r.config_id, r.data_version,
                    r.config_hash, r.model_version, r.image_digest, r.submitted_at,
-                   r.digest, r.error, r.attempts";
+                   r.digest, r.error, r.attempts, r.model_artifact_id";
     let row: Option<RunRow> = match profile {
         Some(profile) => {
             let sql = format!(
@@ -215,6 +217,13 @@ fn load_run(
         error: row.10,
         attempts: u32::try_from(row.11)
             .map_err(|_| RunStoreError("a stored attempt count is negative".to_owned()))?,
+        model_artifact_id: row
+            .12
+            .map(|value| Digest::parse(&value))
+            .transpose()
+            .map_err(|error| {
+                RunStoreError(format!("a stored model artifact id is malformed: {error}"))
+            })?,
     }))
 }
 
@@ -297,6 +306,7 @@ impl RunStore for SqliteRunStore {
             let config_hash = run.config_hash.to_string();
             let model_version = run.model_version.clone();
             let image_digest = run.image_digest.to_string();
+            let model_artifact_id = run.model_artifact_id.as_ref().map(ToString::to_string);
             let outcome = database
                 .call(move |connection| {
                     let transaction = connection
@@ -305,8 +315,8 @@ impl RunStore for SqliteRunStore {
                     let insert_run = format!(
                         "INSERT INTO {RUNS_TABLE}
                              (run_id, config_id, data_version, owner, status, submitted_at,
-                              config_hash, model_version, image_digest)
-                         VALUES (?1, ?2, ?3, ?4, 'queued', ?5, ?6, ?7, ?8)
+                              config_hash, model_version, image_digest, model_artifact_id)
+                         VALUES (?1, ?2, ?3, ?4, 'queued', ?5, ?6, ?7, ?8, ?9)
                          ON CONFLICT (run_id) DO NOTHING"
                     );
                     let inserted = transaction
@@ -320,7 +330,8 @@ impl RunStore for SqliteRunStore {
                                 submitted_at,
                                 config_hash,
                                 model_version,
-                                image_digest
+                                image_digest,
+                                model_artifact_id
                             ],
                         )
                         .map_err(store_error)?;

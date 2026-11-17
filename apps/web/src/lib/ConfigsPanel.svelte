@@ -11,6 +11,7 @@
   const view = $derived(configs());
   const data = $derived(datasets());
   let dataVersion = $state("");
+  let modelArtifactId = $state("");
   let selected = $state<ConfigSummary | null>(null);
 
   onMount(() => {
@@ -54,6 +55,18 @@
         <option value={item.data_version}>{item.name} · {shortId(item.data_version)}</option>
       {/each}
     </select>
+  </label>
+
+  <label class="row">
+    <span class="muted small">Frozen model artifact (optional)</span>
+    <input
+      bind:value={modelArtifactId}
+      placeholder="sha256:… or blank for a full run"
+      aria-label="Frozen model artifact"
+      spellcheck="false"
+      class="mono"
+    />
+    <span class="muted small">The model is reused; strategy, execution, and portfolio are recomputed.</span>
   </label>
 
   {#if data.items.length === 0}
@@ -110,7 +123,12 @@
               </button>
               <button
                 data-testid="run-submit"
-                onclick={() => void submit(item.config_id, dataVersion)}
+                onclick={() =>
+                  void submit(
+                    item.config_id,
+                    dataVersion,
+                    modelArtifactId.trim() === "" ? null : modelArtifactId.trim(),
+                  )}
                 disabled={!canSubmit(item, dataVersion, view.submitting)}
                 aria-label={`Submit ${item.name}`}
                 title={item.valid ? "Submit this config" : (item.message ?? "invalid config")}

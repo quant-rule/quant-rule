@@ -50,6 +50,7 @@ The gateway owns the hash and the upload limit. The shell never constructs a
 
 ```bash
 quantrule run submit <data_version> <config_id>
+quantrule run submit <data_version> <config_id> --model-artifact <model_artifact_id>
 quantrule run status <run_id>
 quantrule run list --status succeeded --limit 20
 quantrule run fetch <run_id> ./bundle
@@ -57,6 +58,9 @@ quantrule verify <run_id>
 quantrule run cancel <run_id>
 ```
 
+`run submit --model-artifact` reuses a succeeded model stage as the frozen model
+input. The run record shows the artifact id; strategy, execution, and portfolio
+are recomputed, and the model bytes and canonical digest must equal a full run.
 `run fetch` writes each named artifact and checks its size and SHA-256 against
 the run record before writing it. `verify` prints the digest the gateway
 recorded; it does not recompute it. A failed call keeps its stable code:

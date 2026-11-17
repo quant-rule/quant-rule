@@ -155,6 +155,17 @@
           <td class="mono">{detail.provenance.model_version}</td>
         </tr>
         <tr>
+          <th>Frozen model artifact</th>
+          <td class="mono" title={detail.model_artifact_id ?? "none"}>
+            {detail.model_artifact_id == null
+              ? "none"
+              : shortId(detail.model_artifact_id)}
+            {#if detail.model_artifact_id != null}
+              <span class="badge warn">diagnostic input</span>
+            {/if}
+          </td>
+        </tr>
+        <tr>
           <th>Image digest</th>
           <td><pre class="mono digest">{detail.provenance.image_digest}</pre></td>
         </tr>

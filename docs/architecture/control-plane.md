@@ -83,8 +83,20 @@ running, uncomputed run; a computed run is only republished.
 run_id = sha256(data_version ‖ config_hash ‖ model_version ‖ image_digest)
 ```
 
+A promoted run appends the tagged frozen model component:
+
+```text
+run_id = sha256(.. full components .. ‖ "model-artifact" ‖ model_artifact_id)
+```
+
+The full-run id is unchanged. A promoted run is distinct from the same full run,
+records `model_artifact_id` on the run row, and can still produce the same
+canonical digest.
+
 - A submission whose `run_id` exists returns the existing run with `200`.
 - A first submission returns `202`.
+- The same promoted submission returns the same promoted run; a full and a
+  promoted submission never collide.
 - A redelivered message reclaims a running, uncomputed run; a running run with
   a recorded digest republishes `run.computed` so a lost publish still reaches
   evidence. Neither is executed twice.

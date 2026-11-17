@@ -3,6 +3,7 @@ import type { Page, Route } from "@playwright/test";
 import { createHash } from "node:crypto";
 
 const DIGEST = "sha256:" + "a".repeat(64);
+const FROZEN = "sha256:" + "f".repeat(64);
 const RUN = "sha256:" + "b".repeat(64);
 const DATA = "sha256:" + "c".repeat(64);
 const CONFIG = "sha256:" + "d".repeat(64);
@@ -42,6 +43,7 @@ function detail(status: string) {
       { name: "backtest", state: status === "failed" ? "pending" : "done", elapsed_ms: 3_600 },
       { name: "evidence", state: status === "failed" ? "pending" : "done", elapsed_ms: 120 },
     ],
+    model_artifact_id: FROZEN,
     provenance: PROVENANCE,
     artifacts: [{ name: "results.json", bytes: ARTIFACT_BYTES, sha256: ARTIFACT }],
     digest: status === "succeeded" ? DIGEST : null,
@@ -138,6 +140,8 @@ test("renders stages, provenance, artifacts, and copies the digest", async ({ pa
   await expect(page.getByText("data", { exact: true })).toBeVisible();
   await expect(page.getByText("evidence", { exact: true })).toBeVisible();
   await expect(page.getByText("M1.0")).toBeVisible();
+  await expect(page.getByText("Frozen model artifact")).toBeVisible();
+  await expect(page.getByText("diagnostic input")).toBeVisible();
   await expect(page.getByText(IMAGE)).toBeVisible();
   await expect(page.getByText("Canonical digest")).toBeVisible();
   await expect(page.getByText(DIGEST)).toBeVisible();
@@ -155,7 +159,7 @@ test("a failed run shows the error and hides the artifact section", async ({ pag
   await openDetail(page, "failed");
 
   await expect(page.getByText("data stage failed")).toBeVisible();
-  await expect(page.getByText("Artifacts")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Artifacts" })).toHaveCount(0);
   await expect(page.getByText("results.json")).toHaveCount(0);
 });
 

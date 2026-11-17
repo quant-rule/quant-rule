@@ -380,7 +380,7 @@ fn parse_config(args: &[String]) -> Result<Command, ParseError> {
 }
 
 fn parse_run(args: &[String]) -> Result<Command, ParseError> {
-    const FAMILY: &str = "usage: run submit <data_version> <config_id>|status <run_id>|list|cancel <run_id>|fetch <run_id> <directory>";
+    const FAMILY: &str = "usage: run submit <data_version> <config_id> [--model-artifact <id>]|status <run_id>|list|cancel <run_id>|fetch <run_id> <directory>";
     let (name, rest) = args
         .split_first()
         .ok_or_else(|| ParseError::Usage(String::from(FAMILY)))?;
@@ -388,9 +388,12 @@ fn parse_run(args: &[String]) -> Result<Command, ParseError> {
         "submit" => {
             let line = usage("run submit");
             let usage = line.as_str();
-            pair(rest, usage).map(|(data_version, config_id)| Command::RunSubmit {
-                data_version,
-                config_id,
+            let options = parse_options(rest, usage, &["model-artifact"], &[])?;
+            options.expect_positionals(2, usage)?;
+            Ok(Command::RunSubmit {
+                data_version: options.positional(0, "the data_version", usage)?.to_owned(),
+                config_id: options.positional(1, "the config_id", usage)?.to_owned(),
+                model_artifact_id: options.value("model-artifact").map(str::to_owned),
             })
         }
         "status" => {

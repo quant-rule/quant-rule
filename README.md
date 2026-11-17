@@ -181,7 +181,7 @@ distributed release (v0.9.0, prepared as v1.0.0).
 | `dataset upload` | Catalog | Upload a CSV and print its `data_version` |
 | `config list` | Catalog | List run configurations and validity |
 | `config show` | Catalog | Read one configuration summary |
-| `run submit` | Runs | Submit a run over a dataset and config |
+| `run submit` | Runs | Submit a run over a dataset and config, optionally reusing a frozen model artifact |
 | `run status` | Runs | Read stages, provenance, artifacts, and digest |
 | `run list` | Runs | List runs with an optional state filter |
 | `run fetch` | Runs | Download a run's artifacts into a directory |
@@ -216,8 +216,7 @@ distributed release (v0.9.0, prepared as v1.0.0).
 ### Target stage and research surface
 
 The next surface is additive: `research` records; `baseline` and `invalidation`
-reads; and the optional `run submit --model-artifact` flag. It is not
-implemented yet. The target is
+reads. It is not implemented yet. The target is
 [`docs/architecture/stage-surface.md`](docs/architecture/stage-surface.md).
 
 ## Principles

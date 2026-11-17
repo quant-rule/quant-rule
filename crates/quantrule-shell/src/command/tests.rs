@@ -69,3 +69,40 @@ fn the_short_map_names_the_global_flags_and_environment() {
         assert!(text.contains(expected), "{expected} is missing");
     }
 }
+
+#[test]
+fn run_detail_prints_the_frozen_model_artifact_or_none() {
+    use quantrule_api::{Digest, Provenance, RunDetail, RunId, RunState, StageProgress};
+
+    let digest = Digest::sha256(b"fixture");
+    let detail = RunDetail {
+        run_id: RunId(digest.clone()),
+        status: RunState::Queued,
+        owner: "default".to_owned(),
+        stages: Vec::<StageProgress>::new(),
+        model_artifact_id: Some(digest.clone()),
+        provenance: Provenance {
+            data_version: digest.clone(),
+            config_hash: digest.clone(),
+            model_version: "M1.0".to_owned(),
+            image_digest: digest.clone(),
+        },
+        artifacts: Vec::new(),
+        digest: None,
+        error: None,
+    };
+    let mut buffer = Vec::new();
+    crate::output::run_detail(&mut buffer, &detail).expect("run detail");
+    let text = String::from_utf8(buffer).expect("UTF-8");
+    assert!(
+        text.contains(&format!("model_artifact_id: {digest}")),
+        "{text}"
+    );
+
+    let mut buffer = Vec::new();
+    let mut plain = detail;
+    plain.model_artifact_id = None;
+    crate::output::run_detail(&mut buffer, &plain).expect("run detail");
+    let text = String::from_utf8(buffer).expect("UTF-8");
+    assert!(text.contains("model_artifact_id: none"), "{text}");
+}

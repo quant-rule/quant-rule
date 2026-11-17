@@ -12,7 +12,7 @@ use axum::extract::{Json, Path, Query, State};
 use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::IntoResponse;
 use quantrule_api::{
-    Digest, ErrorCode, RunDetail, RunDigest, RunState, RunSummary, SubmitRunRequest,
+    Digest, ErrorCode, RunDetail, RunDigest, RunState, RunSummary, StageKind, SubmitRunRequest,
     SubmitRunResponse,
 };
 use quantrule_runtime::clock;
@@ -21,7 +21,7 @@ use quantrule_service_api::RunManifest;
 use serde::Deserialize;
 
 use crate::routes::{ApiFailure, data_failure, failure, request_profile};
-use crate::runs::{CancelOutcome, NewRun, derive};
+use crate::runs::{CancelOutcome, NewRun, derive_with_model};
 use crate::state::EvidenceState;
 
 /// The optional filters on a run list.
@@ -104,11 +104,51 @@ pub(crate) async fn submit_run(
         .image_digest
         .clone()
         .unwrap_or_else(|| Digest::sha256(b"no-image-digest"));
-    let run_id = derive(
+    let model_artifact_id = request.model_artifact_id.clone();
+    if let Some(artifact_id) = &model_artifact_id {
+        let stages = state.stages.as_ref().ok_or_else(|| {
+            failure(
+                ErrorCode::Internal,
+                "no stage store is configured for a promoted run",
+            )
+        })?;
+        let stage = stages
+            .find_by_artifact(profile.clone(), StageKind::Model, artifact_id.clone())
+            .await
+            .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?
+            .ok_or_else(|| {
+                failure(
+                    ErrorCode::RunModelArtifactInvalid,
+                    format!(
+                        "no succeeded model stage publishes artifact {artifact_id} in this profile"
+                    ),
+                )
+            })?;
+        if stage.provenance.data_version != request.data_version {
+            return Err(failure(
+                ErrorCode::RunModelArtifactInvalid,
+                "the model artifact belongs to another dataset",
+            ));
+        }
+        if stage.provenance.config_hash != config_hash {
+            return Err(failure(
+                ErrorCode::RunModelArtifactInvalid,
+                "the model artifact belongs to another config hash",
+            ));
+        }
+        if stage.provenance.model_version != model_version {
+            return Err(failure(
+                ErrorCode::RunModelArtifactInvalid,
+                "the model artifact belongs to another model version",
+            ));
+        }
+    }
+    let run_id = derive_with_model(
         &request.data_version,
         &config_hash,
         &model_version,
         &image_digest,
+        model_artifact_id.as_ref(),
     );
     let runs = state
         .runs
@@ -124,6 +164,7 @@ pub(crate) async fn submit_run(
                 config_hash,
                 model_version,
                 image_digest,
+                model_artifact_id,
                 owner: profile.as_str().to_owned(),
                 submitted_at: clock::now_utc()
                     .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?,

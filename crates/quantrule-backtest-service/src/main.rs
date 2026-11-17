@@ -82,6 +82,7 @@ async fn main() -> Result<(), RuntimeError> {
         evidence,
         data,
         model,
+        stages: Arc::clone(&stage_evidence),
         objects,
         queue: publish,
     });

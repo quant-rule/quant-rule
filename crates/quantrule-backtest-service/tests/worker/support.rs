@@ -17,7 +17,7 @@ pub use quantrule_runtime::adapters::{
 #[allow(unused_imports)]
 pub use quantrule_runtime::client::{
     ClientError, DataClient, EvidenceClient, MemoryDataClient, MemoryEvidence, MemoryModel,
-    ModelClient, Service,
+    MemoryStageClient, ModelClient, Service, StageClient,
 };
 #[allow(unused_imports)]
 pub use quantrule_service_api::{
@@ -120,12 +120,14 @@ pub fn bundle(root: &Path) -> ConfigBundle {
 
 pub struct Fixture {
     pub services: WorkerServices,
+    pub stages: MemoryStageClient,
     pub data: MemoryDataClient,
     pub runs: MemoryEvidence,
     pub queue: MemoryQueue,
     pub objects: common::MemoryObjects,
     pub model: MemoryModel,
     pub config_id: String,
+    pub config: ConfigBundle,
     pub invalid_config_id: String,
     pub data_version: Digest,
     pub config_hash: Digest,
@@ -271,6 +273,7 @@ pub async fn fixture() -> Fixture {
     let runs = MemoryEvidence::default();
     let queue = MemoryQueue::default();
     let model = MemoryModel::new();
+    let stages = MemoryStageClient::default();
 
     let dataset = csv();
     let data_version = Digest::sha256(&dataset);
@@ -322,6 +325,7 @@ pub async fn fixture() -> Fixture {
         config_hash: config_hash.clone(),
         model_version: "M1.0".to_owned(),
         image_digest: image,
+        model_artifact_id: None,
         owner: "default".to_owned(),
         submitted_at: "2026-11-13T00:00:00Z".to_owned(),
     };
@@ -332,17 +336,20 @@ pub async fn fixture() -> Fixture {
         evidence: Arc::new(runs.clone()),
         data: Arc::new(data.clone()),
         model: Arc::new(model.clone()),
+        stages: Arc::new(stages.clone()),
         objects: Arc::new(objects.clone()),
         queue: Arc::new(queue.clone()),
     };
     Fixture {
         services,
+        stages,
         data,
         runs,
         queue,
         objects,
         model,
-        config_id: valid.config_id,
+        config_id: valid.config_id.clone(),
+        config: valid,
         invalid_config_id: invalid.config_id,
         data_version,
         config_hash,
@@ -419,6 +426,7 @@ pub fn services_with_manifest_failure(fixture: &Fixture) -> WorkerServices {
         evidence: Arc::clone(&fixture.services.evidence),
         data: Arc::clone(&fixture.services.data),
         model: Arc::clone(&fixture.services.model),
+        stages: Arc::clone(&fixture.services.stages),
         objects: Arc::new(ManifestFails {
             inner: fixture.objects.clone(),
         }),
@@ -431,6 +439,7 @@ pub fn services_with_put_failure(fixture: &Fixture) -> WorkerServices {
         evidence: Arc::clone(&fixture.services.evidence),
         data: Arc::clone(&fixture.services.data),
         model: Arc::clone(&fixture.services.model),
+        stages: Arc::clone(&fixture.services.stages),
         objects: Arc::new(PutFails {
             inner: fixture.objects.clone(),
         }),
@@ -457,6 +466,7 @@ pub async fn submit_with(
             config_hash,
             model_version: "M1.0".to_owned(),
             image_digest: image,
+            model_artifact_id: None,
             owner: "default".to_owned(),
             submitted_at: "2026-11-13T00:00:00Z".to_owned(),
         },
@@ -521,6 +531,7 @@ pub fn services_with_stop_after(fixture: &Fixture, allowed: usize) -> WorkerServ
         evidence: Arc::clone(&fixture.services.evidence),
         data: Arc::clone(&fixture.services.data),
         model: Arc::clone(&fixture.services.model),
+        stages: Arc::clone(&fixture.services.stages),
         objects: Arc::new(StopAfter {
             inner: fixture.objects.clone(),
             allowed,
@@ -735,6 +746,7 @@ pub fn services_with(
         evidence,
         data,
         model,
+        stages: Arc::clone(&fixture.services.stages),
         objects: Arc::clone(&fixture.services.objects),
         queue: Arc::clone(&fixture.services.queue),
     }

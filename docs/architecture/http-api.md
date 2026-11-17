@@ -44,7 +44,7 @@ never renders a label, and never returns a raw engine type.
 | POST | `/catalog/configs` | run-config bundle | `201` new, `200` existing, with the summary |
 | POST | `/model/compute` | `{data_version, config_id, timeframes?}` | model object with registry version, timeframes, CAS key, hash, and bytes |
 | GET | `/runs` | `status`, `limit` | run summaries |
-| POST | `/runs` | `{data_version, config_id}` | `202` new, `200` existing, with `run_id` |
+| POST | `/runs` | `{data_version, config_id, model_artifact_id?}` | `202` new, `200` existing, with `run_id` |
 | GET | `/runs/{id}` | — | status, stages, provenance, artifacts |
 | POST | `/runs/{id}/cancel` | — | `202` or `409` |
 | GET | `/runs/{id}/artifacts/{*name}` | — | bytes; a nested relative name such as `execution/fills.csv` |
@@ -74,11 +74,13 @@ failed call is `unreachable`, never a stale healthy state.
 ## 3. Submission
 
 ```json
-{ "data_version": "sha256:…", "config_id": "cfg_…" }
+{ "data_version": "sha256:…", "config_id": "cfg_…", "model_artifact_id": "sha256:…" }
 ```
 
-The evidence service validates the config, computes `run_id`, writes `queued`,
-publishes `run.requested`, and returns:
+`model_artifact_id` is optional; omit it for a full run. It names a succeeded
+model stage in the active profile. The evidence service validates the config and
+the stage provenance, computes `run_id`, writes `queued`, publishes
+`run.requested`, and returns:
 
 ```json
 { "run_id": "sha256:…", "status": "queued" }
@@ -98,6 +100,7 @@ repeated message as a lookup.
   "status": "succeeded",
   "owner": "operator",
   "stages": [{ "name": "model", "state": "done", "elapsed_ms": 4210 }],
+  "model_artifact_id": "sha256:…",
   "provenance": {
     "data_version": "sha256:…",
     "config_hash": "sha256:…",
@@ -131,6 +134,7 @@ comparison names the context it reads.
 | `hypothesis.invalid` | 400 | A hypothesis failed validation |
 | `run.not_found` | 404 | Unknown run id |
 | `run.invalid` | 400 | Malformed run id or submission |
+| `run.model_artifact_invalid` | 400 | Unknown, non-succeeded, or mismatched frozen model artifact |
 | `run.conflict` | 409 | Cancel after completion |
 | `upload.too_large` | 413 | Over the configured limit |
 | `queue.unavailable` | 503 | Broker unreachable |

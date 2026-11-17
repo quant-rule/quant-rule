@@ -15,18 +15,22 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use quantrule_api::{
-    ArtifactRef, Digest, ProfileId, RunState, StageName, StageProgress, StageStatus,
+    ArtifactRef, Digest, ProfileId, RunState, StageKind, StageName, StageProgress, StageState,
+    StageStatus,
 };
 use quantrule_app::service::AppService;
 use quantrule_app::stages::backtest_from_model::BacktestFromModelRequest;
 use quantrule_service_api::{
     MODEL_BUNDLE_SCHEMA, ModelBundleManifest, RunClaimOutcome, RunManifest, RunRecord,
+    StageManifest,
 };
 
 use crate::backtest::Workspace;
 use crate::backtest::retry::{self, RetryDecision};
 use quantrule_runtime::adapters::{ObjectStore, Queue};
-use quantrule_runtime::client::{ClientError, DataClient, EvidenceClient, ModelClient};
+use quantrule_runtime::client::{
+    ClientError, DataClient, EvidenceClient, ModelClient, StageClient,
+};
 use quantrule_runtime::queue::{ROUTING_COMPUTED, ROUTING_DEAD, ROUTING_FAILED};
 
 /// A worker failure with a human-readable message.
@@ -68,6 +72,8 @@ pub struct WorkerServices {
     pub data: Arc<dyn DataClient>,
     /// The model service's bundle reference.
     pub model: Arc<dyn ModelClient>,
+    /// The evidence stage lookup, for a promoted run.
+    pub stages: Arc<dyn StageClient>,
     /// The object store.
     pub objects: Arc<dyn ObjectStore>,
     /// The control-plane queue.
@@ -173,28 +179,40 @@ pub async fn process(
     if cancelled(services, &run_id).await? {
         return Ok(ProcessOutcome::Skipped);
     }
-    let manifest = match services
-        .model
-        .bundle(
-            profile,
-            record.data_version.clone(),
-            record.config_id.clone(),
-        )
-        .await
-    {
-        Ok(manifest) => manifest,
-        Err(error) => return client_failure(services, &run_id, &error, attempts).await,
-    };
-    if let Err(message) = verify_manifest(&manifest, &record) {
-        return fail(services, &run_id, &message).await;
-    }
-    let model_files = match load_model_artifacts(&services.objects, &manifest).await {
-        Ok(files) => files,
-        Err(ModelRead::Store(message)) => {
-            return retry_or_exhaust(services, &run_id, &message, attempts).await;
+    let model_files = if let Some(artifact_id) = record.model_artifact_id.as_ref() {
+        match load_promoted_model(profile, artifact_id.clone(), &record, services).await {
+            Ok(files) => files,
+            Err(ModelRead::Store(message)) => {
+                return retry_or_exhaust(services, &run_id, &message, attempts).await;
+            }
+            Err(ModelRead::Mismatch(message)) => {
+                return fail(services, &run_id, &message).await;
+            }
         }
-        Err(ModelRead::Mismatch(message)) => {
+    } else {
+        let manifest = match services
+            .model
+            .bundle(
+                profile,
+                record.data_version.clone(),
+                record.config_id.clone(),
+            )
+            .await
+        {
+            Ok(manifest) => manifest,
+            Err(error) => return client_failure(services, &run_id, &error, attempts).await,
+        };
+        if let Err(message) = verify_manifest(&manifest, &record) {
             return fail(services, &run_id, &message).await;
+        }
+        match load_model_artifacts(&services.objects, &manifest).await {
+            Ok(files) => files,
+            Err(ModelRead::Store(message)) => {
+                return retry_or_exhaust(services, &run_id, &message, attempts).await;
+            }
+            Err(ModelRead::Mismatch(message)) => {
+                return fail(services, &run_id, &message).await;
+            }
         }
     };
 
@@ -317,6 +335,96 @@ async fn client_failure(
     } else {
         retry_or_exhaust(services, run_id, &error.to_string(), attempts).await
     }
+}
+
+/// Read the frozen model stage a promoted run names.
+async fn load_promoted_model(
+    profile: ProfileId,
+    artifact_id: Digest,
+    record: &RunRecord,
+    services: &WorkerServices,
+) -> Result<Vec<(String, Vec<u8>)>, ModelRead> {
+    let stage = services
+        .stages
+        .get_stage_by_artifact(profile, StageKind::Model, artifact_id.clone())
+        .await
+        .map_err(|error| {
+            if terminal(&error) {
+                ModelRead::Mismatch(error.to_string())
+            } else {
+                ModelRead::Store(error.to_string())
+            }
+        })?
+        .ok_or_else(|| {
+            ModelRead::Mismatch(format!(
+                "no succeeded model stage publishes artifact {artifact_id}"
+            ))
+        })?;
+    if stage.kind != StageKind::Model || stage.state != StageState::Succeeded {
+        return Err(ModelRead::Mismatch(
+            "the model artifact is not a succeeded model stage".to_owned(),
+        ));
+    }
+    let artifact = stage
+        .artifact
+        .as_ref()
+        .ok_or_else(|| ModelRead::Mismatch("the model stage carries no artifact".to_owned()))?;
+    if artifact.artifact_id != artifact_id {
+        return Err(ModelRead::Mismatch(
+            "the model stage publishes another artifact".to_owned(),
+        ));
+    }
+    if stage.provenance.data_version != record.data_version {
+        return Err(ModelRead::Mismatch(
+            "the model artifact belongs to another dataset".to_owned(),
+        ));
+    }
+    if stage.provenance.config_hash != record.config_hash {
+        return Err(ModelRead::Mismatch(
+            "the model artifact belongs to another config hash".to_owned(),
+        ));
+    }
+    if stage.provenance.model_version != record.model_version {
+        return Err(ModelRead::Mismatch(
+            "the model artifact belongs to another model version".to_owned(),
+        ));
+    }
+    let manifest_bytes = services
+        .objects
+        .get(&StageManifest::key(&stage.stage_run_id))
+        .await
+        .map_err(|error| ModelRead::Store(error.to_string()))?;
+    let manifest = StageManifest::from_bytes(&manifest_bytes)
+        .map_err(|error| ModelRead::Mismatch(error.to_string()))?;
+    if manifest.stage_run_id != stage.stage_run_id
+        || manifest.kind != StageKind::Model
+        || manifest.config_id != record.config_id
+        || manifest.data_version != record.data_version
+        || manifest.config_hash != record.config_hash
+        || manifest.model_version != record.model_version
+        || manifest.artifacts != artifact.files
+    {
+        return Err(ModelRead::Mismatch(
+            "the model stage manifest disagrees with the run record".to_owned(),
+        ));
+    }
+    let mut files = Vec::with_capacity(manifest.artifacts.len());
+    for file in &manifest.artifacts {
+        let bytes = services
+            .objects
+            .get(&StageManifest::blob_key(&file.sha256))
+            .await
+            .map_err(|error| ModelRead::Store(error.to_string()))?;
+        if bytes.len() as u64 != file.bytes || Digest::sha256(&bytes) != file.sha256 {
+            return Err(ModelRead::Mismatch(format!(
+                "the model stage artifact {} does not match its manifest",
+                file.name
+            )));
+        }
+        files.push((file.name.clone(), bytes));
+    }
+    files.sort_by(|left, right| left.0.cmp(&right.0));
+    Ok(files)
 }
 
 /// Verify that the model bundle is the one the run was submitted for.

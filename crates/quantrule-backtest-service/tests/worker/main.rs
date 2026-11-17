@@ -6,6 +6,7 @@ mod cancel;
 mod failure;
 mod path;
 mod portfolio_stage;
+mod promotion;
 mod source;
 mod strategy_stage;
 mod support;

@@ -78,6 +78,7 @@ class Ledger:
     baseline: str | None
     store: str
     main: str | None
+    extra_baselines: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -93,11 +94,12 @@ class Violation:
 
 
 # The complete SQLite inventory. `runs`, `research`, and `stage` share one
-# ledger and one forward-only history, written as two baselines: the run and
-# research tables start at version 1, and the diagnostic stage tables are the
-# additive version 2. The table set is written per prefix so it stays explicit.
-# `queue` has no baseline and no binary: the runtime adapter owns its two tables,
-# so `baseline` and `main` are `None` on purpose, not an omission.
+# ledger and one forward-only history: the run and research tables start at
+# version 1, the diagnostic stage tables are version 2, and the run model
+# artifact column is the additive version 3. The table set is written per prefix
+# so it stays explicit. `queue` has no baseline and no binary: the runtime
+# adapter owns its two tables, so `baseline` and `main` are `None` on purpose,
+# not an omission.
 LEDGERS = (
     Ledger(
         name="gateway",
@@ -132,6 +134,7 @@ LEDGERS = (
             "runs__submissions",
         ),
         baseline="migrations/sqlite/0001_runs_research.sql",
+        extra_baselines=("migrations/sqlite/0003_run_model_artifact.sql",),
         store="src/sqlite/mod.rs",
         main="src/main.rs",
     ),
@@ -365,6 +368,9 @@ def check_crate(root: Path, crate: str, rows: list[Ledger]) -> list[Violation]:
     base = root / CRATES / crate
     violations: list[Violation] = []
     declared = {row.baseline for row in rows if row.baseline}
+    declared.update(
+        baseline for row in rows for baseline in row.extra_baselines if baseline
+    )
     sqlite_dir = base / SQLITE_DIR
     actual = {
         relative(base, path)
@@ -642,7 +648,14 @@ def file_violation(rule: str, root: Path, path: Path, message: str) -> Violation
 def summary() -> str:
     """The one-line pass message."""
     tables = sum(len(ledger.tables) for ledger in LEDGERS)
-    baselines = len({ledger.baseline for ledger in LEDGERS if ledger.baseline})
+    baselines = len(
+        {
+            baseline
+            for ledger in LEDGERS
+            for baseline in ((ledger.baseline,) if ledger.baseline else ())
+            + ledger.extra_baselines
+        }
+    )
     return (
         f"schema prefixes ok: {len(LEDGERS)} ledger rows, {tables} tables, "
         f"{baselines} baselines"

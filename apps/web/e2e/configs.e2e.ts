@@ -64,7 +64,11 @@ async function shell(route: Route): Promise<boolean> {
 }
 
 test("a valid config submits the chosen dataset and opens the run list", async ({ page }) => {
-  let submitted: { data_version?: string; config_id?: string } | null = null;
+  let submitted: {
+    data_version?: string;
+    config_id?: string;
+    model_artifact_id?: string;
+  } | null = null;
 
   await page.route("**/api/v1/**", async (route) => {
     if (await shell(route)) {
@@ -79,7 +83,11 @@ test("a valid config submits the chosen dataset and opens the run list", async (
       return route.fulfill({ json: [DATASET] });
     }
     if (path === "/runs" && request.method() === "POST") {
-      submitted = request.postDataJSON() as { data_version?: string; config_id?: string };
+      submitted = request.postDataJSON() as {
+        data_version?: string;
+        config_id?: string;
+        model_artifact_id?: string;
+      };
       return route.fulfill({
         status: 202,
         json: { run_id: RUN, status: "queued", created: true },
@@ -105,6 +113,16 @@ test("a valid config submits the chosen dataset and opens the run list", async (
   await page.getByRole("button", { name: "Submit valid/run.json" }).click();
   await expect(page.getByText(/Run queued/)).toBeVisible();
   expect(submitted).toEqual({ data_version: DATA, config_id: "cfg_valid" });
+
+  await page.getByLabel("Frozen model artifact").fill(DIGEST);
+  await page.getByRole("button", { name: "Submit valid/run.json" }).click();
+  await expect
+    .poll(() => submitted)
+    .toEqual({
+      data_version: DATA,
+      config_id: "cfg_valid",
+      model_artifact_id: DIGEST,
+    });
 
   await page.getByRole("button", { name: "View runs" }).click();
   await expect(page.getByRole("heading", { name: "Runs", level: 1 })).toBeVisible();

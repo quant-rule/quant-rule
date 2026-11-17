@@ -59,6 +59,7 @@ async fn claimed(store: &SqliteRunStore) -> String {
                 config_hash,
                 model_version: "M1.0".to_owned(),
                 image_digest,
+                model_artifact_id: None,
                 owner: "default".to_owned(),
                 submitted_at: "2026-11-15T00:00:00Z".to_owned(),
             },

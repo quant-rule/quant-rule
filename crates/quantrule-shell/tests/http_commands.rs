@@ -188,6 +188,31 @@ fn run_submit_sends_the_contract_body() {
 }
 
 #[test]
+fn run_submit_sends_the_optional_model_artifact() {
+    let fixture = Fixture::start();
+    let artifact = digest('9');
+    let output = fixture.run(&[
+        "run",
+        "submit",
+        &data_version(),
+        "cfg_abc",
+        "--model-artifact",
+        &artifact,
+    ]);
+    assert_success(&output);
+    let request = fixture.last_request();
+    assert_eq!(request.path, "/runs");
+    assert_eq!(
+        request.json(),
+        json!({
+            "data_version": data_version(),
+            "config_id": "cfg_abc",
+            "model_artifact_id": artifact,
+        })
+    );
+}
+
+#[test]
 fn run_status_prints_stages_provenance_artifacts_and_digest() {
     let fixture = Fixture::start();
     let output = fixture.run(&["run", "status", &run_id()]);
@@ -935,7 +960,10 @@ fn help_does_not_need_a_gateway() {
     let output = fixture.run(&["help", "run", "submit"]);
     assert_success(&output);
     assert!(stdout(&output).starts_with("run submit\n"));
-    assert!(stdout(&output).contains("usage:  run submit <data_version> <config_id>"));
+    assert!(
+        stdout(&output)
+            .contains("usage:  run submit <data_version> <config_id> [--model-artifact <id>]")
+    );
     assert!(fixture.requests().is_empty());
 }
 

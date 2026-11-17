@@ -469,6 +469,14 @@ pub(crate) fn run_detail(writer: &mut dyn Write, detail: &RunDetail) -> io::Resu
     writeln!(writer, "data_version: {}", detail.provenance.data_version)?;
     writeln!(writer, "config_hash: {}", detail.provenance.config_hash)?;
     writeln!(writer, "model_version: {}", detail.provenance.model_version)?;
+    writeln!(
+        writer,
+        "model_artifact_id: {}",
+        detail
+            .model_artifact_id
+            .as_ref()
+            .map_or_else(|| String::from("none"), ToString::to_string)
+    )?;
     writeln!(writer, "image_digest: {}", detail.provenance.image_digest)?;
     writeln!(writer, "stages: {}", detail.stages.len())?;
     for stage in &detail.stages {

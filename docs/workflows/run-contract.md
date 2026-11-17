@@ -1,7 +1,8 @@
 # Improvement Run Contract
 
 - Date: 2026-11-01 (UTC)
-- Updated: 2026-11-16 for the gateway execution path, the current run schema,
+- Updated: 2026-11-17 for model-artifact reuse and promoted run identity;
+  2026-11-16 for the gateway execution path, the current run schema,
   and manifest v2
 - Status: Current; `quantrule.improvement-run/v2` is current, v1 is historical,
   and no tiered run has used the contract yet
@@ -54,6 +55,32 @@ manifest may not cite an undeclared partition. A validation or holdout run is a
 separate run ID from the development run it tests. The comparison run is named in
 `baseline` (the accepted baseline, or the frozen development candidate for a
 validation run), and its config is copied into `config/`.
+
+## Coupled run identity and model reuse
+
+A full evidence run keeps its identity:
+
+```text
+run_id = sha256(data_version ‖ config_hash ‖ model_version ‖ image_digest)
+```
+
+A promoted run appends one tagged identity component:
+
+```text
+run_id = sha256(.. full components .. ‖ "model-artifact" ‖ model_artifact_id)
+```
+
+The full-run id is unchanged and every existing body remains valid. A promoted
+run is therefore a distinct run from the same full run, while its canonical
+digest can still be equal.
+
+`run submit --model-artifact <id>` names a succeeded model stage in the active
+profile. Evidence checks the stage's `data_version`, `config_hash`, and
+`model_version`, records the artifact id, and the worker loads the stage manifest
+and bytes instead of calling the model service. The model bytes must equal the
+full-run model bundle; strategy, execution, and portfolio are recomputed. The
+model artifact id is displayed by `run status` and the browser run detail; it is
+an input reference, not evidence in itself.
 
 ## Layout
 
