@@ -50,7 +50,7 @@ quantrule stage fetch <model_stage_run_id> ./stage-model
 |---|---|
 | Submit | `stage_run_id`, `state: queued`, `created: true` |
 | Detail | `evidence: false`, provenance, artifact id, file list |
-| Artifact | Model bundle copied byte-for-byte; `report.json`, `readings.csv`, `events.csv`, `levels.csv`, `legs.csv`, `summary.txt`, `provenance.json` |
+| Artifact | Model bundle copied byte-for-byte; `summary.txt`, `report.json`, `result.json`, `readings.csv`, `events.csv`, `levels.csv`, `legs.csv`, `provenance.json` |
 | Fetch | Every file checked against its recorded size and SHA-256 |
 
 ## 3. Strategy stage
@@ -117,10 +117,11 @@ non-succeeded, or mismatched is refused with `run.model_artifact_invalid`.
 | `run fetch` | One line per artifact, each hash matching the record |
 | `verify` | `run_id` and the canonical digest |
 
-The digest covers `results.json`, `*.csv`, and `*.ndjson`; it excludes
-`provenance.json`, manifests, summaries, logs, and timestamps. One run is not
-reproducibility evidence. Two equivalent runs that print the same digest are; see
-the [end-to-end tutorial](end-to-end-verification.md).
+The canonical set is `results.json` when present, plus every `*.csv` and
+`*.ndjson`; it excludes `provenance.json`, manifests, summaries, logs, and
+timestamps. One run is not reproducibility evidence. Two equivalent runs that
+print the same digest are; see the
+[end-to-end tutorial](end-to-end-verification.md).
 
 ## 7. Failure actions
 

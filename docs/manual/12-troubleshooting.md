@@ -34,7 +34,7 @@ stale data. The token code is `auth.unauthorized`; there is no `token.invalid`.
 | `service.unavailable` | Downstream service unreachable or refused the proxied call | The call is refused; rows are not presented as fresh | Read `health` and `make logs`; stop |
 | `simulation.not_found` | Unknown simulation id | The run is unavailable | Re-read `simulation list` |
 | `simulation.mark_invalid` | Bar outside the window, or a schema violation | The mark is refused; the note is kept | Select a bar in the window; fix the mark fields |
-| `simulation.check_incomplete` | Fewer than 30 events, or an unmarked window | The check is refused | Mark the full window or choose a later window |
+| `simulation.check_incomplete` | Fewer than 30 events produced a check row; the sample is underpowered | The check is refused | Use a bundle or timeframe with at least 30 events; do not mark the same small sample harder |
 | `simulation.locked` | Marking after a decision | The chart is locked | Do not mark; start a new simulation if needed |
 | `internal` | Unclassified server defect | The call fails with `internal` | Record the request, check logs, and report the defect |
 

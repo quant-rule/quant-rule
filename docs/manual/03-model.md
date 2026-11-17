@@ -42,7 +42,7 @@ the server derives the rest of the provenance.
 | `artifact_id` | Content identity of the artifact bundle |
 | `state` | `queued`, `running`, `succeeded`, `failed`, or `cancelled` |
 | `evidence` | Always `false` for a stage |
-| Artifact files | `report.json`, `readings.csv`, `events.csv`, `levels.csv`, `legs.csv`, `summary.txt`, `provenance.json` |
+| Artifact files | `summary.txt`, `report.json`, `result.json`, `readings.csv`, `events.csv`, `levels.csv`, `legs.csv`, `provenance.json` |
 | Events | Type, subtype, source, timeframe, direction, occurred bar, available bar, measured values |
 | Coverage | Bars, expected bars, coverage share per timeframe |
 

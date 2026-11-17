@@ -36,7 +36,7 @@ recompute a decision from a reading or a later bar.
 
 | Field | Meaning |
 |---|---|
-| `decision` | `hold`, `enter`, `exit`, or the engine's published action |
+| `decision` | `hold`, `enter`, `enter_bracket`, or `exit` |
 | `side` | `long`, `short`, or `none` |
 | `reason` | The published rule reason |
 | `position_before`, `position_after` | The strategy's own simulated position |

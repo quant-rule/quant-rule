@@ -51,6 +51,15 @@ the same inputs. A mismatch is `run.model_artifact_invalid`, not a warning.
 run_id = sha256(data_version ‖ config_hash ‖ model_version ‖ image_digest)
 ```
 
+A promoted run appends the tagged frozen model component:
+
+```text
+run_id = sha256(.. full components .. ‖ "model-artifact" ‖ model_artifact_id)
+```
+
+The full-run id is unchanged. A promoted run is a distinct run from the full run
+even when both produce the same canonical digest.
+
 | Value | Covers | Consequence |
 |---|---|---|
 | `run_id` | Data, config, model version, image | A different image or config is a different run |
@@ -58,10 +67,11 @@ run_id = sha256(data_version ‖ config_hash ‖ model_version ‖ image_digest)
 | `canonical digest` | Sorted `(path, sha256)` for `results.json`, `*.csv`, `*.ndjson` | Excludes provenance, manifests, logs, and timestamps |
 | Artifact hash | One file's bytes | A mismatch stops the download |
 
-The canonical set includes result files such as `results.json`,
-`strategy/decisions.ndjson`, `model/*.csv`, `execution/*.csv`, and
-`portfolio/*.csv`. `provenance.json`, `manifest.json`, `summary.txt`, and the
-JSON reports are not canonical because they record identity or context.
+The canonical set is `results.json` when present, plus every `*.csv` and
+`*.ndjson`: for example `strategy/decisions.ndjson`, `model/*.csv`,
+`execution/*.csv`, and `portfolio/*.csv`. `provenance.json`, `manifest.json`,
+`summary.txt`, and the JSON reports are not canonical because they record
+identity or context.
 
 ## What you see
 

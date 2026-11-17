@@ -59,6 +59,22 @@ The exact counts and any test limitations are recorded in the pull request.
 - The stage-to-backtest tutorial reuses the existing shell and end-to-end
   tutorials instead of repeating their full command sets.
 
+## Review corrections
+
+- The promoted-run identity is stated: a promoted run appends the tagged frozen
+  model component, so it is a distinct run even when its canonical digests
+  match a full run. The chapter and glossary had shown only the full-run formula.
+- The model bundle file list adds `result.json`, which every model bundle writes;
+  the earlier list named the report and the CSVs but omitted the result file.
+- The `simulation.check_incomplete` row now says the real trigger: fewer than
+  thirty events. An "unmarked window" is not part of that check.
+- The command reference no longer claims the error column comes from `help.rs`;
+  those codes come from `quantrule-api`. The GUI reference no longer claims the
+  client-doc checker validates test ids; the browser test that drives the
+  control is what fails on a missing id.
+- The canonical-set prose says `results.json` is included when present, rather
+  than implying every bundle writes one.
+
 ## Residual risk
 
 - The manual is prose plus tables checked for presence and shape; it cannot

@@ -71,7 +71,7 @@ research decision, and a simulation decision.
 | One stable id per mirrored control | The capability table, the component, and the Playwright test use the same string |
 | Dynamic rows use a stable prefix | A window row is `sim-window-<n>`; the prefix is stable, the index is the row identity |
 | An id is not a label | The visible text may change; the id is the contract for the test |
-| A missing id is a defect | The client-doc checker fails when a capability names an absent test id |
+| A missing id is a defect | The capability table and the browser test that drives the control must use the same string; a drift fails that test |
 
 ## What not to expect
 

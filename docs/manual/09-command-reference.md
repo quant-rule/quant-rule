@@ -4,9 +4,10 @@
 - Audience: operator or agent looking up one command contract
 
 Every command accepts the global flags `--profile <id>`, `--token <token>`, and
-`--json`. The table lists only command-specific arguments. Usage, output, and
-errors are generated from the same registry as `help`; the manual checker fails
-when a command is missing here.
+`--json`. The table lists only command-specific arguments. Usage and output
+follow the `help` registry; the stable-error column names codes from
+`quantrule-api`. The manual checker fails when a command is missing here or its
+usage drifts from the registry.
 
 ## Health and profiles
 
@@ -61,7 +62,7 @@ when a command is missing here.
 
 | Command | Usage | Required | Optional | Output | Stable errors | Browser | Example |
 |---|---|---|---|---|---|---|---|
-| `research create` | `research create --tier <model\|strategy\|portfolio> --hypothesis <text> --partition <name> --data-version <digest> --config <config_id> [--criteria <criteria_id>] --green-criteria <json> --code-commit <commit> [--baseline <id>] [--seed <n>] [--analytics <true\|false>]` | tier, hypothesis, partition, data version, config, green criteria, code commit; criteria for strategy/portfolio | criteria for model, baseline, seed, analytics | `improvement_id`, tier, state, manifest, timestamps | `research.invalid`, `config.invalid`, `dataset.not_found` | Research → create form | `quantrule research create --tier model --hypothesis "a retest holds" --partition model_dev --data-version <data_version> --config <config_id> --green-criteria '{"return_target":0.1}' --code-commit <commit>` |
+| `research create` | `research create --tier <model\|strategy\|portfolio> --hypothesis <text> --partition <name> --data-version <digest> --config <config_id> [--criteria <criteria_id>] --green-criteria <json> --code-commit <commit> [--baseline <id>] [--seed <n>] [--analytics <true\|false>]` | tier, hypothesis, partition, data version, config, green criteria, code commit; criteria for strategy/portfolio | baseline, seed, analytics; criteria for model only | `improvement_id`, tier, state, manifest, timestamps | `research.invalid`, `config.invalid`, `dataset.not_found` | Research → create form | `quantrule research create --tier model --hypothesis "a retest holds" --partition model_dev --data-version <data_version> --config <config_id> --green-criteria '{"return_target":0.1}' --code-commit <commit>` |
 | `research submit` | `research submit <improvement_id>` | improvement id | — | Improvement detail with `pipeline_run_id`, `state: submitted` | `research.not_found`, `research.conflict` | Research → Submit pipeline run | `quantrule research submit <improvement_id>` |
 | `research list` | `research list [--tier <tier>] [--state <state>] [--limit <n>]` | — | `--tier`, `--state`, `--limit` | One line per run with tier, state, decision, timestamps | `research.invalid`, `profile.not_found` | Research → table | `quantrule research list --tier model` |
 | `research show` | `research show <improvement_id>` | improvement id | — | State, decision, note, manifest, run, digest, timestamps | `research.not_found` | Research → record detail | `quantrule research show <improvement_id>` |
