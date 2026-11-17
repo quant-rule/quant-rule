@@ -71,8 +71,8 @@ The current 37 commands are in [`command-surface.md`](command-surface.md). The
 model stage commands (`stage run model`, `stage list`, `stage show`,
 `stage events`, `stage fetch`, `stage cancel`, and `stage delete`) are
 implemented (#852), `stage run strategy` and `stage explain` are implemented
-(#853), and `stage run portfolio` is implemented (#854). The promotion,
-research, and operations rows below remain target:
+(#853), and `stage run portfolio` is implemented (#854). Promotion is
+implemented (#855); the research and operations rows below remain target:
 
 | Command | Purpose |
 |---|---|

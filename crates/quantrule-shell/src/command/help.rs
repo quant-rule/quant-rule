@@ -93,7 +93,7 @@ const COMMANDS: &[CommandHelp] = &[
         name: "run status",
         usage: "run status <run_id>",
         summary: "Read one run's stages, provenance, artifacts, and digest.",
-        output: "run identity, stage lines, artifact lines, canonical digest, error",
+        output: "run identity, optional frozen model artifact reference, stage lines, artifact lines, canonical digest, error",
         notes: &["A failed run prints its error line and no digest."],
     },
     CommandHelp {
