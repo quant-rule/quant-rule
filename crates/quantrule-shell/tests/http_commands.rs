@@ -512,11 +512,11 @@ fn stage_cancel_and_delete_print_their_result() {
 }
 
 #[test]
-fn stage_commands_refuse_an_unimplemented_kind_and_an_unknown_stage() {
+fn stage_commands_refuse_an_unknown_kind_and_an_unknown_stage() {
     let fixture = Fixture::start();
-    let portfolio = fixture.run(&["stage", "run", "portfolio", &stage_id(), "cfg_abc"]);
-    assert_failure(&portfolio);
-    assert!(stderr(&portfolio).contains("stage run expects model or strategy"));
+    let unknown_kind = fixture.run(&["stage", "run", "research", &stage_id(), "cfg_abc"]);
+    assert_failure(&unknown_kind);
+    assert!(stderr(&unknown_kind).contains("stage run expects model, strategy, or portfolio"));
 
     let unknown = fixture.run(&["stage", "show", &digest('9')]);
     assert_failure(&unknown);

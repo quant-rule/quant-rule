@@ -109,6 +109,13 @@ pub(crate) enum Command {
         /// The configuration to apply.
         config_id: String,
     },
+    /// Submit a portfolio stage run.
+    StageRunPortfolio {
+        /// The frozen decisions artifact the portfolio reads.
+        decisions_artifact_id: String,
+        /// The configuration to apply.
+        config_id: String,
+    },
     /// Explain one strategy decision bar.
     StageExplain {
         /// The stage run id.

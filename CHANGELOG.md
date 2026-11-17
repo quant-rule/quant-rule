@@ -39,6 +39,10 @@ history is in Git and the pull requests.
   writes only `decisions.ndjson`, `summary.txt`, and `provenance.json`, the
   `stage run strategy` and `stage explain` shell commands, and the browser
   Workbench Strategy tab with parity and divergence coverage.
+- The portfolio stage vertical slice: a profile-scoped decisions-artifact lookup,
+  an executor that replays execution and portfolio into prefixed `execution/`
+  and `portfolio/` bundles, the `stage run portfolio` shell command, and the
+  browser Workbench Portfolio tab with parity and invariant coverage.
 - The stage execution and evidence-boundary ADR: diagnostic stage runs are
   server-side and content-addressed, while the coupled backtest remains the only
   evidence path and canonical-digest producer.

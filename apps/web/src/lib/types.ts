@@ -269,6 +269,46 @@ export interface StageDecision {
   [key: string]: unknown;
 }
 
+/** One published portfolio metrics record. */
+export interface PortfolioMetrics {
+  schema: string;
+  initial_cash: number;
+  final_equity: number;
+  net_pnl: number;
+  execution_fees: number;
+  commission: number;
+  funding_paid: number;
+  funding_received: number;
+  max_drawdown: number;
+  exposure: number | null;
+  halted: boolean;
+  [key: string]: unknown;
+}
+
+/** One comma-separated published artifact. */
+export interface PortfolioTable {
+  columns: string[];
+  rows: string[][];
+}
+
+/** One line of a published summary. */
+export interface PortfolioSummaryEntry {
+  label: string;
+  value: string;
+}
+
+/** The published execution and portfolio view. */
+export interface PortfolioView {
+  orders: PortfolioTable;
+  fills: PortfolioTable;
+  rejections: PortfolioTable;
+  trades: PortfolioTable;
+  executionSummary: PortfolioSummaryEntry[];
+  riskEvents: PortfolioTable;
+  metrics: PortfolioMetrics;
+  summary: PortfolioSummaryEntry[];
+}
+
 /** One coverage row from a model stage's report.json. */
 export interface StageCoverage {
   timeframe_secs: number;

@@ -17,7 +17,7 @@ path never falls back to the client.
 |---|---|---|---|
 | Connection | `ConnectionPanel.svelte` | Gateway state, version, image digest, service health, bearer token | `unreachable` or `token required` with a retry |
 | Profiles | `ProfilesPanel.svelte` | Profile list, counts, create; the top-bar `ProfileSwitcher.svelte` selects the active profile | "No profiles. Create one." |
-| Workbench | `WorkbenchPanel.svelte` | Data, Model, and Strategy tabs; the Data tab renders `DatasetsPanel.svelte`, the Model tab renders `ModelStagePanel.svelte`, and the Strategy tab renders `StrategyStagePanel.svelte` | "No stage runs. Submit a model stage above." |
+| Workbench | `WorkbenchPanel.svelte` | Data, Model, Strategy, and Portfolio tabs; the tabs render `DatasetsPanel.svelte`, `ModelStagePanel.svelte`, `StrategyStagePanel.svelte`, and `PortfolioStagePanel.svelte` | "No stage runs. Submit a model stage above." |
 | Datasets | `DatasetsPanel.svelte` | `data_version`, candles, first and last bar, upload, record detail with object key, hash, quality, and created time | "No datasets. Upload a CSV." |
 | Configs | `ConfigsPanel.svelte` | Name, origin (repo or uploaded), validity, parser message, submit, record detail with config id and hash | "No configs on the server." |
 | Runs | `RunsPanel.svelte` | Status, id, config, data version, submitted, duration, cancel | "No runs. Submit one from Configs." |
@@ -25,7 +25,7 @@ path never falls back to the client.
 | Inspect | `InspectPanel.svelte` | Candles, timeframe ladder, and event batch for one dataset; read-only | "No datasets to inspect." |
 | Simulation | `SimulationRunsPanel.svelte` | `sim_id`, premise, bundle, windows, marked/unmarked, status | "No simulation runs." |
 | Simulation run | `SimulationRunDetail.svelte` | Run state and requests from `simulationRun.svelte.ts`; window navigator, chart, review, and the marks, check, and decision panels | Only for a known run |
-| Help | `HelpPanel.svelte` | The 36 registered commands and the screen that reaches each use case | — |
+| Help | `HelpPanel.svelte` | The 37 registered commands and the screen that reaches each use case | — |
 
 Every screen is owned by one component. The browser and the command shell reach
 one HTTP contract; the shared fixture and both parity tests enforce that every
@@ -43,7 +43,7 @@ The target Backtests, Research, and Operations screens are in [stage-surface.md]
 | `runs.svelte.ts` | profile run list, selected run, and detail | 2 s active, 30 s idle |
 | `simulation.svelte.ts` | profile simulation summaries | on demand |
 | `simulationRun.svelte.ts` | one run's windows, series, marks, and action state | on demand |
-| `stages.svelte.ts` | profile stage list, selected stage detail, the event/coverage view, and the strategy decision explain view | on demand |
+| `stages.svelte.ts` | profile stage list, selected stage detail, the event/coverage view, the strategy decision explain view, and the published portfolio bundles | on demand |
 | `profileScope.svelte.ts` | the switch, clear, and reload boundary for the profile stores | — |
 | `labels.generated.ts` | numeric code → word | static, generated |
 

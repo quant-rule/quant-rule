@@ -1,13 +1,12 @@
 //! The `stage` family parser.
 //!
-//! The family owns one command per implemented stage use case. Portfolio run is
-//! not parsed: it remains planned until its slice lands.
+//! The family owns one command per implemented stage use case.
 
 use super::{pair, parse_limit, parse_options, single, usage};
 use crate::command::types::{Command, ParseError};
 
 pub(super) fn parse_stage(args: &[String]) -> Result<Command, ParseError> {
-    const FAMILY: &str = "usage: stage run model|strategy <input> <config_id>|explain <stage_run_id> --bar <n>|list|show <stage_run_id>|events <stage_run_id> --timeframe <tf>|fetch <stage_run_id> <directory>|cancel <stage_run_id>|delete <stage_run_id>";
+    const FAMILY: &str = "usage: stage run model|strategy|portfolio <input> <config_id>|explain <stage_run_id> --bar <n>|list|show <stage_run_id>|events <stage_run_id> --timeframe <tf>|fetch <stage_run_id> <directory>|cancel <stage_run_id>|delete <stage_run_id>";
     let (name, rest) = args
         .split_first()
         .ok_or_else(|| ParseError::Usage(String::from(FAMILY)))?;
@@ -35,8 +34,18 @@ pub(super) fn parse_stage(args: &[String]) -> Result<Command, ParseError> {
                         }
                     })
                 }
+                "portfolio" => {
+                    let line = usage("stage run portfolio");
+                    let usage = line.as_str();
+                    pair(rest, usage).map(|(decisions_artifact_id, config_id)| {
+                        Command::StageRunPortfolio {
+                            decisions_artifact_id,
+                            config_id,
+                        }
+                    })
+                }
                 _ => Err(ParseError::Usage(format!(
-                    "stage run expects model or strategy\n{FAMILY}"
+                    "stage run expects model, strategy, or portfolio\n{FAMILY}"
                 ))),
             }
         }

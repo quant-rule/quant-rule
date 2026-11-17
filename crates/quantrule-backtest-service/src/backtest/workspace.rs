@@ -160,7 +160,7 @@ impl Drop for Workspace {
     }
 }
 
-fn source_csv(dataset: &[u8]) -> Result<String, WorkerError> {
+pub(crate) fn source_csv(dataset: &[u8]) -> Result<String, WorkerError> {
     let text = std::str::from_utf8(dataset)
         .map_err(|_| WorkerError("the dataset is not UTF-8".to_owned()))?;
     let mut out = String::from("Date,Open,High,Low,Close,Volume\n");
@@ -186,7 +186,7 @@ fn source_csv(dataset: &[u8]) -> Result<String, WorkerError> {
     Ok(out)
 }
 
-fn safe_key(relative: &str) -> Result<(), WorkerError> {
+pub(crate) fn safe_key(relative: &str) -> Result<(), WorkerError> {
     let path = Path::new(relative);
     if relative.is_empty()
         || relative.contains('\\')

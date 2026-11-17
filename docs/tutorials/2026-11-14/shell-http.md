@@ -105,7 +105,30 @@ position execution actually holds, so a rejected entry can make the standalone
 decision sequence differ from the coupled run. That divergence is deliberate:
 stage decisions never feed a backtest.
 
-## 6. Simulation research
+## 6. A portfolio stage
+
+```bash
+quantrule stage run portfolio <decisions_artifact_id> <config_id>
+quantrule stage show <stage_run_id>
+quantrule stage fetch <stage_run_id> ./portfolio-bundle
+```
+
+`stage run portfolio` names the `decisions_artifact_id` a succeeded strategy
+stage published; the server derives the dataset and model identity from that
+upstream stage. The artifact carries two prefixed bundles: `execution/` with
+`orders.csv`, `fills.csv`, `rejections.csv`, `summary.txt`, and
+`provenance.json`, and `portfolio/` with `trades.csv`, `equity.csv`,
+`funding.csv`, `risk_events.csv`, `metrics.json`, `summary.txt`, and
+`provenance.json`.
+
+The stage replays the frozen decisions through execution and portfolio
+accounting. `stage show` lists the artifacts; `stage fetch` is the CLI
+inspection path for the published `portfolio/metrics.json`, including fees,
+funding, drawdown, and exposure. The published P&L is diagnostic accounting, not
+an accepted result; it carries no canonical digest and is never evidence or a
+baseline. A coupled backtest recomputes strategy, execution, and portfolio.
+
+## 7. Simulation research
 
 ```bash
 quantrule simulation create \
@@ -125,7 +148,7 @@ The server assigns `sim_id` and `marked_time_utc`. The client clock is not
 trusted. `check` refuses fewer than 30 events, and marking after a decision is
 refused with `simulation.locked`.
 
-## 7. Help and JSON
+## 8. Help and JSON
 
 ```bash
 quantrule help
