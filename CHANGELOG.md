@@ -18,7 +18,11 @@ history is in Git and the pull requests.
 
 ## [Unreleased]
 
-No unreleased changes yet. `v1.3.0` is the current release.
+### Fixed
+
+- A one-bar Donchian or Keltner window no longer indexes the previous bar at
+  bar zero; the position events require a prior bar. The normal-window golden
+  fixtures are unchanged.
 
 ## [1.3.0] - 2026-11-17
 
