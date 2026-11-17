@@ -16,6 +16,8 @@ in that stat. The plan's §5.8 snapshot said 5 untracked; the observed count is 
 It was read read-only for this map. Nothing was copied, rebased, or committed
 from it.
 
+- AI log: [646-gateway.md](../../ai-transparency-log/2026-11-15/646-gateway.md)
+
 ## Inventory and destination
 
 | Parked path | What it carries | Destination | Action |

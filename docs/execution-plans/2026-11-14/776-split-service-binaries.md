@@ -10,6 +10,8 @@
 - Records: ADR-2026-11-12-01, ADR-2026-11-12-04, ADR-2026-11-12-09, ADR-2026-11-12-12; #643, #646, #647, #648, #649, #651, #674, #679, #680; parked S1 gateway work in `quant-rule--646-gateway`
 - Decision: **Option B — full split — selected by the human on 2026-11-14.** Option A (six binaries, gateway proxies data and model, worker fast path recorded) is rejected as too small. Option C (narrow the claim to three binaries) is rejected as an architecture retraction.
 
+- AI log: [dist-binaries-plan.md](../../ai-transparency-log/2026-11-14/dist-binaries-plan.md)
+
 ## 1. Intent
 
 The accepted architecture says six services, six binaries, one image, and one

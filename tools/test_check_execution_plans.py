@@ -37,7 +37,8 @@ def plan_doc(
     return (
         "# Example Plan\n\n"
         f"- Status: {status}\n"
-        "- Claim type: Behaviour Claim\n\n"
+        "- Claim type: Behaviour Claim\n"
+        "- AI log: ../ai-transparency-log/2026-11-11/example.md\n\n"
         "## Intent\n\nExample.\n"
         + (table_text if table else "")
     )

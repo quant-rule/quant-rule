@@ -6,6 +6,8 @@
 - Workflow: [Requirements & Design](../../workflows/requirements-design.md)
 - Date: 2026-11-13 (UTC)
 
+- AI log: [architecture-baseline.md](../../ai-transparency-log/2026-10-31/architecture-baseline.md)
+
 ## 1. Intent
 
 The kata and the architecture characteristics are the source of truth. The issue

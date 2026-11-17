@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Check the structure of current execution plans.
 
-A plan dated 2026-11-11 or later must carry a status drawn from the closed
-lifecycle vocabulary, a claim type, and a verification table with the reviewer
-columns, unique row IDs, non-empty core cells, and no unresolved row on a
-``Verified`` plan. The status may be bolded or followed by a date and a note;
+Every plan must resolve to a same-name AI transparency log or carry a recorded
+``- AI log:`` link. A plan dated 2026-11-11 or later must also carry a status
+drawn from the closed lifecycle vocabulary, a claim type, and a verification
+table with the reviewer columns, unique row IDs, non-empty core cells, and no
+unresolved row on a ``Verified`` plan. The status may be bolded or followed by a date and a note;
 the lifecycle word is what is compared. Historical plans are exempt because they
 predate the verification-table rule.
 """
@@ -96,12 +97,23 @@ def check(root: Path) -> list[str]:
         if not DATE.match(directory):
             problems.append(f"{path.relative_to(root)}: plan directory must be YYYY-MM-DD")
             continue
+        relative = path.relative_to(root).as_posix()
+        text = path.read_text(encoding="utf-8")
         if date.fromisoformat(directory) < BASELINE:
             continue
-        relative = path.relative_to(root).as_posix()
         if relative in EXEMPT:
             continue
-        text = path.read_text(encoding="utf-8")
+        log = (
+            root
+            / "docs"
+            / "ai-transparency-log"
+            / directory
+            / f"{path.stem}.md"
+        )
+        if not log.is_file() and "AI log:" not in text:
+            problems.append(
+                f"{relative}: no same-name AI log and no recorded '- AI log:' link"
+            )
         status = STATUS.search(text)
         plan_status = None
         if status is None:

@@ -11,6 +11,8 @@
 - **Out of scope:** #10–#13 (execution, strategy, portfolio, analytics)
 - **Historical note:** The current-state table below is the 2026-10-24 approval baseline. #13 and the later store epic completed after this program; the remaining open work is #10–#12.
 
+- **AI log:** [14-model-engine.md](../../ai-transparency-log/2026-10-21/14-model-engine.md) (umbrella; the per-milestone logs are in the same date directory).
+
 ## 1. Intent
 
 Complete the model engine from its verified numeric kernel (M1) through the full market-state output and its shell surface, and close every model-engine issue through its own reviewed pull request.
