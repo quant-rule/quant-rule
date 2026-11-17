@@ -121,6 +121,27 @@ fn shell_view(fixture: &Fixture) -> Value {
         .collect();
     let stage_cancel = command(fixture, &["stage", "cancel", stage_id]);
     let stage_delete = command(fixture, &["stage", "delete", stage_id]);
+    let strategy_stage_id = api["strategy_stage_id"]
+        .as_str()
+        .expect("the fixture strategy stage id");
+    let strategy_model_artifact = api["strategy_model_artifact_id"]
+        .as_str()
+        .expect("the fixture strategy model artifact id");
+    let strategy_stage_submit = command(
+        fixture,
+        &[
+            "stage",
+            "run",
+            "strategy",
+            strategy_model_artifact,
+            config_id,
+        ],
+    );
+    let strategy_stage = command(fixture, &["stage", "show", strategy_stage_id]);
+    let strategy_explain = command(
+        fixture,
+        &["stage", "explain", strategy_stage_id, "--bar", "1"],
+    );
 
     json!({
         "profile": PROFILE,
@@ -152,6 +173,9 @@ fn shell_view(fixture: &Fixture) -> Value {
         },
         "stage_cancel": stage_cancel,
         "stage_delete": stage_delete,
+        "strategy_stage_submit": strategy_stage_submit,
+        "strategy_stage": strategy_stage,
+        "strategy_explain": strategy_explain,
     })
 }
 
@@ -176,11 +200,14 @@ fn the_shell_view_matches_the_shared_client_parity_view() {
     }
 
     let requests = fixture.requests();
-    assert_eq!(requests.len(), 25, "one request per parity operation");
+    assert_eq!(requests.len(), 29, "one request per parity operation");
     let api = client_parity_api();
     let dataset_id = api["dataset_id"].as_str().expect("the fixture dataset id");
     let run_id = api["run_id"].as_str().expect("the fixture run id");
     let stage_id = api["stage_id"].as_str().expect("the fixture stage id");
+    let strategy_stage_id = api["strategy_stage_id"]
+        .as_str()
+        .expect("the fixture strategy stage id");
     let paths: Vec<String> = requests
         .iter()
         .map(|request| request.path.clone())
@@ -213,6 +240,10 @@ fn the_shell_view_matches_the_shared_client_parity_view() {
             format!("/stages/runs/{stage_id}/artifacts/report.json"),
             format!("/stages/runs/{stage_id}/cancel"),
             format!("/stages/runs/{stage_id}"),
+            String::from("/stages/strategy/runs"),
+            format!("/stages/runs/{strategy_stage_id}"),
+            format!("/stages/runs/{strategy_stage_id}"),
+            format!("/stages/runs/{strategy_stage_id}/artifacts/decisions.ndjson"),
         ]
     );
     let methods: Vec<&str> = requests
@@ -224,7 +255,7 @@ fn the_shell_view_matches_the_shared_client_parity_view() {
         vec![
             "GET", "GET", "GET", "GET", "GET", "GET", "GET", "GET", "GET", "GET", "GET", "GET",
             "GET", "GET", "POST", "GET", "GET", "GET", "GET", "GET", "GET", "GET", "GET", "POST",
-            "DELETE",
+            "DELETE", "POST", "GET", "GET", "GET",
         ]
     );
     for request in &requests {

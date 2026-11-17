@@ -11,8 +11,10 @@
 
 pub mod executor;
 pub mod model;
+pub mod strategy;
 pub mod worker;
 
 pub use executor::{StageDispatch, StageExecutor, StageExecutorError, StageFile, StageOutput};
 pub use model::ModelStageExecutor;
+pub use strategy::StrategyStageExecutor;
 pub use worker::{StageProcessOutcome, StageWorkerError, StageWorkerServices, process_stage};

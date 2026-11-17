@@ -13,12 +13,13 @@ use std::sync::Arc;
 
 use axum::extract::rejection::JsonRejection;
 use axum::extract::{Json, Path, State};
-use quantrule_api::ErrorCode;
+use axum::http::HeaderMap;
+use quantrule_api::{Digest, ErrorCode, StageKind};
 use quantrule_service_api::{
     StageClaim, StageClaimOutcome, StageComputed, StageFailed, StageRecord,
 };
 
-use crate::routes::{ApiFailure, failure};
+use crate::routes::{ApiFailure, failure, request_profile};
 use crate::stage::record_computed;
 use crate::state::EvidenceState;
 
@@ -35,6 +36,40 @@ pub(crate) async fn get_stage(
         Ok(None) => Err(failure(
             ErrorCode::StageNotFound,
             format!("stage {id} is unknown"),
+        )),
+        Err(error) => Err(failure(ErrorCode::Internal, error.to_string())),
+    }
+}
+
+pub(crate) async fn find_stage_by_artifact(
+    State(state): State<Arc<EvidenceState>>,
+    headers: HeaderMap,
+    Path((kind, artifact_id)): Path<(String, String)>,
+) -> Result<Json<StageRecord>, ApiFailure> {
+    let profile = request_profile(&headers)?;
+    let kind = StageKind::parse(&kind).ok_or_else(|| {
+        failure(
+            ErrorCode::StageInvalid,
+            format!("unknown stage kind {kind}"),
+        )
+    })?;
+    let artifact_id = Digest::parse(&artifact_id)
+        .map_err(|error| failure(ErrorCode::StageInvalid, error.to_string()))?;
+    let stages = state
+        .stages
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no stage store is configured"))?;
+    match stages
+        .find_by_artifact(profile, kind, artifact_id.clone())
+        .await
+    {
+        Ok(Some(record)) => Ok(Json(record)),
+        Ok(None) => Err(failure(
+            ErrorCode::StageNotFound,
+            format!(
+                "no succeeded {} stage publishes artifact {artifact_id} in this profile",
+                kind.as_str()
+            ),
         )),
         Err(error) => Err(failure(ErrorCode::Internal, error.to_string())),
     }

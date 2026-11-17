@@ -130,8 +130,29 @@ const COMMANDS: &[CommandHelp] = &[
         ],
     },
     CommandHelp {
+        name: "stage run strategy",
+        usage: "stage run strategy <model_artifact_id> <config_id>",
+        summary: "Submit a diagnostic strategy stage over a frozen model artifact.",
+        output: "stage_run_id, state, created",
+        notes: &[
+            "The strategy simulates its own position; the coupled run supplies the position execution actually holds.",
+            "A standalone decision sequence can differ from the coupled run because it has no execution feedback.",
+            "The decisions bundle is diagnostic and carries no fills, cash, P&L, or canonical digest.",
+        ],
+    },
+    CommandHelp {
+        name: "stage explain",
+        usage: "stage explain <stage_run_id> --bar <n>",
+        summary: "Read one published strategy decision record.",
+        output: "decision, side, reason, position before/after, and the published evidence fields",
+        notes: &[
+            "The shell selects the record with matching bar_index; it never recomputes the decision.",
+            "--json prints the selected decision record.",
+        ],
+    },
+    CommandHelp {
         name: "stage list",
-        usage: "stage list [--kind model] [--status <state>] [--limit <n>]",
+        usage: "stage list [--kind model|strategy] [--status <state>] [--limit <n>]",
         summary: "List diagnostic stage runs in the active profile.",
         output: "one line per stage: stage_run_id, kind, state, config, submitted_at, artifact",
         notes: &["Rows are newest first, then by stage_run_id."],
@@ -439,6 +460,8 @@ mod tests {
             "run fetch",
             "run cancel",
             "stage run model",
+            "stage run strategy",
+            "stage explain",
             "stage list",
             "stage show",
             "stage events",
@@ -464,7 +487,7 @@ mod tests {
         ] {
             assert!(is_command(name), "{name} must be documented");
         }
-        assert_eq!(COMMANDS.len(), 34);
+        assert_eq!(COMMANDS.len(), 36);
     }
 
     #[test]

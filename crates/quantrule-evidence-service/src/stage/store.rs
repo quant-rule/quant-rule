@@ -116,6 +116,17 @@ pub trait StageStore: Send + Sync {
         stage_run_id: String,
     ) -> BoxFuture<Result<Option<StageRecord>, StageStoreError>>;
 
+    /// Read the succeeded stage of `kind` that a profile's artifact names.
+    ///
+    /// The lookup is profile-scoped and only a succeeded stage with a matching
+    /// artifact id is visible. A queued, failed, or other-kind stage is absent.
+    fn find_by_artifact(
+        &self,
+        profile: ProfileId,
+        kind: StageKind,
+        artifact_id: Digest,
+    ) -> BoxFuture<Result<Option<StageRecord>, StageStoreError>>;
+
     /// Claim a delivery. A queued stage starts; a redelivered, uncomputed
     /// running stage is reclaimed; a succeeded stage is terminal.
     fn claim(

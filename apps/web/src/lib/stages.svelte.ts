@@ -1,10 +1,13 @@
 import { call, callVoid, errorText } from "./api";
 import {
   downloadStageArtifact,
+  explainDecision,
+  stageDecisions,
   stageEventView,
   stagePath,
 } from "./stage";
 import type {
+  StageDecision,
   StageEventView,
   StageRunDetail,
   StageRunSummary,
@@ -23,6 +26,13 @@ export interface Stages {
   eventsLoading: boolean;
   eventsError: string | null;
   eventsTimeframe: string;
+  explain: StageDecision | null;
+  explainError: string | null;
+  explainLoading: boolean;
+  explainBar: number;
+  decisions: StageDecision[];
+  decisionsError: string | null;
+  decisionsLoading: boolean;
 }
 
 let current = $state<Stages>({
@@ -36,6 +46,13 @@ let current = $state<Stages>({
   eventsLoading: false,
   eventsError: null,
   eventsTimeframe: "5m",
+  explain: null,
+  explainError: null,
+  explainLoading: false,
+  explainBar: 0,
+  decisions: [],
+  decisionsError: null,
+  decisionsLoading: false,
 });
 
 /** A counter that makes an in-flight read from a previous profile stale. */
@@ -55,6 +72,13 @@ export function reset(): void {
     eventsLoading: false,
     eventsError: null,
     eventsTimeframe: "5m",
+    explain: null,
+    explainError: null,
+    explainLoading: false,
+    explainBar: 0,
+    decisions: [],
+    decisionsError: null,
+    decisionsLoading: false,
   };
 }
 
@@ -115,10 +139,53 @@ export async function submit(
   }
 }
 
+/** Submit one strategy stage, then reload the list. */
+export async function submitStrategy(
+  modelArtifactId: string,
+  configId: string,
+): Promise<StageSubmitResponse | null> {
+  const at = generation;
+  current = { ...current, error: null };
+  try {
+    const response = await call<StageSubmitResponse>("/stages/strategy/runs", {
+      method: "POST",
+      body: JSON.stringify({
+        kind: "strategy",
+        config_id: configId,
+        input: {
+          kind: "model_artifact",
+          model_artifact_id: modelArtifactId,
+        },
+      }),
+    });
+    if (at !== generation) {
+      return null;
+    }
+    await load();
+    if (at !== generation) {
+      return null;
+    }
+    return response;
+  } catch (error) {
+    if (at !== generation) {
+      return null;
+    }
+    current = { ...current, error: errorText(error) };
+    return null;
+  }
+}
+
 /** Read one stage detail. */
 export async function loadDetail(stageRunId: string): Promise<void> {
   const at = generation;
-  current = { ...current, detailLoading: true, error: null };
+  current = {
+    ...current,
+    detailLoading: true,
+    error: null,
+    decisions: [],
+    decisionsError: null,
+    decisionsLoading: false,
+  };
   try {
     const detail = await call<StageRunDetail>(stagePath(stageRunId));
     if (at !== generation) {
@@ -131,7 +198,15 @@ export async function loadDetail(stageRunId: string): Promise<void> {
       error: null,
       events: null,
       eventsError: null,
+      explain: null,
+      explainError: null,
+      decisions: [],
+      decisionsError: null,
+      decisionsLoading: false,
     };
+    if (detail.kind === "strategy") {
+      await loadDecisions();
+    }
   } catch (error) {
     if (at !== generation) {
       return;
@@ -154,6 +229,11 @@ export async function select(stageRunId: string): Promise<void> {
     detailLoading: true,
     events: null,
     eventsError: null,
+    explain: null,
+    explainError: null,
+    decisions: [],
+    decisionsError: null,
+    decisionsLoading: false,
   };
   await loadDetail(stageRunId);
 }
@@ -167,6 +247,11 @@ export function clearSelection(): void {
     detailLoading: false,
     events: null,
     eventsError: null,
+    explain: null,
+    explainError: null,
+    decisions: [],
+    decisionsError: null,
+    decisionsLoading: false,
   };
 }
 
@@ -205,6 +290,11 @@ export async function remove(stageRunId: string): Promise<void> {
       detailLoading: false,
       events: null,
       eventsError: null,
+      explain: null,
+      explainError: null,
+      decisions: [],
+      decisionsError: null,
+      decisionsLoading: false,
     };
     await load();
   } catch (error) {
@@ -268,6 +358,93 @@ export async function loadEvents(timeframe: string): Promise<void> {
       events: null,
       eventsLoading: false,
       eventsError: errorText(error),
+    };
+  }
+}
+
+/** Read the published decision table for the open stage. */
+export async function loadDecisions(): Promise<void> {
+  const at = generation;
+  const detail = current.detail;
+  current = { ...current, decisionsLoading: true, decisionsError: null };
+  if (detail === null || detail.kind !== "strategy" || detail.artifact === null) {
+    current = { ...current, decisionsLoading: false, decisions: [] };
+    return;
+  }
+  const decisionsFile = detail.artifact.files.find(
+    (file) => file.name === "decisions.ndjson",
+  );
+  if (decisionsFile === undefined) {
+    current = { ...current, decisions: [], decisionsLoading: false };
+    return;
+  }
+  try {
+    const bytes = await downloadStageArtifact(detail.stage_run_id, decisionsFile);
+    if (at !== generation) {
+      return;
+    }
+    const decisions = stageDecisions(new TextDecoder().decode(bytes));
+    current = { ...current, decisions, decisionsLoading: false };
+  } catch (error) {
+    if (at !== generation) {
+      return;
+    }
+    current = {
+      ...current,
+      decisions: [],
+      decisionsLoading: false,
+      decisionsError: errorText(error),
+    };
+  }
+}
+
+/** Read one published strategy decision without recomputing it. */
+export async function explain(stageRunId: string, bar: number): Promise<void> {
+  const at = generation;
+  const detail = current.detail;
+  current = {
+    ...current,
+    explainLoading: true,
+    explainError: null,
+    explainBar: bar,
+    explain: null,
+  };
+  if (detail === null || detail.artifact === null) {
+    current = {
+      ...current,
+      explainLoading: false,
+      explainError: "The stage has not produced an artifact.",
+    };
+    return;
+  }
+  const decisionsFile = detail.artifact.files.find(
+    (file) => file.name === "decisions.ndjson",
+  );
+  if (decisionsFile === undefined) {
+    current = {
+      ...current,
+      explainLoading: false,
+      explainError: "The stage artifact has no decisions.ndjson.",
+    };
+    return;
+  }
+  try {
+    const bytes = await downloadStageArtifact(stageRunId, decisionsFile);
+    if (at !== generation) {
+      return;
+    }
+    const text = new TextDecoder().decode(bytes);
+    const decision = explainDecision(stageDecisions(text), bar);
+    current = { ...current, explain: decision, explainLoading: false };
+  } catch (error) {
+    if (at !== generation) {
+      return;
+    }
+    current = {
+      ...current,
+      explain: null,
+      explainLoading: false,
+      explainError: errorText(error),
     };
   }
 }

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import {
   filterEvents,
+  explainDecision,
   reportCoverage,
+  stageDecisions,
   stageArtifactPath,
   stageEventView,
   stagePath,
@@ -76,6 +78,23 @@ describe("reportCoverage", () => {
   it("refuses a report without flat_report.timeframes", () => {
     expect(() => reportCoverage("{}")).toThrow();
     expect(() => reportCoverage('{"timeframes":[]}')).toThrow();
+  });
+});
+
+describe("strategy decisions", () => {
+  const DECISIONS =
+    '{"bar_index":0,"decision":"enter","side":"long","position_before":"flat"}\n' +
+    '{"bar_index":1,"decision":"hold","side":null,"position_before":"long"}\n';
+
+  it("reads NDJSON and selects one bar without recomputing", () => {
+    const records = stageDecisions(DECISIONS);
+    expect(records).toHaveLength(2);
+    expect(explainDecision(records, 1).decision).toBe("hold");
+    expect(explainDecision(records, 0).position_before).toBe("flat");
+  });
+
+  it("refuses an absent bar", () => {
+    expect(() => explainDecision(stageDecisions(DECISIONS), 2)).toThrow();
   });
 });
 

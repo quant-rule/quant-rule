@@ -15,7 +15,9 @@ import { COMMANDS, SECTIONS, missingCommands } from "./capabilities";
 import { inspectCandles, inspectEvents, inspectTimeframes, verifyRun } from "./inspect";
 import {
   downloadStageArtifact,
+  explainDecision,
   fetchStageArtifacts,
+  stageDecisions,
   stageEventView,
   stagePath,
   type StageFetchView,
@@ -56,6 +58,9 @@ interface ParityResponses {
   stage_events: StageEventView;
   stage_fetch: StageFetchView;
   stage_delete: { stage_run_id: string };
+  stage_run_strategy: StageSubmitResponse;
+  strategy_stage: StageRunDetail;
+  strategy_explain: Record<string, unknown>;
 }
 
 interface ApiFixture {
@@ -66,6 +71,8 @@ interface ApiFixture {
   timeframe: string;
   stage_id: string;
   stage_timeframe: string;
+  strategy_stage_id: string;
+  strategy_model_artifact_id: string;
   commands: string[];
   artifact: {
     name: string;
@@ -74,6 +81,12 @@ interface ApiFixture {
     sha256: string;
   };
   stage_artifacts: {
+    name: string;
+    body: string;
+    bytes: number;
+    sha256: string;
+  }[];
+  strategy_artifacts: {
     name: string;
     body: string;
     bytes: number;
@@ -121,6 +134,26 @@ function install(fixture: ApiFixture): Seen[] {
 
     if (path === "/stages/model/runs" && method === "POST") {
       return respond(fixture.responses.stage_submit, 202);
+    }
+    if (path === "/stages/strategy/runs" && method === "POST") {
+      return respond(fixture.responses.stage_run_strategy, 202);
+    }
+    if (
+      path === `/stages/runs/${fixture.strategy_stage_id}` &&
+      method === "GET"
+    ) {
+      return respond(fixture.responses.strategy_stage);
+    }
+    const strategyArtifact = fixture.strategy_artifacts.find(
+      (artifact) =>
+        path ===
+        `/stages/runs/${fixture.strategy_stage_id}/artifacts/${artifact.name}`,
+    );
+    if (strategyArtifact !== undefined && method === "GET") {
+      return new Response(new TextEncoder().encode(strategyArtifact.body), {
+        status: 200,
+        headers: { "content-type": "application/octet-stream" },
+      });
     }
     if (path === "/stages/runs" && method === "GET") {
       return respond(fixture.responses.stage_list);
@@ -264,6 +297,38 @@ async function browserView(fixture: ApiFixture): Promise<View> {
   await callVoid(stagePath(fixture.stage_id), { method: "DELETE" });
   const stageDelete = { stage_run_id: fixture.stage_id };
 
+  const strategySubmit = await call<StageSubmitResponse>("/stages/strategy/runs", {
+    method: "POST",
+    body: JSON.stringify({
+      kind: "strategy",
+      config_id: fixture.config_id,
+      input: {
+        kind: "model_artifact",
+        model_artifact_id: fixture.strategy_model_artifact_id,
+      },
+    }),
+  });
+  const strategyStage = await call<StageRunDetail>(
+    stagePath(fixture.strategy_stage_id),
+  );
+  const explainDetail = await call<StageRunDetail>(
+    stagePath(fixture.strategy_stage_id),
+  );
+  const decisionsFile = explainDetail.artifact?.files.find(
+    (file) => file.name === "decisions.ndjson",
+  );
+  if (decisionsFile === undefined) {
+    throw new Error("the strategy fixture carries no decisions.ndjson");
+  }
+  const decisionBytes = await downloadStageArtifact(
+    fixture.strategy_stage_id,
+    decisionsFile,
+  );
+  const strategyExplain = explainDecision(
+    stageDecisions(new TextDecoder().decode(decisionBytes)),
+    1,
+  );
+
   return {
     profile: currentProfile(),
     commands,
@@ -287,6 +352,9 @@ async function browserView(fixture: ApiFixture): Promise<View> {
     stage_fetch: stageFetch,
     stage_cancel: stageCancel,
     stage_delete: stageDelete,
+    strategy_stage_submit: strategySubmit,
+    strategy_stage: strategyStage,
+    strategy_explain: strategyExplain,
   };
 }
 
@@ -319,7 +387,7 @@ describe("client parity", () => {
     const view = await browserView(API);
 
     expect(difference(view, EXPECTED)).toBeNull();
-    expect(seen).toHaveLength(23);
+    expect(seen).toHaveLength(27);
     expect(seen.map((request) => request.path)).toEqual([
       "/health",
       "/catalog/datasets",
@@ -344,6 +412,10 @@ describe("client parity", () => {
       `/stages/runs/${API.stage_id}/artifacts/report.json`,
       `/stages/runs/${API.stage_id}/cancel`,
       `/stages/runs/${API.stage_id}`,
+      "/stages/strategy/runs",
+      `/stages/runs/${API.strategy_stage_id}`,
+      `/stages/runs/${API.strategy_stage_id}`,
+      `/stages/runs/${API.strategy_stage_id}/artifacts/decisions.ndjson`,
     ]);
     for (const request of seen) {
       expect(request.profile).toBe(API.profile);

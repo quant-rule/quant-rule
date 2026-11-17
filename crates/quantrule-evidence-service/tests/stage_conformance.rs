@@ -297,6 +297,49 @@ async fn run_conformance(store: &dyn StageStore, token: &str) {
         completed.summary().artifact_id,
         Some(artifact.artifact_id.clone())
     );
+    let found = store
+        .find_by_artifact(
+            alpha.clone(),
+            StageKind::Model,
+            artifact.artifact_id.clone(),
+        )
+        .await
+        .expect("the artifact lookup")
+        .expect("the succeeded model stage");
+    assert_eq!(found.stage_run_id.to_string(), id);
+    assert_eq!(
+        store
+            .find_by_artifact(
+                alpha.clone(),
+                StageKind::Strategy,
+                artifact.artifact_id.clone(),
+            )
+            .await
+            .expect("the wrong-kind lookup"),
+        None
+    );
+    assert_eq!(
+        store
+            .find_by_artifact(
+                gamma.clone(),
+                StageKind::Model,
+                artifact.artifact_id.clone(),
+            )
+            .await
+            .expect("the other profile lookup"),
+        None
+    );
+    assert_eq!(
+        store
+            .find_by_artifact(
+                alpha.clone(),
+                StageKind::Model,
+                Digest::sha256(b"missing-artifact"),
+            )
+            .await
+            .expect("the missing artifact lookup"),
+        None
+    );
 
     let StageClaimOutcome::Terminal(terminal) = store
         .claim(id.clone(), false)
@@ -400,6 +443,18 @@ async fn run_conformance(store: &dyn StageStore, token: &str) {
         .expect("the late completion");
     assert_eq!(unchanged.state, StageState::Failed);
     assert_eq!(unchanged.artifact, None);
+    assert_eq!(
+        store
+            .find_by_artifact(
+                alpha.clone(),
+                StageKind::Portfolio,
+                artifact.artifact_id.clone(),
+            )
+            .await
+            .expect("the failed-stage lookup"),
+        None,
+        "a failed terminal stage is not an artifact source"
+    );
 
     assert!(matches!(
         store

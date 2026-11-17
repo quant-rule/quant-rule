@@ -371,6 +371,38 @@ impl StageStore for PgStageStore {
         Box::pin(async move { load_stage(&pool, None, &stage_run_id).await })
     }
 
+    fn find_by_artifact(
+        &self,
+        profile: ProfileId,
+        kind: StageKind,
+        artifact_id: Digest,
+    ) -> BoxFuture<Result<Option<StageRecord>, StageStoreError>> {
+        let pool = self.pool.clone();
+        Box::pin(async move {
+            let id: Option<String> = sqlx::query_scalar(
+                "SELECT r.stage_run_id
+                   FROM stage.runs r
+                   JOIN stage.submissions s ON s.stage_run_id = r.stage_run_id
+                  WHERE s.profile_id = $1
+                    AND r.kind = $2
+                    AND r.status = 'succeeded'
+                    AND r.artifact_id = $3
+                  ORDER BY r.submitted_at DESC, r.stage_run_id ASC
+                  LIMIT 1",
+            )
+            .bind(profile.as_str())
+            .bind(kind.as_str())
+            .bind(artifact_id.to_string())
+            .fetch_optional(&pool)
+            .await
+            .map_err(|error| StageStoreError(error.to_string()))?;
+            match id {
+                Some(id) => load_stage(&pool, Some(profile.as_str()), &id).await,
+                None => Ok(None),
+            }
+        })
+    }
+
     fn claim(
         &self,
         stage_run_id: String,

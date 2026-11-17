@@ -252,6 +252,23 @@ export interface StageEventView {
   coverage: StageCoverage[];
 }
 
+/** One published strategy decision record. */
+export interface StageDecision {
+  schema: string;
+  timeframe_secs: number;
+  bar_index: number;
+  open_time: number;
+  available_bar_index: number;
+  position_before: "flat" | "long" | "short";
+  position_after: "flat" | "long" | "short";
+  decision: "hold" | "enter" | "enter_bracket" | "exit";
+  side: "long" | "short" | null;
+  reason: string | null;
+  intent: unknown;
+  atr14: number | null;
+  [key: string]: unknown;
+}
+
 /** One coverage row from a model stage's report.json. */
 export interface StageCoverage {
   timeframe_secs: number;

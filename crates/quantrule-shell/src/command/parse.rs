@@ -758,6 +758,8 @@ mod tests {
             (vec!["run", "fetch", "r", "out"], "fetch"),
             (vec!["run", "cancel", "r"], "cancel"),
             (vec!["stage", "run", "model", "d", "c"], "model"),
+            (vec!["stage", "run", "strategy", "m", "c"], "strategy"),
+            (vec!["stage", "explain", "s", "--bar", "2"], "explain"),
             (vec!["stage", "list"], "list"),
             (vec!["stage", "show", "s"], "show"),
             (vec!["stage", "events", "s", "--timeframe", "5m"], "events"),

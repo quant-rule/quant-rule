@@ -187,6 +187,8 @@ distributed release (v0.9.0, prepared as v1.0.0).
 | `run fetch` | Runs | Download a run's artifacts into a directory |
 | `run cancel` | Runs | Cancel a queued or running run |
 | `stage run model` | Stages | Submit a diagnostic model stage |
+| `stage run strategy` | Stages | Submit a strategy stage over a frozen model artifact |
+| `stage explain` | Stages | Read one published strategy decision |
 | `stage list` | Stages | List diagnostic stage runs |
 | `stage show` | Stages | Read one stage detail and artifact files |
 | `stage events` | Stages | Read the model event batch and coverage |
@@ -212,10 +214,10 @@ distributed release (v0.9.0, prepared as v1.0.0).
 
 ### Target stage and research surface
 
-The next surface is additive: `stage run strategy`, `stage run portfolio`, and
-`stage explain`; `research` records; `baseline` and `invalidation` reads; and the
-optional `run submit --model-artifact` flag. It is not implemented yet. The
-target is [`docs/architecture/stage-surface.md`](docs/architecture/stage-surface.md).
+The next surface is additive: `stage run portfolio`; `research` records;
+`baseline` and `invalidation` reads; and the optional
+`run submit --model-artifact` flag. It is not implemented yet. The target is
+[`docs/architecture/stage-surface.md`](docs/architecture/stage-surface.md).
 
 ## Principles
 

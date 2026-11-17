@@ -120,6 +120,7 @@ pub fn bundle(root: &Path) -> ConfigBundle {
 
 pub struct Fixture {
     pub services: WorkerServices,
+    pub data: MemoryDataClient,
     pub runs: MemoryEvidence,
     pub queue: MemoryQueue,
     pub objects: common::MemoryObjects,
@@ -329,13 +330,14 @@ pub async fn fixture() -> Fixture {
 
     let services = WorkerServices {
         evidence: Arc::new(runs.clone()),
-        data: Arc::new(data),
+        data: Arc::new(data.clone()),
         model: Arc::new(model.clone()),
         objects: Arc::new(objects.clone()),
         queue: Arc::new(queue.clone()),
     };
     Fixture {
         services,
+        data,
         runs,
         queue,
         objects,

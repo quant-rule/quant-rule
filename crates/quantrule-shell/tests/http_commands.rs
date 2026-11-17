@@ -12,6 +12,7 @@ use std::process::Output;
 use serde_json::json;
 use support::{
     Fixture, canonical_digest, config_hash, data_version, digest, image_digest, run_id, stage_id,
+    strategy_stage_id,
 };
 
 fn stdout(output: &Output) -> String {
@@ -290,6 +291,72 @@ fn stage_run_model_sends_the_contract_body() {
 }
 
 #[test]
+fn stage_run_strategy_and_explain_use_the_published_decisions() {
+    let fixture = Fixture::start();
+    let model_artifact = digest('9');
+    let run = fixture.run(&["stage", "run", "strategy", &model_artifact, "cfg_abc"]);
+    assert_success(&run);
+    assert_eq!(
+        stdout(&run),
+        format!(
+            "stage_run_id: {}\nstate: queued\ncreated: true\n",
+            strategy_stage_id()
+        )
+    );
+    assert_eq!(fixture.last_request().path, "/stages/strategy/runs");
+    assert_eq!(
+        fixture.last_request().json(),
+        json!({
+            "kind": "strategy",
+            "config_id": "cfg_abc",
+            "input": { "kind": "model_artifact", "model_artifact_id": model_artifact },
+        })
+    );
+
+    fixture.clear_requests();
+    let explain = fixture.run(&["stage", "explain", &strategy_stage_id(), "--bar", "1"]);
+    assert_success(&explain);
+    let text = stdout(&explain);
+    assert!(text.contains("bar_index: 1"));
+    assert!(text.contains("decision: hold"));
+    assert!(text.contains("position_before: long"));
+    assert!(text.contains("position_after: long"));
+    assert!(text.contains("atr14: 1.5"));
+    let paths: Vec<String> = fixture
+        .requests()
+        .iter()
+        .map(|request| request.path.clone())
+        .collect();
+    assert_eq!(
+        paths,
+        vec![
+            format!("/stages/runs/{}", strategy_stage_id()),
+            format!(
+                "/stages/runs/{}/artifacts/decisions.ndjson",
+                strategy_stage_id()
+            ),
+        ]
+    );
+
+    let json_output = fixture.run(&[
+        "--json",
+        "--profile",
+        "default",
+        "stage",
+        "explain",
+        &strategy_stage_id(),
+        "--bar",
+        "0",
+    ]);
+    assert_success(&json_output);
+    let value: serde_json::Value =
+        serde_json::from_slice(&json_output.stdout).expect("one JSON value");
+    assert_eq!(value["bar_index"], 0);
+    assert_eq!(value["decision"], "enter");
+    assert_eq!(value["side"], "long");
+}
+
+#[test]
 fn stage_list_and_show_print_the_diagnostic_record() {
     let fixture = Fixture::start();
     let list = fixture.run(&["stage", "list", "--kind", "model", "--status", "succeeded"]);
@@ -400,6 +467,32 @@ fn stage_fetch_writes_and_verifies_every_artifact() {
 }
 
 #[test]
+fn a_strategy_stage_show_and_fetch_render_the_decision_bundle() {
+    let fixture = Fixture::start();
+    let show = fixture.run(&["stage", "show", &strategy_stage_id()]);
+    assert_success(&show);
+    let text = stdout(&show);
+    assert!(text.contains("kind: strategy"));
+    assert!(text.contains(&format!("input: model_artifact {}", digest('9'))));
+    assert!(text.contains("artifact decisions.ndjson:"));
+
+    let directory = fixture.home().join("strategy-stage");
+    let fetch = fixture.run(&[
+        "stage",
+        "fetch",
+        &strategy_stage_id(),
+        directory.to_str().expect("UTF-8 path"),
+    ]);
+    assert_success(&fetch);
+    assert_eq!(
+        fs::read(directory.join("decisions.ndjson")).expect("decisions"),
+        support::strategy_decisions_body()
+    );
+    let text = stdout(&fetch);
+    assert!(text.contains("artifact decisions.ndjson:"));
+}
+
+#[test]
 fn stage_cancel_and_delete_print_their_result() {
     let fixture = Fixture::start();
     let cancel = fixture.run(&["stage", "cancel", &stage_id()]);
@@ -421,9 +514,9 @@ fn stage_cancel_and_delete_print_their_result() {
 #[test]
 fn stage_commands_refuse_an_unimplemented_kind_and_an_unknown_stage() {
     let fixture = Fixture::start();
-    let strategy = fixture.run(&["stage", "run", "strategy", &stage_id(), "cfg_abc"]);
-    assert_failure(&strategy);
-    assert!(stderr(&strategy).contains("only the model stage is implemented"));
+    let portfolio = fixture.run(&["stage", "run", "portfolio", &stage_id(), "cfg_abc"]);
+    assert_failure(&portfolio);
+    assert!(stderr(&portfolio).contains("stage run expects model or strategy"));
 
     let unknown = fixture.run(&["stage", "show", &digest('9')]);
     assert_failure(&unknown);

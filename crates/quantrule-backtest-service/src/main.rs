@@ -26,7 +26,8 @@ use std::sync::Arc;
 use quantrule_api::StageKind;
 use quantrule_backtest_service::backtest::{ProcessOutcome, WorkerServices, process};
 use quantrule_backtest_service::stage::{
-    ModelStageExecutor, StageDispatch, StageProcessOutcome, StageWorkerServices, process_stage,
+    ModelStageExecutor, StageDispatch, StageProcessOutcome, StageWorkerServices,
+    StrategyStageExecutor, process_stage,
 };
 use quantrule_runtime::adapters::{
     Message, MessageHandler, ObjectStore, Queue, QueueConsumer, QueueError,
@@ -72,6 +73,8 @@ async fn main() -> Result<(), RuntimeError> {
     let stage_publish: Arc<dyn Queue> = queue.clone();
     let stage_objects: Arc<dyn ObjectStore> = Arc::clone(&objects);
     let stage_model: Arc<dyn ModelClient> = Arc::clone(&model);
+    let stage_data: Arc<dyn DataClient> = Arc::clone(&data);
+    let stage_strategy_evidence: Arc<dyn StageClient> = Arc::clone(&stage_evidence);
     let services = Arc::new(WorkerServices {
         evidence,
         data,
@@ -84,10 +87,24 @@ async fn main() -> Result<(), RuntimeError> {
         objects: Arc::clone(&stage_objects),
         queue: stage_publish,
     });
-    let dispatch = Arc::new(StageDispatch::new().with(
-        StageKind::Model,
-        Arc::new(ModelStageExecutor::new(stage_model, stage_objects)),
-    ));
+    let dispatch = Arc::new(
+        StageDispatch::new()
+            .with(
+                StageKind::Model,
+                Arc::new(ModelStageExecutor::new(
+                    stage_model,
+                    Arc::clone(&stage_objects),
+                )),
+            )
+            .with(
+                StageKind::Strategy,
+                Arc::new(StrategyStageExecutor::new(
+                    stage_strategy_evidence,
+                    stage_data,
+                    stage_objects,
+                )),
+            ),
+    );
 
     let handler: MessageHandler = Box::new(move |message: Message| {
         let services = Arc::clone(&services);

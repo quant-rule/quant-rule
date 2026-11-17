@@ -12,7 +12,7 @@ use quantrule_api::{
     ArtifactRef, Digest, StageInput, StageKind, StageRunDetail, StageRunRequest, StageRunSummary,
     StageState, StageSubmitResponse,
 };
-use serde_json::json;
+use serde_json::{Value, json};
 
 use crate::client::{Client, encode};
 use crate::command::stage::stage_events;
@@ -61,6 +61,82 @@ pub(crate) fn stage_run_model(
             submitted.state.as_str(),
             submitted.created,
         )
+    })
+}
+
+pub(crate) fn stage_run_strategy(
+    client: &Client,
+    globals: &GlobalOptions,
+    stdout: &mut impl Write,
+    model_artifact_id: &str,
+    config_id: &str,
+) -> Result<(), RunError> {
+    let artifact = Digest::parse(model_artifact_id)
+        .map_err(|error| RunError::Usage(format!("model_artifact_id {error}")))?;
+    let request = StageRunRequest {
+        kind: StageKind::Strategy,
+        config_id: config_id.to_owned(),
+        input: StageInput::ModelArtifact {
+            model_artifact_id: artifact,
+        },
+    };
+    let body = serde_json::to_string(&request)
+        .map_err(|error| RunError::decode("the stage submission", error))?;
+    let response = client.post_json("/stages/strategy/runs", &body)?;
+    let submitted: StageSubmitResponse =
+        decode!(StageSubmitResponse, response, "/stages/strategy/runs")?;
+    output::emit(globals.json, json_view!(&submitted)?, stdout, |writer| {
+        output::stage_submitted(
+            writer,
+            &submitted.stage_run_id.to_string(),
+            submitted.state.as_str(),
+            submitted.created,
+        )
+    })
+}
+
+pub(crate) fn stage_explain(
+    client: &Client,
+    globals: &GlobalOptions,
+    stdout: &mut impl Write,
+    stage_run_id: &str,
+    bar: usize,
+) -> Result<(), RunError> {
+    let detail = stage_detail(client, stage_run_id)?;
+    let artifact = detail.artifact.as_ref().ok_or_else(|| RunError::Api {
+        code: String::from("stage.conflict"),
+        message: format!("stage {stage_run_id} has not produced an artifact"),
+    })?;
+    let decisions = artifact
+        .files
+        .iter()
+        .find(|file| file.name == "decisions.ndjson")
+        .ok_or_else(|| RunError::Api {
+            code: String::from("stage.not_found"),
+            message: format!("stage {stage_run_id} has no decisions.ndjson artifact"),
+        })?;
+    let bytes = stage_artifact_bytes(client, stage_run_id, decisions)?;
+    let text = std::str::from_utf8(&bytes).map_err(|error| RunError::Decode {
+        path: String::from("decisions.ndjson"),
+        message: error.to_string(),
+    })?;
+    let mut record: Option<Value> = None;
+    for (index, line) in text.lines().filter(|line| !line.is_empty()).enumerate() {
+        let value: Value = serde_json::from_str(line).map_err(|error| RunError::Decode {
+            path: String::from("decisions.ndjson"),
+            message: format!("line {}: {error}", index + 1),
+        })?;
+        if value.get("bar_index").and_then(Value::as_u64) == Some(bar as u64) {
+            record = Some(value);
+            break;
+        }
+    }
+    let record = record.ok_or_else(|| RunError::Api {
+        code: String::from("stage.not_found"),
+        message: format!("stage {stage_run_id} has no decision for bar {bar}"),
+    })?;
+    output::emit(globals.json, record.clone(), stdout, |writer| {
+        output::stage_explain(writer, stage_run_id, bar, &record)
     })
 }
 

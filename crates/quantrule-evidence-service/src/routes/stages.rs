@@ -219,25 +219,55 @@ pub(crate) async fn submit_stage(
         )?;
     }
 
+    let stages = state
+        .stages
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no stage store is configured"))?;
+    let supplied_data_version = resolve_data_version(&body, kind, body.provenance.as_ref());
     let data_version = match kind {
         StageKind::Model => body.input.digest().clone(),
-        StageKind::Strategy | StageKind::Portfolio => {
-            resolve_data_version(&body, kind, body.provenance.as_ref()).ok_or_else(|| {
+        StageKind::Strategy => {
+            let artifact_id = body.input.model_artifact_id().cloned().ok_or_else(|| {
                 failure(
                     ErrorCode::StageInvalid,
-                    "a strategy or portfolio stage must name the dataset its frozen input records",
+                    "a strategy stage needs a model artifact input",
                 )
-            })?
+            })?;
+            let upstream = stages
+                .find_by_artifact(profile.clone(), StageKind::Model, artifact_id.clone())
+                .await
+                .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?
+                .ok_or_else(|| {
+                    failure(
+                        ErrorCode::StageNotFound,
+                        format!(
+                            "no succeeded model stage publishes artifact {artifact_id} in this profile"
+                        ),
+                    )
+                })?;
+            if model_version != upstream.provenance.model_version {
+                return Err(failure(
+                    ErrorCode::StageInvalid,
+                    "the strategy config model_version disagrees with the upstream model stage",
+                ));
+            }
+            if let Some(supplied) = &supplied_data_version
+                && supplied != &upstream.provenance.data_version
+            {
+                return Err(failure(
+                    ErrorCode::StageInvalid,
+                    "the supplied data_version disagrees with the upstream model stage",
+                ));
+            }
+            upstream.provenance.data_version
         }
+        StageKind::Portfolio => supplied_data_version.clone().ok_or_else(|| {
+            failure(
+                ErrorCode::StageInvalid,
+                "a portfolio stage must name the dataset its frozen input record",
+            )
+        })?,
     };
-    if let Some(provenance) = &body.provenance
-        && provenance.data_version != data_version
-    {
-        return Err(failure(
-            ErrorCode::StageInvalid,
-            "the supplied data_version disagrees with the stage input",
-        ));
-    }
     if kind == StageKind::Model {
         supplied(body.data_version.clone(), &data_version, "data_version")?;
         supplied(
@@ -247,6 +277,13 @@ pub(crate) async fn submit_stage(
             &data_version,
             "data_version",
         )?;
+    } else if let Some(provenance) = &body.provenance
+        && provenance.data_version != data_version
+    {
+        return Err(failure(
+            ErrorCode::StageInvalid,
+            "the supplied data_version disagrees with the stage input",
+        ));
     }
     validate_dataset(&state, profile.clone(), &data_version).await?;
 
@@ -266,10 +303,6 @@ pub(crate) async fn submit_stage(
         profile.as_str().to_owned(),
         submitted_at,
     );
-    let stages = state
-        .stages
-        .as_ref()
-        .ok_or_else(|| failure(ErrorCode::Internal, "no stage store is configured"))?;
     let outcome = stages
         .create(profile, run)
         .await

@@ -1,8 +1,18 @@
 <script lang="ts">
   import DatasetsPanel from "./DatasetsPanel.svelte";
   import ModelStagePanel from "./ModelStagePanel.svelte";
+  import StrategyStagePanel from "./StrategyStagePanel.svelte";
+  import { clearSelection } from "./stages.svelte";
 
-  let tab = $state<"data" | "model">("data");
+  let tab = $state<"data" | "model" | "strategy">("data");
+
+  function switchTab(next: "data" | "model" | "strategy"): void {
+    if (next === tab) {
+      return;
+    }
+    clearSelection();
+    tab = next;
+  }
 </script>
 
 <section class="stack">
@@ -11,7 +21,7 @@
       role="tab"
       aria-selected={tab === "data"}
       class:active={tab === "data"}
-      onclick={() => (tab = "data")}
+      onclick={() => switchTab("data")}
     >
       Data
     </button>
@@ -19,16 +29,26 @@
       role="tab"
       aria-selected={tab === "model"}
       class:active={tab === "model"}
-      onclick={() => (tab = "model")}
+      onclick={() => switchTab("model")}
     >
       Model
+    </button>
+    <button
+      role="tab"
+      aria-selected={tab === "strategy"}
+      class:active={tab === "strategy"}
+      onclick={() => switchTab("strategy")}
+    >
+      Strategy
     </button>
   </div>
 
   {#if tab === "data"}
     <DatasetsPanel />
-  {:else}
+  {:else if tab === "model"}
     <ModelStagePanel />
+  {:else}
+    <StrategyStagePanel />
   {/if}
 </section>
 

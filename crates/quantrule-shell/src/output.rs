@@ -387,6 +387,44 @@ pub(crate) fn stage_deleted(writer: &mut dyn Write, stage_run_id: &str) -> io::R
     writeln!(writer, "deleted: {stage_run_id}")
 }
 
+/// Render one published strategy decision without recomputing it.
+pub(crate) fn stage_explain(
+    writer: &mut dyn Write,
+    stage_run_id: &str,
+    bar: usize,
+    record: &Value,
+) -> io::Result<()> {
+    writeln!(writer, "stage_run_id: {stage_run_id}")?;
+    writeln!(writer, "bar_index: {bar}")?;
+    for field in [
+        "decision",
+        "side",
+        "reason",
+        "position_before",
+        "position_after",
+    ] {
+        writeln!(writer, "{field}: {}", value_text(&record[field]))?;
+    }
+    if let Some(object) = record.as_object() {
+        let shown = [
+            "schema",
+            "bar_index",
+            "decision",
+            "side",
+            "reason",
+            "position_before",
+            "position_after",
+        ];
+        for (key, value) in object {
+            if shown.contains(&key.as_str()) {
+                continue;
+            }
+            writeln!(writer, "{key}: {}", value_text(value))?;
+        }
+    }
+    Ok(())
+}
+
 /// Render one model-stage event batch and its report coverage.
 pub(crate) fn stage_events(writer: &mut dyn Write, view: &StageEventsView) -> io::Result<()> {
     writeln!(writer, "stage_run_id: {}", view.stage_run_id)?;

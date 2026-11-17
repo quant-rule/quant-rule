@@ -113,6 +113,7 @@ fn harness() -> Harness {
             data.add_dataset(profile, dataset(&version));
         }
         data.add_config(profile, bundle("cfg_valid", b"valid", "M1.3"));
+        data.add_config(profile, bundle("cfg_m99", b"m99", "M9.9"));
         data.add_config(profile, invalid_bundle());
     }
     let state = Arc::new(EvidenceState::with_services(
@@ -167,14 +168,18 @@ async fn json<T: serde::de::DeserializeOwned>(response: axum::response::Response
 
 /// Submit, claim, and complete one stage with the given files.
 async fn completed_stage(harness: &Harness, files: &[(&str, &[u8])]) -> (String, StageArtifact) {
+    completed_stage_with(harness, "cfg_valid", files).await
+}
+
+async fn completed_stage_with(
+    harness: &Harness,
+    config_id: &str,
+    files: &[(&str, &[u8])],
+) -> (String, StageArtifact) {
     let data_version = digest(b"candles-a");
-    let response = submit(
-        Arc::clone(&harness.state),
-        "default",
-        "model",
-        &model_body(&data_version),
-    )
-    .await;
+    let mut body = model_body(&data_version);
+    body["config_id"] = serde_json::json!(config_id);
+    let response = submit(Arc::clone(&harness.state), "default", "model", &body).await;
     let created: StageSubmitResponse = json(response).await;
     let id = created.stage_run_id.to_string();
     harness
@@ -341,9 +346,24 @@ async fn a_stage_is_profile_scoped_and_never_readable_as_a_run() {
 }
 
 #[tokio::test]
-async fn a_strategy_stage_needs_the_dataset_its_frozen_input_records() {
+async fn a_strategy_stage_derives_its_dataset_from_the_upstream_model_stage() {
     let harness = harness();
-    let model_artifact = digest(b"model");
+    let unknown = digest(b"model");
+    let body = serde_json::json!({
+        "kind": "strategy",
+        "config_id": "cfg_valid",
+        "input": {
+            "kind": "model_artifact",
+            "model_artifact_id": unknown,
+        },
+    });
+    let response = submit(Arc::clone(&harness.state), "default", "strategy", &body).await;
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    let envelope: ErrorEnvelope = json(response).await;
+    assert_eq!(envelope.error.code, ErrorCode::StageNotFound);
+
+    let (_, upstream) = completed_stage(&harness, &[("readings.csv", b"a\n")]).await;
+    let model_artifact = upstream.artifact_id.clone();
     let mut body = serde_json::json!({
         "kind": "strategy",
         "config_id": "cfg_valid",
@@ -353,10 +373,6 @@ async fn a_strategy_stage_needs_the_dataset_its_frozen_input_records() {
         },
     });
     let response = submit(Arc::clone(&harness.state), "default", "strategy", &body).await;
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-
-    body["data_version"] = serde_json::json!(digest(b"candles-a"));
-    let response = submit(Arc::clone(&harness.state), "default", "strategy", &body).await;
     assert_eq!(response.status(), StatusCode::ACCEPTED);
     let created: StageSubmitResponse = json(response).await;
     assert_eq!(
@@ -364,12 +380,55 @@ async fn a_strategy_stage_needs_the_dataset_its_frozen_input_records() {
         derive_stage_run_id(
             StageKind::Strategy,
             &quantrule_api::StageInput::ModelArtifact {
-                model_artifact_id: model_artifact,
+                model_artifact_id: model_artifact.clone(),
             },
             &digest(b"valid"),
             "M1.3",
             &Digest::sha256(b"no-image-digest"),
         )
+    );
+    let response = router(Arc::clone(&harness.state))
+        .oneshot(
+            Request::get(format!("/stages/runs/{}", created.stage_run_id))
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let detail: StageRunDetail = json(response).await;
+    assert_eq!(detail.provenance.data_version, digest(b"candles-a"));
+    assert_eq!(detail.provenance.model_version, "M1.3");
+
+    body["data_version"] = serde_json::json!(digest(b"other"));
+    let response = submit(Arc::clone(&harness.state), "default", "strategy", &body).await;
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let envelope: ErrorEnvelope = json(response).await;
+    assert_eq!(envelope.error.code, ErrorCode::StageInvalid);
+}
+
+#[tokio::test]
+async fn a_strategy_stage_requires_the_upstream_model_version() {
+    let harness = harness();
+    let (_, upstream) =
+        completed_stage_with(&harness, "cfg_m99", &[("readings.csv", b"a\n")]).await;
+    let body = serde_json::json!({
+        "kind": "strategy",
+        "config_id": "cfg_valid",
+        "input": {
+            "kind": "model_artifact",
+            "model_artifact_id": upstream.artifact_id,
+        },
+    });
+    let response = submit(Arc::clone(&harness.state), "default", "strategy", &body).await;
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let envelope: ErrorEnvelope = json(response).await;
+    assert_eq!(envelope.error.code, ErrorCode::StageInvalid);
+    assert!(
+        envelope.error.message.contains("model_version"),
+        "{}",
+        envelope.error.message
     );
 }
 

@@ -24,7 +24,7 @@ use stage_fixture::stage_route;
 #[allow(unused_imports)]
 pub use stage_fixture::{
     client_parity_api, client_parity_view, stage_detail, stage_events_body, stage_id,
-    stage_report_body,
+    stage_report_body, strategy_decisions_body, strategy_stage_detail, strategy_stage_id,
 };
 
 /// The binary under test.
@@ -562,11 +562,22 @@ fn parity_route(state: &FixtureState, request: &Request, segments: &[&str]) -> O
     let fixture = state.parity.as_ref()?;
     let responses = &fixture["responses"];
     let stage_id = fixture["stage_id"].as_str().unwrap_or_default();
+    let strategy_stage_id = fixture["strategy_stage_id"].as_str().unwrap_or_default();
     match (request.method.as_str(), segments) {
         ("POST", ["stages", "model", "runs"]) => {
             return responses
                 .get("stage_submit")
                 .map(|value| Response::json(202, value));
+        }
+        ("POST", ["stages", "strategy", "runs"]) => {
+            return responses
+                .get("stage_run_strategy")
+                .map(|value| Response::json(202, value));
+        }
+        ("GET", ["stages", "runs", id]) if *id == strategy_stage_id => {
+            return responses
+                .get("strategy_stage")
+                .map(|value| Response::json(200, value));
         }
         ("GET", ["stages", "runs"]) => {
             return responses
@@ -585,6 +596,17 @@ fn parity_route(state: &FixtureState, request: &Request, segments: &[&str]) -> O
         }
         ("DELETE", ["stages", "runs", id]) if *id == stage_id => {
             return Some(Response::bytes(204, "application/json", Vec::new()));
+        }
+        ("GET", ["stages", "runs", id, "artifacts", name]) if *id == strategy_stage_id => {
+            let artifact = fixture["strategy_artifacts"]
+                .as_array()?
+                .iter()
+                .find(|artifact| artifact["name"].as_str() == Some(*name))?;
+            return Some(Response::bytes(
+                200,
+                "application/octet-stream",
+                artifact["body"].as_str()?.as_bytes().to_vec(),
+            ));
         }
         ("GET", ["stages", "runs", id, "artifacts", name]) if *id == stage_id => {
             let artifact = fixture["stage_artifacts"]
