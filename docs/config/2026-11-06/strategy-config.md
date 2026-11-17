@@ -156,6 +156,11 @@ chooses the side when a boundary fills. The strategy does not know the side in
 advance. The bracket event must be the registered compression-range identity
 `(3,8,5)`; an unregistered, diagnostic, or other event identity is rejected.
 
+On the entry bar the bracket is live for the whole bar. OHLC cannot order a
+pre-trigger low or high against the entry, so the conservative rule records a
+stop-out when the bar range crosses the stop. The rule is stated in the
+execution contract; it is not a claim that the intrabar path was observed.
+
 The bracket engine is supported by the run's strategy stage. The run supplies
 the executed position and execution chooses the side when a boundary fills; the
 strategy does not know the side in advance.

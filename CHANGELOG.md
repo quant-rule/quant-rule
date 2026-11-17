@@ -20,6 +20,8 @@ history is in Git and the pull requests.
 
 ### Changed
 
+### Fixed
+
 - The configuration identity is one SHA-256 across the app, catalog, run
   record, and stage provenance. The old 64-bit FNV fingerprint is gone.
 - The canonical digest now covers every `metrics.json`, so a metrics-only change
@@ -27,9 +29,6 @@ history is in Git and the pull requests.
 - A model bundle names its model-input identity (data version label, model
   config, and ladder) in provenance. A strategy-only change reuses the frozen
   model artifact; the worker refuses a changed model input.
-
-### Fixed
-
 - `portfolio_holdout` excludes `COPPERCMDUSD` and `TSLAUSUSD` until a 2025
   source is admitted; the committed coverage for both ends on 2024-12-31.
 - Restore now counts, drops, and round-trips all six schemas, including
@@ -79,6 +78,10 @@ history is in Git and the pull requests.
   applies the same registry filter.
 - The run loader rejects a strategy execution timeframe that differs from the
   fill timeframe, and the coupled `run submit` rejects `quantrule.run/v3`.
+- The execution contract states the conservative entry-bar bracket convention:
+  OHLC cannot order a pre-trigger low or high against the entry, so the bracket
+  is live for the whole entry bar. A fixture with a pre-trigger low now proves
+  the rule; no fill behavior changed.
 
 ## [1.3.0] - 2026-11-17
 
