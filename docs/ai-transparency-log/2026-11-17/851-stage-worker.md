@@ -64,6 +64,9 @@ object store, and queue; no real engine is invoked.
   provenance fields. A supplied config hash, model version, or image digest must
   equal the server-derived value; only the later-stage data version is accepted
   from the caller until the frozen artifact reader lands.
+- Review added the implemented stage queue to the current control-plane
+  document and `QR_STAGE_RETENTION_DAYS` to the deployment environment table, so
+  the living architecture does not omit a control-plane path that now exists.
 
 ## Residual risk
 
