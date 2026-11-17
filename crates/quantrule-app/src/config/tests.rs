@@ -305,6 +305,30 @@ fn model_v4_reads_events_and_progression() {
 }
 
 #[test]
+fn model_v4_rejects_a_divergence_window_above_the_pivot_lookback() {
+    let mut too_wide = model_v4_object();
+    too_wide["defaults"]["events"]["divergence"]["window"] = json!(6);
+    assert_rejected(
+        model::parse(&too_wide, "model.json"),
+        Range,
+        "$.defaults.events.divergence.window",
+    );
+
+    let mut major_at_the_bound = model_v4_object();
+    major_at_the_bound["defaults"]["events"]["divergence"]["window"] = json!(5);
+    assert!(model::parse(&major_at_the_bound, "model.json").is_ok());
+
+    let mut minor_too_wide = model_v4_object();
+    minor_too_wide["defaults"]["events"]["divergence"]["pivot_scale"] = json!("minor");
+    minor_too_wide["defaults"]["events"]["divergence"]["window"] = json!(3);
+    assert_rejected(
+        model::parse(&minor_too_wide, "model.json"),
+        Range,
+        "$.defaults.events.divergence.window",
+    );
+}
+
+#[test]
 fn model_v4_rejects_a_4h_override() {
     assert_rejected(
         model::parse(

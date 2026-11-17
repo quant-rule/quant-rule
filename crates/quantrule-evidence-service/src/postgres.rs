@@ -355,8 +355,12 @@ impl crate::runs::RunStore for PgRunStore {
             if !record.status.is_cancellable() {
                 return Ok(crate::runs::CancelOutcome::Conflict(record));
             }
-            sqlx::query(
-                "UPDATE runs.runs SET status = 'cancelled', finished_at = now() WHERE run_id = $1",
+            // The status predicate is the compare-and-swap: a complete that
+            // committed after the read above must win, and a second concurrent
+            // cancel must be a conflict, not a second 202.
+            let updated = sqlx::query(
+                "UPDATE runs.runs SET status = 'cancelled', finished_at = now()
+                 WHERE run_id = $1 AND status IN ('queued', 'running')",
             )
             .bind(&run_id)
             .execute(&pool)
@@ -367,7 +371,11 @@ impl crate::runs::RunStore for PgRunStore {
                 .ok_or_else(|| {
                     crate::runs::RunStoreError("the run vanished after cancel".to_owned())
                 })?;
-            Ok(crate::runs::CancelOutcome::Cancelled(record))
+            if updated.rows_affected() == 1 {
+                Ok(crate::runs::CancelOutcome::Cancelled(record))
+            } else {
+                Ok(crate::runs::CancelOutcome::Conflict(record))
+            }
         })
     }
 
