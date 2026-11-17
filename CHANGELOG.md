@@ -18,8 +18,6 @@ history is in Git and the pull requests.
 
 ## [Unreleased]
 
-### Changed
-
 ### Fixed
 
 - The configuration identity is one SHA-256 across the app, catalog, run
