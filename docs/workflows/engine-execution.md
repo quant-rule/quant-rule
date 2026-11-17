@@ -189,6 +189,7 @@ Stop and request human direction when:
 
 - [ADR-2026-11-16-01](../adr/2026-11-16/01-stage-execution-and-evidence-boundary.md)
 - [Backtest Workflow](backtest.md)
+- [Stage to backtest tutorial](../tutorials/2026-11-17/stage-to-backtest.md)
 - [Run Contract](run-contract.md)
 - [Improvement Workflow](improvement-workflow.md)
 - [Command surface](../architecture/command-surface.md)

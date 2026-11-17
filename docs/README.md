@@ -50,7 +50,7 @@ repeating a status.
 | Release tags | `v1.2.0` is the latest published release (2026-11-16), the final version-alignment release, with image digest `sha256:26350916…` and both desktop assets. `v1.1.0` is the 1.1.0 alignment release (`sha256:d5ce83da…`); `v1.0.0` is the desktop release, prepared as `v1.1.0` (`sha256:a133ff14…`); `v0.9.0` is the distributed platform (`sha256:1250438f…`). The tag mapping is in `docs/releases/README.md`. |
 | Changelog | Grouped release history; `1.2.0` is the current section, and the historical headings are normalized to the current tags. |
 | Tooling | The shell is the agent command path; it makes one gateway call per command. The improvement run store records evidence; the gateway `run submit` is the current execution path. `tools/gate.sh` runs the workspace gate. The distributed stack adds `make` targets and six services, specified in [deployment.md](architecture/deployment.md). The `simulation` service and the browser client own chart-first research; the Python simulation, chart, oracle, and trade tools are retired by DIST-105. Python is confined to repository governance; the product image carries none ([ADR-10](adr/2026-11-12/10-python-boundary.md)). |
-| Manual | Skeleton; the 12 chapters land as their capabilities land (#859). | [`docs/manual/README.md`](manual/README.md) |
+| Manual | Current; 12 chapters, the command and GUI references, the glossary, and troubleshooting (#859). [docs/manual/README.md](manual/README.md) |
 
 ## Current architecture
 
@@ -107,6 +107,7 @@ repeating a status.
 | Remote compute tutorial | Current; a second host and the gateway URL | `docs/tutorials/2026-11-12/03-remote-compute.md` |
 | Reviewer verification tutorial | Current; reproduce the data plane and compare the digest | `docs/tutorials/2026-11-15/reviewer-verification.md` |
 | End-to-end verification tutorial | Current; `make up`, `make verify`, the expected digest, and the composed tier | `docs/tutorials/2026-11-17/end-to-end-verification.md` |
+| Stage to backtest tutorial | Current; model, strategy, and portfolio stages to a promoted coupled run | `docs/tutorials/2026-11-17/stage-to-backtest.md` |
 | Indicator verification matrix | Current; 49 rows, generated from the evidence map | `docs/model/2026-11-06/indicator-verification.md` |
 | Event verification matrix | Current; 150 rows, generated from the evidence map | `docs/model/2026-11-06/event-verification.md` |
 | Verification evidence map | Current; row/family/tool/n-a scope per class | `docs/registry/verification.json` |

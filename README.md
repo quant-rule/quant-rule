@@ -173,6 +173,9 @@ it holds no engine. Every command accepts `--profile <id>`, `--token <token>`,
 and `--json`. Local source fetch and local stage execution were removed in the
 distributed release (v0.9.0, prepared as v1.0.0).
 
+The [user manual](docs/manual/README.md) teaches each journey and lists the
+browser control for every command; the table below is the command index.
+
 | Command | Family | Purpose |
 |---|---|---|
 | `health` | Gateway | Read the service states, queue depth, and worker count |
@@ -252,6 +255,8 @@ and cleanup status and the browser Operations screen. The contract is
 | [`docs/architecture/kata.md`](docs/architecture/kata.md) | Why the product exists |
 | [`docs/architecture/characteristics.md`](docs/architecture/characteristics.md) | Measurable qualities and fitness functions |
 | [`docs/architecture/deployment.md`](docs/architecture/deployment.md) | How to run it |
+| [User manual](docs/manual/README.md) | Every journey, command, screen, term, and error |
+| [Stage to backtest tutorial](docs/tutorials/2026-11-17/stage-to-backtest.md) | Diagnostic stages to a promoted evidence run |
 | [End-to-end verification tutorial](docs/tutorials/2026-11-17/end-to-end-verification.md) | Clean-stack proof and the two-run digest |
 | [`docs/workflows/README.md`](docs/workflows/README.md) | Workflow index |
 | [`docs/model/2026-11-10/model-m1.3.md`](docs/model/2026-11-10/model-m1.3.md) | Current model contract |

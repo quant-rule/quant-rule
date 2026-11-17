@@ -81,6 +81,12 @@ history is in Git and the pull requests.
   token presence, retention, and a run-digest verification form. The
   End-to-End Verification tutorial records `make up`, `make verify`, the expected
   two-run digest, and the composed tier.
+- The user manual: twelve chapters covering the first run, data, model,
+  strategy, portfolio, backtest, improvement, operations, all 46 commands, every
+  browser screen and Workbench tab, the glossary, and the stable error families.
+  `tools/check_manual.py` keeps the chapters, command rows, screen rows, section
+  shape, and evidence labels aligned with the registry. The stage-to-backtest
+  tutorial records the diagnostic-to-promoted-run journey.
 
 ### Changed
 
