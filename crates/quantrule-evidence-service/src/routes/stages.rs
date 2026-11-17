@@ -192,11 +192,15 @@ pub(crate) async fn submit_stage(
         ));
     };
     let model_version = model_version(config.files.get("run.json").map_or("", String::as_str));
-    let image_digest = state
-        .version
-        .image_digest
-        .clone()
-        .unwrap_or_else(|| Digest::sha256(b"no-image-digest"));
+    // A stage identity names the build that executed it. If the server has no
+    // image digest, refuse the submission instead of recording a synthetic
+    // identity that two different builds would share.
+    let Some(image_digest) = state.version.image_digest.clone() else {
+        return Err(failure(
+            ErrorCode::Internal,
+            "the server has no image digest; set QR_IMAGE_DIGEST to the image digest",
+        ));
+    };
 
     supplied(body.config_hash.clone(), &config_hash, "config_hash")?;
     supplied(body.model_version.clone(), &model_version, "model_version")?;

@@ -117,9 +117,7 @@
         "ETHUSD",
         "XAUUSD",
         "EURUSD",
-        "ESANDP500",
-        "COPPERCMDUSD",
-        "TSLAUSUSD"
+        "ESANDP500"
       ],
       "holdout": true
     }

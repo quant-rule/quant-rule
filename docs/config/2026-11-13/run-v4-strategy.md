@@ -37,7 +37,7 @@ than only its data, model, execution, and portfolio inputs.
 | Schema | Strategy | Use |
 |---|---|---|
 | `quantrule.run/v4` | Required | A full run, including strategy, execution, and portfolio |
-| `quantrule.run/v3` | Absent; a `strategy` field is rejected | A model-only run or a historical evidence config |
+| `quantrule.run/v3` | Absent; a `strategy` field is rejected | A model-only run or a historical evidence config; the coupled `run submit` rejects it |
 
 The catalog and the model route accept both. A config that is missing a
 referenced file, including `strategy.json`, is catalogued as invalid with the

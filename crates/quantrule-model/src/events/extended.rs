@@ -33,6 +33,7 @@ pub struct ExtendedEventConfig {
     path_window: usize,
     fib_test_atr: f64,
     band_atr: f64,
+    structure_scale: PivotScale,
 }
 
 impl ExtendedEventConfig {
@@ -46,7 +47,21 @@ impl ExtendedEventConfig {
             path_window: 20,
             fib_test_atr: 0.2,
             band_atr: 0.25,
+            structure_scale: PivotScale::Major,
         }
+    }
+
+    /// Uses the configured structure pivot scale for the sequence events.
+    #[must_use]
+    pub const fn with_structure_scale(mut self, structure_scale: PivotScale) -> Self {
+        self.structure_scale = structure_scale;
+        self
+    }
+
+    /// The confirmed pivot scale the sequence events read.
+    #[must_use]
+    pub const fn structure_scale(self) -> PivotScale {
+        self.structure_scale
     }
 
     /// Uses the same path window as the extended readings.

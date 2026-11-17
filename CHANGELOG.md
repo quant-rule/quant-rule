@@ -20,6 +20,68 @@ history is in Git and the pull requests.
 
 ### Fixed
 
+### Fixed
+
+- The configuration identity is one SHA-256 across the app, catalog, run
+  record, and stage provenance. The old 64-bit FNV fingerprint is gone.
+- The canonical digest now covers every `metrics.json`, so a metrics-only change
+  cannot leave the digest unchanged.
+- A model bundle names its model-input identity (data version label, model
+  config, and ladder) in provenance. A strategy-only change reuses the frozen
+  model artifact; the worker refuses a changed model input.
+- `portfolio_holdout` excludes `COPPERCMDUSD` and `TSLAUSUSD` until a 2025
+  source is admitted; the committed coverage for both ends on 2024-12-31.
+- Restore now counts, drops, and round-trips all six schemas, including
+  `gateway` and `stage`; a `--force` restore can no longer partially destroy a
+  started stack.
+- The evidence service refuses a run or stage submission when the server has no
+  `QR_IMAGE_DIGEST`, instead of recording a synthetic image identity; `make up`
+  records the built image id.
+- Research creation rejects a run config whose data window leaves its declared
+  partition, closing the `strategy_dev`/2024 and holdout leakage path.
+- The Postgres run cancel is conditional on `queued`/`running`, so a concurrent
+  complete cannot be overwritten by a later cancel.
+- The portfolio ledger caps a fixed notional at current equity, refuses an entry
+  that would make cash negative or a halted account, and marks funding at the
+  charge price. The golden short fixture is unchanged; the long-entry tests use
+  a funded account.
+- Session VWAP no longer substitutes zero for a missing candle volume; it is
+  unavailable from the first missing-volume bar for the rest of the session and
+  resets at the next session. The normal-volume golden fixture is unchanged.
+- A divergence RSI window is clamped to the pivot's availability bar, so it
+  cannot read past the bar on which the event claims to be knowable. The model
+  v4 config now refuses a window above the pivot-scale lookback. The default
+  and golden fixtures are unchanged.
+- A one-bar Donchian or Keltner window no longer indexes the previous bar at
+  bar zero; the position events require a prior bar. The normal-window golden
+  fixtures are unchanged.
+- VWAP slope now subtracts the VWAP from one full window back
+  (`S[t] = VWAP[t] - VWAP[t - window]`), matching the registered formula. The
+  first value appears at bar `2*window - 1`, and the extended readings and
+  event goldens were regenerated deliberately.
+- `structure.scale` now selects the confirmed pivot scale for the structure
+  readings and the lower-high/lower-low sequence events. The default `major`
+  scale keeps the existing output; a `minor` scale now changes the structure
+  output as the registry states.
+- VWAP bands and slope publish when the ATR family is inactive, and range
+  expansion no longer requires ATR; only the ATR distance stays null without
+  ATR.
+- The `session` indicator registers `session_vwap` as a published reading, and
+  the session row contract covers it against the golden fixture.
+- Event edge evidence now names an event-constructing suite that covers the
+  empty, single, short, flat, zero-volume, missing-volume, equal-tie, and gap
+  inputs. The checker rejects a readings-only test as event-edge evidence.
+- The breakout-retest-hold event has its own golden fixture, and the extended
+  indicators' edge evidence names the family tests that check their readings.
+- The strategy event snapshot excludes unregistered and `diagnostic` events,
+  and no longer exposes the raw model `ContextBar`. The model-bundle reader
+  applies the same registry filter.
+- The run loader rejects a strategy execution timeframe that differs from the
+  fill timeframe, and the coupled `run submit` rejects `quantrule.run/v3`.
+- The execution contract states the conservative entry-bar bracket convention:
+  OHLC cannot order a pre-trigger low or high against the entry, so the bracket
+  is live for the whole entry bar. A fixture with a pre-trigger low now proves
+  the rule; no fill behavior changed.
 - The model event batch and bounded history now include the extended events as
   well as the core batch, matching the retention contract. The retention test
   asserts both sources are present.

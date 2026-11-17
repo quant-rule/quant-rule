@@ -111,6 +111,22 @@ pub(crate) async fn submit_validated_pipeline(
     request: SubmitRunRequest,
     config: ConfigBundle,
 ) -> Result<(SubmitRunResponse, RunRecord), ApiFailure> {
+    let schema = config
+        .files
+        .get("run.json")
+        .and_then(|body| serde_json::from_str::<serde_json::Value>(body).ok())
+        .and_then(|value| {
+            value
+                .get("schema")
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned)
+        });
+    if schema.as_deref() == Some("quantrule.run/v3") {
+        return Err(failure(
+            ErrorCode::ConfigInvalid,
+            "a coupled run requires quantrule.run/v4 with a strategy",
+        ));
+    }
     let Some(config_hash) = config.config_hash.clone() else {
         return Err(failure(
             ErrorCode::ConfigInvalid,
@@ -119,11 +135,15 @@ pub(crate) async fn submit_validated_pipeline(
     };
 
     let model_version = model_version(config.files.get("run.json").map_or("", String::as_str));
-    let image_digest = state
-        .version
-        .image_digest
-        .clone()
-        .unwrap_or_else(|| Digest::sha256(b"no-image-digest"));
+    // A run identity names the build that executed it. If the server has no
+    // image digest, refuse the submission instead of recording a synthetic
+    // identity that two different builds would share.
+    let Some(image_digest) = state.version.image_digest.clone() else {
+        return Err(failure(
+            ErrorCode::Internal,
+            "the server has no image digest; set QR_IMAGE_DIGEST to the image digest",
+        ));
+    };
     let model_artifact_id = request.model_artifact_id.clone();
     if let Some(artifact_id) = &model_artifact_id {
         let stages = state.stages.as_ref().ok_or_else(|| {
@@ -150,12 +170,9 @@ pub(crate) async fn submit_validated_pipeline(
                 "the model artifact belongs to another dataset",
             ));
         }
-        if stage.provenance.config_hash != config_hash {
-            return Err(failure(
-                ErrorCode::RunModelArtifactInvalid,
-                "the model artifact belongs to another config hash",
-            ));
-        }
+        // The full config hash must not invalidate a strategy cell: the
+        // worker compares the frozen model bundle's model-input identity to
+        // the submitted config before reuse.
         if stage.provenance.model_version != model_version {
             return Err(failure(
                 ErrorCode::RunModelArtifactInvalid,

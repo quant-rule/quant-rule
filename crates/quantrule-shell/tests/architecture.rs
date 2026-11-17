@@ -54,7 +54,12 @@ const ALLOWED_EDGES: [(&str, &[&str]); 6] = [
     ("quantrule-backtest", &["quantrule-data", "quantrule-model"]),
     (
         "quantrule-app",
-        &["quantrule-backtest", "quantrule-data", "quantrule-model"],
+        &[
+            "quantrule-api",
+            "quantrule-backtest",
+            "quantrule-data",
+            "quantrule-model",
+        ],
     ),
     ("quantrule-shell", &["quantrule-api"]),
 ];

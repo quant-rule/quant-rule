@@ -166,8 +166,9 @@ impl RunManifest {
 
 /// The canonical digest over the data artifacts in a set.
 ///
-/// `results.json`, `*.csv`, and `*.ndjson` are included; provenance, logs, and
-/// any file that records where or when the run happened are excluded.
+/// `results.json`, every `metrics.json`, `*.csv`, and `*.ndjson` are included;
+/// provenance, logs, and any file that records where or when the run happened
+/// are excluded.
 #[must_use]
 pub fn canonical_digest(artifacts: &[ArtifactRef]) -> Digest {
     let entries: Vec<(String, Digest)> = artifacts
@@ -179,7 +180,13 @@ pub fn canonical_digest(artifacts: &[ArtifactRef]) -> Digest {
 }
 
 fn canonical(name: &str) -> bool {
-    name == "results.json" || name.ends_with(".csv") || name.ends_with(".ndjson")
+    name == "results.json"
+        || name
+            .rsplit('/')
+            .next()
+            .is_some_and(|file| file == "metrics.json")
+        || name.ends_with(".csv")
+        || name.ends_with(".ndjson")
 }
 
 #[cfg(test)]
@@ -214,6 +221,16 @@ mod tests {
             canonical_digest(std::slice::from_ref(&results)),
             canonical_digest(&[results, provenance])
         );
+    }
+
+    #[test]
+    fn a_metrics_change_changes_the_digest() {
+        let results = artifact("results.json", b"a");
+        let metrics = artifact("portfolio/metrics.json", b"{}");
+        let changed = artifact("portfolio/metrics.json", b"{\"profit_factor\":2}");
+        let base = canonical_digest(&[results.clone(), metrics.clone()]);
+        assert_ne!(base, canonical_digest(&[results.clone(), changed]));
+        assert_eq!(base, canonical_digest(&[metrics, results]));
     }
 
     #[test]

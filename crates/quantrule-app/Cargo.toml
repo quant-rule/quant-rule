@@ -9,6 +9,7 @@ name = "quantrule_app"
 path = "src/lib.rs"
 
 [dependencies]
+quantrule-api = { path = "../quantrule-api" }
 quantrule-backtest = { path = "../quantrule-backtest" }
 quantrule-data = { path = "../quantrule-data" }
 quantrule-model = { path = "../quantrule-model" }
