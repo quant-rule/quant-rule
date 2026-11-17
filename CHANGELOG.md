@@ -13,14 +13,14 @@ history is in Git and the pull requests.
 > through `v1.0.0`. On 2026-11-16 the release-note filenames and the sections
 > below were normalized to those current tags, and the next two releases were
 > cut as `v1.1.0` and `v1.2.0`. Each release note keeps its historical heading
-> and records the version it was prepared as. The current tag is `v2.0.0`. See
+> and records the version it was prepared as. The current tag is `v1.3.0`. See
 > [`docs/releases/README.md`](docs/releases/README.md) for the mapping.
 
 ## [Unreleased]
 
-No unreleased changes yet. `v2.0.0` is the current release.
+No unreleased changes yet. `v1.3.0` is the current release.
 
-## [2.0.0] - 2026-11-17
+## [1.3.0] - 2026-11-17
 
 The stage execution surface release. QuantRule now runs the model, strategy, and
 portfolio engines alone for diagnosis, promotes a frozen model artifact into a

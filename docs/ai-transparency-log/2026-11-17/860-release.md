@@ -1,4 +1,4 @@
-# AI Transparency Log — v2.0.0 Release Preparation
+# AI Transparency Log — v1.3.0 Release Preparation
 
 - Date: 2026-11-17 (UTC)
 - Tool: DeepSeek V4.1 Flash 1017 in OpenCode
@@ -8,7 +8,7 @@
 
 ## Intent and boundary
 
-Prepare the v2.0.0 stage execution surface release: bump every current version
+Prepare the v1.3.0 stage execution surface release: bump every current version
 surface, regenerate the model-object oracle and stage fixtures, move the
 changelog to a dated release section, add the release note and current-tag map
 entry, update the status indexes and desktop documentation, and run the full,
@@ -25,15 +25,15 @@ authorization gate.
 - `tools/gate.sh` — `workspace gate passed`; 2,321 passed, 0 failed, 16
   ignored; 25 checkers.
 - `tools/test_tiers.sh parity` — `port parity ok: 1 registered port(s)`.
-- `make up` — `QuantRule v2.0.0 ready → http://localhost:8080`.
+- `make up` — `QuantRule v1.3.0 ready → http://localhost:8080`.
 - `make verify` — `canonical digest sha256:453c90b4442dd049074e126bb46b400b6f61baa986443c97fa27c3edd41c1daa`;
   two runs verified 12 canonical artifacts and 3,559,171 bytes each.
-- `tools/test_tiers.sh composed` — `composed: gateway healthy, product 2.0.0, run parity verified`.
+- `tools/test_tiers.sh composed` — `composed: gateway healthy, product 1.3.0, run parity verified`.
 - `make down` — stack stopped.
 - `python3 tools/check_releases.py` — 12 release notes, 13 current tags, 9
   changelog versions, baseline 2026-11-07.
-- `python3 tools/check_releases.py --note v2.0.0` — resolves
-  `docs/releases/2026-11-17/v2.0.0.md`.
+- `python3 tools/check_releases.py --note v1.3.0` — resolves
+  `docs/releases/2026-11-17/v1.3.0.md`.
 - `python3 tools/check_manual.py` — 12 chapters, 46 commands, 13 screens, 4
   tabs; `tools/test_check_manual.py` — 9 pass.
 - `python3 tools/check_command_surface.py` — 46 implemented, 0 planned; 17
@@ -53,8 +53,8 @@ authorization gate.
 
 ## Learning and corrections
 
-- The model oracle was regenerated from the 2.0.0 object at 66,022 bytes and
-  `sha256:0536d33b…`. Replacing only `"model_version":"2.0.0"` with `1.2.0`
+- The model oracle was regenerated from the 1.3.0 object at 66,022 bytes and
+  `sha256:90473762…`. Replacing only `"model_version":"1.3.0"` with `1.2.0`
   reconstructs the recorded `sha256:73e2fe4f…` object at the same size, proving
   the only delta is `.model_version`; the model-registry key component
   `2026-11-10.2` is unchanged. The old note's "one byte differs" claim was not
@@ -64,20 +64,26 @@ authorization gate.
   non-empty one-line note under `[Unreleased]`; no fake release entry was
   added and the checker was not weakened.
 - The workspace `Cargo.lock` updated all 16 workspace package entries to
-  `2.0.0`; third-party `1.2.0` entries in the root and desktop lockfiles were
+  `1.3.0`; third-party `1.2.0` entries in the root and desktop lockfiles were
   left untouched.
 - The stage `report.json` body changes only the version string; it stays 308
-  bytes and the new SHA-256 is `sha256:d1ed2114…`. The `events.csv` hash and
+  bytes and the new SHA-256 is `sha256:9a9cf9a7…`. The `events.csv` hash and
   synthetic artifact ids were not changed.
 - The canonical digest stayed
   `sha256:453c90b4442dd049074e126bb46b400b6f61baa986443c97fa27c3edd41c1daa`;
   the version string is not in the canonical artifact set, and a different
   digest was treated as a blocker rather than a new expected value.
 - The 2026-11-17 end-to-end tutorial and the first-run manual were changed only
-  after `make up` and `make verify` observed `2.0.0`.
+  after `make up` and `make verify` observed `1.3.0`.
 - Review corrected the architecture status index: a document that changed in
-  this release says "current in v2.0.0", not "unchanged through v2.0.0". The
+  this release says "current in v1.3.0", not "unchanged through v1.3.0". The
   stage-surface status now attributes the manual to #859 as its own deliverable.
+
+## Retarget
+
+The human authorized `v1.3.0` before any tag was created. The prepared
+`v2.0.0` records were renamed and retargeted to `v1.3.0`; no `v2.0.0` tag or
+release exists, and the historical `1.2.0` evidence is unchanged.
 
 ## Residual risk
 

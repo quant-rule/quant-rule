@@ -78,7 +78,7 @@ Excluded:
 | GUI shape | Workbench tabs + Backtests + Research + Operations | Human |
 | Stage lifecycle owner | Evidence owns the `stage` schema; the backtest worker computes all stage kinds | Architect + Human |
 | Research manifest | `quantrule.improvement-run/v3` with `data_version` and `config_id` | Human |
-| Release | `v2.0.0` (proposed) | Human |
+| Release | `v1.3.0` (authorized) | Human |
 
 ## 6. Acceptance criteria
 
@@ -200,13 +200,13 @@ The commands below are the reviewer checklist. `Observed` and `Status` are fille
 | P8-07 | Manual checker | Manual is a discovery surface | `check_manual.py`; `test_check_manual.py` | Pass | The checker requires linked chapters, status lines, all 46 command rows, all screens and tabs, the six section headings, and an evidence label; 9 tests cover the pass, missing file, missing command, usage mismatch, missing screen, missing section, invalid label, and missing tab | Pass | AI (implementation) | 2026-11-17 | Added to `tools/checkers.txt` and `tools/checker_tests.txt` |
 | P8-08 | Parity suite | Every command has a browser control | `bun test`; shell parity | Pass | Browser suite is 146 pass; Playwright is 53 pass; every one of the 46 commands still has a browser control in the shared parity fixture | Pass | AI (implementation) | 2026-11-17 | No command or screen was removed |
 | P8-09 | Structure/docs | Module docs, file size, doc caps, links, terms | `check_structure.py`; doc checkers | Pass | `check_structure.py`, `check_doc_length.py`, `check_terms.py`, `check_file_size.py`, and `check_links.py` pass; the checker gate runs 25 checkers | Pass | AI (implementation) | 2026-11-17 | The manual is a living document, not a historical record |
-| P9-01 | Full gate | `tools/gate.sh` | `tools/gate.sh` | Pass | `workspace gate passed`; 2,321 passed, 0 failed, 16 ignored; 25 checkers | Pass | AI (implementation) | 2026-11-17 | Run on the v2.0.0 release commit |
-| P9-02 | Composed | `tools/test_tiers.sh composed` | composed | Pass | `make up` printed `QuantRule v2.0.0 ready`; `make verify` printed the unchanged `sha256:453c90b4…` digest; each run verified 12 artifacts and 3,559,171 bytes; composed printed `composed: gateway healthy, product 2.0.0, run parity verified` | Pass | AI (implementation) | 2026-11-17 | Stack stopped with `make down` |
+| P9-01 | Full gate | `tools/gate.sh` | `tools/gate.sh` | Pass | `workspace gate passed`; 2,321 passed, 0 failed, 16 ignored; 25 checkers | Pass | AI (implementation) | 2026-11-17 | Run on the v1.3.0 release commit |
+| P9-02 | Composed | `tools/test_tiers.sh composed` | composed | Pass | `make up` printed `QuantRule v1.3.0 ready`; `make verify` printed the unchanged `sha256:453c90b4…` digest; each run verified 12 artifacts and 3,559,171 bytes; composed printed `composed: gateway healthy, product 1.3.0, run parity verified` | Pass | AI (implementation) | 2026-11-17 | Stack stopped with `make down` |
 | P9-03 | Parity | `tools/test_tiers.sh parity` | parity | Pass | `port parity ok: 1 registered port(s)` | Pass | AI (implementation) | 2026-11-17 | Registry check passed |
-| P9-04 | Release | `v2.0.0` note, changelog, tag authorized | `check_releases.py --note v2.0.0`; human gate | Pass | Pending human authorization: the v2.0.0 note, changelog section, current-tag map, and release check resolve to `docs/releases/2026-11-17/v2.0.0.md`; the annotated tag is not created | Pending | AI (implementation) | 2026-11-17 | The tag is a separate human authorization gate |
+| P9-04 | Release | `v1.3.0` note, changelog, tag authorized | `check_releases.py --note v1.3.0`; human gate | Pass | Human authorized v1.3.0; the v1.3.0 note, changelog section, current-tag map, and release check resolve to `docs/releases/2026-11-17/v1.3.0.md`; the tag is pending the tag run | Pass | AI (implementation) | 2026-11-17 | Tag creation remains the human-owned release action |
 | P9-05 | Board/PRs | Parent/sub-issues, claim type, statuses, dates | GitHub Project | All Done | PR open, merge and board closure pending | Pending | AI (implementation) | 2026-11-17 | Human merges and closes the board items |
 | P9-06 | Cleanup | Worktree removed; local/remote branches deleted | `tools/worktree_cleanup.py check`; `git worktree list`; `git branch -a` | Clean | Worktree and branches remain until merge | Pending | AI (implementation) | 2026-11-17 | Post-merge cleanup |
-| P9-07 | Plan verified | Every row Pass or Accepted risk | This table | Verified | Not yet; P9-04..P9-06 and human acceptance remain | Pending | AI (implementation) | 2026-11-17 | Do not mark Verified before the tag and cleanup |
+| P9-07 | Plan verified | Every row Pass or Accepted risk | This table | Verified | Not yet; P9-05, P9-06, the tag run, and human acceptance remain | Pending | AI (implementation) | 2026-11-17 | Do not mark Verified before the tag and cleanup |
 
 ## 9. Risks and recovery
 

@@ -42,7 +42,7 @@ make up
 Expected output on a clean host:
 
 ```text
-QuantRule v2.0.0 ready → http://localhost:8080
+QuantRule v1.3.0 ready → http://localhost:8080
 ```
 
 `make up` builds the image, starts the nine containers, waits for health, and
@@ -71,7 +71,7 @@ The reference digest recorded on 2026-11-17 is:
 | Replica run id | `sha256:81d3407d3846d9b2c0a65e42753f9dd19b4561d384605755bcd2bcde53379afc` |
 | Canonical digest | `sha256:453c90b4442dd049074e126bb46b400b6f61baa986443c97fa27c3edd41c1daa` |
 | Artifacts | 12 canonical artifacts and 3,559,171 bytes per run |
-| Observed product | 2.0.0 |
+| Observed product | 1.3.0 |
 
 The two run ids differ because each includes its config hash. The canonical
 digest must match because it covers only `results.json`, `*.csv`, and
@@ -100,7 +100,7 @@ tools/test_tiers.sh composed
 Expected output for the recorded image:
 
 ```text
-composed: gateway healthy, product 2.0.0, run parity verified
+composed: gateway healthy, product 1.3.0, run parity verified
 ```
 
 The tier starts nothing. It checks the running gateway, then submits the same
