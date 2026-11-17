@@ -78,7 +78,6 @@ fn input() -> EventStrategyInput {
             progression_stage: None,
             progression_leg_direction: None,
             events: Vec::new(),
-            context: None,
         }],
     }
 }

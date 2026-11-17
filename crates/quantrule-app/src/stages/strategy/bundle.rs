@@ -16,7 +16,6 @@ use quantrule_backtest::strategy::{
     EventStrategyInput, EventTimeframeView, EventView, context_window_bars,
 };
 use quantrule_data::Candle;
-use quantrule_model::context::ContextBar;
 use quantrule_model::timeframe::ModelStates;
 
 /// The model bundle could not be read.
@@ -85,8 +84,6 @@ pub struct BarRow {
     pub progression_stage: Option<i8>,
     /// The published progression leg direction, or `None`.
     pub progression_leg_direction: Option<i8>,
-    /// The published context values, or `None`.
-    pub context: Option<ContextBar>,
     /// The published ATR(14), or `None`.
     pub atr: Option<f64>,
 }
@@ -252,7 +249,6 @@ fn view(row: &BarRow, _window_bars: usize, events: Vec<EventView>) -> EventTimef
         progression_stage: row.progression_stage,
         progression_leg_direction: row.progression_leg_direction,
         events,
-        context: row.context,
     }
 }
 
@@ -292,9 +288,6 @@ fn parse_readings(path: &Path) -> Result<BTreeMap<u64, Vec<BarRow>>, StrategyBun
     let progression_stage = table.column("progression_stage_code")?;
     let progression_direction = table.column("progression_leg_direction")?;
     let atr = table.column("atr")?;
-    let atr_ratio = table.column("atr_ratio")?;
-    let rvol_ratio = table.column("rvol_ratio")?;
-    let context_code = table.column("context_code")?;
 
     let mut bars: BTreeMap<u64, Vec<BarRow>> = BTreeMap::new();
     for (index, row) in table.rows.iter().enumerate() {
@@ -342,19 +335,6 @@ fn parse_readings(path: &Path) -> Result<BTreeMap<u64, Vec<BarRow>>, StrategyBun
                 None => None,
             },
         };
-        let context = ContextBar {
-            atr_ratio: table.optional_f64(row, atr_ratio, index)?,
-            rvol_ratio: table.optional_f64(row, rvol_ratio, index)?,
-            context_code: table.optional_u8(row, context_code, index)?,
-        };
-        let context = if context.atr_ratio.is_none()
-            && context.rvol_ratio.is_none()
-            && context.context_code.is_none()
-        {
-            None
-        } else {
-            Some(context)
-        };
         bars.entry(timeframe_secs).or_default().push(BarRow {
             timeframe_secs,
             bar: bar_index,
@@ -363,7 +343,6 @@ fn parse_readings(path: &Path) -> Result<BTreeMap<u64, Vec<BarRow>>, StrategyBun
             states,
             progression_stage: table.optional_i8(row, progression_stage, index)?,
             progression_leg_direction: table.optional_i8(row, progression_direction, index)?,
-            context,
             atr: table.optional_f64(row, atr, index)?,
         });
     }
@@ -403,11 +382,21 @@ fn parse_events(path: &Path) -> Result<BTreeMap<u64, Vec<EventView>>, StrategyBu
     for (index, row) in table.rows.iter().enumerate() {
         let timeframe_secs = table.u64(row, timeframe, index)?;
         let event_code = table.u16(row, event_code, index)?;
+        let event_type = table.u8(row, event_type, index)?;
+        let subtype = table.u8(row, subtype, index)?;
+        let source = table.u16(row, source, index)?;
+        // The registry is the authority: an unregistered identity and a
+        // diagnostic identity are not part of the strategy snapshot.
+        if !quantrule_backtest::strategy::registry::lookup(event_type, subtype, source).is_some_and(
+            |identity| identity.role != quantrule_backtest::strategy::EventRole::Diagnostic,
+        ) {
+            continue;
+        }
         let view = EventView {
             event_code,
-            event_type: table.u8(row, event_type, index)?,
-            subtype: table.u8(row, subtype, index)?,
-            source: table.u16(row, source, index)?,
+            event_type,
+            subtype,
+            source,
             direction: table.i8(row, direction, index)?,
             occurred_bar_index: table.usize(row, occurred, index)?,
             available_bar_index: table.usize(row, available, index)?,
@@ -583,26 +572,6 @@ impl Table {
             Ok(None)
         } else {
             Ok(Some(parse_value(value, number, "a signed integer")?))
-        }
-    }
-
-    fn optional_u8(
-        &self,
-        row: &[String],
-        column: usize,
-        number: usize,
-    ) -> Result<Option<u8>, StrategyBundleError> {
-        let value = self.field(row, column, number);
-        if value.is_empty() {
-            Ok(None)
-        } else {
-            let parsed: u64 = parse_value(value, number, "an unsigned integer")?;
-            u8::try_from(parsed)
-                .map(Some)
-                .map_err(|_| StrategyBundleError::Invalid {
-                    path: PathBuf::from("the model bundle"),
-                    message: format!("row {number} has a value outside u8"),
-                })
         }
     }
 

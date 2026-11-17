@@ -206,6 +206,14 @@ impl RunConfig {
                 .strategy
                 .as_ref()
                 .map_or("strategy.json", |path| file_name(path));
+            if strategy.execution_timeframe != self.execution.fill_timeframe {
+                return Err(ConfigError::inconsistent(
+                    strategy_file,
+                    "$.execution_timeframe",
+                    self.execution.fill_timeframe.code(),
+                    strategy.execution_timeframe.code(),
+                ));
+            }
             if !self
                 .data
                 .available_timeframes

@@ -9,7 +9,6 @@
 //! The module is pure: it only projects a completed model run. It performs no
 //! I/O, reads no clock, and uses no randomness.
 
-use quantrule_model::context::ContextBar;
 use quantrule_model::events::EventRecord;
 use quantrule_model::run::ModelRun;
 use quantrule_model::timeframe::ModelStates;
@@ -55,9 +54,10 @@ pub struct EventTimeframeView {
     /// The progression leg direction, or `None`.
     pub progression_leg_direction: Option<i8>,
     /// Events that became knowable within the configured window.
+    ///
+    /// Only registered `signal` and `context` events are present; a
+    /// `diagnostic` event is never projected into the strategy snapshot.
     pub events: Vec<EventView>,
-    /// The latest context values, for presentation and diagnostics only.
-    pub context: Option<ContextBar>,
 }
 
 /// The complete event/state snapshot for one execution bar.
@@ -193,9 +193,26 @@ fn view(
         states: bar.states,
         progression_stage: bar.progression.stage_code,
         progression_leg_direction: bar.progression.leg_direction,
-        events: all_events[start..end].iter().map(event_view).collect(),
-        context: timeframe.context().get(bar_index),
+        events: all_events[start..end]
+            .iter()
+            .filter(|event| is_strategy_event(event))
+            .map(event_view)
+            .collect(),
     })
+}
+
+/// Whether an event may enter the strategy snapshot.
+///
+/// The registry is the authority. An unregistered identity and a diagnostic
+/// identity are excluded; only a registered signal or context event reaches a
+/// strategy.
+fn is_strategy_event(event: &EventRecord) -> bool {
+    super::registry::lookup(
+        event.event_type.code(),
+        event.event_subtype_code,
+        event.source_code,
+    )
+    .is_some_and(|identity| identity.role != super::registry::EventRole::Diagnostic)
 }
 
 fn event_view(event: &EventRecord) -> EventView {
@@ -215,15 +232,51 @@ fn event_view(event: &EventRecord) -> EventView {
 
 #[cfg(test)]
 mod tests {
-    use super::{EventStrategyInput, context_window_bars, event_view};
+    use super::{EventStrategyInput, context_window_bars, event_view, is_strategy_event};
     use crate::intent::{RiskPolicy, StrategyPosition};
     use crate::strategy::{
         CompressionBracketConfig, CompressionBracketInput, CompressionBracketStrategy, Condition,
         Decision, EventCompositeConfig, EventCompositeStrategy,
     };
     use quantrule_data::Candle;
+    use quantrule_model::events::{EventRecord, EventType};
     use quantrule_model::input::{MarketStateConfig, TimeframeInput};
     use quantrule_model::run::ModelRun;
+
+    fn event(event_type: EventType, subtype: u8, source: u16) -> EventRecord {
+        EventRecord {
+            event_code: 0,
+            event_type,
+            event_subtype_code: subtype,
+            source_code: source,
+            timeframe_secs: 300,
+            occurred_bar_index: 1,
+            available_bar_index: 1,
+            direction_code: 0,
+            reference_code: None,
+            primary_value: Some(1.0),
+            reference_value: Some(0.0),
+        }
+    }
+
+    #[test]
+    fn a_diagnostic_event_is_filtered_from_the_strategy_snapshot() {
+        let signal = event(EventType::Signal, 1, 4);
+        let diagnostic = event(EventType::Signal, 22, 48);
+        let unregistered = event(EventType::Signal, 2, 4);
+        assert!(is_strategy_event(&signal));
+        assert!(!is_strategy_event(&diagnostic));
+        assert!(!is_strategy_event(&unregistered));
+
+        let views: Vec<_> = [diagnostic, unregistered, signal]
+            .iter()
+            .filter(|event| is_strategy_event(event))
+            .map(event_view)
+            .collect();
+        assert_eq!(views.len(), 1);
+        assert_eq!(views[0].source, 4);
+        assert_eq!(views[0].subtype, 1);
+    }
 
     fn run_with(len: usize) -> ModelRun {
         let candles = (0..len)

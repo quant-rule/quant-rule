@@ -74,6 +74,11 @@ history is in Git and the pull requests.
   inputs. The checker rejects a readings-only test as event-edge evidence.
 - The breakout-retest-hold event has its own golden fixture, and the extended
   indicators' edge evidence names the family tests that check their readings.
+- The strategy event snapshot excludes unregistered and `diagnostic` events,
+  and no longer exposes the raw model `ContextBar`. The model-bundle reader
+  applies the same registry filter.
+- The run loader rejects a strategy execution timeframe that differs from the
+  fill timeframe, and the coupled `run submit` rejects `quantrule.run/v3`.
 
 ## [1.3.0] - 2026-11-17
 
