@@ -24,7 +24,14 @@ help: ## Show this help
 
 up: ## Build and start the default stack, wait for health, print the URL
 	@command -v curl >/dev/null || { echo "up: curl is required to check /health" >&2; exit 1; }
-	$(COMPOSE) up -d --build --wait
+	$(COMPOSE) build
+	$(COMPOSE) create gateway
+	@digest="$$($(COMPOSE) images -q gateway | head -n1)"; \
+	if [ -z "$$digest" ]; then \
+		echo "up: the built gateway image has no id; cannot record the run identity" >&2; \
+		exit 1; \
+	fi; \
+	QR_IMAGE_DIGEST="$$digest" $(COMPOSE) up -d --wait
 	@curl -fsS "$(QR_URL)/health" >/dev/null
 	@version="$$(curl -fsS "$(QR_URL)/version" | sed -n 's/.*"product":"\([^"]*\)".*/\1/p')"; \
 	if [ -z "$$version" ]; then \
