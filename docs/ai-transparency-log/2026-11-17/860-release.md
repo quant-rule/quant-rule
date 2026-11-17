@@ -75,6 +75,9 @@ authorization gate.
   digest was treated as a blocker rather than a new expected value.
 - The 2026-11-17 end-to-end tutorial and the first-run manual were changed only
   after `make up` and `make verify` observed `2.0.0`.
+- Review corrected the architecture status index: a document that changed in
+  this release says "current in v2.0.0", not "unchanged through v2.0.0". The
+  stage-surface status now attributes the manual to #859 as its own deliverable.
 
 ## Residual risk
 

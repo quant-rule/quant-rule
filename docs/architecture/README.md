@@ -39,8 +39,8 @@ agent interface. Both speak `quantrule.api/v1`.
 | [`kata.md`](kata.md) | Current | Why the product exists |
 | [`characteristics.md`](characteristics.md) | Current | Which qualities are measurable and how |
 | [`services.md`](services.md) | Current; released as v0.9.0 (prepared as v1.0.0); current in v2.0.0 | Who does what, and what each service owns |
-| [`data-plane.md`](data-plane.md) | Current; released as v0.9.0 (prepared as v1.0.0); unchanged through v2.0.0 | How one run stays deterministic |
-| [`control-plane.md`](control-plane.md) | Current; released as v0.9.0 (prepared as v1.0.0); unchanged through v2.0.0 | How a run is submitted, retried, and cancelled |
+| [`data-plane.md`](data-plane.md) | Current; released as v0.9.0 (prepared as v1.0.0); current in v2.0.0 | How one run stays deterministic |
+| [`control-plane.md`](control-plane.md) | Current; released as v0.9.0 (prepared as v1.0.0); current in v2.0.0 | How a run is submitted, retried, and cancelled |
 | [`http-api.md`](http-api.md) | Current; released as v0.9.0 (prepared as v1.0.0); current in v2.0.0 | The client contract |
 | [`deployment.md`](deployment.md) | Current; released as v1.0.0 (prepared as v1.1.0); current in v2.0.0 | How to run it with one command |
 | [`desktop.md`](desktop.md) | Current; released as v1.0.0 (prepared as v1.1.0); current in v2.0.0 | The embedded profile: SQLite, ledgers, prefixes, start and stop |
