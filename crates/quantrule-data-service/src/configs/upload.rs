@@ -169,6 +169,26 @@ mod tests {
     }
 
     #[test]
+    fn a_run_reference_that_escapes_is_catalogued_as_invalid() {
+        let mut files = valid();
+        let mut run: serde_json::Value =
+            serde_json::from_str(files.get("run.json").expect("run")).expect("run JSON");
+        run["data"] = serde_json::json!("../outside.json");
+        files.insert("run.json".to_owned(), run.to_string());
+        let record = build("escape", &files, "2026-11-13T00:00:00Z", &staging()).expect("build");
+        assert!(!record.valid);
+        assert!(record.config_hash.is_none());
+        assert!(
+            record
+                .message
+                .as_deref()
+                .is_some_and(|message| message.contains("relative path")),
+            "{:?}",
+            record.message
+        );
+    }
+
+    #[test]
     fn a_parent_path_is_refused() {
         let mut files = valid();
         files.insert("../escape.json".to_owned(), "{}".to_owned());
