@@ -1,6 +1,6 @@
 # Command Surface — the Gateway Client
 
-- Status: Current; the gateway-client surface was released as v0.9.0 (prepared as v1.0.0) and is unchanged through v1.2.0; the model stage adds seven implemented commands in #852, the strategy stage adds two in #853, the portfolio stage adds one in #854, and promotion adds the optional `run submit --model-artifact` flag in #855
+- Status: Current; the gateway-client surface was released as v0.9.0 (prepared as v1.0.0); the model, strategy, and portfolio stages add ten commands (#852–#854), promotion adds the optional `run submit --model-artifact` flag (#855), and the Research screen adds nine implemented commands (#857)
 - Owner: Human
 - Part of: [`docs/architecture/README.md`](README.md)
 - Claim type: Behaviour Claim
@@ -105,19 +105,22 @@ enforces the distinction.
 | `stage fetch` | Implemented | `stage_run_id`, directory | verified artifact set |
 | `stage cancel` | Implemented | `stage_run_id` | new stage state |
 | `stage delete` | Implemented | `stage_run_id` | deleted stage artifact |
-| `research create` | Planned | tier, hypothesis, partition, config, criteria | improvement record |
-| `research submit` | Planned | improvement run id | linked pipeline run |
-| `research list` | Planned | tier, verdict, limit | improvement records |
-| `research show` | Planned | improvement run id | one improvement record |
-| `research compare` | Planned | improvement run id, baseline | comparison table |
-| `research decide` | Planned | improvement run id, decision, note | decision record |
-| `baseline list` | Planned | — | accepted baselines |
-| `baseline show` | Planned | tier | one baseline |
-| `invalidation list` | Planned | — | invalidation tombstones |
+| `research create` | Implemented | tier, hypothesis, partition, `data_version`, `config_id`, optional criteria, green criteria | v3 pre-registration |
+| `research submit` | Implemented | improvement run id | linked pipeline run |
+| `research list` | Implemented | tier, state, limit | improvement records |
+| `research show` | Implemented | improvement run id | one improvement record and lazy digest |
+| `research compare` | Implemented | improvement run id, optional baseline | published-number comparison |
+| `research decide` | Implemented | improvement run id, decision, note | decision and registry row |
+| `baseline list` | Implemented | — | accepted baselines |
+| `baseline show` | Implemented | tier | one baseline |
+| `invalidation list` | Implemented | — | invalidation tombstones |
 
-The planned rows are the target stage and research surface in
-[`stage-surface.md`](stage-surface.md). A planned command is not in `help`, the
-README table, or a tutorial until it is implemented and tested.
+The research rows are the governed improvement surface. A research run is a
+coupled run: the config must carry a strategy, and a model-tier run still freezes
+strategy and portfolio. `research show` links a succeeded canonical digest
+lazily; `research decide` is the only command that records a human decision, and
+an accepted decision requires the digest. A stage artifact is never a pipeline
+run or a baseline.
 
 Every command accepts `--profile <id>`, which sets `X-QuantRule-Profile`,
 `--token <token>`, which sets `Authorization: Bearer` and falls back to

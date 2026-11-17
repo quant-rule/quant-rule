@@ -27,7 +27,7 @@ use quantrule_service_api::DatasetObject;
 use tower::ServiceExt;
 
 /// Every endpoint the HTTP contract documents, with its success status.
-const DOCUMENTED_ENDPOINTS: [(&str, &str, u16); 34] = [
+const DOCUMENTED_ENDPOINTS: [(&str, &str, u16); 43] = [
     ("GET", "/health", 200),
     ("GET", "/version", 200),
     ("GET", "/profiles", 200),
@@ -66,10 +66,19 @@ const DOCUMENTED_ENDPOINTS: [(&str, &str, u16); 34] = [
     ("POST", "/simulation/runs/{id}/oracle", 200),
     ("POST", "/simulation/runs/{id}/check", 200),
     ("POST", "/simulation/runs/{id}/decision", 201),
+    ("GET", "/research/runs", 200),
+    ("POST", "/research/runs", 201),
+    ("GET", "/research/runs/{id}", 200),
+    ("POST", "/research/runs/{id}/submit", 202),
+    ("GET", "/research/runs/{id}/compare", 200),
+    ("POST", "/research/runs/{id}/decision", 200),
+    ("GET", "/research/baselines", 200),
+    ("GET", "/research/baselines/{tier}", 200),
+    ("GET", "/research/invalidations", 200),
 ];
 
 /// The record routes, which require a known profile.
-const RECORD_ENDPOINTS: [(&str, &str, u16); 30] = [
+const RECORD_ENDPOINTS: [(&str, &str, u16); 39] = [
     ("GET", "/hypotheses/{fingerprint}", 200),
     ("POST", "/hypotheses", 201),
     ("GET", "/catalog/datasets", 200),
@@ -104,6 +113,15 @@ const RECORD_ENDPOINTS: [(&str, &str, u16); 30] = [
     ("POST", "/simulation/runs/{id}/oracle", 200),
     ("POST", "/simulation/runs/{id}/check", 200),
     ("POST", "/simulation/runs/{id}/decision", 201),
+    ("GET", "/research/runs", 200),
+    ("POST", "/research/runs", 201),
+    ("GET", "/research/runs/{id}", 200),
+    ("POST", "/research/runs/{id}/submit", 202),
+    ("GET", "/research/runs/{id}/compare", 200),
+    ("POST", "/research/runs/{id}/decision", 200),
+    ("GET", "/research/baselines", 200),
+    ("GET", "/research/baselines/{tier}", 200),
+    ("GET", "/research/invalidations", 200),
 ];
 
 fn concrete(template: &str) -> String {
@@ -172,6 +190,15 @@ fn documented_status(method: &Method, path: &str) -> Option<StatusCode> {
         ("POST", ["simulation", "runs", _, "oracle"]) => StatusCode::OK,
         ("POST", ["simulation", "runs", _, "check"]) => StatusCode::OK,
         ("POST", ["simulation", "runs", _, "decision"]) => StatusCode::CREATED,
+        ("GET", ["research", "runs"]) => StatusCode::OK,
+        ("POST", ["research", "runs"]) => StatusCode::CREATED,
+        ("GET", ["research", "runs", _]) => StatusCode::OK,
+        ("POST", ["research", "runs", _, "submit"]) => StatusCode::ACCEPTED,
+        ("GET", ["research", "runs", _, "compare"]) => StatusCode::OK,
+        ("POST", ["research", "runs", _, "decision"]) => StatusCode::OK,
+        ("GET", ["research", "baselines"]) => StatusCode::OK,
+        ("GET", ["research", "baselines", _]) => StatusCode::OK,
+        ("GET", ["research", "invalidations"]) => StatusCode::OK,
         _ => return None,
     };
     Some(status)
@@ -550,7 +577,7 @@ async fn the_bearer_token_gates_the_api_but_not_the_client() {
         "/api/v1/version",
         "/",
         "/assets/app.js",
-        "/research/abc",
+        "/unknown-page",
     ] {
         let response = send(&state, "GET", path, None, None, Body::empty()).await;
         assert_eq!(response.status(), StatusCode::OK, "{path}");
@@ -560,6 +587,17 @@ async fn the_bearer_token_gates_the_api_but_not_the_client() {
         &state,
         "GET",
         "/catalog/datasets",
+        Some("default"),
+        None,
+        Body::empty(),
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+
+    let response = send(
+        &state,
+        "GET",
+        "/research/runs",
         Some("default"),
         None,
         Body::empty(),

@@ -7,6 +7,7 @@
 mod dispatch;
 pub(crate) mod help;
 mod parse;
+mod research_commands;
 pub(crate) mod stage;
 mod stage_commands;
 pub(crate) mod types;

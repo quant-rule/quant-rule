@@ -152,7 +152,29 @@ The server assigns `sim_id` and `marked_time_utc`. The client clock is not
 trusted. `check` refuses fewer than 30 events, and marking after a decision is
 refused with `simulation.locked`.
 
-## 8. Help and JSON
+## 8. Research ledger
+
+```bash
+quantrule research create --tier model --hypothesis "a retest holds" \
+  --partition model_dev --data-version <data_version> --config <config_id> \
+  --green-criteria '{"return_target":0.1}' --code-commit <commit>
+quantrule research submit <improvement_id>
+quantrule research list --tier model
+quantrule research show <improvement_id>
+quantrule research compare <improvement_id> --baseline <baseline_id>
+quantrule research decide <improvement_id> --decision accepted --note "criteria passed"
+quantrule baseline list
+quantrule baseline show model
+quantrule invalidation list
+```
+A research run is a coupled run; the config must carry a strategy. `accepted`
+requires a succeeded run and canonical digest; `rejected`, `no-edge`,
+`new-hypothesis`, and `invalidated` may omit it. `research show` links a
+succeeded digest lazily. A stage artifact is never a pipeline run or a baseline.
+The comparison reads published coverage or portfolio metrics, and a historical
+baseline with no pipeline run returns null values.
+
+## 9. Help and JSON
 
 ```bash
 quantrule help
@@ -174,4 +196,5 @@ than parsing the human table.
 | `run.not_found` | The run id is unknown in this profile |
 | `config.invalid` | The config failed validation, or the id is unknown |
 | `simulation.check_incomplete` | Fewer than 30 events, or an unmarked window |
+| `research.conflict` | A duplicate submit/decision, or an accepted decision without a succeeded run and digest |
 | `cannot reach the gateway` | `QUANTRULE_API_URL` is wrong or the stack is down |

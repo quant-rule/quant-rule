@@ -7,10 +7,13 @@
 
 mod research_ledger_support;
 
-use quantrule_api::{ImprovementDecision, ImprovementTier, RunId};
+use quantrule_api::{
+    BaselineRecord, Digest, ImprovementDecision, ImprovementRunState, ImprovementTier, RunId,
+};
 use quantrule_evidence_service::migrations;
 use quantrule_evidence_service::research::{
-    ImprovementStore, MemoryImprovementStore, PgImprovementStore, SqliteImprovementStore,
+    DecisionWrite, ImprovementStore, MemoryImprovementStore, PgImprovementStore,
+    SqliteImprovementStore,
 };
 use quantrule_runtime::adapters::sqlite::{SqliteDatabase, apply_migrations_in};
 
@@ -28,6 +31,140 @@ async fn the_memory_ledger_conforms() {
 async fn the_memory_registries_conform() {
     let store = MemoryImprovementStore::default();
     registry_conformance(&store, &profile("memory-registry")).await;
+}
+
+#[tokio::test]
+async fn a_sqlite_decision_and_registry_commit_together() {
+    let database = SqliteDatabase::open_in_memory().expect("the database opens");
+    apply_migrations_in(&database, "runs", &migrations::sqlite())
+        .await
+        .expect("the evidence baseline");
+    let store = SqliteImprovementStore::new(database);
+    let owner = profile("decision-transaction");
+    let id = "MODEL-2026-11-17-01";
+    store
+        .create(
+            owner.clone(),
+            manifest(id),
+            "2026-11-17T00:00:00Z".to_owned(),
+        )
+        .await
+        .expect("the pre-registration");
+    store
+        .link_run(
+            owner.clone(),
+            id.to_owned(),
+            RunId(Digest::sha256(b"the transaction run")),
+            "2026-11-17T00:05:00Z".to_owned(),
+        )
+        .await
+        .expect("the run link");
+    store
+        .link_digest(
+            owner.clone(),
+            id.to_owned(),
+            Digest::sha256(b"the transaction digest"),
+        )
+        .await
+        .expect("the digest link");
+    let baseline = BaselineRecord {
+        baseline_id: id.to_owned(),
+        tier: ImprovementTier::Model,
+        run_id: Some(Digest::sha256(b"the transaction run").to_string()),
+        improvement_id: Some(id.to_owned()),
+        accepted_by: "Human".to_owned(),
+        accepted_on: "2026-11-17".to_owned(),
+        scope: "the transaction scope".to_owned(),
+        supersedes: None,
+        created_at: "2026-11-17T00:10:00Z".to_owned(),
+    };
+    let decided = store
+        .decide_with_registry(
+            owner.clone(),
+            id.to_owned(),
+            DecisionWrite {
+                decision: ImprovementDecision::Accepted,
+                note: "the transaction passed".to_owned(),
+                decided_at: "2026-11-17T00:10:00Z".to_owned(),
+                baseline: Some(baseline),
+                invalidation: None,
+            },
+        )
+        .await
+        .expect("the atomic decision");
+    assert_eq!(decided.state, ImprovementRunState::Decided);
+    assert_eq!(
+        store
+            .baselines(owner.clone())
+            .await
+            .expect("the baselines")
+            .len(),
+        1
+    );
+
+    let second = "MODEL-2026-11-17-02";
+    store
+        .create(
+            owner.clone(),
+            manifest(second),
+            "2026-11-17T00:00:01Z".to_owned(),
+        )
+        .await
+        .expect("the second pre-registration");
+    store
+        .link_run(
+            owner.clone(),
+            second.to_owned(),
+            RunId(Digest::sha256(b"the second run")),
+            "2026-11-17T00:05:01Z".to_owned(),
+        )
+        .await
+        .expect("the second run link");
+    store
+        .link_digest(
+            owner.clone(),
+            second.to_owned(),
+            Digest::sha256(b"the second digest"),
+        )
+        .await
+        .expect("the second digest link");
+    let duplicate = BaselineRecord {
+        baseline_id: id.to_owned(),
+        tier: ImprovementTier::Model,
+        run_id: Some(Digest::sha256(b"the second run").to_string()),
+        improvement_id: Some(second.to_owned()),
+        accepted_by: "Human".to_owned(),
+        accepted_on: "2026-11-17".to_owned(),
+        scope: "the duplicate scope".to_owned(),
+        supersedes: None,
+        created_at: "2026-11-17T00:11:00Z".to_owned(),
+    };
+    assert!(
+        store
+            .decide_with_registry(
+                owner.clone(),
+                second.to_owned(),
+                DecisionWrite {
+                    decision: ImprovementDecision::Accepted,
+                    note: "the duplicate failed".to_owned(),
+                    decided_at: "2026-11-17T00:11:00Z".to_owned(),
+                    baseline: Some(duplicate),
+                    invalidation: None,
+                },
+            )
+            .await
+            .is_err()
+    );
+    let unchanged = store
+        .get(owner.clone(), second.to_owned())
+        .await
+        .expect("the second record")
+        .expect("the second record exists");
+    assert_eq!(unchanged.state, ImprovementRunState::Submitted);
+    assert_eq!(
+        store.baselines(owner).await.expect("the baselines").len(),
+        1
+    );
 }
 
 #[tokio::test]

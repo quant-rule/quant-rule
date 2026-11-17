@@ -479,6 +479,83 @@ impl ImprovementRunDetail {
     }
 }
 
+/// One request to create a v3 improvement-run pre-registration.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CreateImprovementRequest {
+    /// The tier that changes.
+    pub tier: ImprovementTier,
+    /// One falsifiable sentence.
+    pub hypothesis: String,
+    /// The declared partition.
+    pub partition: ImprovementPartition,
+    /// The gateway dataset reference.
+    pub data_version: Digest,
+    /// The gateway configuration reference.
+    pub config_id: String,
+    /// The qualification-criteria reference, required for strategy/portfolio.
+    #[serde(default)]
+    pub criteria_id: Option<String>,
+    /// The non-empty green-criteria object.
+    pub green_criteria: Map<String, Value>,
+    /// The accepted baseline reference, when one exists.
+    #[serde(default)]
+    pub baseline: Option<String>,
+    /// The repository commit at pre-registration.
+    pub code_commit: String,
+    /// The deterministic seed.
+    pub seed: u64,
+    /// Whether analytics output is part of the run.
+    #[serde(default)]
+    pub analytics: Option<bool>,
+}
+
+/// One human decision request.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DecideImprovementRequest {
+    /// The decision.
+    pub decision: ImprovementDecision,
+    /// The non-empty note.
+    pub note: String,
+}
+
+/// One row of a published-number comparison.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ComparisonRow {
+    /// The published metric name.
+    pub metric: String,
+    /// The candidate value, when published.
+    pub candidate: Option<f64>,
+    /// The baseline value, when published.
+    pub baseline: Option<f64>,
+    /// Candidate minus baseline, when both are published.
+    pub delta: Option<f64>,
+}
+
+/// One improvement-run comparison.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ImprovementComparison {
+    /// The improvement run.
+    pub improvement_id: String,
+    /// The tier.
+    pub tier: ImprovementTier,
+    /// The candidate pipeline run.
+    pub candidate_run_id: crate::run::RunId,
+    /// The selected baseline id, when one exists.
+    pub baseline_id: Option<String>,
+    /// The candidate canonical digest.
+    pub candidate_digest: Option<Digest>,
+    /// The baseline canonical digest, when the baseline is a pipeline run.
+    pub baseline_digest: Option<Digest>,
+    /// The published-number rows.
+    pub rows: Vec<ComparisonRow>,
+    /// A note when the baseline metrics are unavailable.
+    pub note: Option<String>,
+}
+
 /// One accepted baseline row.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

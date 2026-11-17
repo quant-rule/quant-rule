@@ -26,6 +26,7 @@ use quantrule_service_api::INTERNAL_API_VERSION;
 
 use quantrule_evidence_service::evidence::{EvidenceServices, finalize};
 use quantrule_evidence_service::postgres::{PgHypothesisStore, PgRunStore};
+use quantrule_evidence_service::research::ImprovementStore;
 use quantrule_evidence_service::runs::RunStore;
 use quantrule_evidence_service::sqlite::{SqliteHypothesisStore, SqliteRunStore};
 use quantrule_evidence_service::stage::{PgStageStore, SqliteStageStore, StageStore, retention};
@@ -37,6 +38,8 @@ type RunHandle = Arc<dyn RunStore>;
 type StageHandle = Arc<dyn StageStore>;
 /// The hypothesis store a route handler reads.
 type HypothesisHandle = Arc<dyn quantrule_evidence_service::research::HypothesisStore>;
+/// The research-ledger store a route handler reads.
+type ImprovementHandle = Arc<dyn ImprovementStore>;
 
 #[tokio::main]
 async fn main() -> Result<(), RuntimeError> {
@@ -59,22 +62,31 @@ async fn main() -> Result<(), RuntimeError> {
         Some(ServiceDatabase::Sqlite(database)) => Some(database.clone()),
         Some(ServiceDatabase::Postgres(_)) | None => None,
     };
-    let (runs, stages, hypotheses): (
+    let (runs, stages, hypotheses, improvements): (
         Option<RunHandle>,
         Option<StageHandle>,
         Option<HypothesisHandle>,
+        Option<ImprovementHandle>,
     ) = match opened {
         Some(ServiceDatabase::Sqlite(database)) => (
             Some(Arc::new(SqliteRunStore::new(database.clone()))),
             Some(Arc::new(SqliteStageStore::new(database.clone()))),
-            Some(Arc::new(SqliteHypothesisStore::new(database))),
+            Some(Arc::new(SqliteHypothesisStore::new(database.clone()))),
+            Some(Arc::new(
+                quantrule_evidence_service::research::SqliteImprovementStore::new(database),
+            )),
         ),
         Some(ServiceDatabase::Postgres(database)) => (
             Some(Arc::new(PgRunStore::new(database.pool().clone()))),
             Some(Arc::new(PgStageStore::new(database.pool().clone()))),
             Some(Arc::new(PgHypothesisStore::new(database.pool().clone()))),
+            Some(Arc::new(
+                quantrule_evidence_service::research::PgImprovementStore::new(
+                    database.pool().clone(),
+                ),
+            )),
         ),
-        None => (None, None, None),
+        None => (None, None, None, None),
     };
 
     let backend = Objects::open(&config).await?;
@@ -104,6 +116,7 @@ async fn main() -> Result<(), RuntimeError> {
             runs: runs.as_ref().map(Arc::clone),
             stages: stages.as_ref().map(Arc::clone),
             hypotheses,
+            improvements,
             objects: Some(Arc::clone(&objects)),
             queue: Some(publish),
             data: Some(data),

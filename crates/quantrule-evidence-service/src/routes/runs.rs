@@ -12,16 +12,16 @@ use axum::extract::{Json, Path, Query, State};
 use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::IntoResponse;
 use quantrule_api::{
-    Digest, ErrorCode, RunDetail, RunDigest, RunState, RunSummary, StageKind, SubmitRunRequest,
-    SubmitRunResponse,
+    Digest, ErrorCode, ProfileId, RunDetail, RunDigest, RunState, RunSummary, StageKind,
+    SubmitRunRequest, SubmitRunResponse,
 };
 use quantrule_runtime::clock;
 use quantrule_runtime::queue::{ROUTING_CANCELLED, ROUTING_REQUESTED};
-use quantrule_service_api::RunManifest;
+use quantrule_service_api::{ConfigBundle, RunManifest};
 use serde::Deserialize;
 
 use crate::routes::{ApiFailure, data_failure, failure, request_profile};
-use crate::runs::{CancelOutcome, NewRun, derive_with_model};
+use crate::runs::{CancelOutcome, NewRun, RunRecord, derive_with_model};
 use crate::state::EvidenceState;
 
 /// The optional filters on a run list.
@@ -44,15 +44,16 @@ pub(crate) fn model_version(body: &str) -> String {
         .unwrap_or_else(|| "none".to_owned())
 }
 
-pub(crate) async fn submit_run(
-    State(state): State<Arc<EvidenceState>>,
-    headers: HeaderMap,
-    payload: Result<Json<SubmitRunRequest>, JsonRejection>,
-) -> Result<(StatusCode, Json<SubmitRunResponse>), ApiFailure> {
-    let profile = request_profile(&headers)?;
-    let Json(request) =
-        payload.map_err(|_| failure(ErrorCode::RunInvalid, "the body is not a run submission"))?;
-
+/// Validate the dataset and configuration referenced by a run submission.
+///
+/// A missing dataset, an invalid bundle, or a bundle with no hash is the
+/// caller's error. The route that owns the command maps it to its own stable
+/// code; the run submission path uses the run codes directly.
+pub(crate) async fn validated_config(
+    state: &EvidenceState,
+    profile: &ProfileId,
+    request: &SubmitRunRequest,
+) -> Result<ConfigBundle, ApiFailure> {
     let data = state.data.as_ref().ok_or_else(|| {
         failure(
             ErrorCode::ServiceUnavailable,
@@ -91,6 +92,25 @@ pub(crate) async fn submit_run(
                 .unwrap_or_else(|| "the config is invalid".to_owned()),
         ));
     }
+    if config.config_hash.is_none() {
+        return Err(failure(
+            ErrorCode::ConfigInvalid,
+            "a valid config carries no hash",
+        ));
+    }
+    Ok(config)
+}
+
+/// Submit a pipeline run whose dataset and configuration are already validated.
+///
+/// The research route validates the coupled config once, then calls this helper;
+/// the public run route validates and calls it in one step.
+pub(crate) async fn submit_validated_pipeline(
+    state: &EvidenceState,
+    profile: &ProfileId,
+    request: SubmitRunRequest,
+    config: ConfigBundle,
+) -> Result<(SubmitRunResponse, RunRecord), ApiFailure> {
     let Some(config_hash) = config.config_hash.clone() else {
         return Err(failure(
             ErrorCode::ConfigInvalid,
@@ -191,11 +211,33 @@ pub(crate) async fn submit_run(
         .map_err(|error| failure(ErrorCode::QueueUnavailable, error.to_string()))?;
 
     let response = SubmitRunResponse {
-        run_id: record.run_id,
+        run_id: record.run_id.clone(),
         status: record.status,
         created: outcome.created(),
     };
-    let status = if outcome.created() {
+    Ok((response, record))
+}
+
+/// Validate and submit a coupled pipeline run for a profile.
+pub(crate) async fn submit_pipeline_run(
+    state: &EvidenceState,
+    profile: &ProfileId,
+    request: SubmitRunRequest,
+) -> Result<(SubmitRunResponse, RunRecord), ApiFailure> {
+    let config = validated_config(state, profile, &request).await?;
+    submit_validated_pipeline(state, profile, request, config).await
+}
+
+pub(crate) async fn submit_run(
+    State(state): State<Arc<EvidenceState>>,
+    headers: HeaderMap,
+    payload: Result<Json<SubmitRunRequest>, JsonRejection>,
+) -> Result<(StatusCode, Json<SubmitRunResponse>), ApiFailure> {
+    let profile = request_profile(&headers)?;
+    let Json(request) =
+        payload.map_err(|_| failure(ErrorCode::RunInvalid, "the body is not a run submission"))?;
+    let (response, _) = submit_pipeline_run(&state, &profile, request).await?;
+    let status = if response.created {
         StatusCode::ACCEPTED
     } else {
         StatusCode::OK

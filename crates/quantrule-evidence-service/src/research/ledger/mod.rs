@@ -17,4 +17,4 @@ pub mod store;
 pub use memory::{MemoryImprovementStore, seeded_baselines};
 pub use postgres::PgImprovementStore;
 pub use sqlite::SqliteImprovementStore;
-pub use store::{CreateOutcome, ImprovementStore, ImprovementStoreError};
+pub use store::{CreateOutcome, DecisionWrite, ImprovementStore, ImprovementStoreError};

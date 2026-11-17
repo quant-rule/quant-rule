@@ -8,7 +8,8 @@ use std::fmt;
 use std::path::PathBuf;
 
 use quantrule_api::{
-    Digest, MarkAction, MarkOrigin, MarkQuality, RunState, Side, SimulationStatus,
+    Digest, ImprovementDecision, ImprovementPartition, ImprovementRunState, ImprovementTier,
+    MarkAction, MarkOrigin, MarkQuality, RunState, Side, SimulationStatus,
 };
 
 use crate::token::BearerToken;
@@ -265,6 +266,75 @@ pub(crate) enum Command {
         /// The reason.
         note: String,
     },
+    /// Create a v3 improvement-run pre-registration.
+    ResearchCreate {
+        /// The tier that changes.
+        tier: ImprovementTier,
+        /// One falsifiable sentence.
+        hypothesis: String,
+        /// The declared partition.
+        partition: ImprovementPartition,
+        /// The gateway dataset reference.
+        data_version: String,
+        /// The gateway configuration reference.
+        config_id: String,
+        /// The qualification-criteria reference.
+        criteria_id: Option<String>,
+        /// The non-empty green-criteria object.
+        green_criteria: serde_json::Value,
+        /// The accepted baseline reference.
+        baseline: Option<String>,
+        /// The repository commit at pre-registration.
+        code_commit: String,
+        /// The deterministic seed.
+        seed: u64,
+        /// Whether analytics output is part of the run.
+        analytics: Option<bool>,
+    },
+    /// Submit the coupled pipeline run for a pre-registration.
+    ResearchSubmit {
+        /// The improvement id.
+        improvement_id: String,
+    },
+    /// List research runs.
+    ResearchList {
+        /// Only this tier.
+        tier: Option<ImprovementTier>,
+        /// Only this state.
+        state: Option<ImprovementRunState>,
+        /// At most this many rows.
+        limit: Option<usize>,
+    },
+    /// Read one research run.
+    ResearchShow {
+        /// The improvement id.
+        improvement_id: String,
+    },
+    /// Compare one research run with a baseline.
+    ResearchCompare {
+        /// The improvement id.
+        improvement_id: String,
+        /// The baseline override.
+        baseline: Option<String>,
+    },
+    /// Record one human decision.
+    ResearchDecide {
+        /// The improvement id.
+        improvement_id: String,
+        /// The decision.
+        decision: ImprovementDecision,
+        /// The note.
+        note: String,
+    },
+    /// List accepted baselines.
+    BaselineList,
+    /// Show the current baseline for one tier.
+    BaselineShow {
+        /// The tier.
+        tier: ImprovementTier,
+    },
+    /// List invalidation tombstones.
+    InvalidationList,
     /// Print the command reference.
     Help(HelpTopic),
     /// Exit the interactive shell.

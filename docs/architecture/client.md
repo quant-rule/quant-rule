@@ -22,16 +22,16 @@ path never falls back to the client.
 | Configs | `ConfigsPanel.svelte` | Name, origin (repo or uploaded), validity, parser message, optional frozen model artifact, submit, record detail with config id and hash | "No configs on the server." |
 | Runs | `RunsPanel.svelte` | Status, id, config, data version, submitted, duration, cancel | "No runs. Submit one from Configs." |
 | Run detail | `RunDetail.svelte` | Stages, provenance, the frozen model artifact input, canonical digest with Verify, artifacts with verified download | Only for a known run |
+| Research | `ResearchPanel.svelte` | Improvement-run table, v3 create form, detail, submit, comparison, explicit decision, baseline table/detail, and invalidation list | "No research runs." |
 | Inspect | `InspectPanel.svelte` | Candles, timeframe ladder, and event batch for one dataset; read-only | "No datasets to inspect." |
 | Simulation | `SimulationRunsPanel.svelte` | `sim_id`, premise, bundle, windows, marked/unmarked, status | "No simulation runs." |
 | Simulation run | `SimulationRunDetail.svelte` | Run state and requests from `simulationRun.svelte.ts`; window navigator, chart, review, and the marks, check, and decision panels | Only for a known run |
-| Help | `HelpPanel.svelte` | The 37 registered commands and the screen that reaches each use case | — |
+| Help | `HelpPanel.svelte` | The 46 registered commands and the screen that reaches each use case | — |
 
 Every screen is owned by one component. The browser and the command shell reach
 one HTTP contract; the shared fixture and both parity tests enforce that every
 registered command has a browser control (`tests/fixtures/client-parity/api.json`).
-The target Backtests, Research, and Operations screens are in [stage-surface.md](stage-surface.md).
-
+The Research screen is implemented; the target Backtests and Operations screens are in [stage-surface.md](stage-surface.md).
 ## 2. Stores
 
 | Store | Holds | Polling |
@@ -44,11 +44,11 @@ The target Backtests, Research, and Operations screens are in [stage-surface.md]
 | `simulation.svelte.ts` | profile simulation summaries | on demand |
 | `simulationRun.svelte.ts` | one run's windows, series, marks, and action state | on demand |
 | `stages.svelte.ts` | profile stage list, selected stage detail, the event/coverage view, the strategy decision explain view, and the published portfolio bundles | on demand |
+| `research.svelte.ts` | profile improvement runs, selected detail, comparison, baselines, and invalidations | on demand |
 | `profileScope.svelte.ts` | the switch, clear, and reload boundary for the profile stores | — |
 | `labels.generated.ts` | numeric code → word | static, generated |
 
 Each store has one server resource. No store caches a result for offline use.
-
 ## 3. Transport
 
 One function keeps the existing shape:

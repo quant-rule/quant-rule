@@ -13,7 +13,7 @@ use quantrule_runtime::adapters::{ObjectStore, Queue};
 use quantrule_runtime::client::DataClient;
 use quantrule_runtime::health::HealthRegistry;
 
-use crate::research::HypothesisStore;
+use crate::research::{HypothesisStore, ImprovementStore};
 use crate::runs::RunStore;
 use crate::stage::StageStore;
 
@@ -26,6 +26,8 @@ pub struct EvidenceServices {
     pub stages: Option<Arc<dyn StageStore>>,
     /// Where sealed hypotheses live.
     pub hypotheses: Option<Arc<dyn HypothesisStore>>,
+    /// Where improvement runs, baselines, and invalidations live.
+    pub improvements: Option<Arc<dyn ImprovementStore>>,
     /// Where artifact bytes live.
     pub objects: Option<Arc<dyn ObjectStore>>,
     /// The control-plane queue; evidence publishes every run message.
@@ -47,6 +49,9 @@ pub struct EvidenceState {
     pub stages: Option<Arc<dyn StageStore>>,
     /// Where sealed hypotheses live; absent when no database is configured.
     pub hypotheses: Option<Arc<dyn HypothesisStore>>,
+    /// Where improvement runs, baselines, and invalidations live; absent when
+    /// no database is configured.
+    pub improvements: Option<Arc<dyn ImprovementStore>>,
     /// Where artifact bytes live; absent when no object store is configured.
     pub objects: Option<Arc<dyn ObjectStore>>,
     /// The control-plane queue; absent when the broker is unreachable.
@@ -64,6 +69,7 @@ impl std::fmt::Debug for EvidenceState {
             .field("runs", &self.runs.is_some())
             .field("stages", &self.stages.is_some())
             .field("hypotheses", &self.hypotheses.is_some())
+            .field("improvements", &self.improvements.is_some())
             .field("objects", &self.objects.is_some())
             .field("queue", &self.queue.is_some())
             .field("data", &self.data.is_some())
@@ -85,6 +91,7 @@ impl EvidenceState {
             runs: services.runs,
             stages: services.stages,
             hypotheses: services.hypotheses,
+            improvements: services.improvements,
             objects: services.objects,
             queue: services.queue,
             data: services.data,

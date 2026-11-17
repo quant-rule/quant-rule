@@ -11,8 +11,8 @@ use quantrule_api::{
 use quantrule_runtime::adapters::BoxFuture;
 
 use super::store::{
-    CreateOutcome, ImprovementStore, ImprovementStoreError, validate_baseline,
-    validate_invalidation,
+    CreateOutcome, DecisionWrite, ImprovementStore, ImprovementStoreError, validate_baseline,
+    validate_decision_registry, validate_invalidation,
 };
 
 /// An in-memory research ledger.
@@ -115,6 +115,95 @@ impl ImprovementStore for MemoryImprovementStore {
             }
             record.canonical_digest = Some(canonical_digest);
             Ok(record.clone())
+        })
+    }
+
+    fn decide_with_registry(
+        &self,
+        profile: ProfileId,
+        improvement_id: String,
+        write: DecisionWrite,
+    ) -> BoxFuture<Result<ImprovementRunDetail, ImprovementStoreError>> {
+        let inner = Arc::clone(&self.inner);
+        Box::pin(async move {
+            let DecisionWrite {
+                decision,
+                note,
+                decided_at,
+                baseline,
+                invalidation,
+            } = write;
+            if note.trim().is_empty() {
+                return Err(ImprovementStoreError(
+                    "a decision needs a non-empty note".to_owned(),
+                ));
+            }
+            validate_decision_registry(decision, baseline.as_ref(), invalidation.as_ref())?;
+            let mut state = lock(&inner)?;
+            let key = (profile.as_str().to_owned(), improvement_id);
+            let record = state.runs.get(&key).ok_or_else(|| {
+                ImprovementStoreError("the improvement record is unknown".to_owned())
+            })?;
+            if record.state == ImprovementRunState::Created {
+                return Err(ImprovementStoreError(
+                    "a decision needs a submitted pipeline run".to_owned(),
+                ));
+            }
+            if record.state == ImprovementRunState::Decided {
+                return Err(ImprovementStoreError(
+                    "the decision is already recorded".to_owned(),
+                ));
+            }
+            if decision == ImprovementDecision::Accepted && record.canonical_digest.is_none() {
+                return Err(ImprovementStoreError(
+                    "an accepted decision needs the canonical digest".to_owned(),
+                ));
+            }
+            if let Some(baseline) = &baseline {
+                let baseline_key = (profile.as_str().to_owned(), baseline.baseline_id.clone());
+                if state.baselines.contains_key(&baseline_key) {
+                    return Err(ImprovementStoreError(
+                        "the baseline id already exists".to_owned(),
+                    ));
+                }
+            }
+            if let Some(invalidation) = &invalidation {
+                let invalidation_key = (
+                    profile.as_str().to_owned(),
+                    invalidation.invalidation_id.clone(),
+                );
+                if state.invalidations.contains_key(&invalidation_key) {
+                    return Err(ImprovementStoreError(
+                        "the invalidation id already exists".to_owned(),
+                    ));
+                }
+            }
+            let record = {
+                let record = state.runs.get_mut(&key).ok_or_else(|| {
+                    ImprovementStoreError("the improvement record is unknown".to_owned())
+                })?;
+                record.state = ImprovementRunState::Decided;
+                record.decision = Some(decision);
+                record.decision_note = Some(note);
+                record.decided_at = Some(decided_at);
+                record.clone()
+            };
+            if let Some(baseline) = baseline {
+                state.baselines.insert(
+                    (profile.as_str().to_owned(), baseline.baseline_id.clone()),
+                    baseline,
+                );
+            }
+            if let Some(invalidation) = invalidation {
+                state.invalidations.insert(
+                    (
+                        profile.as_str().to_owned(),
+                        invalidation.invalidation_id.clone(),
+                    ),
+                    invalidation,
+                );
+            }
+            Ok(record)
         })
     }
 

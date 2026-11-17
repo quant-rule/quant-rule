@@ -1,7 +1,7 @@
 # Stage Surface — Target Architecture
 
 - Date: 2026-11-17 (UTC)
-- Status: Current for the model, strategy, portfolio, and promotion slices; the stage contract and schema are merged (#850), the worker and gateway landed in #851, the model stage and Workbench Data/Model tabs landed in #852, the strategy stage and Workbench Strategy tab landed in #853, the portfolio stage and Workbench Portfolio tab landed in #854, backtest promotion landed in #855, and the research ledger and manifest v3 landed in #856; the research commands and GUI land in #857 and operations in #858
+- Status: Current for the model, strategy, portfolio, and promotion slices; the stage contract and schema are merged (#850), the worker and gateway landed in #851, the model stage and Workbench Data/Model tabs landed in #852, the strategy stage and Workbench Strategy tab landed in #853, the portfolio stage and Workbench Portfolio tab landed in #854, backtest promotion landed in #855, the research ledger and manifest v3 landed in #856, and the research commands and Research screen landed in #857; operations remains #858
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 - Decision: [ADR-2026-11-16-01](../adr/2026-11-16/01-stage-execution-and-evidence-boundary.md)
@@ -67,12 +67,13 @@ gateway never reaches an engine.
 
 ## 4. Command surface
 
-The current 37 commands are in [`command-surface.md`](command-surface.md). The
+The current 46 commands are in [`command-surface.md`](command-surface.md). The
 model stage commands (`stage run model`, `stage list`, `stage show`,
 `stage events`, `stage fetch`, `stage cancel`, and `stage delete`) are
 implemented (#852), `stage run strategy` and `stage explain` are implemented
 (#853), and `stage run portfolio` is implemented (#854). Promotion is
-implemented (#855); the research commands remain target (#857), and the operations rows remain target (#858):
+implemented (#855), and the research commands and Research screen are implemented
+(#857); the operations rows remain target (#858):
 
 | Command | Purpose |
 |---|---|
@@ -85,7 +86,7 @@ implemented (#855); the research commands remain target (#857), and the operatio
 | `stage fetch <stage_run_id> <dir>` | Download the verified artifact set |
 | `stage list`, `stage cancel`, `stage delete` | Manage diagnostic stage runs |
 | `run submit <data_version> <config_id> [--model-artifact <id>]` | Coupled evidence run with an optional frozen model artifact (#855) |
-| `research create/submit/list/show/compare/decide` | Governed improvement-run records |
+| `research create/submit/list/show/compare/decide` | Governed improvement-run records (#857) |
 | `baseline list/show`, `invalidation list` | Read the registries |
 
 A target command appears in `help` and the README only when it is implemented and

@@ -7,6 +7,7 @@
 
 pub mod hypotheses;
 pub mod internal;
+mod research;
 pub mod runs;
 pub mod stage_internal;
 pub mod stages;
@@ -101,6 +102,7 @@ fn routes() -> Router<Arc<EvidenceState>> {
             "/internal/v1/stages/{id}/failed",
             post(stage_internal::failed_stage),
         )
+        .merge(research::routes())
 }
 
 /// Build the service router.

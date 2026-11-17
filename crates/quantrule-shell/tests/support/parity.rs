@@ -17,7 +17,23 @@ pub(super) fn parity_route(
     let stage_id = fixture["stage_id"].as_str().unwrap_or_default();
     let strategy_stage_id = fixture["strategy_stage_id"].as_str().unwrap_or_default();
     let portfolio_stage_id = fixture["portfolio_stage_id"].as_str().unwrap_or_default();
+    let research_id = fixture["research_id"].as_str().unwrap_or_default();
     match (request.method.as_str(), segments) {
+        ("POST", ["research", "runs"]) => {
+            return responses
+                .get("research_create")
+                .map(|value| Response::json(201, value));
+        }
+        ("POST", ["research", "runs", id, "submit"]) if *id == research_id => {
+            return responses
+                .get("research_submit")
+                .map(|value| Response::json(202, value));
+        }
+        ("POST", ["research", "runs", id, "decision"]) if *id == research_id => {
+            return responses
+                .get("research_decision")
+                .map(|value| Response::json(200, value));
+        }
         ("POST", ["stages", "model", "runs"]) => {
             return responses
                 .get("stage_submit")
@@ -112,6 +128,12 @@ pub(super) fn parity_route(
         ["runs"] => "runs",
         ["runs", id] if Some(*id) == fixture["run_id"].as_str() => "run",
         ["runs", id, "digest"] if Some(*id) == fixture["run_id"].as_str() => "digest",
+        ["research", "runs"] => "research_list",
+        ["research", "runs", id] if Some(*id) == Some(research_id) => "research",
+        ["research", "runs", id, "compare"] if Some(*id) == Some(research_id) => "research_compare",
+        ["research", "baselines"] => "baselines",
+        ["research", "baselines", "model"] => "baseline",
+        ["research", "invalidations"] => "invalidations",
         ["inspect", "candles"] => "candles",
         ["inspect", "timeframes"] => "timeframes",
         ["inspect", "events"] => "events",

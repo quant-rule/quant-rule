@@ -22,6 +22,15 @@
     "stage fetch",
     "stage cancel",
     "stage delete",
+    "research create",
+    "research submit",
+    "research list",
+    "research show",
+    "research compare",
+    "research decide",
+    "baseline list",
+    "baseline show",
+    "invalidation list",
     "inspect candles",
     "inspect timeframes",
     "inspect events",
@@ -528,5 +537,216 @@
     "error": null,
     "attempts": 1,
     "evidence": false
-  }
+  },
+  "research_create": {
+    "improvement_id": "MODEL-2026-11-17-01",
+    "tier": "model",
+    "state": "created",
+    "decision": null,
+    "decision_note": null,
+    "manifest": {
+      "schema": "quantrule.improvement-run/v3",
+      "improvement_id": "MODEL-2026-11-17-01",
+      "tier": "model",
+      "hypothesis": "the fixture hypothesis",
+      "created_utc": "2026-11-17T00:00:00Z",
+      "changed": "model",
+      "frozen": [
+        "strategy",
+        "portfolio"
+      ],
+      "partition": "model_dev",
+      "data_version": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "config_id": "cfg_abc",
+      "criteria_id": null,
+      "green_criteria": {
+        "return_target": 0.1
+      },
+      "holdout_access": "none",
+      "baseline": null,
+      "code_commit": "c236539f",
+      "seed": 0,
+      "command": "run submit",
+      "analytics": true
+    },
+    "pipeline_run_id": null,
+    "canonical_digest": null,
+    "created_at": "2026-11-17T00:00:00Z",
+    "submitted_at": null,
+    "decided_at": null
+  },
+  "research_submit": {
+    "improvement_id": "MODEL-2026-11-17-01",
+    "tier": "model",
+    "state": "submitted",
+    "decision": null,
+    "decision_note": null,
+    "manifest": {
+      "schema": "quantrule.improvement-run/v3",
+      "improvement_id": "MODEL-2026-11-17-01",
+      "tier": "model",
+      "hypothesis": "the fixture hypothesis",
+      "created_utc": "2026-11-17T00:00:00Z",
+      "changed": "model",
+      "frozen": [
+        "strategy",
+        "portfolio"
+      ],
+      "partition": "model_dev",
+      "data_version": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "config_id": "cfg_abc",
+      "criteria_id": null,
+      "green_criteria": {
+        "return_target": 0.1
+      },
+      "holdout_access": "none",
+      "baseline": null,
+      "code_commit": "c236539f",
+      "seed": 0,
+      "command": "run submit",
+      "analytics": true
+    },
+    "pipeline_run_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "canonical_digest": null,
+    "created_at": "2026-11-17T00:00:00Z",
+    "submitted_at": "2026-11-17T00:05:00Z",
+    "decided_at": null
+  },
+  "research_list": [
+    {
+      "improvement_id": "MODEL-2026-11-17-01",
+      "tier": "model",
+      "state": "submitted",
+      "decision": null,
+      "created_at": "2026-11-17T00:00:00Z",
+      "submitted_at": "2026-11-17T00:05:00Z",
+      "decided_at": null
+    }
+  ],
+  "research": {
+    "improvement_id": "MODEL-2026-11-17-01",
+    "tier": "model",
+    "state": "submitted",
+    "decision": null,
+    "decision_note": null,
+    "manifest": {
+      "schema": "quantrule.improvement-run/v3",
+      "improvement_id": "MODEL-2026-11-17-01",
+      "tier": "model",
+      "hypothesis": "the fixture hypothesis",
+      "created_utc": "2026-11-17T00:00:00Z",
+      "changed": "model",
+      "frozen": [
+        "strategy",
+        "portfolio"
+      ],
+      "partition": "model_dev",
+      "data_version": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "config_id": "cfg_abc",
+      "criteria_id": null,
+      "green_criteria": {
+        "return_target": 0.1
+      },
+      "holdout_access": "none",
+      "baseline": null,
+      "code_commit": "c236539f",
+      "seed": 0,
+      "command": "run submit",
+      "analytics": true
+    },
+    "pipeline_run_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "canonical_digest": null,
+    "created_at": "2026-11-17T00:00:00Z",
+    "submitted_at": "2026-11-17T00:05:00Z",
+    "decided_at": null
+  },
+  "research_compare": {
+    "improvement_id": "MODEL-2026-11-17-01",
+    "tier": "model",
+    "candidate_run_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "baseline_id": "MODEL-2026-11-04-04..05",
+    "candidate_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "baseline_digest": null,
+    "rows": [
+      {
+        "metric": "1m.coverage_share",
+        "candidate": 1.0,
+        "baseline": null,
+        "delta": null
+      }
+    ],
+    "note": "the baseline has no pipeline run; baseline metrics are unavailable"
+  },
+  "research_decision": {
+    "improvement_id": "MODEL-2026-11-17-01",
+    "tier": "model",
+    "state": "decided",
+    "decision": "accepted",
+    "decision_note": "the fixture decision",
+    "manifest": {
+      "schema": "quantrule.improvement-run/v3",
+      "improvement_id": "MODEL-2026-11-17-01",
+      "tier": "model",
+      "hypothesis": "the fixture hypothesis",
+      "created_utc": "2026-11-17T00:00:00Z",
+      "changed": "model",
+      "frozen": [
+        "strategy",
+        "portfolio"
+      ],
+      "partition": "model_dev",
+      "data_version": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "config_id": "cfg_abc",
+      "criteria_id": null,
+      "green_criteria": {
+        "return_target": 0.1
+      },
+      "holdout_access": "none",
+      "baseline": null,
+      "code_commit": "c236539f",
+      "seed": 0,
+      "command": "run submit",
+      "analytics": true
+    },
+    "pipeline_run_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "canonical_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "created_at": "2026-11-17T00:00:00Z",
+    "submitted_at": "2026-11-17T00:05:00Z",
+    "decided_at": "2026-11-17T00:10:00Z"
+  },
+  "baselines": [
+    {
+      "baseline_id": "MODEL-2026-11-04-04..05",
+      "tier": "model",
+      "run_id": "MODEL-2026-11-04-04..05",
+      "improvement_id": null,
+      "accepted_by": "Human",
+      "accepted_on": "2026-11-04",
+      "scope": "1m, 4 ATR over 20 bars",
+      "supersedes": null,
+      "created_at": "2026-11-04T00:00:00Z"
+    }
+  ],
+  "baseline": {
+    "baseline_id": "MODEL-2026-11-04-04..05",
+    "tier": "model",
+    "run_id": "MODEL-2026-11-04-04..05",
+    "improvement_id": null,
+    "accepted_by": "Human",
+    "accepted_on": "2026-11-04",
+    "scope": "1m, 4 ATR over 20 bars",
+    "supersedes": null,
+    "created_at": "2026-11-04T00:00:00Z"
+  },
+  "invalidations": [
+    {
+      "invalidation_id": "INVALIDATION-2026-11-10-01",
+      "date": "2026-11-10",
+      "commit": "worktree",
+      "removed": "MODEL-2026-11-10-01",
+      "reason": "the fixture tombstone",
+      "superseded_by": null,
+      "created_at": "2026-11-10T00:00:00Z"
+    }
+  ]
 }

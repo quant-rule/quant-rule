@@ -160,6 +160,61 @@ fn shell_view(fixture: &Fixture) -> Value {
     );
     let portfolio_stage = command(fixture, &["stage", "show", portfolio_stage_id]);
 
+    let research_id = api["research_id"]
+        .as_str()
+        .expect("the fixture research id");
+    let research_create = command(
+        fixture,
+        &[
+            "research",
+            "create",
+            "--tier",
+            "model",
+            "--hypothesis",
+            "the fixture hypothesis",
+            "--partition",
+            "model_dev",
+            "--data-version",
+            dataset_id,
+            "--config",
+            config_id,
+            "--green-criteria",
+            r#"{"return_target":0.1}"#,
+            "--code-commit",
+            "c236539f",
+            "--seed",
+            "0",
+        ],
+    );
+    let research_submit = command(fixture, &["research", "submit", research_id]);
+    let research_list = command(fixture, &["research", "list"]);
+    let research = command(fixture, &["research", "show", research_id]);
+    let research_compare = command(
+        fixture,
+        &[
+            "research",
+            "compare",
+            research_id,
+            "--baseline",
+            "MODEL-2026-11-04-04..05",
+        ],
+    );
+    let research_decision = command(
+        fixture,
+        &[
+            "research",
+            "decide",
+            research_id,
+            "--decision",
+            "accepted",
+            "--note",
+            "the fixture decision",
+        ],
+    );
+    let baselines = command(fixture, &["baseline", "list"]);
+    let baseline = command(fixture, &["baseline", "show", "model"]);
+    let invalidations = command(fixture, &["invalidation", "list"]);
+
     json!({
         "profile": PROFILE,
         "commands": commands,
@@ -195,6 +250,15 @@ fn shell_view(fixture: &Fixture) -> Value {
         "strategy_explain": strategy_explain,
         "portfolio_stage_submit": portfolio_stage_submit,
         "portfolio_stage": portfolio_stage,
+        "research_create": research_create,
+        "research_submit": research_submit,
+        "research_list": research_list,
+        "research": research,
+        "research_compare": research_compare,
+        "research_decision": research_decision,
+        "baselines": baselines,
+        "baseline": baseline,
+        "invalidations": invalidations,
     })
 }
 
@@ -219,7 +283,7 @@ fn the_shell_view_matches_the_shared_client_parity_view() {
     }
 
     let requests = fixture.requests();
-    assert_eq!(requests.len(), 31, "one request per parity operation");
+    assert_eq!(requests.len(), 40, "one request per parity operation");
     let api = client_parity_api();
     let dataset_id = api["dataset_id"].as_str().expect("the fixture dataset id");
     let run_id = api["run_id"].as_str().expect("the fixture run id");
@@ -230,6 +294,9 @@ fn the_shell_view_matches_the_shared_client_parity_view() {
     let portfolio_stage_id = api["portfolio_stage_id"]
         .as_str()
         .expect("the fixture portfolio stage id");
+    let research_id = api["research_id"]
+        .as_str()
+        .expect("the fixture research id");
     let paths: Vec<String> = requests
         .iter()
         .map(|request| request.path.clone())
@@ -268,6 +335,15 @@ fn the_shell_view_matches_the_shared_client_parity_view() {
             format!("/stages/runs/{strategy_stage_id}/artifacts/decisions.ndjson"),
             String::from("/stages/portfolio/runs"),
             format!("/stages/runs/{portfolio_stage_id}"),
+            String::from("/research/runs"),
+            format!("/research/runs/{research_id}/submit"),
+            String::from("/research/runs"),
+            format!("/research/runs/{research_id}"),
+            format!("/research/runs/{research_id}/compare"),
+            format!("/research/runs/{research_id}/decision"),
+            String::from("/research/baselines"),
+            String::from("/research/baselines/model"),
+            String::from("/research/invalidations"),
         ]
     );
     let methods: Vec<&str> = requests
@@ -279,7 +355,8 @@ fn the_shell_view_matches_the_shared_client_parity_view() {
         vec![
             "GET", "GET", "GET", "GET", "GET", "GET", "GET", "GET", "GET", "GET", "GET", "GET",
             "GET", "GET", "POST", "GET", "GET", "GET", "GET", "GET", "GET", "GET", "GET", "POST",
-            "DELETE", "POST", "GET", "GET", "GET", "POST", "GET",
+            "DELETE", "POST", "GET", "GET", "GET", "POST", "GET", "POST", "POST", "GET", "GET",
+            "GET", "POST", "GET", "GET", "GET",
         ]
     );
     for request in &requests {

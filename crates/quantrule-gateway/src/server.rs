@@ -170,6 +170,8 @@ fn routes() -> Router<Arc<AppState>> {
         .route("/runs/{id}/artifacts/{*name}", any(proxy_evidence))
         .route("/hypotheses", any(proxy_evidence))
         .route("/hypotheses/{*rest}", any(proxy_evidence))
+        .route("/research", any(proxy_evidence))
+        .route("/research/{*rest}", any(proxy_evidence))
         .route("/stages", any(proxy_evidence))
         .route("/stages/{*rest}", any(proxy_evidence))
         .route("/catalog", any(proxy_data))
@@ -614,7 +616,7 @@ async fn forward_evidence(
 /// a `.` or `..` segment, a backslash, or an encoded separator or parent path
 /// is refused before it reaches evidence.
 fn evidence_path_allowed(path: &str) -> bool {
-    const PREFIXES: [&str; 3] = ["/runs", "/stages", "/hypotheses"];
+    const PREFIXES: [&str; 4] = ["/runs", "/stages", "/hypotheses", "/research"];
     let lowered = path.to_ascii_lowercase();
     if lowered.contains("%2e") || lowered.contains("%2f") || lowered.contains("%5c") {
         return false;

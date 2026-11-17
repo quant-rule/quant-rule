@@ -65,12 +65,22 @@ history is in Git and the pull requests.
   registries with append methods, Postgres `0016` and SQLite `0004` migrations,
   and the committed model baselines and tombstones seeded for the `default`
   profile.
+- The research surface: `research create/submit/list/show/compare/decide`,
+  `baseline list/show`, and `invalidation list`; evidence `/research` routes with
+  the stable `research.*` error family; the gateway `/research` proxy; the
+  browser Research screen with create, submit, compare, decision, baseline, and
+  invalidation controls; and parity, command-surface, and client-doc coverage.
+  A model-tier research run is a coupled full run, the comparison reads only
+  published numbers, and an accepted decision requires a succeeded run and
+  digest.
 
 ### Changed
 
 - The Improvement Run Contract now treats `quantrule.improvement-run/v3` as
   current and v2 as historical; the v3 pre-registration lives in the evidence
   service and the committed `docs/improvement/` registry remains human-owned.
+- The command surface grows from 37 to 46 commands; the shell, browser, gateway,
+  and evidence service expose the same research use cases.
 
 ### Fixed
 

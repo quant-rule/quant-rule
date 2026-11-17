@@ -14,11 +14,11 @@ use quantrule_api::{
 };
 use quantrule_runtime::adapters::BoxFuture;
 use quantrule_runtime::adapters::sqlite::SqliteDatabase;
-use rusqlite::{OptionalExtension, params};
+use rusqlite::{OptionalExtension, TransactionBehavior, params};
 
 use super::store::{
-    CreateOutcome, ImprovementStore, ImprovementStoreError, validate_baseline,
-    validate_invalidation,
+    CreateOutcome, DecisionWrite, ImprovementStore, ImprovementStoreError, validate_baseline,
+    validate_decision_registry, validate_invalidation,
 };
 use crate::sqlite::{BASELINES_TABLE, IMPROVEMENT_RUNS_TABLE, INVALIDATIONS_TABLE};
 
@@ -294,6 +294,150 @@ impl ImprovementStore for SqliteImprovementStore {
                 _ => "the canonical digest was not recorded",
             };
             Err(ImprovementStoreError(reason.to_owned()))
+        })
+    }
+
+    fn decide_with_registry(
+        &self,
+        profile: ProfileId,
+        improvement_id: String,
+        write: DecisionWrite,
+    ) -> BoxFuture<Result<ImprovementRunDetail, ImprovementStoreError>> {
+        let database = self.database.clone();
+        Box::pin(async move {
+            let DecisionWrite {
+                decision,
+                note,
+                decided_at,
+                baseline,
+                invalidation,
+            } = write;
+            if note.trim().is_empty() {
+                return Err(ImprovementStoreError(
+                    "a decision needs a non-empty note".to_owned(),
+                ));
+            }
+            validate_decision_registry(decision, baseline.as_ref(), invalidation.as_ref())?;
+            let owner = profile.as_str().to_owned();
+            let key = improvement_id.clone();
+            let stored = database
+                .call(move |connection| {
+                    let transaction = connection
+                        .transaction_with_behavior(TransactionBehavior::Immediate)
+                        .map_err(|error| error.to_string())?;
+                    let row: Option<(String, Option<String>)> = transaction
+                        .query_row(
+                            "SELECT state, canonical_digest FROM research__improvement_runs
+                              WHERE profile_id = ?1 AND improvement_id = ?2",
+                            params![owner, key],
+                            |row| Ok((row.get(0)?, row.get(1)?)),
+                        )
+                        .optional()
+                        .map_err(|error| error.to_string())?;
+                    let Some((state, digest)) = row else {
+                        return Err("the improvement record is unknown".to_owned());
+                    };
+                    if state == ImprovementRunState::Created.as_str() {
+                        return Err("a decision needs a submitted pipeline run".to_owned());
+                    }
+                    if state == ImprovementRunState::Decided.as_str() {
+                        return Err("the decision is already recorded".to_owned());
+                    }
+                    if decision == ImprovementDecision::Accepted && digest.is_none() {
+                        return Err("an accepted decision needs the canonical digest".to_owned());
+                    }
+                    if let Some(baseline) = &baseline {
+                        let exists: Option<i64> = transaction
+                            .query_row(
+                                "SELECT 1 FROM research__baselines
+                                  WHERE profile_id = ?1 AND baseline_id = ?2",
+                                params![owner, baseline.baseline_id],
+                                |row| row.get(0),
+                            )
+                            .optional()
+                            .map_err(|error| error.to_string())?;
+                        if exists.is_some() {
+                            return Err("the baseline id already exists".to_owned());
+                        }
+                    }
+                    if let Some(invalidation) = &invalidation {
+                        let exists: Option<i64> = transaction
+                            .query_row(
+                                "SELECT 1 FROM research__invalidations
+                                  WHERE profile_id = ?1 AND invalidation_id = ?2",
+                                params![owner, invalidation.invalidation_id],
+                                |row| row.get(0),
+                            )
+                            .optional()
+                            .map_err(|error| error.to_string())?;
+                        if exists.is_some() {
+                            return Err("the invalidation id already exists".to_owned());
+                        }
+                    }
+                    let changed = transaction
+                        .execute(
+                            "UPDATE research__improvement_runs
+                                SET state = 'decided', decision = ?3, decision_note = ?4,
+                                    decided_at = ?5
+                              WHERE profile_id = ?1 AND improvement_id = ?2
+                                AND state = 'submitted'",
+                            params![owner, key, decision.as_str(), note, decided_at],
+                        )
+                        .map_err(|error| error.to_string())?;
+                    if changed != 1 {
+                        return Err("the decision was not recorded".to_owned());
+                    }
+                    if let Some(baseline) = baseline {
+                        transaction
+                            .execute(
+                                "INSERT INTO research__baselines
+                                     (profile_id, baseline_id, tier, run_id, improvement_id,
+                                      accepted_by, accepted_on, scope, supersedes, created_at)
+                                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                                params![
+                                    owner,
+                                    baseline.baseline_id,
+                                    baseline.tier.as_str(),
+                                    baseline.run_id,
+                                    baseline.improvement_id,
+                                    baseline.accepted_by,
+                                    baseline.accepted_on,
+                                    baseline.scope,
+                                    baseline.supersedes,
+                                    baseline.created_at
+                                ],
+                            )
+                            .map_err(|error| error.to_string())?;
+                    }
+                    if let Some(invalidation) = invalidation {
+                        transaction
+                            .execute(
+                                "INSERT INTO research__invalidations
+                                     (profile_id, invalidation_id, date, \"commit\", removed,
+                                      reason, superseded_by, created_at)
+                                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                                params![
+                                    owner,
+                                    invalidation.invalidation_id,
+                                    invalidation.date,
+                                    invalidation.commit,
+                                    invalidation.removed,
+                                    invalidation.reason,
+                                    invalidation.superseded_by,
+                                    invalidation.created_at
+                                ],
+                            )
+                            .map_err(|error| error.to_string())?;
+                    }
+                    let stored = read_run(&transaction, &owner, &key)
+                        .map_err(|error| error.to_string())?
+                        .ok_or_else(|| "the improvement record is unknown".to_owned())?;
+                    transaction.commit().map_err(|error| error.to_string())?;
+                    Ok(stored)
+                })
+                .await
+                .map_err(|error| ImprovementStoreError(error.to_string()))?;
+            detail_from_stored(stored)
         })
     }
 

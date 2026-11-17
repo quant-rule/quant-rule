@@ -22,6 +22,22 @@ import {
   stagePath,
   type StageFetchView,
 } from "./stage";
+import {
+  compareRun,
+  createRun,
+  decideRun,
+  fetchBaseline,
+  fetchRun,
+  listBaselines,
+  listInvalidations,
+  listRuns,
+  submitRun,
+  type BaselineRecord,
+  type ImprovementComparison,
+  type ImprovementRunDetail,
+  type ImprovementRunSummary,
+  type InvalidationRecord,
+} from "./research";
 import type {
   ConfigSummary,
   DatasetRecord,
@@ -63,6 +79,15 @@ interface ParityResponses {
   strategy_explain: Record<string, unknown>;
   stage_run_portfolio: StageSubmitResponse;
   portfolio_stage: StageRunDetail;
+  research_create: ImprovementRunDetail;
+  research_submit: ImprovementRunDetail;
+  research_list: ImprovementRunSummary[];
+  research: ImprovementRunDetail;
+  research_compare: ImprovementComparison;
+  research_decision: ImprovementRunDetail;
+  baselines: BaselineRecord[];
+  baseline: BaselineRecord;
+  invalidations: InvalidationRecord[];
 }
 
 interface ApiFixture {
@@ -77,6 +102,7 @@ interface ApiFixture {
   strategy_model_artifact_id: string;
   portfolio_stage_id: string;
   portfolio_decisions_artifact_id: string;
+  research_id: string;
   commands: string[];
   artifact: {
     name: string;
@@ -196,6 +222,33 @@ function install(fixture: ApiFixture): Seen[] {
         status: 200,
         headers: { "content-type": "application/octet-stream" },
       });
+    }
+    if (path === "/research/runs" && method === "GET") {
+      return respond(fixture.responses.research_list);
+    }
+    if (path === "/research/runs" && method === "POST") {
+      return respond(fixture.responses.research_create, 201);
+    }
+    if (path === `/research/runs/${fixture.research_id}/submit` && method === "POST") {
+      return respond(fixture.responses.research_submit, 202);
+    }
+    if (path === `/research/runs/${fixture.research_id}` && method === "GET") {
+      return respond(fixture.responses.research);
+    }
+    if (path === `/research/runs/${fixture.research_id}/compare` && method === "GET") {
+      return respond(fixture.responses.research_compare);
+    }
+    if (path === `/research/runs/${fixture.research_id}/decision` && method === "POST") {
+      return respond(fixture.responses.research_decision);
+    }
+    if (path === "/research/baselines" && method === "GET") {
+      return respond(fixture.responses.baselines);
+    }
+    if (path === "/research/baselines/model" && method === "GET") {
+      return respond(fixture.responses.baseline);
+    }
+    if (path === "/research/invalidations" && method === "GET") {
+      return respond(fixture.responses.invalidations);
     }
     if (path === "/health") {
       return respond(fixture.responses.health);
@@ -365,6 +418,35 @@ async function browserView(fixture: ApiFixture): Promise<View> {
     stagePath(fixture.portfolio_stage_id),
   );
 
+  const researchCreate = await createRun({
+    tier: "model",
+    hypothesis: "the fixture hypothesis",
+    partition: "model_dev",
+    data_version: fixture.dataset_id,
+    config_id: fixture.config_id,
+    criteria_id: null,
+    green_criteria: { return_target: 0.1 },
+    baseline: null,
+    code_commit: "c236539f",
+    seed: 0,
+    analytics: true,
+  });
+  const researchSubmit = await submitRun(fixture.research_id);
+  const researchList = await listRuns();
+  const research = await fetchRun(fixture.research_id);
+  const researchCompare = await compareRun(
+    fixture.research_id,
+    "MODEL-2026-11-04-04..05",
+  );
+  const researchDecision = await decideRun(
+    fixture.research_id,
+    "accepted",
+    "the fixture decision",
+  );
+  const baselines = await listBaselines();
+  const baseline = await fetchBaseline("model");
+  const invalidations = await listInvalidations();
+
   return {
     profile: currentProfile(),
     commands,
@@ -393,6 +475,15 @@ async function browserView(fixture: ApiFixture): Promise<View> {
     strategy_explain: strategyExplain,
     portfolio_stage_submit: portfolioSubmit,
     portfolio_stage: portfolioStage,
+    research_create: researchCreate,
+    research_submit: researchSubmit,
+    research_list: researchList,
+    research: research,
+    research_compare: researchCompare,
+    research_decision: researchDecision,
+    baselines,
+    baseline,
+    invalidations,
   };
 }
 
@@ -425,7 +516,7 @@ describe("client parity", () => {
     const view = await browserView(API);
 
     expect(difference(view, EXPECTED)).toBeNull();
-    expect(seen).toHaveLength(29);
+    expect(seen).toHaveLength(38);
     expect(seen.map((request) => request.path)).toEqual([
       "/health",
       "/catalog/datasets",
@@ -456,6 +547,15 @@ describe("client parity", () => {
       `/stages/runs/${API.strategy_stage_id}/artifacts/decisions.ndjson`,
       "/stages/portfolio/runs",
       `/stages/runs/${API.portfolio_stage_id}`,
+      "/research/runs",
+      `/research/runs/${API.research_id}/submit`,
+      "/research/runs",
+      `/research/runs/${API.research_id}`,
+      `/research/runs/${API.research_id}/compare`,
+      `/research/runs/${API.research_id}/decision`,
+      "/research/baselines",
+      "/research/baselines/model",
+      "/research/invalidations",
     ]);
     for (const request of seen) {
       expect(request.profile).toBe(API.profile);
