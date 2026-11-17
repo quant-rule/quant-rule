@@ -40,6 +40,15 @@ pub enum ErrorCode {
     /// The requested transition is not allowed in the current state.
     #[serde(rename = "run.conflict")]
     RunConflict,
+    /// The diagnostic stage run is unknown.
+    #[serde(rename = "stage.not_found")]
+    StageNotFound,
+    /// A stage submission or query is invalid.
+    #[serde(rename = "stage.invalid")]
+    StageInvalid,
+    /// The requested stage transition is not allowed in its current state.
+    #[serde(rename = "stage.conflict")]
+    StageConflict,
     /// The upload exceeded the configured limit.
     #[serde(rename = "upload.too_large")]
     UploadTooLarge,
@@ -84,6 +93,9 @@ impl ErrorCode {
             Self::RunNotFound => "run.not_found",
             Self::RunInvalid => "run.invalid",
             Self::RunConflict => "run.conflict",
+            Self::StageNotFound => "stage.not_found",
+            Self::StageInvalid => "stage.invalid",
+            Self::StageConflict => "stage.conflict",
             Self::UploadTooLarge => "upload.too_large",
             Self::QueueUnavailable => "queue.unavailable",
             Self::ServiceUnavailable => "service.unavailable",
@@ -107,13 +119,18 @@ impl ErrorCode {
             | Self::ConfigInvalid
             | Self::HypothesisInvalid
             | Self::RunInvalid
+            | Self::StageInvalid
             | Self::SimulationMarkInvalid => 400,
             Self::ProfileNotFound
             | Self::DatasetNotFound
             | Self::HypothesisNotFound
             | Self::RunNotFound
+            | Self::StageNotFound
             | Self::SimulationNotFound => 404,
-            Self::RunConflict | Self::SimulationCheckIncomplete | Self::SimulationLocked => 409,
+            Self::RunConflict
+            | Self::StageConflict
+            | Self::SimulationCheckIncomplete
+            | Self::SimulationLocked => 409,
             Self::Unauthorized => 401,
             Self::UploadTooLarge => 413,
             Self::QueueUnavailable | Self::ServiceUnavailable => 503,
@@ -172,7 +189,7 @@ impl ErrorEnvelope {
 mod tests {
     use super::*;
 
-    const ALL: [ErrorCode; 19] = [
+    const ALL: [ErrorCode; 22] = [
         ErrorCode::ProfileNotFound,
         ErrorCode::ProfileInvalid,
         ErrorCode::HypothesisNotFound,
@@ -183,6 +200,9 @@ mod tests {
         ErrorCode::RunNotFound,
         ErrorCode::RunInvalid,
         ErrorCode::RunConflict,
+        ErrorCode::StageNotFound,
+        ErrorCode::StageInvalid,
+        ErrorCode::StageConflict,
         ErrorCode::UploadTooLarge,
         ErrorCode::QueueUnavailable,
         ErrorCode::ServiceUnavailable,

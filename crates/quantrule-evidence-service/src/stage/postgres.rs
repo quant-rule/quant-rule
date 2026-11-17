@@ -15,7 +15,8 @@ use sqlx::PgPool;
 
 use super::store::{
     MAX_ATTEMPTS, NewStageRun, StageCancelOutcome, StageClaimOutcome, StageCreateOutcome,
-    StageRecord, StageStore, StageStoreError, validate_artifact, validate_new_stage,
+    StageDeletion, StageExpiry, StageRecord, StageStore, StageStoreError, validate_artifact,
+    validate_new_stage,
 };
 
 /// A stage store backed by Postgres.
@@ -297,48 +298,34 @@ impl StageStore for PgStageStore {
     fn list(
         &self,
         profile: ProfileId,
+        kind_filter: Option<StageKind>,
         status: Option<StageState>,
         limit: usize,
     ) -> BoxFuture<Result<Vec<StageRunSummary>, StageStoreError>> {
         let pool = self.pool.clone();
         Box::pin(async move {
             let limit = i64::try_from(limit).unwrap_or(i64::MAX);
+            let kind_filter = kind_filter.map(|kind| kind.as_str().to_owned());
+            let status = status.map(|status| status.as_str().to_owned());
             let rows: Vec<(String, String, String, String, String, Option<String>)> =
-                match status {
-                    Some(status) => {
-                        sqlx::query_as(
-                            "SELECT r.stage_run_id, r.kind, r.status, r.config_id,
-                                to_char(r.submitted_at AT TIME ZONE 'UTC',
-                                        'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'),
-                                r.artifact_id
-                           FROM stage.runs r
-                           JOIN stage.submissions s ON s.stage_run_id = r.stage_run_id
-                          WHERE s.profile_id = $1 AND r.status = $2
-                          ORDER BY r.submitted_at DESC, r.stage_run_id ASC LIMIT $3",
-                        )
-                        .bind(profile.as_str())
-                        .bind(status.as_str())
-                        .bind(limit)
-                        .fetch_all(&pool)
-                        .await
-                    }
-                    None => {
-                        sqlx::query_as(
-                            "SELECT r.stage_run_id, r.kind, r.status, r.config_id,
-                                to_char(r.submitted_at AT TIME ZONE 'UTC',
-                                        'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'),
-                                r.artifact_id
-                           FROM stage.runs r
-                           JOIN stage.submissions s ON s.stage_run_id = r.stage_run_id
-                          WHERE s.profile_id = $1
-                          ORDER BY r.submitted_at DESC, r.stage_run_id ASC LIMIT $2",
-                        )
-                        .bind(profile.as_str())
-                        .bind(limit)
-                        .fetch_all(&pool)
-                        .await
-                    }
-                }
+                sqlx::query_as(
+                    "SELECT r.stage_run_id, r.kind, r.status, r.config_id,
+                            to_char(r.submitted_at AT TIME ZONE 'UTC',
+                                    'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'),
+                            r.artifact_id
+                       FROM stage.runs r
+                       JOIN stage.submissions s ON s.stage_run_id = r.stage_run_id
+                      WHERE s.profile_id = $1
+                        AND ($2::text IS NULL OR r.kind = $2)
+                        AND ($3::text IS NULL OR r.status = $3)
+                      ORDER BY r.submitted_at DESC, r.stage_run_id ASC LIMIT $4",
+                )
+                .bind(profile.as_str())
+                .bind(kind_filter)
+                .bind(status)
+                .bind(limit)
+                .fetch_all(&pool)
+                .await
                 .map_err(|error| StageStoreError(error.to_string()))?;
             rows.into_iter()
                 .map(
@@ -539,6 +526,133 @@ impl StageStore for PgStageStore {
             } else {
                 Ok(StageCancelOutcome::Conflict(record))
             }
+        })
+    }
+
+    fn delete(
+        &self,
+        profile: ProfileId,
+        stage_run_id: String,
+    ) -> BoxFuture<Result<Option<StageDeletion>, StageStoreError>> {
+        let pool = self.pool.clone();
+        Box::pin(async move {
+            let exists: bool = sqlx::query_scalar(
+                "SELECT EXISTS(
+                     SELECT 1 FROM stage.submissions
+                      WHERE profile_id = $1 AND stage_run_id = $2
+                 )",
+            )
+            .bind(profile.as_str())
+            .bind(&stage_run_id)
+            .fetch_one(&pool)
+            .await
+            .map_err(|error| StageStoreError(error.to_string()))?;
+            if !exists {
+                return Ok(None);
+            }
+            let Some(record) = load_stage(&pool, Some(profile.as_str()), &stage_run_id).await?
+            else {
+                return Ok(None);
+            };
+            let hashes: Vec<String> = sqlx::query_scalar(
+                "SELECT sha256 FROM stage.artifacts
+                  WHERE stage_run_id = $1 ORDER BY sha256",
+            )
+            .bind(&stage_run_id)
+            .fetch_all(&pool)
+            .await
+            .map_err(|error| StageStoreError(error.to_string()))?;
+            sqlx::query("DELETE FROM stage.runs WHERE stage_run_id = $1")
+                .bind(&stage_run_id)
+                .execute(&pool)
+                .await
+                .map_err(|error| StageStoreError(error.to_string()))?;
+            let artifact_hashes = hashes
+                .into_iter()
+                .map(|hash| {
+                    Digest::parse(&hash).map_err(|error| {
+                        StageStoreError(format!(
+                            "a stored stage artifact hash is malformed: {error}"
+                        ))
+                    })
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(Some(StageDeletion {
+                stage_run_id: record.stage_run_id,
+                artifact_hashes,
+            }))
+        })
+    }
+
+    fn purge_expired(&self, cutoff: &str) -> BoxFuture<Result<StageExpiry, StageStoreError>> {
+        let pool = self.pool.clone();
+        let cutoff = cutoff.to_owned();
+        Box::pin(async move {
+            let mut transaction = pool
+                .begin()
+                .await
+                .map_err(|error| StageStoreError(error.to_string()))?;
+            let ids: Vec<String> = sqlx::query_scalar(
+                "SELECT stage_run_id FROM stage.runs
+                  WHERE submitted_at < $1::timestamptz ORDER BY stage_run_id",
+            )
+            .bind(&cutoff)
+            .fetch_all(&mut *transaction)
+            .await
+            .map_err(|error| StageStoreError(error.to_string()))?;
+            let hashes: Vec<String> = sqlx::query_scalar(
+                "SELECT DISTINCT a.sha256 FROM stage.artifacts a
+                   JOIN stage.runs r ON r.stage_run_id = a.stage_run_id
+                  WHERE r.submitted_at < $1::timestamptz ORDER BY a.sha256",
+            )
+            .bind(&cutoff)
+            .fetch_all(&mut *transaction)
+            .await
+            .map_err(|error| StageStoreError(error.to_string()))?;
+            sqlx::query("DELETE FROM stage.runs WHERE submitted_at < $1::timestamptz")
+                .bind(&cutoff)
+                .execute(&mut *transaction)
+                .await
+                .map_err(|error| StageStoreError(error.to_string()))?;
+            transaction
+                .commit()
+                .await
+                .map_err(|error| StageStoreError(error.to_string()))?;
+            let stage_run_ids = ids
+                .into_iter()
+                .map(|id| {
+                    Digest::parse(&id)
+                        .map(quantrule_api::StageRunId)
+                        .map_err(|error| {
+                            StageStoreError(format!("a stored stage id is malformed: {error}"))
+                        })
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            let artifact_hashes = hashes
+                .into_iter()
+                .map(|hash| {
+                    Digest::parse(&hash).map_err(|error| {
+                        StageStoreError(format!(
+                            "a stored stage artifact hash is malformed: {error}"
+                        ))
+                    })
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(StageExpiry {
+                stage_run_ids,
+                artifact_hashes,
+            })
+        })
+    }
+
+    fn artifact_referenced(&self, sha256: Digest) -> BoxFuture<Result<bool, StageStoreError>> {
+        let pool = self.pool.clone();
+        Box::pin(async move {
+            sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM stage.artifacts WHERE sha256 = $1)")
+                .bind(sha256.as_hex())
+                .fetch_one(&pool)
+                .await
+                .map_err(|error| StageStoreError(error.to_string()))
         })
     }
 }

@@ -254,6 +254,13 @@ impl ObjectStore for Objects {
             Self::Filesystem(store) => store.exists(key),
         }
     }
+
+    fn delete(&self, key: &str) -> BoxFuture<Result<(), StoreError>> {
+        match self {
+            Self::S3(store) => store.delete(key),
+            Self::Filesystem(store) => store.delete(key),
+        }
+    }
 }
 
 /// The control-plane queue selected by `QR_PROFILE`.

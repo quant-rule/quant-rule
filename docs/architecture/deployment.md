@@ -5,8 +5,7 @@
 - Decision: [`ADR-2026-11-12-01`](../adr/2026-11-12/01-adopt-distributed-service-based-architecture.md)
 - Claim type: Behaviour Claim
 
-One command starts the stack. One port is published. That is the whole operator
-interface.
+One command starts the stack; one port is published; that is the whole operator interface.
 
 ## 1. Quick start
 
@@ -134,6 +133,7 @@ to start.
 | `QR_UPLOAD_LIMIT_BYTES` | `536870912` | Upload cap |
 | `QR_BEARER_TOKEN` | empty | Enables the token check when set |
 | `QR_BACKTEST_CONCURRENCY` | `1` | Runs per worker |
+| `QR_STAGE_RETENTION_DAYS` | `30` | Diagnostic stage retention in days |
 
 Secrets come from the environment. No secret is committed.
 

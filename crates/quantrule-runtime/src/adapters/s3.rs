@@ -116,4 +116,21 @@ impl ObjectStore for S3Store {
             }
         })
     }
+
+    fn delete(&self, key: &str) -> BoxFuture<Result<(), StoreError>> {
+        let client = self.client.clone();
+        let bucket = self.bucket.clone();
+        let key = key.to_owned();
+        Box::pin(async move {
+            // S3 delete is idempotent: deleting an absent key succeeds.
+            client
+                .delete_object()
+                .bucket(bucket)
+                .key(key)
+                .send()
+                .await
+                .map(|_| ())
+                .map_err(|error| StoreError(error.to_string()))
+        })
+    }
 }

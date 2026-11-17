@@ -8,6 +8,12 @@
 //! retryable failure holds the delivery, waits, and retries in place. It serves
 //! no HTTP and owns no database schema.
 //!
+//! The same process also consumes `stages.worker` (`stage.requested` and
+//! `stage.cancelled`) through the diagnostic stage worker. The run consumer is
+//! registered first, so a stage cannot delay an evidence run. The stage
+//! executors land in #852–#854; until then a stage fails with a clear message
+//! instead of succeeding without an engine.
+//!
 //! The worker selects the same backend set as every other service. On the
 //! desktop profile it opens the shared SQLite file only for the durable queue,
 //! and reads and writes artifact bytes in the filesystem CAS under
@@ -18,15 +24,21 @@
 use std::sync::Arc;
 
 use quantrule_backtest_service::backtest::{ProcessOutcome, WorkerServices, process};
+use quantrule_backtest_service::stage::{
+    StageDispatch, StageProcessOutcome, StageWorkerServices, process_stage,
+};
 use quantrule_runtime::adapters::{
     Message, MessageHandler, ObjectStore, Queue, QueueConsumer, QueueError,
 };
 use quantrule_runtime::backends::{self, ControlQueue, Objects};
 use quantrule_runtime::client::{
-    ClientError, DataClient, EvidenceClient, HttpServiceClient, ModelClient, Service,
+    ClientError, DataClient, EvidenceClient, HttpServiceClient, ModelClient, Service, StageClient,
 };
 use quantrule_runtime::config::ConfigError;
-use quantrule_runtime::queue::{QUEUE_BACKTEST, ROUTING_CANCELLED, ROUTING_REQUESTED};
+use quantrule_runtime::queue::{
+    QUEUE_BACKTEST, QUEUE_STAGE, ROUTING_CANCELLED, ROUTING_REQUESTED, ROUTING_STAGE_CANCELLED,
+    ROUTING_STAGE_REQUESTED,
+};
 use quantrule_runtime::{Config, RuntimeError, logging};
 use serde_json::Value;
 
@@ -51,7 +63,13 @@ async fn main() -> Result<(), RuntimeError> {
         HttpServiceClient::from_env(Service::Evidence)
             .map_err(|error| service_config_error(Service::Evidence, error))?,
     );
+    let stage_evidence: Arc<dyn StageClient> = Arc::new(
+        HttpServiceClient::from_env(Service::Evidence)
+            .map_err(|error| service_config_error(Service::Evidence, error))?,
+    );
     let publish: Arc<dyn Queue> = queue.clone();
+    let stage_publish: Arc<dyn Queue> = queue.clone();
+    let stage_objects: Arc<dyn ObjectStore> = Arc::clone(&objects);
     let services = Arc::new(WorkerServices {
         evidence,
         data,
@@ -59,6 +77,12 @@ async fn main() -> Result<(), RuntimeError> {
         objects,
         queue: publish,
     });
+    let stage_services = Arc::new(StageWorkerServices {
+        evidence: stage_evidence,
+        objects: stage_objects,
+        queue: stage_publish,
+    });
+    let dispatch = Arc::new(StageDispatch::new());
 
     let handler: MessageHandler = Box::new(move |message: Message| {
         let services = Arc::clone(&services);
@@ -104,7 +128,52 @@ async fn main() -> Result<(), RuntimeError> {
         })
     });
 
-    tracing::info!("backtest worker consuming {QUEUE_BACKTEST}");
+    let stage_handler: MessageHandler = Box::new(move |message: Message| {
+        let services = Arc::clone(&stage_services);
+        let dispatch = Arc::clone(&dispatch);
+        Box::pin(async move {
+            let Some(stage_run_id) = id(&message.payload, "stage_run_id") else {
+                tracing::error!(
+                    routing_key = %message.routing_key,
+                    "a stage control message carries no stage_run_id; acknowledging"
+                );
+                return Ok(());
+            };
+            if message.routing_key == ROUTING_STAGE_CANCELLED {
+                // Evidence already wrote the flag. The message is an
+                // observation; the worker checks the row at its boundaries.
+                tracing::info!(stage_run_id = %stage_run_id, "stage cancellation observed");
+                return Ok(());
+            }
+            if message.routing_key != ROUTING_STAGE_REQUESTED {
+                tracing::warn!(
+                    routing_key = %message.routing_key,
+                    "the stage queue received an unexpected key; acknowledging"
+                );
+                return Ok(());
+            }
+            let mut redelivered = message.redelivered;
+            loop {
+                match process_stage(stage_run_id.clone(), redelivered, &services, &dispatch).await {
+                    Ok(StageProcessOutcome::Retry { delay }) => {
+                        tracing::warn!(stage_run_id = %stage_run_id, ?delay, "retrying the stage");
+                        tokio::time::sleep(delay).await;
+                        redelivered = true;
+                    }
+                    Ok(outcome) => {
+                        tracing::info!(stage_run_id = %stage_run_id, outcome = ?outcome, "stage processed");
+                        return Ok(());
+                    }
+                    Err(error) => {
+                        tracing::error!(stage_run_id = %stage_run_id, error = %error, "stage processing failed");
+                        return Err(QueueError(error.to_string()));
+                    }
+                }
+            }
+        })
+    });
+
+    tracing::info!("backtest worker consuming {QUEUE_BACKTEST} and {QUEUE_STAGE}");
     tokio::select! {
         result = queue.consume(
             QUEUE_BACKTEST,
@@ -113,19 +182,25 @@ async fn main() -> Result<(), RuntimeError> {
         ) => {
             result.map_err(|error| RuntimeError::Queue(error.to_string()))
         }
+        result = queue.consume(
+            QUEUE_STAGE,
+            &[ROUTING_STAGE_REQUESTED, ROUTING_STAGE_CANCELLED],
+            stage_handler,
+        ) => {
+            result.map_err(|error| RuntimeError::Queue(error.to_string()))
+        }
         _ = quantrule_runtime::shutdown::signal() => Ok(()),
     }
 }
 
 fn run_id(payload: &[u8]) -> Option<String> {
+    id(payload, "run_id")
+}
+
+fn id(payload: &[u8], field: &str) -> Option<String> {
     serde_json::from_slice::<Value>(payload)
         .ok()
-        .and_then(|value| {
-            value
-                .get("run_id")
-                .and_then(Value::as_str)
-                .map(str::to_owned)
-        })
+        .and_then(|value| value.get(field).and_then(Value::as_str).map(str::to_owned))
 }
 
 /// Name the missing or invalid `QR_*_URL` at startup.

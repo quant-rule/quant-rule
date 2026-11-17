@@ -10,15 +10,16 @@ use lapin::options::{
     BasicAckOptions, BasicConsumeOptions, BasicNackOptions, BasicPublishOptions, BasicQosOptions,
     ExchangeDeclareOptions, QueueBindOptions, QueueDeclareOptions,
 };
-use lapin::types::FieldTable;
+use lapin::types::{AMQPValue, FieldTable};
 use lapin::{Channel, Connection, ConnectionProperties, ExchangeKind};
 
 use crate::adapters::{
     Backend, BoxFuture, Message, MessageHandler, Queue, QueueConsumer, QueueError,
 };
 use crate::queue::{
-    QUEUE_BACKTEST, QUEUE_DEAD_LETTER, QUEUE_EVIDENCE, ROUTING_CANCELLED, ROUTING_COMPUTED,
-    ROUTING_DEAD, ROUTING_REQUESTED,
+    QUEUE_BACKTEST, QUEUE_DEAD_LETTER, QUEUE_EVIDENCE, QUEUE_STAGE, ROUTING_CANCELLED,
+    ROUTING_COMPUTED, ROUTING_DEAD, ROUTING_REQUESTED, ROUTING_STAGE_CANCELLED,
+    ROUTING_STAGE_REQUESTED,
 };
 
 /// The control-plane exchange.
@@ -73,6 +74,12 @@ impl RabbitQueue {
         .await?;
         declare_queue(&channel, QUEUE_EVIDENCE, &[ROUTING_COMPUTED]).await?;
         declare_queue(&channel, QUEUE_DEAD_LETTER, &[ROUTING_DEAD]).await?;
+        declare_queue(
+            &channel,
+            QUEUE_STAGE,
+            &[ROUTING_STAGE_REQUESTED, ROUTING_STAGE_CANCELLED],
+        )
+        .await?;
         Ok(Self {
             connection: Arc::new(connection),
             channel,
@@ -140,12 +147,20 @@ impl QueueConsumer for RabbitQueue {
                 .basic_qos(1, BasicQosOptions::default())
                 .await
                 .map_err(|error| QueueError(error.to_string()))?;
+            let mut arguments = FieldTable::default();
+            if queue == QUEUE_STAGE {
+                // A diagnostic stage is lower priority than an evidence run.
+                // The queues are already separate, so this keeps the stage
+                // consumer from competing with a run consumer that drains the
+                // same worker process.
+                arguments.insert("x-priority".into(), AMQPValue::LongInt(-1));
+            }
             let mut consumer = channel
                 .basic_consume(
                     queue.as_str().into(),
                     format!("quantrule-{queue}").as_str().into(),
                     BasicConsumeOptions::default(),
-                    FieldTable::default(),
+                    arguments,
                 )
                 .await
                 .map_err(|error| QueueError(error.to_string()))?;

@@ -343,6 +343,22 @@ impl StageArtifact {
     }
 }
 
+/// The response to a stage submission.
+///
+/// A first submission returns `created: true`; an identical resubmission returns
+/// the existing stage with `created: false`. The response is never a run: it
+/// carries no canonical digest and no `run_id`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct StageSubmitResponse {
+    /// The content-derived stage run id.
+    pub stage_run_id: StageRunId,
+    /// Its state at submission time.
+    pub state: StageState,
+    /// Whether this request created the stage.
+    pub created: bool,
+}
+
 /// A stage run in a list.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -725,5 +741,22 @@ mod tests {
         );
         assert_eq!(id.to_string(), digest(b"stage").to_string());
         assert_eq!(id.digest(), &digest(b"stage"));
+    }
+
+    #[test]
+    fn a_submit_response_round_trips_and_is_not_a_run() {
+        let response = StageSubmitResponse {
+            stage_run_id: StageRunId(digest(b"stage")),
+            state: StageState::Queued,
+            created: true,
+        };
+        let text = serde_json::to_string(&response).expect("encode");
+        assert_eq!(
+            serde_json::from_str::<StageSubmitResponse>(&text).expect("decode"),
+            response
+        );
+        assert!(response.created);
+        assert!(!text.contains("\"run_id\""));
+        assert!(!text.contains("\"digest\""));
     }
 }

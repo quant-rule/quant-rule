@@ -22,7 +22,8 @@ use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 
 use super::store::{
     MAX_ATTEMPTS, NewStageRun, StageCancelOutcome, StageClaimOutcome, StageCreateOutcome,
-    StageRecord, StageStore, StageStoreError, validate_artifact, validate_new_stage,
+    StageDeletion, StageExpiry, StageRecord, StageStore, StageStoreError, validate_artifact,
+    validate_new_stage,
 };
 
 const STAGE_RUNS_TABLE: &str = "stage__runs";
@@ -353,57 +354,36 @@ impl StageStore for SqliteStageStore {
     fn list(
         &self,
         profile: ProfileId,
+        kind_filter: Option<StageKind>,
         status: Option<StageState>,
         limit: usize,
     ) -> BoxFuture<Result<Vec<StageRunSummary>, StageStoreError>> {
         let database = self.database.clone();
         Box::pin(async move {
             let profile_id = profile.as_str().to_owned();
+            let kind_filter = kind_filter.map(|kind| kind.as_str().to_owned());
+            let status = status.map(|status| status.as_str().to_owned());
             let limit = i64::try_from(limit).unwrap_or(i64::MAX);
             let rows = database
                 .call(move |connection| {
-                    let rows = match status {
-                        Some(status) => {
-                            let sql = format!(
-                                "SELECT r.stage_run_id, r.kind, r.status, r.config_id,
-                                        r.submitted_at, r.artifact_id
-                                   FROM {STAGE_RUNS_TABLE} r
-                                   JOIN {STAGE_SUBMISSIONS_TABLE} s
-                                     ON s.stage_run_id = r.stage_run_id
-                                  WHERE s.profile_id = ?1 AND r.status = ?2
-                                  ORDER BY r.submitted_at DESC, r.stage_run_id ASC LIMIT ?3"
-                            );
-                            let mut statement = connection.prepare(&sql).map_err(store_error)?;
-                            let mapped = statement
-                                .query_map(params![profile_id, status.as_str(), limit], summary_row)
-                                .map_err(store_error)?;
-                            mapped
-                                .collect::<rusqlite::Result<Vec<_>>>()
-                                .map_err(store_error)?
-                        }
-                        None => {
-                            let sql = format!(
-                                "SELECT r.stage_run_id, r.kind, r.status, r.config_id,
-                                        r.submitted_at, r.artifact_id
-                                   FROM {STAGE_RUNS_TABLE} r
-                                   JOIN {STAGE_SUBMISSIONS_TABLE} s
-                                     ON s.stage_run_id = r.stage_run_id
-                                  WHERE s.profile_id = ?1
-                                  ORDER BY r.submitted_at DESC, r.stage_run_id ASC LIMIT ?2"
-                            );
-                            let mut statement = connection.prepare(&sql).map_err(store_error)?;
-                            let mapped = statement
-                                .query_map(params![profile_id, limit], summary_row)
-                                .map_err(store_error)?;
-                            mapped
-                                .collect::<rusqlite::Result<Vec<_>>>()
-                                .map_err(store_error)?
-                        }
-                    };
-                    Ok::<
-                        Vec<(String, String, String, String, String, Option<String>)>,
-                        StageStoreError,
-                    >(rows)
+                    let sql = format!(
+                        "SELECT r.stage_run_id, r.kind, r.status, r.config_id,
+                                r.submitted_at, r.artifact_id
+                           FROM {STAGE_RUNS_TABLE} r
+                           JOIN {STAGE_SUBMISSIONS_TABLE} s
+                             ON s.stage_run_id = r.stage_run_id
+                          WHERE s.profile_id = ?1
+                            AND (?2 IS NULL OR r.kind = ?2)
+                            AND (?3 IS NULL OR r.status = ?3)
+                          ORDER BY r.submitted_at DESC, r.stage_run_id ASC LIMIT ?4"
+                    );
+                    let mut statement = connection.prepare(&sql).map_err(store_error)?;
+                    let mapped = statement
+                        .query_map(params![profile_id, kind_filter, status, limit], summary_row)
+                        .map_err(store_error)?;
+                    mapped
+                        .collect::<rusqlite::Result<Vec<_>>>()
+                        .map_err(store_error)
                 })
                 .await
                 .map_err(|error| StageStoreError(error.to_string()))?;
@@ -680,6 +660,166 @@ impl StageStore for SqliteStageStore {
                 .map_err(|error| StageStoreError(error.to_string()))
         })
     }
+
+    fn delete(
+        &self,
+        profile: ProfileId,
+        stage_run_id: String,
+    ) -> BoxFuture<Result<Option<StageDeletion>, StageStoreError>> {
+        let database = self.database.clone();
+        Box::pin(async move {
+            let profile_id = profile.as_str().to_owned();
+            database
+                .call(move |connection| {
+                    let transaction = connection
+                        .transaction_with_behavior(TransactionBehavior::Immediate)
+                        .map_err(store_error)?;
+                    let exists: bool = transaction
+                        .query_row(
+                            &format!(
+                                "SELECT EXISTS(SELECT 1 FROM {STAGE_SUBMISSIONS_TABLE}
+                                  WHERE profile_id = ?1 AND stage_run_id = ?2)"
+                            ),
+                            params![profile_id, stage_run_id],
+                            |row| row.get(0),
+                        )
+                        .map_err(store_error)?;
+                    if !exists {
+                        transaction.commit().map_err(store_error)?;
+                        return Ok::<Option<StageDeletion>, StageStoreError>(None);
+                    }
+                    let record = load_stage(&transaction, Some(&profile_id), &stage_run_id)?
+                        .ok_or_else(|| {
+                            StageStoreError("the stage vanished after submission".to_owned())
+                        })?;
+                    let hashes = artifact_hashes_in(&transaction, &stage_run_id)?;
+                    transaction
+                        .execute(
+                            &format!("DELETE FROM {STAGE_RUNS_TABLE} WHERE stage_run_id = ?1"),
+                            params![stage_run_id],
+                        )
+                        .map_err(store_error)?;
+                    transaction.commit().map_err(store_error)?;
+                    Ok(Some(StageDeletion {
+                        stage_run_id: record.stage_run_id,
+                        artifact_hashes: hashes,
+                    }))
+                })
+                .await
+                .map_err(|error| StageStoreError(error.to_string()))
+        })
+    }
+
+    fn purge_expired(&self, cutoff: &str) -> BoxFuture<Result<StageExpiry, StageStoreError>> {
+        let database = self.database.clone();
+        let cutoff = cutoff.to_owned();
+        Box::pin(async move {
+            database
+                .call(move |connection| {
+                    let transaction = connection
+                        .transaction_with_behavior(TransactionBehavior::Immediate)
+                        .map_err(store_error)?;
+                    let mut ids = transaction
+                        .prepare(&format!(
+                            "SELECT stage_run_id FROM {STAGE_RUNS_TABLE}
+                              WHERE submitted_at < ?1 ORDER BY stage_run_id"
+                        ))
+                        .map_err(store_error)?
+                        .query_map(params![cutoff], |row| row.get::<_, String>(0))
+                        .map_err(store_error)?
+                        .collect::<rusqlite::Result<Vec<_>>>()
+                        .map_err(store_error)?;
+                    let mut hashes = transaction
+                        .prepare(&format!(
+                            "SELECT DISTINCT a.sha256 FROM {STAGE_ARTIFACTS_TABLE} a
+                               JOIN {STAGE_RUNS_TABLE} r ON r.stage_run_id = a.stage_run_id
+                              WHERE r.submitted_at < ?1 ORDER BY a.sha256"
+                        ))
+                        .map_err(store_error)?
+                        .query_map(params![cutoff], |row| row.get::<_, String>(0))
+                        .map_err(store_error)?
+                        .collect::<rusqlite::Result<Vec<_>>>()
+                        .map_err(store_error)?;
+                    transaction
+                        .execute(
+                            &format!("DELETE FROM {STAGE_RUNS_TABLE} WHERE submitted_at < ?1"),
+                            params![cutoff],
+                        )
+                        .map_err(store_error)?;
+                    transaction.commit().map_err(store_error)?;
+                    ids.sort();
+                    hashes.sort();
+                    let stage_run_ids = ids
+                        .into_iter()
+                        .map(|id| Digest::parse(&id).map(quantrule_api::StageRunId))
+                        .collect::<Result<Vec<_>, _>>()
+                        .map_err(|error| {
+                            StageStoreError(format!("a stored stage id is malformed: {error}"))
+                        })?;
+                    let artifact_hashes = hashes
+                        .into_iter()
+                        .map(|hash| {
+                            Digest::parse(&hash).map_err(|error| {
+                                StageStoreError(format!(
+                                    "a stored stage artifact hash is malformed: {error}"
+                                ))
+                            })
+                        })
+                        .collect::<Result<Vec<_>, _>>()?;
+                    Ok::<StageExpiry, StageStoreError>(StageExpiry {
+                        stage_run_ids,
+                        artifact_hashes,
+                    })
+                })
+                .await
+                .map_err(|error| StageStoreError(error.to_string()))
+        })
+    }
+
+    fn artifact_referenced(&self, sha256: Digest) -> BoxFuture<Result<bool, StageStoreError>> {
+        let database = self.database.clone();
+        Box::pin(async move {
+            database
+                .call(move |connection| {
+                    connection
+                        .query_row(
+                            &format!(
+                                "SELECT EXISTS(SELECT 1 FROM {STAGE_ARTIFACTS_TABLE}
+                                  WHERE sha256 = ?1)"
+                            ),
+                            params![sha256.as_hex()],
+                            |row| row.get::<_, bool>(0),
+                        )
+                        .map_err(store_error)
+                })
+                .await
+                .map_err(|error| StageStoreError(error.to_string()))
+        })
+    }
+}
+
+fn artifact_hashes_in(
+    connection: &Connection,
+    stage_run_id: &str,
+) -> Result<Vec<Digest>, StageStoreError> {
+    let mut statement = connection
+        .prepare(&format!(
+            "SELECT sha256 FROM {STAGE_ARTIFACTS_TABLE}
+              WHERE stage_run_id = ?1 ORDER BY sha256"
+        ))
+        .map_err(store_error)?;
+    let rows = statement
+        .query_map(params![stage_run_id], |row| row.get::<_, String>(0))
+        .map_err(store_error)?;
+    rows.map(|row| {
+        let hash = row.map_err(store_error)?;
+        Digest::parse(&hash).map_err(|error| {
+            StageStoreError(format!(
+                "a stored stage artifact hash is malformed: {error}"
+            ))
+        })
+    })
+    .collect()
 }
 
 fn summary_row(

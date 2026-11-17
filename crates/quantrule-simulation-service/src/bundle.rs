@@ -280,6 +280,10 @@ mod tests {
         fn exists(&self, _key: &str) -> BoxFuture<Result<bool, StoreError>> {
             Box::pin(async { Err(StoreError("down".to_owned())) })
         }
+
+        fn delete(&self, _key: &str) -> BoxFuture<Result<(), StoreError>> {
+            Box::pin(async { Err(StoreError("down".to_owned())) })
+        }
     }
 
     impl MapStore {
@@ -315,6 +319,11 @@ mod tests {
         fn exists(&self, key: &str) -> BoxFuture<Result<bool, StoreError>> {
             let found = self.inner.lock().expect("object lock").contains_key(key);
             Box::pin(async move { Ok(found) })
+        }
+
+        fn delete(&self, key: &str) -> BoxFuture<Result<(), StoreError>> {
+            self.inner.lock().expect("object lock").remove(key);
+            Box::pin(async { Ok(()) })
         }
     }
 

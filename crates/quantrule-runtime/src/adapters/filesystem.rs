@@ -152,6 +152,19 @@ impl ObjectStore for FilesystemStore {
             }
         })
     }
+
+    fn delete(&self, key: &str) -> BoxFuture<Result<(), StoreError>> {
+        let resolved = self.path(key);
+        let key = key.to_owned();
+        Box::pin(async move {
+            let path = resolved?;
+            match tokio::fs::remove_file(&path).await {
+                Ok(()) => Ok(()),
+                Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
+                Err(error) => Err(StoreError(format!("delete {key}: {error}"))),
+            }
+        })
+    }
 }
 
 /// Create the root and prove it accepts a file.

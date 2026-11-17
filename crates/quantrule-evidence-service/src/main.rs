@@ -28,10 +28,13 @@ use quantrule_evidence_service::evidence::{EvidenceServices, finalize};
 use quantrule_evidence_service::postgres::{PgHypothesisStore, PgRunStore};
 use quantrule_evidence_service::runs::RunStore;
 use quantrule_evidence_service::sqlite::{SqliteHypothesisStore, SqliteRunStore};
+use quantrule_evidence_service::stage::{PgStageStore, SqliteStageStore, StageStore, retention};
 use quantrule_evidence_service::{EvidenceState, router};
 
 /// The run store a route handler reads.
 type RunHandle = Arc<dyn RunStore>;
+/// The stage store a route handler reads.
+type StageHandle = Arc<dyn StageStore>;
 /// The hypothesis store a route handler reads.
 type HypothesisHandle = Arc<dyn quantrule_evidence_service::research::HypothesisStore>;
 
@@ -56,16 +59,22 @@ async fn main() -> Result<(), RuntimeError> {
         Some(ServiceDatabase::Sqlite(database)) => Some(database.clone()),
         Some(ServiceDatabase::Postgres(_)) | None => None,
     };
-    let (runs, hypotheses): (Option<RunHandle>, Option<HypothesisHandle>) = match opened {
+    let (runs, stages, hypotheses): (
+        Option<RunHandle>,
+        Option<StageHandle>,
+        Option<HypothesisHandle>,
+    ) = match opened {
         Some(ServiceDatabase::Sqlite(database)) => (
             Some(Arc::new(SqliteRunStore::new(database.clone()))),
+            Some(Arc::new(SqliteStageStore::new(database.clone()))),
             Some(Arc::new(SqliteHypothesisStore::new(database))),
         ),
         Some(ServiceDatabase::Postgres(database)) => (
             Some(Arc::new(PgRunStore::new(database.pool().clone()))),
+            Some(Arc::new(PgStageStore::new(database.pool().clone()))),
             Some(Arc::new(PgHypothesisStore::new(database.pool().clone()))),
         ),
-        None => (None, None),
+        None => (None, None, None),
     };
 
     let backend = Objects::open(&config).await?;
@@ -93,12 +102,44 @@ async fn main() -> Result<(), RuntimeError> {
         health,
         quantrule_evidence_service::EvidenceServices {
             runs: runs.as_ref().map(Arc::clone),
+            stages: stages.as_ref().map(Arc::clone),
             hypotheses,
             objects: Some(Arc::clone(&objects)),
             queue: Some(publish),
             data: Some(data),
         },
     ));
+
+    // Retention runs once at startup. It names only the stage schema and the
+    // stage object namespace; a run, a research record, and a run artifact key
+    // are untouched. A failure is logged and the service still starts, because
+    // the health probes say what is down.
+    if let (Some(stages), Some(objects)) = (stages.as_ref(), state.objects.as_ref()) {
+        match retention::cutoff(std::time::SystemTime::now(), config.stage_retention_days) {
+            Ok(cutoff) => {
+                let stages = Arc::clone(stages);
+                let objects = Arc::clone(objects);
+                let days = config.stage_retention_days;
+                tokio::spawn(async move {
+                    match retention::purge_expired(stages.as_ref(), objects.as_ref(), &cutoff).await
+                    {
+                        Ok(report) => {
+                            tracing::info!(
+                                stages = report.stages,
+                                objects = report.objects,
+                                days,
+                                "expired stage runs removed"
+                            );
+                        }
+                        Err(error) => {
+                            tracing::warn!(%error, "stage retention did not finish");
+                        }
+                    }
+                });
+            }
+            Err(error) => tracing::warn!(%error, "stage retention was skipped"),
+        }
+    }
 
     // A database that is merely unreachable is a health state, not a startup
     // failure: the service stays up so the operator can see what is down. The

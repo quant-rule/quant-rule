@@ -41,6 +41,14 @@ no run row.
 | `run.cancelled` | evidence | backtest | run id only; the run row is authoritative |
 | `run.failed` | backtest | none required | run id only; the run row holds the error |
 | `run.dead` | backtest | operator | run id only; the run row holds the error and attempts |
+| `stage.requested` | evidence | backtest | stage run id only; the stage row holds the inputs |
+| `stage.computed` | backtest | none required | stage run id only; the stage row holds the artifact |
+| `stage.cancelled` | evidence | backtest | stage run id only; the stage row is authoritative |
+| `stage.failed` | backtest | none required | stage run id only; the stage row holds the error |
+
+A diagnostic stage is not a run. It has its own `stage` schema, its own
+`stage_run_id`, a content-addressed artifact, and `evidence: false`; it never
+produces a canonical digest or a run record.
 
 Rules:
 
@@ -56,7 +64,12 @@ exchange  quantrule.runs        (direct, durable)
 queue     runs.backtest         routing keys run.requested, run.cancelled
 queue     runs.evidence         routing key run.computed
 queue     runs.dead-letter      routing key run.dead
+queue     stages.worker         routing keys stage.requested, stage.cancelled
 ```
+
+The stage queue is separate so a long diagnostic stage cannot delay an evidence
+run. The stage consumer registers after the run consumer and declares RabbitMQ
+consumer priority `x-priority = -1`; the run consumer keeps the default `0`.
 
 Retry budget: three deliveries. The handler holds the unacked delivery for 5 s
 after the first failure and 25 s after the second; the third failure marks the

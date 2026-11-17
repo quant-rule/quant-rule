@@ -372,6 +372,10 @@ impl ObjectStore for PutFails {
     fn exists(&self, key: &str) -> BoxFuture<Result<bool, StoreError>> {
         self.inner.exists(key)
     }
+
+    fn delete(&self, key: &str) -> BoxFuture<Result<(), StoreError>> {
+        self.inner.delete(key)
+    }
 }
 
 #[derive(Clone)]
@@ -401,6 +405,10 @@ impl ObjectStore for ManifestFails {
 
     fn exists(&self, key: &str) -> BoxFuture<Result<bool, StoreError>> {
         self.inner.exists(key)
+    }
+
+    fn delete(&self, key: &str) -> BoxFuture<Result<(), StoreError>> {
+        self.inner.delete(key)
     }
 }
 
@@ -499,6 +507,10 @@ impl ObjectStore for StopAfter {
 
     fn exists(&self, key: &str) -> BoxFuture<Result<bool, StoreError>> {
         self.inner.exists(key)
+    }
+
+    fn delete(&self, key: &str) -> BoxFuture<Result<(), StoreError>> {
+        self.inner.delete(key)
     }
 }
 

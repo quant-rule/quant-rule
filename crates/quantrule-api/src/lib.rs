@@ -45,7 +45,7 @@ pub use simulation::{
 };
 pub use stage::{
     StageArtifact, StageArtifactError, StageInput, StageKind, StageProvenance, StageRunDetail,
-    StageRunId, StageRunRequest, StageRunSummary, StageState,
+    StageRunId, StageRunRequest, StageRunSummary, StageState, StageSubmitResponse,
 };
 pub use version::{
     API_VERSION, BUNDLE_CONTRACT, DATASET_CONTRACT, DEPLOY_CONTRACT, LABELS_CONTRACT,

@@ -15,12 +15,15 @@ use quantrule_runtime::health::HealthRegistry;
 
 use crate::research::HypothesisStore;
 use crate::runs::RunStore;
+use crate::stage::StageStore;
 
 /// The backing services the evidence routes call.
 #[derive(Default)]
 pub struct EvidenceServices {
     /// Where runs are recorded.
     pub runs: Option<Arc<dyn RunStore>>,
+    /// Where diagnostic stage runs are recorded.
+    pub stages: Option<Arc<dyn StageStore>>,
     /// Where sealed hypotheses live.
     pub hypotheses: Option<Arc<dyn HypothesisStore>>,
     /// Where artifact bytes live.
@@ -39,6 +42,9 @@ pub struct EvidenceState {
     pub health: HealthRegistry,
     /// Where runs are recorded; absent when no database is configured.
     pub runs: Option<Arc<dyn RunStore>>,
+    /// Where diagnostic stage runs are recorded; absent when no database is
+    /// configured.
+    pub stages: Option<Arc<dyn StageStore>>,
     /// Where sealed hypotheses live; absent when no database is configured.
     pub hypotheses: Option<Arc<dyn HypothesisStore>>,
     /// Where artifact bytes live; absent when no object store is configured.
@@ -56,6 +62,7 @@ impl std::fmt::Debug for EvidenceState {
             .field("version", &self.version)
             .field("health", &self.health)
             .field("runs", &self.runs.is_some())
+            .field("stages", &self.stages.is_some())
             .field("hypotheses", &self.hypotheses.is_some())
             .field("objects", &self.objects.is_some())
             .field("queue", &self.queue.is_some())
@@ -76,6 +83,7 @@ impl EvidenceState {
             version: VersionInfo::current(env!("CARGO_PKG_VERSION"), config.image_digest.clone()),
             health,
             runs: services.runs,
+            stages: services.stages,
             hypotheses: services.hypotheses,
             objects: services.objects,
             queue: services.queue,

@@ -9,12 +9,13 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex};
 
-use quantrule_api::{ProfileId, StageArtifact, StageRunSummary, StageState};
+use quantrule_api::{Digest, ProfileId, StageArtifact, StageKind, StageRunSummary, StageState};
 use quantrule_runtime::adapters::BoxFuture;
 
 use super::store::{
     MAX_ATTEMPTS, NewStageRun, StageCancelOutcome, StageClaimOutcome, StageCreateOutcome,
-    StageRecord, StageStore, StageStoreError, validate_artifact, validate_new_stage,
+    StageDeletion, StageExpiry, StageRecord, StageStore, StageStoreError, validate_artifact,
+    validate_new_stage,
 };
 
 #[derive(Debug, Default)]
@@ -65,6 +66,7 @@ impl StageStore for MemoryStages {
     fn list(
         &self,
         profile: ProfileId,
+        kind: Option<StageKind>,
         status: Option<StageState>,
         limit: usize,
     ) -> BoxFuture<Result<Vec<StageRunSummary>, StageStoreError>> {
@@ -79,6 +81,7 @@ impl StageStore for MemoryStages {
                     state
                         .submissions
                         .contains(&(profile.to_owned(), (*key).clone()))
+                        && kind.is_none_or(|wanted| wanted == record.kind)
                         && status.is_none_or(|wanted| wanted == record.state)
                 })
                 .map(|(_, record)| record)
@@ -228,6 +231,101 @@ impl StageStore for MemoryStages {
             Ok(StageCancelOutcome::Cancelled(record.clone()))
         })
     }
+
+    fn delete(
+        &self,
+        profile: ProfileId,
+        stage_run_id: String,
+    ) -> BoxFuture<Result<Option<StageDeletion>, StageStoreError>> {
+        let inner = Arc::clone(&self.inner);
+        Box::pin(async move {
+            let mut state = lock(&inner)?;
+            if !state
+                .submissions
+                .contains(&(profile.as_str().to_owned(), stage_run_id.clone()))
+            {
+                return Ok(None);
+            }
+            let Some(record) = state.runs.remove(&stage_run_id) else {
+                return Ok(None);
+            };
+            state
+                .submissions
+                .retain(|(_, stage_run_id)| stage_run_id != &record.stage_run_id.to_string());
+            Ok(Some(StageDeletion {
+                artifact_hashes: artifact_hashes(&record),
+                stage_run_id: record.stage_run_id,
+            }))
+        })
+    }
+
+    fn purge_expired(&self, cutoff: &str) -> BoxFuture<Result<StageExpiry, StageStoreError>> {
+        let inner = Arc::clone(&self.inner);
+        let cutoff = cutoff.to_owned();
+        Box::pin(async move {
+            let mut state = lock(&inner)?;
+            let expired: Vec<StageRecord> = state
+                .runs
+                .values()
+                .filter(|record| record.submitted_at < cutoff)
+                .cloned()
+                .collect();
+            let mut stage_run_ids = Vec::with_capacity(expired.len());
+            let mut artifact_hashes = Vec::new();
+            for record in &expired {
+                stage_run_ids.push(record.stage_run_id.clone());
+                artifact_hashes.extend(artifact_hashes_of(record));
+                state.runs.remove(&record.stage_run_id.to_string());
+            }
+            stage_run_ids.sort();
+            stage_run_ids.dedup();
+            let expired_ids: std::collections::BTreeSet<String> =
+                stage_run_ids.iter().map(ToString::to_string).collect();
+            state
+                .submissions
+                .retain(|(_, stage_run_id)| !expired_ids.contains(stage_run_id));
+            artifact_hashes.sort();
+            artifact_hashes.dedup();
+            Ok(StageExpiry {
+                stage_run_ids,
+                artifact_hashes,
+            })
+        })
+    }
+
+    fn artifact_referenced(&self, sha256: Digest) -> BoxFuture<Result<bool, StageStoreError>> {
+        let inner = Arc::clone(&self.inner);
+        Box::pin(async move {
+            let state = lock(&inner)?;
+            Ok(state.runs.values().any(|record| {
+                record
+                    .artifact
+                    .as_ref()
+                    .is_some_and(|artifact| artifact.files.iter().any(|file| file.sha256 == sha256))
+            }))
+        })
+    }
+}
+
+fn artifact_hashes(record: &StageRecord) -> Vec<Digest> {
+    let mut hashes = artifact_hashes_of(record);
+    hashes.sort();
+    hashes.dedup();
+    hashes
+}
+
+fn artifact_hashes_of(record: &StageRecord) -> Vec<Digest> {
+    record
+        .artifact
+        .as_ref()
+        .map(|artifact| {
+            artifact
+                .files
+                .iter()
+                .map(|file| file.sha256.clone())
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 #[cfg(test)]
@@ -298,7 +396,7 @@ mod tests {
         assert_eq!(first.record().stage_run_id, second.record().stage_run_id);
         assert_eq!(
             store
-                .list(profile("default"), None, 50)
+                .list(profile("default"), None, None, 50)
                 .await
                 .expect("list")
                 .len(),
@@ -341,7 +439,7 @@ mod tests {
         );
         assert_eq!(
             store
-                .list(profile("gamma"), None, 50)
+                .list(profile("gamma"), None, None, 50)
                 .await
                 .expect("gamma list")
                 .len(),

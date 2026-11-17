@@ -8,8 +8,10 @@
 //!
 //! The worker is the only place the strategy, execution, and portfolio engines
 //! run for a queued run. It never computes a model, renders a label, or accepts
-//! a client path.
+//! a client path. A separate diagnostic stage worker runs one engine behind an
+//! executor seam; it never writes a run or a canonical digest.
 
 #![forbid(unsafe_code)]
 
 pub mod backtest;
+pub mod stage;
