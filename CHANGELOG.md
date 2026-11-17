@@ -49,6 +49,10 @@ history is in Git and the pull requests.
 - A one-bar Donchian or Keltner window no longer indexes the previous bar at
   bar zero; the position events require a prior bar. The normal-window golden
   fixtures are unchanged.
+- VWAP slope now subtracts the VWAP from one full window back
+  (`S[t] = VWAP[t] - VWAP[t - window]`), matching the registered formula. The
+  first value appears at bar `2*window - 1`, and the extended readings and
+  event goldens were regenerated deliberately.
 
 ## [1.3.0] - 2026-11-17
 
