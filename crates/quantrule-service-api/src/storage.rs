@@ -32,6 +32,68 @@ pub struct ConfigBundle {
     pub config_hash: Option<Digest>,
 }
 
+impl ConfigBundle {
+    /// The model-input identity carried by the bundle.
+    ///
+    /// The strategy, execution, and portfolio files do not contribute; a
+    /// strategy-only change therefore keeps the same model input.
+    ///
+    /// # Errors
+    ///
+    /// Returns a message when `run.json`, the data or model file, the data
+    /// version, or the ladder is missing or mistyped.
+    pub fn model_input_hash(&self) -> Result<Digest, String> {
+        let run: serde_json::Value = serde_json::from_str(
+            self.files
+                .get("run.json")
+                .ok_or_else(|| "the bundle has no run.json".to_owned())?,
+        )
+        .map_err(|error| format!("run.json is not JSON: {error}"))?;
+        let data_key = run
+            .get("data")
+            .and_then(serde_json::Value::as_str)
+            .ok_or_else(|| "run.json names no data file".to_owned())?;
+        let model_key = run
+            .get("model")
+            .and_then(serde_json::Value::as_str)
+            .ok_or_else(|| "run.json names no model file".to_owned())?;
+        let model_config = self
+            .files
+            .get(model_key)
+            .ok_or_else(|| format!("the bundle has no {model_key}"))?;
+        let data: serde_json::Value = serde_json::from_str(
+            self.files
+                .get(data_key)
+                .ok_or_else(|| format!("the bundle has no {data_key}"))?,
+        )
+        .map_err(|error| format!("{data_key} is not JSON: {error}"))?;
+        let data_version = data
+            .get("data_version")
+            .and_then(serde_json::Value::as_str)
+            .ok_or_else(|| format!("{data_key} has no data_version"))?;
+        let ladder = run
+            .get("model_timeframes")
+            .filter(|value| !value.is_null())
+            .or_else(|| data.get("available_timeframes"))
+            .and_then(serde_json::Value::as_array)
+            .ok_or_else(|| "the bundle names no model ladder".to_owned())?;
+        let ladder: Vec<String> = ladder
+            .iter()
+            .map(|value| {
+                value
+                    .as_str()
+                    .map(str::to_owned)
+                    .ok_or_else(|| "a ladder entry is not a string".to_owned())
+            })
+            .collect::<Result<_, _>>()?;
+        Ok(quantrule_api::model_input_hash(
+            data_version,
+            model_config.as_bytes(),
+            &ladder,
+        ))
+    }
+}
+
 /// One immutable dataset as another service sees it.
 ///
 /// The candle bytes stay in the object store; this envelope names them and
@@ -128,6 +190,41 @@ mod tests {
                 sha256: digest(b"{}"),
             }],
         }
+    }
+
+    #[test]
+    fn a_model_input_hash_ignores_the_strategy() {
+        let mut bundle = ConfigBundle {
+            config_id: "cfg-model".to_owned(),
+            files: BTreeMap::from([
+                (
+                    "run.json".to_owned(),
+                    r#"{"data":"data.json","model":"model.json"}"#.to_owned(),
+                ),
+                (
+                    "data.json".to_owned(),
+                    r#"{"data_version":"v1","available_timeframes":["1m","5m"]}"#.to_owned(),
+                ),
+                ("model.json".to_owned(), r#"{"schema":"v4"}"#.to_owned()),
+                ("strategy.json".to_owned(), "{}".to_owned()),
+            ]),
+            valid: true,
+            message: None,
+            config_hash: Some(digest(b"bundle")),
+        };
+        let base = bundle.model_input_hash().expect("the model input");
+        bundle
+            .files
+            .insert("strategy.json".to_owned(), r#"{"id":"changed"}"#.to_owned());
+        assert_eq!(
+            base,
+            bundle.model_input_hash().expect("the strategy change")
+        );
+        bundle.files.insert(
+            "model.json".to_owned(),
+            r#"{"schema":"changed"}"#.to_owned(),
+        );
+        assert_ne!(base, bundle.model_input_hash().expect("the model change"));
     }
 
     #[test]

@@ -141,6 +141,15 @@ fn changed_strategy_config(fixture: &Fixture) -> ConfigBundle {
     config
 }
 
+fn changed_model_config(fixture: &Fixture) -> ConfigBundle {
+    let mut config = changed_strategy_config(fixture);
+    config.config_id = "cfg_changed_model".to_owned();
+    config.config_hash = Some(Digest::sha256(b"changed-model-config"));
+    let model = config.files.get_mut("model.json").expect("model");
+    model.push('\n');
+    config
+}
+
 fn promoted_run(fixture: &Fixture, artifact_id: &Digest, image_seed: &[u8]) -> NewRun {
     let image = digest(image_seed);
     NewRun {
@@ -225,6 +234,126 @@ async fn a_promoted_run_reuses_the_model_stage_and_keeps_the_canonical_digest() 
         .await
         .expect("the deterministic rerun");
     assert_eq!(rerun, ProcessOutcome::Skipped);
+}
+
+#[tokio::test]
+async fn a_strategy_only_change_reuses_the_model_stage() {
+    let fixture = fixture().await;
+    let artifact_id = publish_model_stage(&fixture).await;
+    let changed = changed_strategy_config(&fixture);
+    fixture.data.add_config(&profile(), changed.clone());
+    let dataset = fixture
+        .objects
+        .get(&format!("datasets/{}", fixture.data_version.as_hex()))
+        .await
+        .expect("the dataset bytes");
+    let changed_hash = changed.config_hash.clone().expect("the changed hash");
+    let (_, changed_digest) = crate::support::coupled_baseline(&changed, &dataset);
+
+    let image = digest(b"strategy-only-image");
+    let run = NewRun {
+        run_id: derive_run_id_with_model(
+            &fixture.data_version,
+            &changed_hash,
+            "M1.0",
+            &image,
+            Some(&artifact_id),
+        ),
+        config_id: changed.config_id.clone(),
+        data_version: fixture.data_version.clone(),
+        config_hash: changed_hash,
+        model_version: "M1.0".to_owned(),
+        image_digest: image,
+        model_artifact_id: Some(artifact_id.clone()),
+        owner: "default".to_owned(),
+        submitted_at: "2026-11-17T03:00:03Z".to_owned(),
+    };
+    let run_id = fixture
+        .runs
+        .submit(&profile(), run)
+        .await
+        .expect("submit")
+        .run_id
+        .to_string();
+    let outcome = process(run_id.clone(), false, &services(&fixture))
+        .await
+        .expect("process the strategy-only run");
+    assert_eq!(outcome, ProcessOutcome::Computed);
+    assert_eq!(
+        fixture.model.calls(),
+        0,
+        "a strategy-only change must not call the model service"
+    );
+
+    let record = fixture
+        .runs
+        .get_any(run_id)
+        .await
+        .expect("read the run")
+        .expect("the strategy-only run");
+    assert_eq!(record.model_artifact_id, Some(artifact_id));
+    assert_eq!(record.digest, Some(changed_digest));
+    for expected in &fixture.manifest.artifacts {
+        let artifact = record
+            .artifacts
+            .iter()
+            .find(|artifact| artifact.name == format!("model/{}", expected.name))
+            .expect("the reused model artifact");
+        assert_eq!(artifact.sha256, expected.sha256);
+        assert_eq!(artifact.bytes, expected.bytes);
+    }
+}
+
+#[tokio::test]
+async fn a_changed_model_config_is_refused_by_the_model_input_identity() {
+    let fixture = fixture().await;
+    let artifact_id = publish_model_stage(&fixture).await;
+    let changed = changed_model_config(&fixture);
+    fixture.data.add_config(&profile(), changed.clone());
+    let changed_hash = changed.config_hash.clone().expect("the changed hash");
+    let image = digest(b"changed-model-image");
+    let run = NewRun {
+        run_id: derive_run_id_with_model(
+            &fixture.data_version,
+            &changed_hash,
+            "M1.0",
+            &image,
+            Some(&artifact_id),
+        ),
+        config_id: changed.config_id.clone(),
+        data_version: fixture.data_version.clone(),
+        config_hash: changed_hash,
+        model_version: "M1.0".to_owned(),
+        image_digest: image,
+        model_artifact_id: Some(artifact_id),
+        owner: "default".to_owned(),
+        submitted_at: "2026-11-17T03:00:04Z".to_owned(),
+    };
+    let run_id = fixture
+        .runs
+        .submit(&profile(), run)
+        .await
+        .expect("submit")
+        .run_id
+        .to_string();
+    let outcome = process(run_id.clone(), false, &services(&fixture))
+        .await
+        .expect("process the changed-model run");
+    assert_eq!(outcome, ProcessOutcome::Failed);
+    let record = fixture
+        .runs
+        .get_any(run_id)
+        .await
+        .expect("read the run")
+        .expect("the changed-model run");
+    assert!(
+        record
+            .error
+            .as_deref()
+            .is_some_and(|error| error.contains("model input")),
+        "{:?}",
+        record.error
+    );
 }
 
 #[tokio::test]

@@ -44,6 +44,10 @@ pub struct RunConfig {
     pub schema_version: String,
     /// A stable fingerprint of the config files.
     pub config_hash: String,
+    /// The model-input identity: data version label, model config bytes, and
+    /// the effective model ladder. It is invariant under a strategy-only
+    /// change, so a model bundle can be reused across strategy cells.
+    pub model_input_hash: String,
     /// The resolved config paths.
     pub paths: ConfigPaths,
     /// The optional model identity, such as `M1.0`.
@@ -128,11 +132,13 @@ impl RunConfig {
         };
 
         let config_hash = fingerprint(&paths)?;
+        let model_input_hash = model_input_hash(&paths, &data, run.model_timeframes.as_deref())?;
         let config = Self {
             name: run.name,
             schema_version: run.schema,
             output_root: base.join(&run.output_root),
             config_hash,
+            model_input_hash,
             paths,
             model_id: run.model_id,
             execution_id: run.execution_id,
@@ -447,6 +453,30 @@ fn fingerprint(paths: &ConfigPaths) -> Result<String, ConfigError> {
         bytes.push(0);
     }
     Ok(Digest::sha256(&bytes).to_string())
+}
+
+/// The model-input identity: the data version label, the model config bytes,
+/// and the effective model ladder.
+///
+/// The full [`fingerprint`] covers the strategy and every execution and
+/// portfolio file, so it changes when a strategy cell changes. The model
+/// artifact must survive that change; this hash covers only the inputs the
+/// model consumes.
+fn model_input_hash(
+    paths: &ConfigPaths,
+    data: &DataConfig,
+    model_ladder: Option<&[Timeframe]>,
+) -> Result<String, ConfigError> {
+    let model_bytes = std::fs::read(&paths.model).map_err(|error| match error.kind() {
+        io::ErrorKind::NotFound => ConfigError::missing_file(file_name(&paths.model)),
+        _ => ConfigError::unreadable_file(file_name(&paths.model)),
+    })?;
+    let ladder: Vec<String> = model_ladder
+        .unwrap_or(&data.available_timeframes)
+        .iter()
+        .map(|timeframe| timeframe.code().to_owned())
+        .collect();
+    Ok(quantrule_api::model_input_hash(&data.data_version, &model_bytes, &ladder).to_string())
 }
 
 /// Whether `identity` is `<prefix><major>.<minor>` with decimal components.

@@ -24,6 +24,9 @@ history is in Git and the pull requests.
   record, and stage provenance. The old 64-bit FNV fingerprint is gone.
 - The canonical digest now covers every `metrics.json`, so a metrics-only change
   cannot leave the digest unchanged.
+- A model bundle names its model-input identity (data version label, model
+  config, and ladder) in provenance. A strategy-only change reuses the frozen
+  model artifact; the worker refuses a changed model input.
 
 ## [1.3.0] - 2026-11-17
 

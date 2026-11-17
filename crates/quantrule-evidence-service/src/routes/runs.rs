@@ -150,12 +150,9 @@ pub(crate) async fn submit_validated_pipeline(
                 "the model artifact belongs to another dataset",
             ));
         }
-        if stage.provenance.config_hash != config_hash {
-            return Err(failure(
-                ErrorCode::RunModelArtifactInvalid,
-                "the model artifact belongs to another config hash",
-            ));
-        }
+        // The full config hash must not invalidate a strategy cell: the
+        // worker compares the frozen model bundle's model-input identity to
+        // the submitted config before reuse.
         if stage.provenance.model_version != model_version {
             return Err(failure(
                 ErrorCode::RunModelArtifactInvalid,

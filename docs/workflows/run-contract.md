@@ -109,9 +109,12 @@ run is therefore a distinct run from the same full run, while its canonical
 digest can still be equal.
 
 `run submit --model-artifact <id>` names a succeeded model stage in the active
-profile. Evidence checks the stage's `data_version`, `config_hash`, and
-`model_version`, records the artifact id, and the worker loads the stage manifest
-and bytes instead of calling the model service. The model bytes must equal the
+profile. Evidence checks the stage's `data_version` and `model_version`, records
+the artifact id, and the worker loads the stage manifest and bytes instead of
+calling the model service. Before reuse the worker compares the frozen model
+bundle's model-input identity (data version label, model config bytes, and
+ladder) to the submitted config, so a strategy-only change reuses the artifact
+and a changed model input is refused. The model output artifacts must equal the
 full-run model bundle; strategy, execution, and portfolio are recomputed. The
 model artifact id is displayed by `run status` and the browser run detail; it is
 an input reference, not evidence in itself.
