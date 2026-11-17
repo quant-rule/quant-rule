@@ -111,8 +111,12 @@ pub(crate) fn harness() -> Harness {
         data.add_config(profile, bundle("cfg_m99", b"m99", "M9.9"));
         data.add_config(profile, invalid_bundle());
     }
+    let config = Config {
+        image_digest: Some(Digest::sha256(b"no-image-digest")),
+        ..Config::default()
+    };
     let state = Arc::new(EvidenceState::with_services(
-        &Config::default(),
+        &config,
         HealthRegistry::new(),
         EvidenceServices {
             data: Some(Arc::new(data)),

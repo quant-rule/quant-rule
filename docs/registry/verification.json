@@ -226,7 +226,11 @@
         "edge": {
           "scope": "row",
           "tests": [
-            "per_row_extended_indicators::rvol_row_contract"
+            "per_row_extended_indicators::rvol_row_contract",
+            "edge_cases::a_flat_series_does_not_divide_by_zero",
+            "edge_cases::zero_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::missing_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::equal_highs_and_lows_are_handled"
           ]
         },
         "availability": {
@@ -679,7 +683,11 @@
         "edge": {
           "scope": "row",
           "tests": [
-            "per_row_extended_indicators::vwap_row_contract"
+            "per_row_extended_indicators::vwap_row_contract",
+            "edge_cases::a_flat_series_does_not_divide_by_zero",
+            "edge_cases::zero_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::missing_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::equal_highs_and_lows_are_handled"
           ]
         },
         "availability": {
@@ -744,7 +752,11 @@
         "edge": {
           "scope": "row",
           "tests": [
-            "per_row_extended_indicators::volume_profile_row_contract"
+            "per_row_extended_indicators::volume_profile_row_contract",
+            "edge_cases::a_flat_series_does_not_divide_by_zero",
+            "edge_cases::zero_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::missing_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::equal_highs_and_lows_are_handled"
           ]
         },
         "availability": {
@@ -809,7 +821,11 @@
         "edge": {
           "scope": "row",
           "tests": [
-            "per_row_extended_indicators::volume_climax_row_contract"
+            "per_row_extended_indicators::volume_climax_row_contract",
+            "edge_cases::a_flat_series_does_not_divide_by_zero",
+            "edge_cases::zero_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::missing_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::equal_highs_and_lows_are_handled"
           ]
         },
         "availability": {
@@ -874,7 +890,11 @@
         "edge": {
           "scope": "row",
           "tests": [
-            "per_row_extended_indicators::absorption_row_contract"
+            "per_row_extended_indicators::absorption_row_contract",
+            "edge_cases::a_flat_series_does_not_divide_by_zero",
+            "edge_cases::zero_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::missing_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::equal_highs_and_lows_are_handled"
           ]
         },
         "availability": {
@@ -939,7 +959,11 @@
         "edge": {
           "scope": "row",
           "tests": [
-            "per_row_extended_indicators::volume_oscillator_row_contract"
+            "per_row_extended_indicators::volume_oscillator_row_contract",
+            "edge_cases::a_flat_series_does_not_divide_by_zero",
+            "edge_cases::zero_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::missing_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::equal_highs_and_lows_are_handled"
           ]
         },
         "availability": {
@@ -1004,7 +1028,11 @@
         "edge": {
           "scope": "row",
           "tests": [
-            "per_row_extended_indicators::obv_row_contract"
+            "per_row_extended_indicators::obv_row_contract",
+            "edge_cases::a_flat_series_does_not_divide_by_zero",
+            "edge_cases::zero_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::missing_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::equal_highs_and_lows_are_handled"
           ]
         },
         "availability": {
@@ -1069,7 +1097,11 @@
         "edge": {
           "scope": "row",
           "tests": [
-            "per_row_extended_indicators::cmf_row_contract"
+            "per_row_extended_indicators::cmf_row_contract",
+            "edge_cases::a_flat_series_does_not_divide_by_zero",
+            "edge_cases::zero_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::missing_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::equal_highs_and_lows_are_handled"
           ]
         },
         "availability": {
@@ -1134,7 +1166,11 @@
         "edge": {
           "scope": "row",
           "tests": [
-            "per_row_extended_indicators::mfi_row_contract"
+            "per_row_extended_indicators::mfi_row_contract",
+            "edge_cases::a_flat_series_does_not_divide_by_zero",
+            "edge_cases::zero_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::missing_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::equal_highs_and_lows_are_handled"
           ]
         },
         "availability": {
@@ -1199,7 +1235,11 @@
         "edge": {
           "scope": "row",
           "tests": [
-            "per_row_extended_indicators::ad_line_row_contract"
+            "per_row_extended_indicators::ad_line_row_contract",
+            "edge_cases::a_flat_series_does_not_divide_by_zero",
+            "edge_cases::zero_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::missing_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::equal_highs_and_lows_are_handled"
           ]
         },
         "availability": {
@@ -1264,7 +1304,11 @@
         "edge": {
           "scope": "row",
           "tests": [
-            "per_row_extended_indicators::atr_term_row_contract"
+            "per_row_extended_indicators::atr_term_row_contract",
+            "edge_cases::a_flat_series_does_not_divide_by_zero",
+            "edge_cases::zero_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::missing_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::equal_highs_and_lows_are_handled"
           ]
         },
         "availability": {
@@ -1329,7 +1373,11 @@
         "edge": {
           "scope": "row",
           "tests": [
-            "per_row_extended_indicators::range_expansion_row_contract"
+            "per_row_extended_indicators::range_expansion_row_contract",
+            "edge_cases::a_flat_series_does_not_divide_by_zero",
+            "edge_cases::zero_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::missing_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::equal_highs_and_lows_are_handled"
           ]
         },
         "availability": {
@@ -1394,7 +1442,11 @@
         "edge": {
           "scope": "row",
           "tests": [
-            "per_row_extended_indicators::mar_row_contract"
+            "per_row_extended_indicators::mar_row_contract",
+            "edge_cases::a_flat_series_does_not_divide_by_zero",
+            "edge_cases::zero_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::missing_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::equal_highs_and_lows_are_handled"
           ]
         },
         "availability": {
@@ -1459,7 +1511,11 @@
         "edge": {
           "scope": "row",
           "tests": [
-            "per_row_extended_indicators::keltner_row_contract"
+            "per_row_extended_indicators::keltner_row_contract",
+            "edge_cases::a_flat_series_does_not_divide_by_zero",
+            "edge_cases::zero_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::missing_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::equal_highs_and_lows_are_handled"
           ]
         },
         "availability": {
@@ -1524,7 +1580,11 @@
         "edge": {
           "scope": "row",
           "tests": [
-            "per_row_extended_indicators::donchian_row_contract"
+            "per_row_extended_indicators::donchian_row_contract",
+            "edge_cases::a_flat_series_does_not_divide_by_zero",
+            "edge_cases::zero_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::missing_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::equal_highs_and_lows_are_handled"
           ]
         },
         "availability": {
@@ -1589,7 +1649,11 @@
         "edge": {
           "scope": "row",
           "tests": [
-            "per_row_extended_indicators::swing_structure_row_contract"
+            "per_row_extended_indicators::swing_structure_row_contract",
+            "edge_cases::a_flat_series_does_not_divide_by_zero",
+            "edge_cases::zero_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::missing_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::equal_highs_and_lows_are_handled"
           ]
         },
         "availability": {
@@ -1654,7 +1718,11 @@
         "edge": {
           "scope": "row",
           "tests": [
-            "per_row_extended_indicators::level_strength_row_contract"
+            "per_row_extended_indicators::level_strength_row_contract",
+            "edge_cases::a_flat_series_does_not_divide_by_zero",
+            "edge_cases::zero_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::missing_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::equal_highs_and_lows_are_handled"
           ]
         },
         "availability": {
@@ -1719,7 +1787,11 @@
         "edge": {
           "scope": "row",
           "tests": [
-            "per_row_extended_indicators::aroon_row_contract"
+            "per_row_extended_indicators::aroon_row_contract",
+            "edge_cases::a_flat_series_does_not_divide_by_zero",
+            "edge_cases::zero_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::missing_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::equal_highs_and_lows_are_handled"
           ]
         },
         "availability": {
@@ -1784,7 +1856,11 @@
         "edge": {
           "scope": "row",
           "tests": [
-            "per_row_extended_indicators::bos_choch_row_contract"
+            "per_row_extended_indicators::bos_choch_row_contract",
+            "edge_cases::a_flat_series_does_not_divide_by_zero",
+            "edge_cases::zero_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::missing_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::equal_highs_and_lows_are_handled"
           ]
         },
         "availability": {
@@ -1849,7 +1925,11 @@
         "edge": {
           "scope": "row",
           "tests": [
-            "per_row_extended_indicators::candle_anatomy_row_contract"
+            "per_row_extended_indicators::candle_anatomy_row_contract",
+            "edge_cases::a_flat_series_does_not_divide_by_zero",
+            "edge_cases::zero_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::missing_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::equal_highs_and_lows_are_handled"
           ]
         },
         "availability": {
@@ -1914,7 +1994,11 @@
         "edge": {
           "scope": "row",
           "tests": [
-            "per_row_extended_indicators::candle_pattern_row_contract"
+            "per_row_extended_indicators::candle_pattern_row_contract",
+            "edge_cases::a_flat_series_does_not_divide_by_zero",
+            "edge_cases::zero_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::missing_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::equal_highs_and_lows_are_handled"
           ]
         },
         "availability": {
@@ -1979,7 +2063,11 @@
         "edge": {
           "scope": "row",
           "tests": [
-            "per_row_extended_indicators::gap_row_contract"
+            "per_row_extended_indicators::gap_row_contract",
+            "edge_cases::a_flat_series_does_not_divide_by_zero",
+            "edge_cases::zero_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::missing_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::equal_highs_and_lows_are_handled"
           ]
         },
         "availability": {
@@ -2044,7 +2132,11 @@
         "edge": {
           "scope": "row",
           "tests": [
-            "per_row_extended_indicators::path_efficiency_row_contract"
+            "per_row_extended_indicators::path_efficiency_row_contract",
+            "edge_cases::a_flat_series_does_not_divide_by_zero",
+            "edge_cases::zero_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::missing_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::equal_highs_and_lows_are_handled"
           ]
         },
         "availability": {
@@ -2109,7 +2201,11 @@
         "edge": {
           "scope": "row",
           "tests": [
-            "per_row_extended_indicators::direction_changes_row_contract"
+            "per_row_extended_indicators::direction_changes_row_contract",
+            "edge_cases::a_flat_series_does_not_divide_by_zero",
+            "edge_cases::zero_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::missing_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::equal_highs_and_lows_are_handled"
           ]
         },
         "availability": {
@@ -2174,7 +2270,11 @@
         "edge": {
           "scope": "row",
           "tests": [
-            "per_row_extended_indicators::bars_since_extreme_row_contract"
+            "per_row_extended_indicators::bars_since_extreme_row_contract",
+            "edge_cases::a_flat_series_does_not_divide_by_zero",
+            "edge_cases::zero_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::missing_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::equal_highs_and_lows_are_handled"
           ]
         },
         "availability": {
@@ -2239,7 +2339,11 @@
         "edge": {
           "scope": "row",
           "tests": [
-            "per_row_extended_indicators::drawdown_atr_row_contract"
+            "per_row_extended_indicators::drawdown_atr_row_contract",
+            "edge_cases::a_flat_series_does_not_divide_by_zero",
+            "edge_cases::zero_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::missing_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::equal_highs_and_lows_are_handled"
           ]
         },
         "availability": {
@@ -2304,7 +2408,11 @@
         "edge": {
           "scope": "row",
           "tests": [
-            "per_row_extended_indicators::range_position_row_contract"
+            "per_row_extended_indicators::range_position_row_contract",
+            "edge_cases::a_flat_series_does_not_divide_by_zero",
+            "edge_cases::zero_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::missing_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::equal_highs_and_lows_are_handled"
           ]
         },
         "availability": {
@@ -3017,7 +3125,11 @@
         "edge": {
           "scope": "row",
           "tests": [
-            "per_row_extended_indicators::pivot_sequence_row_contract"
+            "per_row_extended_indicators::pivot_sequence_row_contract",
+            "edge_cases::a_flat_series_does_not_divide_by_zero",
+            "edge_cases::zero_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::missing_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::equal_highs_and_lows_are_handled"
           ]
         },
         "availability": {
@@ -3087,7 +3199,11 @@
           "tests": [
             "per_row_extended_indicators::fibonacci_row_contract",
             "readings::extended::tests::fibonacci_levels_publish_without_atr_but_distance_is_null",
-            "readings::extended::tests::fibonacci_nulls_a_zero_span_leg"
+            "readings::extended::tests::fibonacci_nulls_a_zero_span_leg",
+            "edge_cases::a_flat_series_does_not_divide_by_zero",
+            "edge_cases::zero_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::missing_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::equal_highs_and_lows_are_handled"
           ]
         },
         "availability": {
@@ -3161,7 +3277,11 @@
             "per_row_extended_indicators::horizontal_band_row_contract",
             "readings::extended::tests::horizontal_band_is_null_without_two_levels_or_atr",
             "readings::extended::band::tests::horizontal_band_requires_two_levels",
-            "readings::extended::band::tests::horizontal_band_equal_levels_form_a_zero_width_cluster"
+            "readings::extended::band::tests::horizontal_band_equal_levels_form_a_zero_width_cluster",
+            "edge_cases::a_flat_series_does_not_divide_by_zero",
+            "edge_cases::zero_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::missing_volume_publishes_no_volume_weighted_readings",
+            "edge_cases::equal_highs_and_lows_are_handled"
           ]
         },
         "availability": {
@@ -3230,7 +3350,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -3302,7 +3422,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -3374,7 +3494,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -3446,7 +3566,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -3516,7 +3636,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -3586,7 +3706,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -3656,7 +3776,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -3726,7 +3846,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -3796,7 +3916,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -3866,7 +3986,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -3936,7 +4056,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -4006,7 +4126,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -4076,7 +4196,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -4146,7 +4266,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -4216,7 +4336,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -4286,7 +4406,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -4356,7 +4476,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -4426,7 +4546,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -4496,7 +4616,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -4566,7 +4686,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -4636,7 +4756,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -4706,7 +4826,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -4776,7 +4896,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -4846,7 +4966,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -4916,7 +5036,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -4986,7 +5106,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -5056,7 +5176,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -5126,7 +5246,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -5196,7 +5316,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -5266,7 +5386,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -5336,7 +5456,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -5406,7 +5526,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -5476,7 +5596,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -5546,7 +5666,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -5616,7 +5736,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -5686,7 +5806,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -5756,7 +5876,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -5826,7 +5946,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -5896,7 +6016,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -5966,7 +6086,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -6036,7 +6156,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -6106,7 +6226,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -6176,7 +6296,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -6246,7 +6366,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -6316,7 +6436,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -6386,7 +6506,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -6456,7 +6576,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -6526,7 +6646,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -6596,7 +6716,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -6666,7 +6786,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -6736,7 +6856,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -6806,7 +6926,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -6876,7 +6996,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -6946,7 +7066,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -7016,7 +7136,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -7086,7 +7206,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -7156,7 +7276,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -7226,7 +7346,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -7296,7 +7416,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -7366,7 +7486,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -7436,7 +7556,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -7506,7 +7626,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -7576,7 +7696,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -7646,7 +7766,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -7716,7 +7836,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -7786,7 +7906,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -7856,7 +7976,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -7926,7 +8046,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -7996,7 +8116,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -8066,7 +8186,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -8136,7 +8256,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -8206,7 +8326,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -8276,7 +8396,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -8346,7 +8466,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -8416,7 +8536,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -8486,7 +8606,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -8556,7 +8676,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -8626,7 +8746,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -8696,7 +8816,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -8766,7 +8886,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -8836,7 +8956,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -8906,7 +9026,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -8976,7 +9096,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -9046,7 +9166,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -9116,7 +9236,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -9186,7 +9306,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -9256,7 +9376,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -9326,7 +9446,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -9396,7 +9516,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -9466,7 +9586,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -9536,7 +9656,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -9606,7 +9726,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -9676,7 +9796,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -9746,7 +9866,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -9816,7 +9936,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -9886,7 +10006,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -9956,7 +10076,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -10026,7 +10146,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -10096,7 +10216,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -10166,7 +10286,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -10236,7 +10356,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -10306,7 +10426,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -10376,7 +10496,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -10446,7 +10566,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -10516,7 +10636,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -10586,7 +10706,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -10656,7 +10776,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -10726,7 +10846,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -10796,7 +10916,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -10866,7 +10986,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -10936,7 +11056,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -11006,7 +11126,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -11076,7 +11196,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -11146,7 +11266,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -11216,7 +11336,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -11286,7 +11406,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -11356,7 +11476,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -11426,7 +11546,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -11496,7 +11616,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -11566,7 +11686,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -11636,7 +11756,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -11706,7 +11826,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -11776,7 +11896,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -11846,7 +11966,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -11916,7 +12036,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -11986,7 +12106,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -12056,7 +12176,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -12126,7 +12246,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -12196,7 +12316,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -12266,7 +12386,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -12336,7 +12456,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -12406,7 +12526,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -12476,7 +12596,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -12546,7 +12666,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -12616,7 +12736,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -12686,7 +12806,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -12756,7 +12876,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -12826,7 +12946,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -12896,7 +13016,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -12966,7 +13086,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -13036,7 +13156,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -13106,7 +13226,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -13176,7 +13296,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -13246,7 +13366,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -13316,7 +13436,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -13380,13 +13500,13 @@
         "golden": {
           "scope": "family",
           "tests": [
-            "signal_events_golden::the_signal_events_match_the_golden_fixture"
+            "retest_events_golden::the_retest_events_match_the_golden_fixture"
           ]
         },
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -13456,7 +13576,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -13526,7 +13646,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {
@@ -13598,7 +13718,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings",
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs",
             "events::extended::tests::a_fibonacci_level_outside_the_bar_range_is_not_tested"
           ]
         },
@@ -13669,7 +13789,7 @@
         "edge": {
           "scope": "family",
           "tests": [
-            "edge_cases::an_empty_series_publishes_no_readings"
+            "event_edge_cases::event_batches_are_safe_on_edge_inputs"
           ]
         },
         "availability": {

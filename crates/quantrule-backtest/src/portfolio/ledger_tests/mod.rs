@@ -17,8 +17,10 @@ use super::config::{
 use super::ledger::{PortfolioLedger, PortfolioLedgerError};
 use super::sizing::{SizingMode, SizingRejection};
 
-const TRADES: &str = include_str!("../../tests/fixtures/portfolio_trades_golden.csv");
-const EQUITY: &str = include_str!("../../tests/fixtures/portfolio_equity_golden.csv");
+const TRADES: &str = include_str!("../../../tests/fixtures/portfolio_trades_golden.csv");
+const EQUITY: &str = include_str!("../../../tests/fixtures/portfolio_equity_golden.csv");
+
+mod funding;
 
 fn config() -> PortfolioConfig {
     PortfolioConfig {
@@ -41,6 +43,22 @@ fn config() -> PortfolioConfig {
 
 fn ledger() -> PortfolioLedger {
     PortfolioLedger::new(config()).expect("the ledger is valid")
+}
+
+/// A funded account for the long-entry tests.
+///
+/// The original fixture was all-in: 10,000 cash against a 10,000 entry plus a
+/// 0.1% commission, which the new cash check correctly refuses. These tests
+/// exercise the entry, exit, and halt rules rather than the all-in boundary, so
+/// they use a 10% allocation and keep the golden short fixture on `ledger()`.
+fn funded_config() -> PortfolioConfig {
+    let mut config = config();
+    config.initial_cash = 100_000.0;
+    config
+}
+
+fn funded_ledger() -> PortfolioLedger {
+    PortfolioLedger::new(funded_config()).expect("the ledger is valid")
 }
 
 fn fill(
@@ -70,7 +88,7 @@ fn number(field: &str) -> f64 {
 
 #[test]
 fn a_partial_exit_is_rejected_without_changing_the_account() {
-    let mut ledger = ledger();
+    let mut ledger = funded_ledger();
     ledger
         .apply_fill(&fill(
             OrderSide::Buy,
@@ -109,7 +127,7 @@ fn a_partial_exit_is_rejected_without_changing_the_account() {
 
 #[test]
 fn a_fill_updates_peak_equity_and_drawdown() {
-    let mut ledger = ledger();
+    let mut ledger = funded_ledger();
     ledger
         .apply_fill(&fill(
             OrderSide::Buy,
@@ -123,14 +141,15 @@ fn a_fill_updates_peak_equity_and_drawdown() {
         .expect("the entry is valid");
 
     let state = ledger.state();
-    approx(state.equity, 9_990.0);
-    approx(state.peak_equity, 10_000.0);
-    approx(state.drawdown, 1.0 - 9_990.0 / 10_000.0);
+    approx(state.equity, 99_900.0);
+    approx(state.peak_equity, 100_000.0);
+    approx(state.drawdown, 1.0 - 99_900.0 / 100_000.0);
 }
 
 #[test]
 fn a_trade_with_fill_fees_and_negative_funding_is_accounted() {
     let mut config = config();
+    config.initial_cash = 100_000.0;
     config.funding =
         FundingConfig::new(-0.0001, FundingInterval::H8).expect("the funding is valid");
     let mut ledger = PortfolioLedger::new(config).expect("the ledger is valid");
@@ -146,9 +165,9 @@ fn a_trade_with_fill_fees_and_negative_funding_is_accounted() {
             FillReason::Entry,
         ))
         .expect("the entry is valid");
-    approx(ledger.state().equity, 9_985.0);
+    approx(ledger.state().equity, 99_895.0);
     approx(ledger.metrics().execution_fees, 5.0);
-    approx(ledger.metrics().commission, 10.0);
+    approx(ledger.metrics().commission, 100.0);
 
     ledger.mark(0, 900, 100.0).expect("the mark is valid");
     let charge = ledger
@@ -156,7 +175,7 @@ fn a_trade_with_fill_fees_and_negative_funding_is_accounted() {
         .expect("the boundary charges")
         .expect("the charge is due");
     approx(charge.amount, -1.0);
-    approx(ledger.state().equity, 9_986.0);
+    approx(ledger.state().equity, 99_896.0);
     approx(ledger.metrics().funding_received, 1.0);
 
     ledger
@@ -174,16 +193,16 @@ fn a_trade_with_fill_fees_and_negative_funding_is_accounted() {
     let trade = ledger.trades()[0];
     approx(trade.gross_pnl, 0.0);
     approx(trade.execution_fees, 10.0);
-    approx(trade.commission, 19.986);
+    approx(trade.commission, 199.896);
     approx(trade.funding, -1.0);
-    approx(trade.net_pnl, -28.986);
+    approx(trade.net_pnl, -208.896);
     approx(ledger.metrics().execution_fees, 10.0);
     approx(ledger.metrics().funding_received, 1.0);
 }
 
 #[test]
 fn a_gap_exit_commission_uses_the_prior_mark() {
-    let mut ledger = ledger();
+    let mut ledger = funded_ledger();
     ledger
         .apply_fill(&fill(
             OrderSide::Buy,
@@ -211,7 +230,7 @@ fn a_gap_exit_commission_uses_the_prior_mark() {
         .expect("the gap exit is valid");
 
     let trade = ledger.trades()[0];
-    let entry_commission = config().commission.rate() * 10_000.0;
+    let entry_commission = config().commission.rate() * 100_000.0;
     let exit_commission = config().commission.rate() * prior_equity;
     approx(trade.commission, entry_commission + exit_commission);
 }
@@ -231,7 +250,7 @@ fn a_monthly_return_survives_an_empty_month() {
 
 #[test]
 fn a_long_trade_charges_commission_on_both_fills() {
-    let mut ledger = ledger();
+    let mut ledger = funded_ledger();
     ledger
         .apply_fill(&fill(
             OrderSide::Buy,
@@ -269,34 +288,34 @@ fn a_long_trade_charges_commission_on_both_fills() {
     assert_eq!(trade.exit_reason, super::records::ExitReason::Target);
     approx(trade.gross_pnl, 1_000.0);
     approx(trade.execution_fees, 0.0);
-    approx(trade.commission, 20.99);
+    approx(trade.commission, 200.9);
     approx(trade.funding, 0.0);
-    approx(trade.net_pnl, 979.01);
+    approx(trade.net_pnl, 799.1);
     approx(
         trade.return_fraction.expect("the return is defined"),
-        0.097_901,
+        0.007_991,
     );
 
     let metrics = ledger.metrics();
-    approx(metrics.final_equity, 10_979.01);
-    approx(metrics.total_return, 0.097_901);
-    approx(metrics.realized_pnl, 979.01);
+    approx(metrics.final_equity, 100_799.1);
+    approx(metrics.total_return, 0.007_991);
+    approx(metrics.realized_pnl, 799.1);
     approx(metrics.unrealized_pnl, 0.0);
     approx(metrics.gross_pnl, 1_000.0);
-    approx(metrics.net_pnl, 979.01);
-    approx(metrics.commission, 20.99);
+    approx(metrics.net_pnl, 799.1);
+    approx(metrics.commission, 200.9);
     assert_eq!(metrics.trades, 1);
     assert_eq!(metrics.wins, 1);
     assert_eq!(metrics.losses, 0);
     assert_eq!(metrics.win_rate, Some(1.0));
     assert_eq!(metrics.profit_factor, None);
-    approx(metrics.average_trade.expect("one trade"), 979.01);
+    approx(metrics.average_trade.expect("one trade"), 799.1);
     assert_eq!(metrics.average_hold_bars, Some(2.0));
     approx(metrics.max_drawdown, 0.001);
     assert_eq!(metrics.max_drawdown_duration_bars, 1);
     approx(
         metrics.exposure.expect("the marks define exposure"),
-        21_000.0 / 31_959.01,
+        21_000.0 / 301_599.1,
     );
     assert!(!metrics.halted);
     assert!(metrics.open_position.is_none());
@@ -305,11 +324,11 @@ fn a_long_trade_charges_commission_on_both_fills() {
         metrics.monthly_returns[0]
             .return_fraction
             .expect("the month has a return"),
-        0.097_901,
+        0.007_991,
     );
 
-    approx(ledger.state().cash, 10_979.01);
-    approx(ledger.state().equity, 10_979.01);
+    approx(ledger.state().cash, 100_799.1);
+    approx(ledger.state().equity, 100_799.1);
     assert!(ledger.state().is_flat());
 }
 
@@ -483,193 +502,6 @@ fn the_golden_fixture_matches() {
 }
 
 #[test]
-fn funding_is_skipped_on_a_zero_volume_or_unaligned_bar() {
-    let mut ledger = ledger();
-    ledger
-        .apply_fill(&fill(
-            OrderSide::Sell,
-            100.0,
-            100.0,
-            0.0,
-            0,
-            0,
-            FillReason::Entry,
-        ))
-        .expect("the entry is valid");
-
-    assert_eq!(
-        ledger
-            .apply_funding(1, 28_800, 100.0, Some(0.0))
-            .expect("the call is valid"),
-        None
-    );
-    assert_eq!(
-        ledger
-            .apply_funding(1, 28_801, 100.0, Some(10.0))
-            .expect("the call is valid"),
-        None
-    );
-    assert_eq!(ledger.funding_charges().len(), 0);
-
-    let charge = ledger
-        .apply_funding(1, 28_800, 100.0, Some(10.0))
-        .expect("the call is valid")
-        .expect("the boundary charges");
-    approx(charge.amount, -1.0);
-    assert_eq!(ledger.funding_charges().len(), 1);
-}
-
-#[test]
-fn the_halt_latches_once_and_blocks_entries() {
-    let mut ledger = ledger();
-    ledger
-        .apply_fill(&fill(
-            OrderSide::Buy,
-            100.0,
-            100.0,
-            0.0,
-            0,
-            0,
-            FillReason::Entry,
-        ))
-        .expect("the entry is valid");
-    ledger.mark(0, 0, 79.0).expect("the mark is valid");
-
-    assert!(ledger.state().halted);
-    assert_eq!(ledger.risk_events().len(), 1);
-    let event = ledger.risk_events()[0];
-    assert_eq!(event.bar, 0);
-    assert_eq!(event.time, 0);
-    approx(event.drawdown, 0.211);
-    approx(event.equity, 7_890.0);
-    approx(event.peak_equity, 10_000.0);
-    approx(event.limit, 0.20);
-    assert_eq!(ledger.size_entry(79.0), Err(SizingRejection::Halted));
-
-    ledger.mark(1, 900, 70.0).expect("the mark is valid");
-    assert_eq!(ledger.risk_events().len(), 1);
-
-    ledger
-        .apply_fill(&fill(
-            OrderSide::Sell,
-            100.0,
-            70.0,
-            0.0,
-            2,
-            1800,
-            FillReason::Exit,
-        ))
-        .expect("the exit is valid");
-    assert_eq!(ledger.trades().len(), 1);
-    assert!(ledger.state().halted);
-}
-
-#[test]
-fn an_entry_cost_breach_halts_and_records_one_risk_event() {
-    let mut config = config();
-    config.max_drawdown = MaxDrawdownConfig::new(Some(0.0005), DrawdownAction::Halt)
-        .expect("the tight drawdown is valid");
-    let mut ledger = PortfolioLedger::new(config).expect("the ledger is valid");
-
-    ledger
-        .apply_fill(&fill(
-            OrderSide::Buy,
-            100.0,
-            100.0,
-            0.0,
-            0,
-            0,
-            FillReason::Entry,
-        ))
-        .expect("the entry is valid");
-
-    assert!(ledger.state().halted);
-    assert_eq!(ledger.risk_events().len(), 1);
-    let event = ledger.risk_events()[0];
-    assert_eq!(event.bar, 0);
-    assert_eq!(event.time, 0);
-    approx(event.drawdown, 0.001);
-    approx(event.equity, 9_990.0);
-    approx(ledger.metrics().max_drawdown, event.drawdown);
-}
-
-#[test]
-fn a_funding_breach_halts_and_records_one_risk_event() {
-    let mut config = config();
-    config.funding = FundingConfig::new(0.01, FundingInterval::H8).expect("the funding is valid");
-    config.max_drawdown = MaxDrawdownConfig::new(Some(0.005), DrawdownAction::Halt)
-        .expect("the tight drawdown is valid");
-    let mut ledger = PortfolioLedger::new(config).expect("the ledger is valid");
-    ledger
-        .apply_fill(&fill(
-            OrderSide::Buy,
-            100.0,
-            100.0,
-            0.0,
-            0,
-            0,
-            FillReason::Entry,
-        ))
-        .expect("the entry is valid");
-    assert!(!ledger.state().halted);
-
-    let charge = ledger
-        .apply_funding(1, 28_800, 100.0, Some(10.0))
-        .expect("the boundary charges")
-        .expect("the charge is due");
-
-    approx(charge.amount, 100.0);
-    assert!(ledger.state().halted);
-    assert_eq!(ledger.risk_events().len(), 1);
-    let event = ledger.risk_events()[0];
-    assert_eq!(event.bar, 1);
-    assert_eq!(event.time, 28_800);
-    approx(event.drawdown, 0.011);
-    approx(event.equity, 9_890.0);
-    approx(ledger.metrics().max_drawdown, event.drawdown);
-}
-
-#[test]
-fn a_closing_loss_breach_halts_and_records_one_risk_event() {
-    let mut config = config();
-    config.max_drawdown = MaxDrawdownConfig::new(Some(0.005), DrawdownAction::Halt)
-        .expect("the tight drawdown is valid");
-    let mut ledger = PortfolioLedger::new(config).expect("the ledger is valid");
-    ledger
-        .apply_fill(&fill(
-            OrderSide::Buy,
-            100.0,
-            100.0,
-            0.0,
-            0,
-            0,
-            FillReason::Entry,
-        ))
-        .expect("the entry is valid");
-    assert!(!ledger.state().halted);
-
-    ledger
-        .apply_fill(&fill(
-            OrderSide::Sell,
-            100.0,
-            99.0,
-            0.0,
-            2,
-            1_800,
-            FillReason::Exit,
-        ))
-        .expect("the exit is valid");
-
-    assert!(ledger.state().halted);
-    assert_eq!(ledger.risk_events().len(), 1);
-    let event = ledger.risk_events()[0];
-    assert_eq!(event.bar, 2);
-    assert_eq!(event.time, 1_800);
-    approx(event.drawdown, 1.0 - 9_880.01 / 10_000.0);
-    approx(ledger.metrics().max_drawdown, event.drawdown);
-}
-
-#[test]
 fn an_empty_run_has_no_trades_and_null_ratios() {
     let ledger = ledger();
     let metrics = ledger.metrics();
@@ -695,7 +527,7 @@ fn an_empty_run_has_no_trades_and_null_ratios() {
 
 #[test]
 fn an_open_position_is_marked_and_reported() {
-    let mut ledger = ledger();
+    let mut ledger = funded_ledger();
     ledger
         .apply_fill(&fill(
             OrderSide::Buy,
@@ -710,11 +542,11 @@ fn an_open_position_is_marked_and_reported() {
     ledger.mark(0, 0, 105.0).expect("the mark is valid");
 
     let metrics = ledger.metrics();
-    approx(metrics.final_equity, 10_490.0);
+    approx(metrics.final_equity, 100_400.0);
     approx(metrics.realized_pnl, 0.0);
-    approx(metrics.unrealized_pnl, 490.0);
+    approx(metrics.unrealized_pnl, 400.0);
     approx(metrics.gross_pnl, 500.0);
-    approx(metrics.net_pnl, 490.0);
+    approx(metrics.net_pnl, 400.0);
     assert_eq!(metrics.trades, 0);
     assert_eq!(
         metrics.open_position.expect("the position is open").side,
@@ -727,7 +559,7 @@ fn an_open_position_is_marked_and_reported() {
             .entry_price,
         100.0,
     );
-    approx(ledger.state().equity, 10_490.0);
+    approx(ledger.state().equity, 100_400.0);
 }
 
 #[test]
@@ -779,7 +611,7 @@ fn repeated_runs_are_identical() {
 #[test]
 fn later_bars_do_not_change_earlier_records() {
     let prefix_marks = 2;
-    let mut prefix = ledger();
+    let mut prefix = funded_ledger();
     prefix
         .apply_fill(&fill(
             OrderSide::Buy,
@@ -794,7 +626,7 @@ fn later_bars_do_not_change_earlier_records() {
     prefix.mark(0, 0, 100.0).expect("the mark is valid");
     prefix.mark(1, 86_400, 105.0).expect("the mark is valid");
 
-    let mut full = ledger();
+    let mut full = funded_ledger();
     full.apply_fill(&fill(
         OrderSide::Buy,
         100.0,
@@ -815,7 +647,7 @@ fn later_bars_do_not_change_earlier_records() {
         &full.equity_points()[..prefix_marks]
     );
 
-    let mut changed = ledger();
+    let mut changed = funded_ledger();
     changed
         .apply_fill(&fill(
             OrderSide::Buy,
@@ -840,7 +672,7 @@ fn later_bars_do_not_change_earlier_records() {
 
 #[test]
 fn invalid_fill_sequences_are_rejected() {
-    let mut open = ledger();
+    let mut open = funded_ledger();
     open.apply_fill(&fill(
         OrderSide::Buy,
         100.0,
@@ -888,7 +720,7 @@ fn invalid_fill_sequences_are_rejected() {
         Err(PortfolioLedgerError::NonFinitePrice)
     );
 
-    let mut flat = ledger();
+    let mut flat = funded_ledger();
     flat.apply_fill(&fill(
         OrderSide::Buy,
         100.0,
@@ -933,37 +765,4 @@ fn month_arithmetic_is_correct() {
     assert_eq!(month_of(1_709_164_800), (2024, 2));
     assert_eq!(next_month(2025, 1), (2025, 2));
     assert_eq!(next_month(2025, 12), (2026, 1));
-}
-
-#[test]
-fn zero_equity_has_no_exposure_and_a_full_loss() {
-    let mut ledger = ledger();
-    ledger
-        .apply_fill(&fill(
-            OrderSide::Buy,
-            100.0,
-            100.0,
-            0.0,
-            0,
-            0,
-            FillReason::Entry,
-        ))
-        .expect("the entry is valid");
-    ledger.mark(0, 0, 0.1).expect("the mark is valid");
-
-    let metrics = ledger.metrics();
-    assert_eq!(metrics.final_equity, 0.0);
-    assert_eq!(metrics.total_return, -1.0);
-    assert_eq!(metrics.exposure, None);
-    approx(metrics.unrealized_pnl, -10_000.0);
-    approx(metrics.net_pnl, -10_000.0);
-    approx(metrics.max_drawdown, 1.0);
-    assert!(metrics.halted);
-    assert_eq!(
-        metrics
-            .open_position
-            .expect("the position is open")
-            .quantity,
-        100.0
-    );
 }

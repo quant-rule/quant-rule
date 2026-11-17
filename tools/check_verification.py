@@ -16,12 +16,51 @@ Usage:
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
 from check_validation import rust_function_names
 
 ROOT = Path(__file__).resolve().parent.parent
+
+
+def rust_event_test_names() -> set[str]:
+    """Collect test functions whose body constructs or reads an event batch.
+
+    A readings-only test cannot prove an event edge case. The scan is
+    deliberately conservative: the body must name ``EventRecord`` or call
+    ``.events()``. The function body ends at the first closing brace at the
+    function's own indentation, which is how the test modules are formatted.
+    """
+    names: set[str] = set()
+    for path in (ROOT / "crates").rglob("*.rs"):
+        lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
+        bodies: dict[str, str] = {}
+        for index, line in enumerate(lines):
+            match = re.match(r"(\s*)fn\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(", line)
+            if match is None:
+                continue
+            indent = len(match.group(1))
+            body = [line]
+            for later in lines[index + 1 :]:
+                body.append(later)
+                if later.strip() == "}" and len(later) - len(later.lstrip()) == indent:
+                    break
+            bodies[match.group(2)] = "\n".join(body)
+        for index, line in enumerate(lines):
+            match = re.match(r"(\s*)fn\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(", line)
+            if match is None:
+                continue
+            prefix = "\n".join(lines[max(0, index - 3) : index])
+            if "#[test]" not in prefix:
+                continue
+            text = bodies.get(match.group(2), "")
+            called = set(re.findall(r"\b([A-Za-z_][A-Za-z0-9_]*)\s*\(", text))
+            expanded = "\n".join([text, *(bodies[name] for name in called if name in bodies)])
+            if "EventRecord" in expanded or ".events()" in expanded:
+                names.add(match.group(2))
+    return names
 REGISTRY = ROOT / "docs/registry/indicators.json"
 MANIFEST = ROOT / "docs/registry/verification.json"
 TOOLS = {"check_registry.py", "check_validation.py", "check_event_emitters.py"}
@@ -49,15 +88,24 @@ def load(path: Path) -> dict[str, object]:
         raise SystemExit(f"error: cannot read {path}: {error}") from None
 
 
-def check(root: Path, rust_functions: set[str] | None = None) -> list[str]:
+def check(
+    root: Path,
+    rust_functions: set[str] | None = None,
+    rust_event_functions: set[str] | None = None,
+) -> list[str]:
     """Return every problem in the verification manifest under ``root``.
 
-    ``rust_functions`` lets a test supply the known test names instead of
-    scanning the repository.
+    ``rust_functions`` and ``rust_event_functions`` let a test supply the known
+    test names instead of scanning the repository.
     """
     registry = load(root / "docs/registry/indicators.json")
     manifest = load(root / "docs/registry/verification.json")
     functions = rust_function_names() if rust_functions is None else rust_functions
+    event_functions = (
+        rust_event_test_names()
+        if rust_event_functions is None
+        else rust_event_functions
+    )
     errors: list[str] = []
     if manifest.get("schema") != "quantrule.verification/v1":
         errors.append("manifest schema must be quantrule.verification/v1")
@@ -115,6 +163,16 @@ def check(root: Path, rust_functions: set[str] | None = None) -> list[str]:
                     suffix = str(ident).split(".")[-1].replace("_", "").lower()
                     if not any(suffix in test.replace("_", "").lower() for test in tests):
                         errors.append(f"{ident}.{name}: row scope does not name the row")
+                if kind == "events" and name == "edge" and scope != "tool":
+                    not_event = [
+                        test
+                        for test in tests
+                        if test.rsplit("::", 1)[-1] not in event_functions
+                    ]
+                    if not_event:
+                        errors.append(
+                            f"{ident}.{name}: edge evidence does not construct events {not_event}"
+                        )
         missing = sorted(set(active) - seen)
         extra = sorted(seen - set(active))
         if missing:
@@ -126,7 +184,7 @@ def check(root: Path, rust_functions: set[str] | None = None) -> list[str]:
 
 
 def main() -> int:
-    errors = check(ROOT)
+    errors = check(ROOT, rust_event_functions=rust_event_test_names())
     if errors:
         for error in errors:
             print(f"error: {error}", file=sys.stderr)

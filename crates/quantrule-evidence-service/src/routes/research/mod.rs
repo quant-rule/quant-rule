@@ -19,7 +19,7 @@ use quantrule_api::{
     ImprovementRunState, ImprovementTier, ProfileId, RunId, RunState,
 };
 use quantrule_runtime::clock;
-use quantrule_service_api::{ConfigBundle, RunRecord};
+use quantrule_service_api::{ConfigBundle, DatasetObject, RunRecord};
 use serde_json::Value;
 
 use crate::research::{ImprovementStore, ImprovementStoreError};
@@ -243,6 +243,95 @@ pub(super) fn require_coupled(config: &ConfigBundle) -> Result<(), String> {
                 .to_owned(),
         ),
     }
+}
+
+/// Refuse a research config whose data window leaves its declared partition.
+///
+/// A partition is not a label: a `strategy_dev` manifest must not read the
+/// 2024 validation window. The config's own `from`/`to` are authoritative when
+/// present; a missing side is checked against the dataset coverage, because the
+/// run would otherwise read that side in full.
+pub(super) async fn ensure_partition_window(
+    state: &EvidenceState,
+    profile: &ProfileId,
+    config: &ConfigBundle,
+    partition: ImprovementPartition,
+    data_version: &Digest,
+) -> Result<(), ApiFailure> {
+    let Some(body) = config.files.get("data.json") else {
+        return Err(failure(
+            ErrorCode::ResearchInvalid,
+            "the run config has no data.json to check against the partition",
+        ));
+    };
+    let value: Value = serde_json::from_str(body).map_err(|error| {
+        failure(
+            ErrorCode::ResearchInvalid,
+            format!("data.json is not JSON: {error}"),
+        )
+    })?;
+    let from = value.get("from").and_then(Value::as_str);
+    let to = value.get("to").and_then(Value::as_str);
+    let (partition_from, partition_to) = partition.window();
+    let outside = |window: &str| {
+        failure(
+            ErrorCode::ResearchInvalid,
+            format!(
+                "the run config data window {window} is outside the {} partition {partition_from}..{partition_to}",
+                partition.as_str()
+            ),
+        )
+    };
+    if let Some(from) = from
+        && (from < partition_from || from > partition_to)
+    {
+        return Err(outside(from));
+    }
+    if let Some(to) = to
+        && (to < partition_from || to > partition_to)
+    {
+        return Err(outside(to));
+    }
+    if from.is_some() && to.is_some() {
+        return Ok(());
+    }
+
+    let data = state.data.as_ref().ok_or_else(|| {
+        failure(
+            ErrorCode::ServiceUnavailable,
+            "no data service is configured to check the dataset coverage",
+        )
+    })?;
+    let dataset: Option<DatasetObject> = data
+        .dataset_object(profile.clone(), data_version.to_string())
+        .await
+        .map_err(|error| failure(ErrorCode::ServiceUnavailable, error.to_string()))?;
+    let dataset = dataset.ok_or_else(|| {
+        failure(
+            ErrorCode::DatasetNotFound,
+            format!("dataset {data_version} is unknown"),
+        )
+    })?;
+    let (start, end) = partition.unix_window();
+    if from.is_none() && dataset.first_bar < start {
+        return Err(failure(
+            ErrorCode::ResearchInvalid,
+            format!(
+                "the dataset starts before the {} partition {partition_from}",
+                partition.as_str()
+            ),
+        ));
+    }
+    if to.is_none() && dataset.last_bar >= end {
+        return Err(failure(
+            ErrorCode::ResearchInvalid,
+            format!(
+                "the dataset ends after the {} partition {partition_to}",
+                partition.as_str()
+            ),
+        ));
+    }
+    Ok(())
 }
 
 /// Map a lower-level validation failure onto the research error family.

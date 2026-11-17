@@ -63,6 +63,7 @@ pub(super) fn structure_series(
     candles: &[Candle],
     readings: &Readings,
     config: &ExtendedConfig,
+    structure_scale: PivotScale,
 ) -> StructureReadings {
     let len = candles.len();
     let null = || vec![None; len];
@@ -126,9 +127,10 @@ pub(super) fn structure_series(
                 result.atr_slope[bar] = Some(ratio - previous);
             }
         }
-        if let (Some(mean), Some(atr)) = (mean_range(candles, bar, config.range_window), atr_fast)
+        // Range expansion is (high - low) / mean range; it does not use ATR and
+        // must not be gated by an inactive ATR family.
+        if let Some(mean) = mean_range(candles, bar, config.range_window)
             && mean > 0.0
-            && atr > 0.0
         {
             result.range_expansion[bar] = Some((candles[bar].high() - candles[bar].low()) / mean);
         }
@@ -166,7 +168,7 @@ pub(super) fn structure_series(
                     Some((candles[bar].close() - lower) / (upper - lower));
             }
         }
-        if let Some(pivot) = readings.pivots.confirmed_at(PivotScale::Major, bar) {
+        if let Some(pivot) = readings.pivots.confirmed_at(structure_scale, bar) {
             match pivot.kind {
                 PivotKind::High => {
                     previous_high = last_high;
@@ -196,7 +198,7 @@ pub(super) fn structure_series(
             let mut touches = 0_u32;
             let mut youngest: Option<usize> = None;
             for level in levels.levels() {
-                if level.scale != PivotScale::Major
+                if level.scale != structure_scale
                     || level.available_at > bar
                     || bar - level.available_at > config.level_lookback
                 {
@@ -259,7 +261,7 @@ fn sequence_count(values: &[f64], lower: bool) -> Option<f64> {
     Some(f64::from(count))
 }
 
-/// The confirmed major structure code: +1 HH/HL, -1 LH/LL, 0 mixed or equal.
+/// The confirmed structure code: +1 HH/HL, -1 LH/LL, 0 mixed or equal.
 fn structure_code(high: f64, prior_high: f64, low: f64, prior_low: f64) -> f64 {
     let high_state = if high > prior_high {
         1
