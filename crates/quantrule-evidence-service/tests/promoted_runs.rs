@@ -301,13 +301,28 @@ async fn a_promoted_run_reuses_a_succeeded_model_stage() {
 }
 
 #[tokio::test]
+async fn a_strategy_cell_may_submit_a_model_stage_from_another_config_hash() {
+    let state = harness().await;
+    let response = submit_promoted(
+        Arc::clone(&state),
+        "default",
+        &digest(b"candles-a"),
+        "cfg_valid",
+        &model_artifact(b"model-changed").artifact_id,
+    )
+    .await;
+    // The worker verifies the frozen model-input identity before reuse; the
+    // submission check deliberately does not reject a strategy-only config.
+    assert_eq!(response.status(), StatusCode::ACCEPTED);
+}
+
+#[tokio::test]
 async fn a_promoted_run_rejects_an_invalid_model_artifact() {
     let state = harness().await;
     for (artifact, message) in [
         (digest(b"missing"), "unknown"),
         (model_artifact(b"strategy").artifact_id, "another"),
         (model_artifact(b"model-data-b").artifact_id, "dataset"),
-        (model_artifact(b"model-changed").artifact_id, "config"),
         (model_artifact(b"model-m99").artifact_id, "model"),
     ] {
         let response = submit_promoted(

@@ -156,6 +156,10 @@ pub async fn process(
         )
         .await;
     }
+    let expected_model_input = match config.model_input_hash() {
+        Ok(hash) => hash,
+        Err(message) => return fail(services, &run_id, &message).await,
+    };
     let dataset = match services
         .data
         .dataset_object(profile.clone(), record.data_version.to_string())
@@ -180,7 +184,15 @@ pub async fn process(
         return Ok(ProcessOutcome::Skipped);
     }
     let model_files = if let Some(artifact_id) = record.model_artifact_id.as_ref() {
-        match load_promoted_model(profile, artifact_id.clone(), &record, services).await {
+        match load_promoted_model(
+            profile,
+            artifact_id.clone(),
+            &record,
+            services,
+            &expected_model_input,
+        )
+        .await
+        {
             Ok(files) => files,
             Err(ModelRead::Store(message)) => {
                 return retry_or_exhaust(services, &run_id, &message, attempts).await;
@@ -206,7 +218,12 @@ pub async fn process(
             return fail(services, &run_id, &message).await;
         }
         match load_model_artifacts(&services.objects, &manifest).await {
-            Ok(files) => files,
+            Ok(files) => {
+                if let Err(message) = verify_model_input(&files, &expected_model_input) {
+                    return fail(services, &run_id, &message).await;
+                }
+                files
+            }
             Err(ModelRead::Store(message)) => {
                 return retry_or_exhaust(services, &run_id, &message, attempts).await;
             }
@@ -343,6 +360,7 @@ async fn load_promoted_model(
     artifact_id: Digest,
     record: &RunRecord,
     services: &WorkerServices,
+    expected_model_input: &Digest,
 ) -> Result<Vec<(String, Vec<u8>)>, ModelRead> {
     let stage = services
         .stages
@@ -379,11 +397,10 @@ async fn load_promoted_model(
             "the model artifact belongs to another dataset".to_owned(),
         ));
     }
-    if stage.provenance.config_hash != record.config_hash {
-        return Err(ModelRead::Mismatch(
-            "the model artifact belongs to another config hash".to_owned(),
-        ));
-    }
+    // The artifact id is the content address of the model bundle. A
+    // strategy-only change keeps the same model bytes, so the full config hash
+    // must not invalidate the stage; the dataset and model version checks bind
+    // the bytes, and the artifact id binds the model content.
     if stage.provenance.model_version != record.model_version {
         return Err(ModelRead::Mismatch(
             "the model artifact belongs to another model version".to_owned(),
@@ -398,9 +415,7 @@ async fn load_promoted_model(
         .map_err(|error| ModelRead::Mismatch(error.to_string()))?;
     if manifest.stage_run_id != stage.stage_run_id
         || manifest.kind != StageKind::Model
-        || manifest.config_id != record.config_id
         || manifest.data_version != record.data_version
-        || manifest.config_hash != record.config_hash
         || manifest.model_version != record.model_version
         || manifest.artifacts != artifact.files
     {
@@ -424,7 +439,26 @@ async fn load_promoted_model(
         files.push((file.name.clone(), bytes));
     }
     files.sort_by(|left, right| left.0.cmp(&right.0));
+    verify_model_input(&files, expected_model_input).map_err(ModelRead::Mismatch)?;
     Ok(files)
+}
+
+/// Verify that a model bundle's provenance names the expected model input.
+fn verify_model_input(files: &[(String, Vec<u8>)], expected: &Digest) -> Result<(), String> {
+    let (_, bytes) = files
+        .iter()
+        .find(|(name, _)| name == "provenance.json")
+        .ok_or_else(|| "the model bundle has no provenance".to_owned())?;
+    let value: serde_json::Value = serde_json::from_slice(bytes)
+        .map_err(|error| format!("the model provenance is not JSON: {error}"))?;
+    let frozen = value
+        .get("config_hash")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| "the model provenance has no model-input hash".to_owned())?;
+    if frozen != expected.to_string() {
+        return Err("the model artifact belongs to another model input".to_owned());
+    }
+    Ok(())
 }
 
 /// Verify that the model bundle is the one the run was submitted for.

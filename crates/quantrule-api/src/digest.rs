@@ -44,6 +44,25 @@ impl std::fmt::Display for DigestError {
 
 impl std::error::Error for DigestError {}
 
+/// The canonical model-input identity.
+///
+/// The hash covers the data version label, the model config bytes, and the
+/// effective model ladder. It deliberately excludes the strategy, execution,
+/// and portfolio files, so a strategy-only change keeps the same model input.
+#[must_use]
+pub fn model_input_hash(data_version: &str, model_config: &[u8], ladder: &[String]) -> Digest {
+    let mut bytes = Vec::new();
+    bytes.extend_from_slice(data_version.as_bytes());
+    bytes.push(0);
+    bytes.extend_from_slice(model_config);
+    bytes.push(0);
+    for code in ladder {
+        bytes.extend_from_slice(code.as_bytes());
+        bytes.push(0);
+    }
+    Digest::sha256(&bytes)
+}
+
 impl Digest {
     /// Parse a digest from its wire form.
     ///

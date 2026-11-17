@@ -233,6 +233,7 @@ mod tests {
             .config_hash
             .clone()
             .expect("the original hash");
+        let original = RunConfig::load(&target.join("run.json")).expect("the original config");
         let strategy = target.join("strategy.json");
         let mut text = std::fs::read_to_string(&strategy).expect("the strategy");
         text.push('\n');
@@ -242,6 +243,18 @@ mod tests {
             .clone()
             .expect("the changed hash");
         assert_ne!(before, after);
+
+        // The model-input identity survives a strategy-only change.
+        let changed = RunConfig::load(&target.join("run.json")).expect("the changed config");
+        assert_eq!(original.model_input_hash, changed.model_input_hash);
+
+        // A model-config change moves it.
+        let model = target.join("model.json");
+        let mut model_text = std::fs::read_to_string(&model).expect("the model config");
+        model_text.push('\n');
+        std::fs::write(&model, model_text).expect("write the changed model");
+        let model_changed = RunConfig::load(&target.join("run.json")).expect("the model change");
+        assert_ne!(original.model_input_hash, model_changed.model_input_hash);
         std::fs::remove_dir_all(&target).expect("remove the copy");
     }
 
