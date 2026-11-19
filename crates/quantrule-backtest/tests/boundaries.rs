@@ -33,12 +33,47 @@ fn collect(path: &Path, files: &mut Vec<(PathBuf, String)>) {
     }
 }
 
+/// The `use` paths in a source file, one per line.
+///
+/// The parser looks at the declaration, not at every occurrence of the text:
+/// a comment or a string that names the module is not an import.
+fn imports(source: &str) -> Vec<String> {
+    source
+        .lines()
+        .filter_map(|line| {
+            let line = line.trim_start();
+            let rest = line.strip_prefix("use ")?;
+            Some(rest.trim_start_matches("::").to_owned())
+        })
+        .collect()
+}
+
+fn imports_prefix(source: &str, prefix: &str) -> bool {
+    imports(source)
+        .iter()
+        .any(|path| path == prefix || path.starts_with(&format!("{prefix}::")))
+}
+
+#[test]
+fn a_comment_is_not_an_import() {
+    assert!(!imports_prefix(
+        "// use crate::strategy
+",
+        "crate::strategy"
+    ));
+    assert!(imports_prefix(
+        "use crate::strategy::{Decision};
+",
+        "crate::strategy"
+    ));
+}
+
 #[test]
 fn execution_and_portfolio_do_not_import_strategy() {
     for directory in ["execution", "portfolio"] {
         for (path, source) in sources(directory) {
             assert!(
-                !source.contains("use crate::strategy"),
+                !imports_prefix(&source, "crate::strategy"),
                 "{} must not import the strategy module",
                 path.display()
             );
@@ -49,9 +84,9 @@ fn execution_and_portfolio_do_not_import_strategy() {
 #[test]
 fn the_strategy_does_not_import_execution_or_portfolio() {
     for (path, source) in sources("strategy") {
-        for forbidden in ["use crate::execution", "use crate::portfolio"] {
+        for forbidden in ["crate::execution", "crate::portfolio"] {
             assert!(
-                !source.contains(forbidden),
+                !imports_prefix(&source, forbidden),
                 "{} must not import the execution or portfolio module",
                 path.display()
             );
@@ -77,7 +112,7 @@ fn the_execution_engine_does_not_accept_a_strategy_decision() {
         let source = fs::read_to_string(&path)
             .unwrap_or_else(|error| panic!("read {}: {error}", path.display()));
         assert!(
-            !source.contains("Decision::") && !source.contains(": Decision"),
+            !imports_prefix(&source, "crate::strategy"),
             "{} must use the execution-owned OrderIntent, not a strategy Decision",
             path.display()
         );

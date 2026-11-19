@@ -18,6 +18,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 REGISTRY = ROOT / "docs/registry/indicators.json"
+VERIFICATION = ROOT / "docs/registry/verification.json"
 INDICATORS = ROOT / "docs/model/2026-11-06/indicator-verification.md"
 EVENTS = ROOT / "docs/model/2026-11-06/event-verification.md"
 
@@ -34,15 +35,24 @@ def load(path: Path) -> dict[str, object]:
 
 def main() -> int:
     registry = load(REGISTRY)
+    verification = load(VERIFICATION)
     expected_indicators = [
+        indicator["id"] for indicator in verification["indicators"]
+    ]
+    expected_events = [event["id"] for event in verification["events"]]
+    registry_indicators = {
         indicator["id"]
         for indicator in registry["indicators"]
         if indicator.get("status") == "active"
-    ]
-    expected_events = [
+    }
+    registry_events = {
         event["id"] for event in registry["events"] if event.get("status") == "active"
-    ]
+    }
     errors: list[str] = []
+    if set(expected_indicators) != registry_indicators:
+        errors.append("the verification manifest and the active indicator registry differ")
+    if set(expected_events) != registry_events:
+        errors.append("the verification manifest and the active event registry differ")
 
     indicator_ids = [
         match.group(1)

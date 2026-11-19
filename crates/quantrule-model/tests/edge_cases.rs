@@ -31,6 +31,32 @@ fn assert_empty(series: &ReadingSeries) {
     assert!(series.values().is_empty(), "an empty input published a bar");
 }
 
+fn assert_base_empty(readings: &Readings) {
+    for series in [
+        &readings.ema20,
+        &readings.ema50,
+        &readings.ema200,
+        &readings.rsi14,
+        &readings.atr14,
+        &readings.rvol20,
+    ] {
+        assert_empty(series);
+    }
+}
+
+fn assert_base_safe(readings: &Readings) {
+    for series in [
+        &readings.ema20,
+        &readings.ema50,
+        &readings.ema200,
+        &readings.rsi14,
+        &readings.atr14,
+        &readings.rvol20,
+    ] {
+        assert_safe(series);
+    }
+}
+
 fn assert_extended_safe(extended: &ExtendedReadings) {
     assert_safe(&extended.vwap);
     assert_safe(&extended.vwap_distance_atr);
@@ -242,6 +268,7 @@ fn assert_session_empty(sessions: &SessionReadings) {
 #[test]
 fn an_empty_series_publishes_no_readings() {
     let readings = Readings::compute(&[]);
+    assert_base_empty(&readings);
     let extended = ExtendedReadings::compute(&[], &readings, &ExtendedConfig::DEFAULT);
     assert_extended_empty(&extended);
     let sessions = SessionReadings::compute(&[], &readings, &SessionConfig::london());
@@ -255,6 +282,9 @@ fn an_empty_series_publishes_no_readings() {
 fn a_single_candle_publishes_finite_or_null_readings() {
     let candles = [candle(0, 100.0, 101.0, 99.0, 100.0, 10.0)];
     let readings = Readings::compute(&candles);
+    assert_base_safe(&readings);
+    assert!(readings.atr14.get(0).is_none());
+    assert!(readings.rvol20.get(0).is_none());
     let extended = ExtendedReadings::compute(&candles, &readings, &ExtendedConfig::DEFAULT);
     assert_extended_safe(&extended);
     let sessions = SessionReadings::compute(&candles, &readings, &SessionConfig::london());
@@ -265,6 +295,10 @@ fn a_single_candle_publishes_finite_or_null_readings() {
 fn a_short_series_keeps_unavailable_readings_null() {
     let candles = flat_series(5, 10.0);
     let readings = Readings::compute(&candles);
+    assert_base_safe(&readings);
+    assert!(readings.ema20.get(4).is_none());
+    assert!(readings.atr14.get(4).is_none());
+    assert!(readings.rvol20.get(4).is_none());
     let extended = ExtendedReadings::compute(&candles, &readings, &ExtendedConfig::DEFAULT);
     assert_extended_safe(&extended);
     assert!(extended.vwap.get(4).is_none());
