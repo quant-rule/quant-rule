@@ -22,6 +22,9 @@ history is in Git and the pull requests.
 
 - A run config reference is confined to the config directory: an absolute path
   or a `..` component in `run.json` is refused before the loader reads it.
+- `tools/verify.sh` includes `metrics.json` in its canonical set, so the
+  verifier recomputes the same digest as the service and the composed tier
+  passes on a clean stack.
 
 ### Changed
 
