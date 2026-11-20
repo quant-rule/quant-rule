@@ -133,7 +133,7 @@ alias.
 | Gate | Human action |
 |---|---|
 | Stage output | Treat it as diagnostic; do not cite it as evidence |
-| Model artifact reuse | Approve the `run submit --model-artifact` path when it is used for a research run |
+| Model artifact reuse | Approve the `run submit --model-artifact` path when it is used for an improvement run |
 | Promotion | Approve the coupled backtest; the backtest remains the evidence |
 | Baseline | Accept only through the Improvement Workflow |
 

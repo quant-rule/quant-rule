@@ -84,25 +84,6 @@ class InvocationGrammarTests(unittest.TestCase):
             self.assertEqual(check_command_surface.retired_backticks([path]), [])
 
 
-class NormativeListTests(unittest.TestCase):
-    def test_the_surface_paragraph_yields_its_commands(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            path = Path(temporary) / "AGENTS.md"
-            write(
-                path,
-                "Intro.\n\nThe current tree implements `health` and `run submit`.\n\n"
-                "A later paragraph.\n",
-            )
-            self.assertEqual(
-                check_command_surface.normative_commands(path),
-                {"health", "run submit"},
-            )
-
-    def test_a_missing_surface_paragraph_yields_nothing(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            path = Path(temporary) / "AGENTS.md"
-            write(path, "No surface here.\n")
-            self.assertEqual(check_command_surface.normative_commands(path), set())
 
 
 if __name__ == "__main__":

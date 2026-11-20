@@ -15,7 +15,6 @@ path = "src/bin/qr_gateway.rs"
 axum = "0.8.9"
 quantrule-api = { path = "../quantrule-api" }
 quantrule-runtime = { path = "../quantrule-runtime" }
-quantrule-service-api = { path = "../quantrule-service-api" }
 rusqlite = { version = "0.42", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }
@@ -28,4 +27,5 @@ workspace = true
 
 [dev-dependencies]
 futures-util = "0.3"
+quantrule-service-api = { path = "../quantrule-service-api" }
 tower = { version = "0.5.3", features = ["util"] }

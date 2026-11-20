@@ -86,7 +86,9 @@ One term per concept. A synonym is a defect.
 | `data version` | `sha256` of the normalized candle bytes |
 | `config` | A run configuration document |
 | `config hash` | `sha256` of the canonical config bytes |
-| `run` | One execution of the full pipeline. A research record is always written **improvement run** |
+| `run` | One execution of the full pipeline. An improvement run is the governed record around a coupled run |
+| `research` | The client surface and activity: `research ...` commands, `/research` routes, and the Research screen |
+| `improvement run` | The governed, pre-registered record created through the research surface; `quantrule.improvement-run/v3` |
 | `submission` | The client request that creates or finds a run |
 | `artifact` | One immutable output file of a run |
 | `bundle` | The complete artifact set of one run |

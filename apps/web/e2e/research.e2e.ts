@@ -164,7 +164,7 @@ test("pre-registers, submits, compares, and decides explicitly", async ({ page }
   await page.goto("/");
   await page.getByRole("button", { name: /^Research/ }).click();
 
-  await expect(page.getByText(/A research run is a coupled run/)).toBeVisible();
+  await expect(page.getByText(/An improvement run is a coupled pipeline run/)).toBeVisible();
   await expect(page.getByText(/An accepted decision needs a succeeded pipeline run/)).toBeVisible();
   await expect(page.getByText(/Seeded historical baselines have no pipeline run/)).toBeVisible();
 

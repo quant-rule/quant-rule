@@ -72,7 +72,7 @@ and a new run.
 | Partition declared | The run config window matches `data/partitions.json` |
 | Costs declared | Execution fees, slippage, funding; portfolio commission |
 | No open Critical finding | Audit/invalidation registry on the changed path |
-| Pre-registration | For a research run, the Improvement Workflow manifest and green criteria |
+| Pre-registration | For an improvement run, the Improvement Workflow manifest and green criteria |
 
 A failed preflight stops the run. It is not a failed result.
 
@@ -128,12 +128,12 @@ A failing check is a result, not a reason to change the criteria.
 
 ## 9. Record
 
-A research run becomes an improvement run under the Improvement Workflow. The
+An improvement run is created through the research surface under the Improvement Workflow. The
 record carries the hypothesis, tier, partition, changed/frozen split, config,
 data version, costs, green criteria, results, review, and decision. The human
 accepts a baseline or records `no edge`.
 
-A non-research run (a verification or a reviewer reproduction) is recorded as a
+A run outside the Improvement Workflow (a verification or a reviewer reproduction) is recorded as a
 run and a digest comparison; it is not a baseline.
 
 ## 10. Reproduce

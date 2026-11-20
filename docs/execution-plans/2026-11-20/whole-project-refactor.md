@@ -87,10 +87,10 @@ The full evidence is in the assessment. This plan does not repeat it.
 | ID | Decision | Options | Recommendation | Approval |
 |---|---|---|---|---|
 | D1 | Approve this two-cycle campaign and the slug `whole-project-refactor` | A: approve as written. B: approve cycle 1 only. C: request a different scope | A | Approved 2026-11-20 |
-| D2 | Canonical `research` vs `improvement` term (REF-04) | A: `research` is the surface, `improvement run` is the record; fix ambiguous prose. B: rename the domain to `research run`. C: rename commands to `improvement` | A | Pending |
-| D3 | Historical Python suites in PR CI (REF-03) | A: current in PR CI, historical on demand and release. B: path-filter the historical steps. C: retire after archiving | A | Pending |
-| D4 | `AGENTS.md` catalog duplication (REF-05) | A: link to the authorities, keep the norms. B: add drift checkers for every copy. C: split into annexes | A | Pending |
-| D5 | Historical config and record volume (REF-07, REF-08) | A: defer to Data Lifecycle and Recordkeeping. B: add indexes without moving files. C: archive externally | A | Pending |
+| D2 | Canonical `research` vs `improvement` term (REF-04) | A: `research` is the surface, `improvement run` is the record; fix ambiguous prose. B: rename the domain to `research run`. C: rename commands to `improvement` | A | Approved 2026-11-20 |
+| D3 | Historical Python suites in PR CI (REF-03) | A: current in PR CI, historical on demand and release. B: path-filter the historical steps. C: retire after archiving | A | Superseded by the Rust governance program, 2026-11-20 |
+| D4 | `AGENTS.md` catalog duplication (REF-05) | A: link to the authorities, keep the norms. B: add drift checkers for every copy. C: split into annexes | A | Approved 2026-11-20 |
+| D5 | Historical config and record volume (REF-07, REF-08) | A: defer to Data Lifecycle and Recordkeeping. B: add indexes without moving files. C: archive externally | A | Approved 2026-11-20 |
 
 D2, D3, and D4 change user-visible help text, what the gate enforces, or
 methodology text. They are not part of this behavior-neutral campaign and are

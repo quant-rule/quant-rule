@@ -146,7 +146,7 @@ lives in the cell and in the spec. A run ID keeps the existing `MODEL-...`,
 | Retired | The family is no longer used; its ID and history remain | [`deprecation-retirement.md`](../../workflows/deprecation-retirement.md) |
 
 An implementation change to a family is a
-[`model-change.md`](../../workflows/model-change.md) change, not a research run.
+[`model-change.md`](../../workflows/model-change.md) change, not an improvement run.
 
 ## 7. Legacy boundary
 

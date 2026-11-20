@@ -116,8 +116,8 @@ enforces the distinction.
 | `baseline show` | Implemented | tier | one baseline |
 | `invalidation list` | Implemented | — | invalidation tombstones |
 
-The research rows are the governed improvement surface. A research run is a
-coupled run: the config must carry a strategy, and a model-tier run still freezes
+The research commands are the governed improvement surface. An improvement run is a
+coupled pipeline run: the config must carry a strategy, and a model-tier run still freezes
 strategy and portfolio. `research show` links a succeeded canonical digest
 lazily; `research decide` is the only command that records a human decision, and
 an accepted decision requires the digest. A stage artifact is never a pipeline

@@ -172,7 +172,7 @@ strategy or portfolio run without `criteria_id`; a `command` other than
 `run submit`; and a `config_id`, `criteria_id`, or `baseline` that looks like a
 filesystem path. `data_version` is a digest, so a path cannot deserialize.
 
-A model-tier research run is still a coupled run. Its config must contain a
+A model-tier improvement run is still a coupled pipeline run. Its config must contain a
 `run.json` with a `strategy` key; a model-only config is refused with
 `research.invalid`. The model report supplies the comparison coverage, while
 strategy, execution, and portfolio remain frozen and are recomputed by the
@@ -210,7 +210,7 @@ coupled run.
 
 ## Current execution flow
 
-The gateway is the execution path. A research run is a **coupled evidence run**,
+The gateway is the execution path. An improvement run is a **coupled evidence run**,
 including a model-tier run: its config must carry a strategy, and the model
 report is the comparison source. A model-tier run does not submit a model-only
 config.
@@ -363,7 +363,7 @@ pre-reset experiment record, a historical audit, or a v2 folder as a v3 run.
 
 ## Distributed execution — v0.9.0 (prepared as v1.0.0)
 
-An **improvement run** is a research record. A **run** is one execution of the
+An **improvement run** is a governed research record. A **run** is one execution of the
 pipeline. The compound term is always written in full; a bare "run" always means
 the pipeline execution.
 

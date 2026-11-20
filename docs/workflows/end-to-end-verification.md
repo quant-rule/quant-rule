@@ -169,7 +169,7 @@ Stop and request human direction when:
 | To | Packet |
 |---|---|
 | Release & Operations | The verification record and the digest comparison |
-| Backtest Workflow | The reference config and data version, if a research run follows |
+| Backtest Workflow | The reference config and data version, if an improvement run follows |
 | Recordkeeping | The verification date, image digest, run id, and canonical digest |
 | Human | The acceptance or rejection of the deployment |
 

@@ -36,6 +36,9 @@ history is in Git and the pull requests.
   `command/dispatch/`, and `output/`, so a command change stays local; the
   global documentation index is now a navigation map, and status lives in the
   owning indexes.
+- The research surface and improvement run have one glossary definition; the
+  command and workflow lists live only in their indexes.
+- The gateway's `quantrule-service-api` dependency is test-only.
 
 ### Fixed
 

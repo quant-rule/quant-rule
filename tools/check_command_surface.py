@@ -3,9 +3,8 @@
 
 The source of truth is ``crates/quantrule-shell/src/command/help.rs``. The
 checker reads its ``CommandHelp`` entries, the README command table, the command
-registry table in ``docs/architecture/command-surface.md``, the fenced code
-blocks under ``docs/tutorials``, and the command list in the ``AGENTS.md``
-current-surface paragraph. It fails when:
+registry table in ``docs/architecture/command-surface.md``, and the fenced code
+blocks under ``docs/tutorials`` and the normative documents. It fails when:
 
 - an implemented command is missing from ``help.rs``, the README, or a tutorial;
 - a README row or an ``Implemented`` registry row names a command that
@@ -13,7 +12,6 @@ current-surface paragraph. It fails when:
 - a command marked ``Planned`` appears in ``help.rs`` or the README;
 - a tutorial, workflow, or ``AGENTS.md`` block invokes a command that is not
   implemented;
-- the ``AGENTS.md`` current-surface list differs from the implemented set;
 - a ``CommandHelp`` entry has an empty usage, summary, or output contract, or a
   usage line that does not start with the command name.
 
@@ -37,8 +35,6 @@ WORKFLOWS = ROOT / "docs/workflows"
 CONFIG = ROOT / "docs/config"
 ARCHITECTURE = ROOT / "docs/architecture"
 NORMATIVE = ROOT / "AGENTS.md"
-NORMATIVE_MARKER = "The current tree implements"
-COMMAND_SPAN = re.compile(r"`([a-z][a-z ]*)`")
 
 # The retired local surface. The command-surface document is the authority; keep
 # this list in step with its "Removed" section when a command is retired.
@@ -560,18 +556,6 @@ def document_unimplemented(
     return problems
 
 
-def normative_commands(path: Path = NORMATIVE) -> set[str]:
-    """Return the command list in the ``AGENTS.md`` current-surface paragraph."""
-    text = read(path)
-    start = text.find(NORMATIVE_MARKER)
-    if start < 0:
-        fail(f"{path} has no current-surface paragraph")
-        return set()
-    end = text.find("\n\n", start)
-    paragraph = text[start:] if end < 0 else text[start:end]
-    return set(COMMAND_SPAN.findall(paragraph))
-
-
 def compare(label: str, expected: set[str], actual: set[str]) -> bool:
     ok = True
     for name in sorted(expected - actual):
@@ -595,7 +579,6 @@ def main() -> int:
         fail(f"README.md documents '{name}' twice")
         ok = False
     ok = compare("README.md", implemented_names, set(readme)) and ok
-    ok = compare("AGENTS.md", implemented_names, normative_commands()) and ok
 
     registry_implemented = {name for name, status in registry.items() if status == "Implemented"}
     registry_planned = {name for name, status in registry.items() if status == "Planned"}

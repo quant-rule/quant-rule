@@ -16,7 +16,6 @@ apps/web ── HTTP ──┐
 quantrule-shell ───┤
                    ├──> quantrule-api
 quantrule-gateway ─┘
-        └──> quantrule-service-api
         └──> quantrule-runtime ──> quantrule-api, quantrule-service-api
 
 quantrule-data-service ────┐
