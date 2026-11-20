@@ -7,7 +7,21 @@
 
 use axum::Router;
 
+use crate::config::Config;
 use crate::error::RuntimeError;
+
+/// Check the internal bind, then bind and serve.
+///
+/// # Errors
+///
+/// Returns [`RuntimeError::Serve`] when the internal guard rejects the bind or
+/// the server fails.
+pub async fn serve_config(config: &Config, router: Router) -> Result<(), RuntimeError> {
+    config
+        .check_internal_bind()
+        .map_err(|error| RuntimeError::Serve(error.to_string()))?;
+    serve(&config.bind, router).await
+}
 
 /// Bind `bind` and serve `router` until a termination signal arrives.
 ///

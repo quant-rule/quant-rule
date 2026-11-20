@@ -14,7 +14,7 @@ use quantrule_runtime::adapters::ObjectStore;
 use quantrule_runtime::backends::Objects;
 use quantrule_runtime::client::{ClientError, DataClient, HttpServiceClient, Service};
 use quantrule_runtime::config::ConfigError;
-use quantrule_runtime::{Config, HealthRegistry, RuntimeError, logging, serve};
+use quantrule_runtime::{Config, HealthRegistry, RuntimeError, logging, serve_config};
 
 use quantrule_model_service::{ModelServices, ModelState};
 
@@ -42,7 +42,7 @@ async fn main() -> Result<(), RuntimeError> {
         },
     ));
     tracing::info!(bind = %config.bind, "starting model service");
-    serve(&config.bind, quantrule_model_service::router(state)).await
+    serve_config(&config, quantrule_model_service::router(state)).await
 }
 
 /// Name the missing or invalid `QR_DATA_URL` at startup.

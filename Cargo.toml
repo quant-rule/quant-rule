@@ -9,6 +9,7 @@ members = [
     "crates/quantrule-backtest-service",
     "crates/quantrule-data",
     "crates/quantrule-data-service",
+    "crates/quantrule-deploy",
     "crates/quantrule-evidence-service",
     "crates/quantrule-gateway",
     "crates/quantrule-governance",

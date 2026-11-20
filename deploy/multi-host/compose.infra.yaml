@@ -1,0 +1,93 @@
+# QuantRule multi-host profile — infrastructure role (quantrule.deploy/v2).
+#
+# Postgres, the object store, and the queue are shared by every service host.
+# They keep a bridge network so their names stay local to this host; every other
+# host reaches them by overlay address and published port. Those ports are bound
+# to the private overlay address, so the store is never published on the LAN or
+# the internet.
+#
+# `qr-deploy render` writes env/infra.env. Run this role with
+# `--env-file env/infra.env`: it supplies the bind address, the credentials,
+# and the bucket. The variables are interpolated here rather than put in
+# env_file because Postgres and RabbitMQ read their own variable names, not
+# the QR_* service contract.
+name: quantrule-infra
+
+services:
+  postgres:
+    # Same pin and override as the single-host stack.
+    image: ${QR_POSTGRES_IMAGE:-postgres@sha256:846a7ddaa67a4b354ae1d21087b683901aa6113a4ed626d3787cfbf6c85e3e07}
+    restart: unless-stopped
+    networks:
+      - quantrule
+    # Every value is required: the single-host loopback defaults must not
+    # become a multi-host default. A missing render fails here, not with a
+    # database that accepts a well-known password.
+    environment:
+      POSTGRES_USER: ${QR_POSTGRES_USER:?QR_POSTGRES_USER must be set}
+      POSTGRES_PASSWORD: ${QR_POSTGRES_PASSWORD:?QR_POSTGRES_PASSWORD must be set}
+      POSTGRES_DB: ${QR_POSTGRES_DB:?QR_POSTGRES_DB must be set}
+    ports:
+      - "${QR_BIND_IP:?QR_BIND_IP must be set}:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # The container's own environment names the user and database, so the
+      # probe does not depend on the Compose-level variables being present.
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  minio:
+    # The pinned legacy archive, as on the single-host stack; override
+    # QR_OBJECT_STORE_IMAGE to point at a maintained mirror.
+    image: ${QR_OBJECT_STORE_IMAGE:-bitnamilegacy/minio@sha256:451fe6858cb770cc9d0e77ba811ce287420f781c7c1b806a386f6896471a349c}
+    restart: unless-stopped
+    networks:
+      - quantrule
+    environment:
+      MINIO_ROOT_USER: ${QR_OBJECT_STORE_USER:?QR_OBJECT_STORE_USER must be set}
+      MINIO_ROOT_PASSWORD: ${QR_OBJECT_STORE_PASSWORD:?QR_OBJECT_STORE_PASSWORD must be set}
+      # The runtime assumes the bucket exists; the image creates it on first
+      # start. The bucket name is part of the rendered contract.
+      MINIO_DEFAULT_BUCKETS: ${QR_OBJECT_BUCKET:?QR_OBJECT_BUCKET must be set}
+      MINIO_BROWSER: "off"
+    ports:
+      - "${QR_BIND_IP:?QR_BIND_IP must be set}:9000:9000"
+    volumes:
+      - objects:/bitnami/minio/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9000/minio/health/ready"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  rabbitmq:
+    # Same pin and override as the single-host stack.
+    image: ${QR_RABBITMQ_IMAGE:-rabbitmq@sha256:753099a19b577c322117f793f864b3129cbba96d40317221a69d73976e3c843c}
+    restart: unless-stopped
+    networks:
+      - quantrule
+    environment:
+      RABBITMQ_DEFAULT_USER: ${QR_QUEUE_USER:?QR_QUEUE_USER must be set}
+      RABBITMQ_DEFAULT_PASS: ${QR_QUEUE_PASSWORD:?QR_QUEUE_PASSWORD must be set}
+      RABBITMQ_DEFAULT_VHOST: ${QR_QUEUE_VHOST:?QR_QUEUE_VHOST must be set}
+    ports:
+      - "${QR_BIND_IP:?QR_BIND_IP must be set}:5672:5672"
+    volumes:
+      - mqdata:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+networks:
+  quantrule:
+    driver: bridge
+
+volumes:
+  pgdata:
+  objects:
+  mqdata:

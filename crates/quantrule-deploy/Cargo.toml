@@ -1,0 +1,19 @@
+[package]
+name = "quantrule-deploy"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Validate, render, and check a QuantRule multi-host deployment descriptor."
+publish = false
+
+[[bin]]
+name = "qr-deploy"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+ureq = "3.5"
+
+[lints]
+workspace = true

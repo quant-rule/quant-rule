@@ -36,9 +36,17 @@ On a gateway started by `make up` without a token, leave the field empty.
 
 No install, no account, no copy of the data.
 
+The packaged desktop app is not a remote client: it starts its own six local
+sidecars. On the laptop, use the browser or the shell. The desktop app belongs
+on the machine that runs the stack, as chapter 13 describes.
+
 ## 3. Connect the shell
 
+The shell default is `http://127.0.0.1:8080/api/v1`, so the laptop must name the
+server:
+
 ```bash
+export QUANTRULE_API_URL='http://<server>:8080/api/v1'
 export QUANTRULE_TOKEN='<token printed by make remote>'
 quantrule dataset list
 quantrule health
