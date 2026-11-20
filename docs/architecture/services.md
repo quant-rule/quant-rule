@@ -69,7 +69,7 @@ gateway token, and let a client depend on another service's schema.
 | Single host, Compose | Supported; default | Six services and three infrastructure containers on one host |
 | Desktop, embedded | Supported | Six sidecars on loopback with SQLite, filesystem CAS, in-process queue |
 | Split host, client/server | Supported | Full stack on one server; browser and shell on another machine |
-| Multi-host services | Supported; current tree, pending release | Six services across hosts, private overlay, one image digest |
+| Multi-host services | Supported; implemented, release pending | Six services across hosts, private overlay, one image digest |
 | Cloud, HA, Kubernetes, mTLS | Not supported | A later decision with its own ADR |
 
 Distribution is about separate processes, failure units, and scaling units, not

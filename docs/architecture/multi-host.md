@@ -1,6 +1,6 @@
 # Multi-Host Deployment
 
-- Status: Current; implemented in #958–#965
+- Status: Implemented; hardening #980; release pending
 - Part of: [`README.md`](README.md)
 - Decision: [`#958`](https://github.com/quant-rule/quant-rule/issues/958)
 - Claim type: Behaviour Claim
@@ -61,15 +61,14 @@ network gate, secrets file, and config root.
 
 The validator refuses:
 
-- a second public service;
-- a public or unspecified bind for an internal service;
-- a LAN or public gateway without a token;
-- a public gateway without a reverse proxy;
-- mixed image identities or a malformed digest;
-- duplicate host ports;
-- a default credential after expansion;
-- a missing secret;
-- more than one model endpoint;
+- a public or unspecified host address;
+- a second public service, or a service on the infrastructure host;
+- a LAN or public gateway without a token and reverse proxy;
+- a template secret, a weak token, or a placeholder image digest;
+- an external database, queue, or object-store endpoint;
+- IPv6 (deploy/v2 is IPv4-only), port zero, or a duplicate host port;
+- a fixed role group split across hosts (data/evidence/simulation, model/backtest);
+- a `config_root` other than `/srv/config`;
 - a descriptor with an unknown field.
 
 ## 5. Trust boundary
@@ -80,17 +79,25 @@ authentication; they must be reachable only through WireGuard, Tailscale, or a
 dedicated private VLAN.
 
 The gateway requires a bearer token when it is exposed on a LAN or the public
-internet. TLS terminates at a reverse proxy in front of the gateway. The
-multi-host profile adds `QR_INTERNAL_ONLY=1` to the internal HTTP services; a
-public or unspecified bind then fails at startup.
+internet, and a reverse proxy terminates TLS for both cases. The multi-host
+profile sets `QR_INTERNAL_ONLY=1` on the internal HTTP services; a public or
+unspecified bind then fails at startup, and the serve boundary rechecks it.
+
+WireGuard or Tailscale provides transport encryption and host authentication,
+not service-to-service authentication. Every overlay peer is trusted. Client
+peers must be routed to the gateway only; if a client can reach the overlay
+subnet, it can call the internal services without the gateway token.
 
 ## 6. One image identity
 
-Every host must run the same image. Build once, distribute it with
-`docker save`/`docker load` (or a private registry), and keep the tag and
-`QR_IMAGE_DIGEST` identical. `qr-deploy check` fails when a host reports a
-different digest. A run's canonical digest is only comparable when the image
-digest is the same.
+Every host must run the same image. Build once and distribute it with
+`docker save`/`docker load`; there is no registry in this profile. The role
+files use `pull_policy: never`, so Compose cannot pull a different tag. Keep the
+tag and `QR_IMAGE_DIGEST` identical and confirm
+`docker image inspect --format '{{.Id}}'` on every host. `qr-deploy check`
+compares the digest each service reports; that is an environment-consistency
+check, not proof of the running image. A run's canonical digest is only
+comparable when the image digest is the same.
 
 ## 7. Start order
 
@@ -112,15 +119,18 @@ The gateway `/ready` reports the upstream states.
 - `data`, `evidence`, and `simulation` are single instances.
 - The gateway is stateless; a second gateway needs a load balancer and is a
   follow-up.
-- A service host failure affects that service only; a run is redelivered by the
-  queue and recomputation is idempotent.
+- A service failure affects that service. A host failure affects every service
+  placed on it: the core host is a three-service failure unit, and the
+  gateway and compute hosts are also multi-service units.
+- A run is redelivered by the queue and recomputation is idempotent.
 - The infrastructure host is a single point of failure. This profile is not
   high availability.
 
 ## 9. Backup, upgrade, and rollback
 
-- Stop the gateway and workers, dump Postgres, mirror the bucket, write a
-  manifest, and restore objects before rows.
+- Stop the gateway, compute, and core roles; keep infrastructure running. Dump
+  Postgres, mirror the bucket, write a manifest, and restore objects before
+  rows.
 - The queue is not archived; messages are rebuilt from run rows.
 - Distribute the new image to every host, stop the gateway and workers, update
   core and compute, then start workers and gateway.
@@ -133,6 +143,11 @@ No cloud provider integration, high availability, autoscaling, Kubernetes,
 multi-region placement, service-to-service mTLS, external registry, RPM, or DEB.
 Windows multi-host servers are not supported; the server profile is Linux.
 Each remains a later decision with its own record.
+
+Residual risks accepted for v1: every service shares one Postgres role, the
+MinIO root credentials, and one queue user; the overlay is the only
+service-to-service boundary; `qr-deploy check` does not inspect a remote
+image; and the infrastructure host is a single point of failure.
 
 ## 11. Related
 

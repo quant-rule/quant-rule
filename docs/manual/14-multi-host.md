@@ -36,11 +36,13 @@ Do not start this profile while the single-host stack or the desktop app owns
 | 7 | build host | `qr-deploy render deploy.json --out deploy/multi-host/env --secrets secrets.env` | Seven env files |
 | 8 | infra host | Copy `compose.infra.yaml` and `env/infra.env`; `docker compose -f compose.infra.yaml --env-file env/infra.env up -d` | Postgres, MinIO, RabbitMQ healthy |
 | 9 | core host | Copy `compose.core.yaml`, `env/data.env`, `env/evidence.env`, `env/simulation.env`, and `config/`; start the three services | Three healthy endpoints |
-| 10 | compute host | Copy `compose.compute.yaml`, `env/model.env`, `env/backtest.env`; start `model` and the workers | Model healthy; worker consuming |
+| 10 | compute host | Copy `compose.compute.yaml`, `env/model.env`, `env/backtest.env`; start `model` and `--scale backtest=<replicas>` | Model healthy; workers consuming |
 | 11 | gateway host | Copy `compose.gateway.yaml` and `env/gateway.env`; start the gateway | `/ready` healthy |
-| 12 | client | `qr-deploy check deploy.json --secrets secrets.env` | Every HTTP service `ok`, one digest |
-| 13 | client | `QUANTRULE_API_URL=http://<gateway>:8080/api/v1`; `quantrule health` | Connected |
-| 14 | client | Submit the verification fixture and read the digest | Same digest as single-host |
+| 12 | gateway or overlay host | `qr-deploy check deploy.json --secrets secrets.env` | HTTP services `ok`, one reported digest; worker `SKIP` |
+| 13 | compute host | `docker ps --filter name=backtest`; `docker image inspect --format '{{.Id}}' <image>` | Worker present; image ID matches |
+| 14 | client | `QUANTRULE_API_URL=http://<gateway>:8080/api/v1`; `quantrule health` | Connected |
+| 15 | client | Submit the verification fixture and read the digest | Same digest as single-host |
+| 16 | infra host | Stop gateway, compute, and core; run the backup wrapper with `--application-stopped` | Archive and sidecar written |
 
 Each host needs only the files for the services it runs. The image is already
 loaded; the Compose files use `network_mode: host` and the env file's
@@ -60,7 +62,10 @@ loaded; the Compose files use `network_mode: host` and the env file's
 
 **Verification.** A completed multi-host run with one image digest and the same
 canonical digest as the single-host stack proves the deployment profile, not an
-edge. The profile is not evidence, not a baseline, and not high availability.
+edge. The local multi-host harness proves separation and digest parity; the real
+three-host firewall, overlay, and failure rows are separate and may be blocked
+until the hosts exist. The profile is not evidence, not a baseline, and not high
+availability.
 
 ## Failure
 
@@ -69,8 +74,12 @@ edge. The profile is not evidence, not a baseline, and not high availability.
 | `qr-deploy: … default credential` | The secrets file still has a documented default | Replace it; do not weaken the validator |
 | `qr-deploy: the secrets file does not define …` | A placeholder has no value | Add the key to `secrets.env` |
 | `QR_BIND: must be a private or loopback address` | `QR_INTERNAL_ONLY=1` with a public or `0.0.0.0` bind | Set the host's private address |
-| `qr-deploy check` digest mismatch | A host runs a different image | Load the same image on that host and restart |
+| `qr-deploy: default credential` or a template secret | The secrets file still has `replace-with-...` | Replace every password and the token; do not weaken the validator |
+| `qr-deploy: placeholder image digest` | The descriptor still has the all-`a` digest | Record the real image ID |
+| `qr-deploy: must target ... infrastructure host` | An endpoint points outside the infra host | Fix the endpoint or the infra address |
+| `qr-deploy check` digest mismatch | A host runs a different image | Load the same image and confirm `docker image inspect` |
 | `qr-deploy check` connection refused | The service is down or the overlay is down | Read the host logs and `/health` |
+| `SKIP backtest` | The worker has no HTTP surface | Check the container on the compute host |
 | Gateway `degraded` | An upstream is down | Start the missing service; `/ready` names it |
 | Run stays `queued` | No backtest worker is consuming | Start a worker on the compute host |
 | 401 | The gateway token is missing or wrong | Enter the token in the client |

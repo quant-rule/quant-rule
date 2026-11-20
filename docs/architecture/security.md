@@ -1,6 +1,6 @@
 # Security
 
-- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); unchanged in the v1.0.0 desktop release; approved 2026-11-12
+- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); multi-host overlay added 2026-11-20 and hardened in #980; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Decision: [`ADR-2026-11-12-03`](../adr/2026-11-12/03-single-principal-no-accounts.md)
 - Claim type: Behaviour Claim
@@ -85,10 +85,24 @@ no application authentication. The gateway remains the only public service and
 requires a bearer token when it is on a LAN or the public internet.
 
 `QR_INTERNAL_ONLY=1` makes an internal HTTP service fail at startup if its bind
-is public, unspecified, or a hostname. `qr-deploy validate` refuses the same
-placement before deployment. The overlay is the security boundary; a published
-internal port is a defect, not a workaround. Postgres, MinIO, and RabbitMQ bind
-only to the private overlay and use non-default credentials.
+is public, unspecified, or a hostname; the serve boundary rechecks it.
+`qr-deploy validate` refuses the same placement before deployment. The overlay
+is the security boundary; a published internal port is a defect, not a
+workaround. Postgres, MinIO, and RabbitMQ bind only to the private overlay and
+use non-default credentials.
+
+Residual risks accepted for v1:
+
+- Every service receives the same Postgres role, MinIO root credentials, and
+  queue user. A compromised service host can read all schemas and the bucket.
+- The overlay provides transport encryption and host authentication, not
+  service-to-service authentication. A client VPN peer must be routed to the
+  gateway only; an overlay peer can call every internal service.
+- `qr-deploy check` compares the digest a service reports, not the running image
+  on a remote host. The operator confirms the image ID with `docker inspect`.
+- `/ready` is unauthenticated and reveals upstream states; it stays behind the
+  same network gate as the gateway.
+- The infrastructure host is a single point of failure. The profile is not HA.
 
 ## 3. Input boundaries
 
