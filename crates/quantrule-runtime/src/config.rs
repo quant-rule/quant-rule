@@ -4,6 +4,7 @@
 //! that fails to parse is an error rather than a silent default.
 
 use std::collections::BTreeMap;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 
 use quantrule_api::Digest;
@@ -118,6 +119,12 @@ pub struct Config {
     pub image_digest: Option<Digest>,
     /// Whether this process applies pending migrations at startup.
     pub migrate: bool,
+    /// Whether the HTTP server must bind to a private or loopback address.
+    ///
+    /// The multi-host profile sets this on every internal HTTP service so a
+    /// container cannot accidentally publish an unauthenticated service on a
+    /// public interface.
+    pub internal_only: bool,
 }
 
 impl Default for Config {
@@ -138,6 +145,7 @@ impl Default for Config {
             stage_retention_days: DEFAULT_STAGE_RETENTION_DAYS,
             image_digest: None,
             migrate: true,
+            internal_only: false,
         }
     }
 }
@@ -276,6 +284,22 @@ impl Config {
                 reason: "must be a sha256 digest",
             })?);
         }
+        if let Some(value) = values.get("QR_INTERNAL_ONLY") {
+            config.internal_only = match value.as_str() {
+                "1" | "true" | "yes" => true,
+                "0" | "false" | "no" => false,
+                _ => {
+                    return Err(ConfigError::Invalid {
+                        name: "QR_INTERNAL_ONLY",
+                        value: value.clone(),
+                        reason: "must be 1, 0, true, false, yes, or no",
+                    });
+                }
+            };
+        }
+        if config.internal_only {
+            validate_internal_bind(&config.bind)?;
+        }
         if config.profile == DeploymentProfile::Desktop && config.data_dir.is_none() {
             return Err(ConfigError::Missing {
                 name: "QR_DATA_DIR",
@@ -283,6 +307,51 @@ impl Config {
         }
         Ok(config)
     }
+}
+
+/// Refuse a bind address that is reachable from a public interface when the
+/// service is marked internal.
+///
+/// The multi-host profile is the caller: an internal service has no application
+/// authentication, so a public bind is a security defect even when the
+/// descriptor validator missed it.
+fn validate_internal_bind(bind: &str) -> Result<(), ConfigError> {
+    let address: SocketAddr = bind.parse().map_err(|_| ConfigError::Invalid {
+        name: "QR_BIND",
+        value: bind.to_owned(),
+        reason: "must be an IP:port when QR_INTERNAL_ONLY is set",
+    })?;
+    if is_private_bind(address.ip()) {
+        return Ok(());
+    }
+    Err(ConfigError::Invalid {
+        name: "QR_BIND",
+        value: bind.to_owned(),
+        reason: "must be a private or loopback address when QR_INTERNAL_ONLY is set",
+    })
+}
+
+/// Whether an address belongs to a private, loopback, link-local, CGNAT, or
+/// unique-local range.
+fn is_private_bind(ip: IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(address) => is_private_v4(address),
+        IpAddr::V6(address) => {
+            address.is_loopback()
+                || address.is_unique_local()
+                || address.is_unicast_link_local()
+                || address.to_ipv4_mapped().is_some_and(is_private_v4)
+        }
+    }
+}
+
+/// The IPv4 private set used by a multi-host overlay.
+fn is_private_v4(address: Ipv4Addr) -> bool {
+    let octets = address.octets();
+    address.is_private()
+        || address.is_loopback()
+        || address.is_link_local()
+        || (octets[0] == 100 && (64..=127).contains(&octets[1]))
 }
 
 #[cfg(test)]
@@ -378,6 +447,58 @@ mod tests {
     fn a_present_value_overrides_the_default() {
         let config = Config::from_map(&map(&[("QR_BIND", "127.0.0.1:9000")])).expect("override");
         assert_eq!(config.bind, "127.0.0.1:9000");
+    }
+
+    #[test]
+    fn internal_only_accepts_private_overlay_binds() {
+        for bind in [
+            "10.0.0.11:8080",
+            "172.16.0.1:8080",
+            "192.168.1.10:8080",
+            "127.0.0.1:8080",
+            "100.64.0.10:8080",
+            "169.254.1.1:8080",
+            "[::1]:8080",
+            "[fd00::1]:8080",
+            "[fe80::1]:8080",
+        ] {
+            let config = Config::from_map(&map(&[("QR_BIND", bind), ("QR_INTERNAL_ONLY", "1")]))
+                .unwrap_or_else(|error| panic!("{bind} was rejected: {error}"));
+            assert!(config.internal_only, "{bind}");
+        }
+    }
+
+    #[test]
+    fn internal_only_rejects_public_unspecified_and_hostname_binds() {
+        for bind in [
+            "0.0.0.0:8080",
+            "8.8.8.8:8080",
+            "1.1.1.1:8080",
+            "example.com:8080",
+            "[2001:4860:4860::8888]:8080",
+        ] {
+            let error = Config::from_map(&map(&[("QR_BIND", bind), ("QR_INTERNAL_ONLY", "1")]))
+                .expect_err("public bind accepted");
+            assert!(
+                matches!(
+                    error,
+                    ConfigError::Invalid {
+                        name: "QR_BIND",
+                        ..
+                    }
+                ),
+                "{bind}: {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn internal_only_is_strict_and_off_by_default() {
+        let config = Config::from_map(&BTreeMap::new()).expect("defaults");
+        assert!(!config.internal_only);
+        let config = Config::from_map(&map(&[("QR_INTERNAL_ONLY", "0")])).expect("off");
+        assert!(!config.internal_only);
+        assert!(Config::from_map(&map(&[("QR_INTERNAL_ONLY", "maybe")])).is_err());
     }
 
     #[test]
