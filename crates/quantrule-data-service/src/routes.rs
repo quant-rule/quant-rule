@@ -18,9 +18,10 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Router, routing::post};
 use quantrule_api::{
-    ConfigSummary, DatasetRecord, DatasetSummary, Digest, ErrorCode, ErrorEnvelope, HealthReport,
-    PROFILE_HEADER, ProfileId, QualityReport, TimeframeBars, TimeframeInspection,
-    UploadConfigRequest, VersionInfo,
+    ConfigSummary, DatasetRecord, DatasetReference, DatasetReferenceCount, DatasetReferenceRequest,
+    DatasetSummary, Digest, EraseDatasetResponse, ErrorCode, ErrorEnvelope, HealthReport,
+    PROFILE_HEADER, ProfileId, QualityReport, ReleaseDatasetReferenceRequest, TimeframeBars,
+    TimeframeInspection, UploadConfigRequest, VersionInfo,
 };
 use quantrule_data::Timeframe;
 use quantrule_service_api::{ConfigBundle, DatasetObject};
@@ -58,7 +59,11 @@ fn routes() -> Router<Arc<DataState>> {
         .route("/version", get(version))
         .route("/catalog/datasets", get(list_datasets).post(create_dataset))
         .route("/catalog/datasets/tolerant", post(create_dataset_tolerant))
-        .route("/catalog/datasets/{version}", get(get_dataset))
+        .route(
+            "/catalog/datasets/{version}",
+            get(get_dataset).delete(erase_dataset),
+        )
+        .route("/catalog/datasets/{version}/archive", post(archive_dataset))
         .route(
             "/catalog/configs",
             get(list_configs)
@@ -71,6 +76,14 @@ fn routes() -> Router<Arc<DataState>> {
         .route("/datasets/{version}/ladder/{timeframe}", get(get_ladder))
         .route("/internal/v1/configs/{config_id}", get(internal_config))
         .route("/internal/v1/datasets/{version}", get(internal_dataset))
+        .route(
+            "/internal/v1/datasets/{version}/references",
+            get(list_dataset_references).post(register_dataset_reference),
+        )
+        .route(
+            "/internal/v1/datasets/{version}/references/release",
+            post(release_dataset_reference),
+        )
         .route(
             "/internal/v1/profile/datasets/count",
             get(internal_dataset_count),
@@ -193,6 +206,7 @@ async fn store_dataset(
     ingested: Ingested,
     quality: Option<QualityReport>,
 ) -> Result<(StatusCode, Json<DatasetRecord>), ApiFailure> {
+    let _gate = state.dataset_gate.lock().await;
     let catalog = state
         .catalog
         .as_ref()
@@ -221,6 +235,7 @@ async fn store_dataset(
             first_bar: ingested.first_bar,
             last_bar: ingested.last_bar,
             bytes: ingested.bytes,
+            archived_at: None,
         },
         object_key: key,
         sha256: ingested.data_version.clone(),
@@ -243,6 +258,7 @@ async fn store_dataset(
             }
         }
         Err(CatalogError::Store(error)) => Err(failure(ErrorCode::Internal, error)),
+        Err(other) => Err(failure(ErrorCode::Internal, other.to_string())),
     }
 }
 
@@ -595,19 +611,34 @@ async fn inspect_timeframes(
     }))
 }
 
+/// The optional history filter on a dataset list.
+#[derive(Debug, Deserialize)]
+struct DatasetListQuery {
+    include_archived: Option<bool>,
+}
+
 async fn list_datasets(
     State(state): State<Arc<DataState>>,
     headers: HeaderMap,
+    query: Result<Query<DatasetListQuery>, QueryRejection>,
 ) -> Result<Json<Vec<DatasetSummary>>, ApiFailure> {
     let profile = request_profile(&headers)?;
+    let Query(query) = query.map_err(|_| {
+        failure(
+            ErrorCode::DatasetInvalid,
+            "the query is not a dataset filter",
+        )
+    })?;
     let catalog = state
         .catalog
         .as_ref()
         .ok_or_else(|| failure(ErrorCode::Internal, "no dataset catalog is configured"))?;
-    let records = catalog
-        .list(profile)
-        .await
-        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
+    let records = if query.include_archived.unwrap_or(false) {
+        catalog.list_including_archived(profile).await
+    } else {
+        catalog.list(profile).await
+    }
+    .map_err(catalog_failure)?;
     Ok(Json(
         records.into_iter().map(|record| record.summary).collect(),
     ))
@@ -634,4 +665,203 @@ async fn get_dataset(
         )),
         Err(error) => Err(failure(ErrorCode::Internal, error.to_string())),
     }
+}
+
+/// The typed confirmation required by a dataset erase.
+#[derive(Debug, Deserialize)]
+struct EraseDatasetQuery {
+    confirm: Option<String>,
+}
+
+fn parse_dataset_version(version: &str) -> Result<String, ApiFailure> {
+    Digest::parse(version)
+        .map(|digest| digest.to_string())
+        .map_err(|error| failure(ErrorCode::DatasetInvalid, error.to_string()))
+}
+
+fn catalog_failure(error: CatalogError) -> ApiFailure {
+    match error {
+        CatalogError::NotFound => failure(ErrorCode::DatasetNotFound, "the dataset is unknown"),
+        CatalogError::Archived => {
+            failure(ErrorCode::HistoryState, "the dataset is already archived")
+        }
+        CatalogError::NotArchived => failure(
+            ErrorCode::HistoryState,
+            "archive the dataset before erasing it",
+        ),
+        CatalogError::Referenced(count) => failure(
+            ErrorCode::HistoryProtected,
+            format!("the dataset still has {count} reference(s)"),
+        ),
+        CatalogError::AlreadyExists => {
+            failure(ErrorCode::HistoryState, "the dataset is already catalogued")
+        }
+        CatalogError::Store(error) => failure(ErrorCode::Internal, error),
+    }
+}
+
+async fn archive_dataset(
+    State(state): State<Arc<DataState>>,
+    headers: HeaderMap,
+    Path(version): Path<String>,
+) -> Result<Json<DatasetRecord>, ApiFailure> {
+    let profile = request_profile(&headers)?;
+    let catalog = state
+        .catalog
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no dataset catalog is configured"))?;
+    let version = parse_dataset_version(&version)?;
+    let archived_at =
+        clock::now_utc().map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
+    let _gate = state.dataset_gate.lock().await;
+    catalog
+        .archive(profile, version, archived_at)
+        .await
+        .map(Json)
+        .map_err(catalog_failure)
+}
+
+async fn erase_dataset(
+    State(state): State<Arc<DataState>>,
+    headers: HeaderMap,
+    Path(version): Path<String>,
+    query: Result<Query<EraseDatasetQuery>, QueryRejection>,
+) -> Result<Json<EraseDatasetResponse>, ApiFailure> {
+    let profile = request_profile(&headers)?;
+    let catalog = state
+        .catalog
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no dataset catalog is configured"))?;
+    let objects = state
+        .objects
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no object store is configured"))?;
+    let version = parse_dataset_version(&version)?;
+    let Query(query) = query.map_err(|_| {
+        failure(
+            ErrorCode::DatasetInvalid,
+            "the query is not a dataset erase confirmation",
+        )
+    })?;
+    let confirmed = query.confirm.as_deref().is_some_and(|confirm| {
+        confirm == version || confirm.strip_prefix("sha256:") == version.strip_prefix("sha256:")
+    });
+    if !confirmed {
+        return Err(failure(
+            ErrorCode::HistoryState,
+            "erase requires --confirm with the exact dataset id",
+        ));
+    }
+    let _gate = state.dataset_gate.lock().await;
+    let outcome = catalog
+        .erase(profile, version.clone())
+        .await
+        .map_err(catalog_failure)?;
+    let bytes = if outcome.object_shared {
+        0
+    } else {
+        match objects.delete(&outcome.record.object_key).await {
+            Ok(()) => outcome.record.summary.bytes,
+            Err(error) => {
+                // The row and its tombstone are already committed. An orphan
+                // object is a storage leak, never a missing shared artifact, so
+                // the erase stands and the cleanup failure is reported here.
+                tracing::warn!(
+                    object_key = %outcome.record.object_key,
+                    %error,
+                    "erased dataset left an orphan object"
+                );
+                0
+            }
+        }
+    };
+    Ok(Json(EraseDatasetResponse {
+        data_version: outcome.record.summary.data_version,
+        bytes,
+    }))
+}
+
+async fn register_dataset_reference(
+    State(state): State<Arc<DataState>>,
+    headers: HeaderMap,
+    Path(version): Path<String>,
+    payload: Result<Json<DatasetReferenceRequest>, JsonRejection>,
+) -> Result<Json<DatasetReferenceCount>, ApiFailure> {
+    let profile = request_profile(&headers)?;
+    let catalog = state
+        .catalog
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no dataset catalog is configured"))?;
+    let version = parse_dataset_version(&version)?;
+    let Json(request) = payload.map_err(|_| {
+        failure(
+            ErrorCode::DatasetInvalid,
+            "the body is not a dataset reference",
+        )
+    })?;
+    let reference_id = request.reference_id.trim().to_owned();
+    if reference_id.is_empty() || reference_id.len() > 256 {
+        return Err(failure(
+            ErrorCode::DatasetInvalid,
+            "a reference id must be between 1 and 256 characters",
+        ));
+    }
+    let created_at =
+        clock::now_utc().map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
+    let references = catalog
+        .add_reference(
+            profile,
+            version,
+            DatasetReference {
+                reference_id,
+                kind: request.kind,
+                created_at,
+            },
+        )
+        .await
+        .map_err(catalog_failure)?;
+    Ok(Json(DatasetReferenceCount { references }))
+}
+
+async fn release_dataset_reference(
+    State(state): State<Arc<DataState>>,
+    headers: HeaderMap,
+    Path(version): Path<String>,
+    payload: Result<Json<ReleaseDatasetReferenceRequest>, JsonRejection>,
+) -> Result<Json<DatasetReferenceCount>, ApiFailure> {
+    let profile = request_profile(&headers)?;
+    let catalog = state
+        .catalog
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no dataset catalog is configured"))?;
+    let version = parse_dataset_version(&version)?;
+    let Json(request) = payload.map_err(|_| {
+        failure(
+            ErrorCode::DatasetInvalid,
+            "the body is not a reference release",
+        )
+    })?;
+    let references = catalog
+        .release_reference(profile, version, request.reference_id)
+        .await
+        .map_err(catalog_failure)?;
+    Ok(Json(DatasetReferenceCount { references }))
+}
+
+async fn list_dataset_references(
+    State(state): State<Arc<DataState>>,
+    headers: HeaderMap,
+    Path(version): Path<String>,
+) -> Result<Json<Vec<DatasetReference>>, ApiFailure> {
+    let profile = request_profile(&headers)?;
+    let catalog = state
+        .catalog
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no dataset catalog is configured"))?;
+    let version = parse_dataset_version(&version)?;
+    catalog
+        .references(profile, version)
+        .await
+        .map(Json)
+        .map_err(catalog_failure)
 }

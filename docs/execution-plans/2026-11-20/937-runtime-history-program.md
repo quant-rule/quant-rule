@@ -80,6 +80,7 @@ zero-Python policy are out of scope.
 | D3 | Archive then erase; never hard-delete without a tombstone | A: archive/tombstone; B: direct delete | A | Approved 2026-11-20 |
 | D4 | Python retirement is deferred | A: defer; B: port now | A | Approved 2026-11-20 |
 | D5 | Checker speed fix is Python-only | A: tracked-file scan; B: port `check_legacy` | A | Approved 2026-11-20 |
+| D6 | Erase is full, with content reference counting | A: archive-only; B: reference registry and object GC | B | Approved 2026-11-20 |
 
 ## 6. Acceptance criteria
 
@@ -130,7 +131,7 @@ freezes the contract. #942 and #943 start after the endpoints are available.
 | V02 | #938 design | Every endpoint, state, and refusal path is named; security review recorded | Design document and review | Complete |  | Pending |  |  |  |
 | V03 | #939 evidence | Runs, stages, research list/archive/erase; protected records refuse | Service tests, SQLite/Postgres | Pass |  | Pending |  |  |  |
 | V04 | #940 simulation | Simulation list/archive/erase; protected records refuse | Service tests | Pass |  | Pending |  |  |  |
-| V05 | #941 data | Dataset list/archive/erase; referenced dataset refuses | Service tests, object-store test | Pass |  | Pending |  |  |  |
+| V05 | #941 data | Dataset list/archive/erase; referenced dataset refuses; a shared object survives one profile's erase | Service tests, object-store test | Pass |  | Pending |  |  |  |
 | V06 | #942 shell | `history` commands parse, render, and refuse safely | Shell tests | Pass |  | Pending |  |  |  |
 | V07 | #943 browser | History screen reaches every shell use case | Playwright parity | Pass |  | Pending |  |  |  |
 | V08 | #944 parity | One client missing a use case fails the parity test | Parity fixture | Pass |  | Pending |  |  |  |

@@ -30,6 +30,7 @@ fn dataset() -> DatasetRecord {
             first_bar: 1_704_067_200,
             last_bar: 1_704_067_260,
             bytes: 128,
+            archived_at: None,
         },
         object_key: format!("datasets/{}", version.as_hex()),
         sha256: version,
@@ -103,6 +104,7 @@ async fn the_baseline_tables_carry_the_final_catalog_columns_and_types() {
             ("sha256".to_owned(), "TEXT".to_owned(), 1),
             ("quality".to_owned(), "TEXT".to_owned(), 0),
             ("created_at".to_owned(), "TEXT".to_owned(), 1),
+            ("archived_at".to_owned(), "TEXT".to_owned(), 0),
         ]
     );
     assert_eq!(
@@ -148,7 +150,9 @@ async fn the_database_holds_only_the_catalog_prefix() {
         vec![
             "catalog__config_bundles".to_owned(),
             "catalog__configs".to_owned(),
+            "catalog__dataset_references".to_owned(),
             "catalog__datasets".to_owned(),
+            "catalog__retention_events".to_owned(),
             "schema_migrations".to_owned(),
         ]
     );
@@ -354,4 +358,101 @@ async fn the_baseline_refuses_invalid_json_and_a_non_boolean() {
         })
         .await;
     assert!(bad_boolean.is_err(), "the valid column accepted 2");
+}
+
+#[tokio::test]
+async fn archive_and_erase_write_the_tombstone_and_respect_references() {
+    let database = migrated().await;
+    let catalog = SqliteDatasetCatalog::new(database.clone());
+    let record = dataset();
+    let version = record.summary.data_version.to_string();
+    catalog
+        .insert(profile("default"), record)
+        .await
+        .expect("the dataset inserts");
+    catalog
+        .add_reference(
+            profile("default"),
+            version.clone(),
+            quantrule_api::DatasetReference {
+                reference_id: "run:sqlite-1".to_owned(),
+                kind: quantrule_api::DatasetReferenceKind::Run,
+                created_at: "2026-11-20T00:00:00Z".to_owned(),
+            },
+        )
+        .await
+        .expect("the reference");
+    catalog
+        .archive(
+            profile("default"),
+            version.clone(),
+            "2026-11-20T00:00:00Z".to_owned(),
+        )
+        .await
+        .expect("the archive");
+
+    let archived_at: String = database
+        .call(|connection| {
+            connection.query_row(
+                "SELECT archived_at FROM catalog__datasets WHERE profile_id = 'default'",
+                [],
+                |row| row.get(0),
+            )
+        })
+        .await
+        .expect("the archived instant");
+    assert_eq!(archived_at, "2026-11-20T00:00:00Z");
+
+    assert_eq!(
+        catalog.erase(profile("default"), version.clone()).await,
+        Err(quantrule_data_service::CatalogError::Referenced(1))
+    );
+    catalog
+        .release_reference(
+            profile("default"),
+            version.clone(),
+            "run:sqlite-1".to_owned(),
+        )
+        .await
+        .expect("the release");
+    catalog
+        .erase(profile("default"), version)
+        .await
+        .expect("the erase");
+
+    let events: Vec<(String, String, i64)> = database
+        .call(|connection| {
+            let mut statement = connection.prepare(
+                "SELECT action, record_id, bytes FROM catalog__retention_events
+                  ORDER BY event_id",
+            )?;
+            let rows =
+                statement.query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?;
+            rows.collect::<rusqlite::Result<Vec<_>>>()
+        })
+        .await
+        .expect("the retention events");
+    assert_eq!(
+        events,
+        vec![
+            ("archive".to_owned(), record_version(&database).await, 128),
+            ("erase".to_owned(), record_version(&database).await, 128),
+        ]
+    );
+    let references: i64 = database
+        .call(|connection| {
+            connection.query_row(
+                "SELECT count(*) FROM catalog__dataset_references",
+                [],
+                |row| row.get(0),
+            )
+        })
+        .await
+        .expect("the reference count");
+    assert_eq!(references, 0);
+}
+
+async fn record_version(database: &SqliteDatabase) -> String {
+    let _ = database;
+    quantrule_api::Digest::sha256(b"sqlite-catalog-row").to_string()
 }

@@ -20,6 +20,9 @@ history is in Git and the pull requests.
 
 ### Added
 
+- Dataset runtime history: archive, a cross-service reference registry, and an
+  erase that refuses a referenced dataset and deletes shared bytes only when the
+  last catalog row is gone.
 - `qr-governance history` lists, archives, and erases historical repository
   evidence with a verified manifest; it is developer tooling and is not in the
   product image.

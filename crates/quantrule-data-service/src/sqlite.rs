@@ -16,7 +16,7 @@
 //! table. This module names only its own prefix; the baseline is
 //! `migrations/sqlite/0001_catalog.sql`.
 
-use quantrule_api::ProfileId;
+use quantrule_api::{DatasetReference, DatasetReferenceKind, ProfileId};
 use quantrule_runtime::adapters::BoxFuture;
 use quantrule_runtime::adapters::sqlite::SqliteDatabase;
 use rusqlite::{OptionalExtension, TransactionBehavior, params};
@@ -33,6 +33,12 @@ const CONFIGS_TABLE: &str = "catalog__configs";
 
 /// The config file bundle, shared by content id across profiles.
 const BUNDLES_TABLE: &str = "catalog__config_bundles";
+
+/// The consumer references that block a dataset erase.
+const REFERENCES_TABLE: &str = "catalog__dataset_references";
+
+/// The append-only dataset retention events.
+const RETENTION_TABLE: &str = "catalog__retention_events";
 
 /// A dataset catalog backed by the embedded SQLite database.
 #[derive(Debug, Clone)]
@@ -77,11 +83,12 @@ impl crate::catalog::DatasetCatalog for SqliteDatasetCatalog {
             let object_key = record.object_key;
             let sha256 = record.sha256.as_hex().to_owned();
             let created_at = record.created_at;
+            let archived_at = record.summary.archived_at.clone();
             let sql = format!(
                 "INSERT INTO {DATASETS_TABLE}
                      (profile_id, data_version, name, candles, first_bar, last_bar, bytes,
-                      object_key, sha256, quality, created_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+                      object_key, sha256, quality, created_at, archived_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
                  ON CONFLICT (profile_id, data_version) DO NOTHING"
             );
             let inserted = database
@@ -100,6 +107,7 @@ impl crate::catalog::DatasetCatalog for SqliteDatasetCatalog {
                             sha256,
                             quality,
                             created_at,
+                            archived_at,
                         ],
                     )
                 })
@@ -121,7 +129,7 @@ impl crate::catalog::DatasetCatalog for SqliteDatasetCatalog {
         Box::pin(async move {
             let sql = format!(
                 "SELECT data_version, name, candles, first_bar, last_bar, bytes, object_key,
-                        sha256, created_at, quality
+                        sha256, created_at, quality, archived_at
                    FROM {DATASETS_TABLE}
                   WHERE profile_id = ?1 AND data_version = ?2"
             );
@@ -141,6 +149,7 @@ impl crate::catalog::DatasetCatalog for SqliteDatasetCatalog {
                                 row.get(7)?,
                                 row.get(8)?,
                                 row.get(9)?,
+                                row.get(10)?,
                             ))
                         })
                         .optional()
@@ -159,7 +168,65 @@ impl crate::catalog::DatasetCatalog for SqliteDatasetCatalog {
         Box::pin(async move {
             let sql = format!(
                 "SELECT data_version, name, candles, first_bar, last_bar, bytes, object_key,
-                        sha256, created_at, quality
+                        sha256, created_at, quality, archived_at
+                   FROM {DATASETS_TABLE}
+                  WHERE profile_id = ?1 AND archived_at IS NULL
+                  ORDER BY data_version"
+            );
+            let profile_id = profile.as_str().to_owned();
+            let rows: Vec<DatasetRow> = database
+                .call(move |connection| {
+                    let mut statement = connection.prepare(&sql)?;
+                    let rows = statement.query_map(params![profile_id], |row| {
+                        Ok((
+                            row.get(0)?,
+                            row.get(1)?,
+                            row.get(2)?,
+                            row.get(3)?,
+                            row.get(4)?,
+                            row.get(5)?,
+                            row.get(6)?,
+                            row.get(7)?,
+                            row.get(8)?,
+                            row.get(9)?,
+                            row.get(10)?,
+                        ))
+                    })?;
+                    rows.collect::<rusqlite::Result<Vec<_>>>()
+                })
+                .await
+                .map_err(|error| CatalogError::Store(error.to_string()))?;
+            rows.into_iter().map(dataset_record).collect()
+        })
+    }
+
+    fn count(&self, profile: ProfileId) -> BoxFuture<Result<u64, CatalogError>> {
+        let database = self.database.clone();
+        Box::pin(async move {
+            let sql = format!(
+                "SELECT count(*) FROM {DATASETS_TABLE}
+                  WHERE profile_id = ?1 AND archived_at IS NULL"
+            );
+            let profile_id = profile.as_str().to_owned();
+            let count: i64 = database
+                .call(move |connection| {
+                    connection.query_row(&sql, params![profile_id], |row| row.get(0))
+                })
+                .await
+                .map_err(|error| CatalogError::Store(error.to_string()))?;
+            dataset_count(count, "dataset count")
+        })
+    }
+
+    fn list_including_archived(
+        &self,
+        profile: ProfileId,
+    ) -> BoxFuture<Result<Vec<quantrule_api::DatasetRecord>, CatalogError>> {
+        let database = self.database.clone();
+        Box::pin(async move {
+            let sql = format!(
+                "SELECT data_version, name, candles, first_bar, last_bar, bytes, object_key,
+                        sha256, created_at, quality, archived_at
                    FROM {DATASETS_TABLE}
                   WHERE profile_id = ?1
                   ORDER BY data_version"
@@ -180,6 +247,7 @@ impl crate::catalog::DatasetCatalog for SqliteDatasetCatalog {
                             row.get(7)?,
                             row.get(8)?,
                             row.get(9)?,
+                            row.get(10)?,
                         ))
                     })?;
                     rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -190,20 +258,385 @@ impl crate::catalog::DatasetCatalog for SqliteDatasetCatalog {
         })
     }
 
-    fn count(&self, profile: ProfileId) -> BoxFuture<Result<u64, CatalogError>> {
+    fn archive(
+        &self,
+        profile: ProfileId,
+        version: String,
+        archived_at: String,
+    ) -> BoxFuture<Result<quantrule_api::DatasetRecord, CatalogError>> {
         let database = self.database.clone();
         Box::pin(async move {
-            let sql = format!("SELECT count(*) FROM {DATASETS_TABLE} WHERE profile_id = ?1");
             let profile_id = profile.as_str().to_owned();
-            let count: i64 = database
-                .call(move |connection| {
-                    connection.query_row(&sql, params![profile_id], |row| row.get(0))
+            let update = format!(
+                "UPDATE {DATASETS_TABLE}
+                    SET archived_at = ?3
+                  WHERE profile_id = ?1 AND data_version = ?2 AND archived_at IS NULL"
+            );
+            let event = format!(
+                "INSERT INTO {RETENTION_TABLE}
+                     (profile_id, kind, record_id, action, reason, bytes)
+                 VALUES (?1, 'dataset', ?2, 'archive', 'operator.archive', ?3)"
+            );
+            let read_version = version.clone();
+            let outcome = database
+                .call(move |connection| -> rusqlite::Result<ArchiveOutcome> {
+                    let transaction =
+                        connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+                    let updated =
+                        transaction.execute(&update, params![profile_id, version, archived_at])?;
+                    if updated == 0 {
+                        let exists: Option<String> = transaction
+                            .query_row(
+                                &format!(
+                                    "SELECT data_version FROM {DATASETS_TABLE}
+                                      WHERE profile_id = ?1 AND data_version = ?2"
+                                ),
+                                params![profile_id, read_version],
+                                |row| row.get(0),
+                            )
+                            .optional()?;
+                        return Ok(if exists.is_some() {
+                            ArchiveOutcome::AlreadyArchived
+                        } else {
+                            ArchiveOutcome::NotFound
+                        });
+                    }
+                    let row = select_dataset(&transaction, &profile_id, &read_version)?
+                        .ok_or_else(|| rusqlite::Error::QueryReturnedNoRows)?;
+                    transaction.execute(&event, params![profile_id, read_version, row.5])?;
+                    transaction.commit()?;
+                    Ok(ArchiveOutcome::Archived(row))
                 })
                 .await
                 .map_err(|error| CatalogError::Store(error.to_string()))?;
-            dataset_count(count, "dataset count")
+            match outcome {
+                ArchiveOutcome::Archived(row) => dataset_record(row),
+                ArchiveOutcome::NotFound => Err(CatalogError::NotFound),
+                ArchiveOutcome::AlreadyArchived => Err(CatalogError::Archived),
+            }
         })
     }
+
+    fn erase(
+        &self,
+        profile: ProfileId,
+        version: String,
+    ) -> BoxFuture<Result<crate::catalog::EraseOutcome, CatalogError>> {
+        let database = self.database.clone();
+        Box::pin(async move {
+            let profile_id = profile.as_str().to_owned();
+            let outcome = database
+                .call(move |connection| -> rusqlite::Result<EraseDbOutcome> {
+                    let transaction =
+                        connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+                    let Some(row) = select_dataset(&transaction, &profile_id, &version)? else {
+                        return Ok(EraseDbOutcome::NotFound);
+                    };
+                    if row.10.is_none() {
+                        return Ok(EraseDbOutcome::NotArchived);
+                    }
+                    let references: i64 = transaction.query_row(
+                        &format!(
+                            "SELECT count(*) FROM {REFERENCES_TABLE}
+                              WHERE profile_id = ?1 AND data_version = ?2"
+                        ),
+                        params![profile_id, version],
+                        |row| row.get(0),
+                    )?;
+                    if references > 0 {
+                        return Ok(EraseDbOutcome::Referenced(
+                            u64::try_from(references).unwrap_or(u64::MAX),
+                        ));
+                    }
+                    transaction.execute(
+                        &format!(
+                            "DELETE FROM {REFERENCES_TABLE}
+                              WHERE profile_id = ?1 AND data_version = ?2"
+                        ),
+                        params![profile_id, version],
+                    )?;
+                    transaction.execute(
+                        &format!(
+                            "DELETE FROM {DATASETS_TABLE}
+                              WHERE profile_id = ?1 AND data_version = ?2"
+                        ),
+                        params![profile_id, version],
+                    )?;
+                    let shared: Option<i64> = transaction
+                        .query_row(
+                            &format!(
+                                "SELECT 1 FROM {DATASETS_TABLE}
+                                  WHERE object_key = ?1
+                                    AND NOT (profile_id = ?2 AND data_version = ?3)"
+                            ),
+                            params![row.6, profile_id, version],
+                            |row| row.get(0),
+                        )
+                        .optional()?;
+                    transaction.execute(
+                        &format!(
+                            "INSERT INTO {RETENTION_TABLE}
+                                 (profile_id, kind, record_id, action, reason, bytes)
+                             VALUES (?1, 'dataset', ?2, 'erase', 'operator.erase', ?3)"
+                        ),
+                        params![profile_id, version, row.5],
+                    )?;
+                    transaction.commit()?;
+                    Ok(EraseDbOutcome::Erased(row, shared.is_some()))
+                })
+                .await
+                .map_err(|error| CatalogError::Store(error.to_string()))?;
+            match outcome {
+                EraseDbOutcome::Erased(row, object_shared) => Ok(crate::catalog::EraseOutcome {
+                    record: dataset_record(row)?,
+                    object_shared,
+                }),
+                EraseDbOutcome::NotFound => Err(CatalogError::NotFound),
+                EraseDbOutcome::NotArchived => Err(CatalogError::NotArchived),
+                EraseDbOutcome::Referenced(count) => Err(CatalogError::Referenced(count)),
+            }
+        })
+    }
+
+    fn add_reference(
+        &self,
+        profile: ProfileId,
+        version: String,
+        reference: DatasetReference,
+    ) -> BoxFuture<Result<u64, CatalogError>> {
+        let database = self.database.clone();
+        Box::pin(async move {
+            let profile_id = profile.as_str().to_owned();
+            let reference_id = reference.reference_id;
+            let kind = reference.kind.as_str().to_owned();
+            let created_at = reference.created_at;
+            let count = database
+                .call(move |connection| -> rusqlite::Result<ReferenceOutcome> {
+                    let transaction =
+                        connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+                    let exists: Option<i64> = transaction
+                        .query_row(
+                            &format!(
+                                "SELECT 1 FROM {DATASETS_TABLE}
+                                  WHERE profile_id = ?1 AND data_version = ?2"
+                            ),
+                            params![profile_id, version],
+                            |row| row.get(0),
+                        )
+                        .optional()?;
+                    if exists.is_none() {
+                        return Ok(ReferenceOutcome::Missing);
+                    }
+                    transaction.execute(
+                        &format!(
+                            "INSERT INTO {REFERENCES_TABLE}
+                                 (profile_id, data_version, reference_id, kind, created_at)
+                             VALUES (?1, ?2, ?3, ?4, ?5)
+                             ON CONFLICT (profile_id, data_version, reference_id) DO NOTHING"
+                        ),
+                        params![profile_id, version, reference_id, kind, created_at],
+                    )?;
+                    let count: i64 = transaction.query_row(
+                        &format!(
+                            "SELECT count(*) FROM {REFERENCES_TABLE}
+                              WHERE profile_id = ?1 AND data_version = ?2"
+                        ),
+                        params![profile_id, version],
+                        |row| row.get(0),
+                    )?;
+                    transaction.commit()?;
+                    Ok(ReferenceOutcome::Count(
+                        u64::try_from(count).unwrap_or(u64::MAX),
+                    ))
+                })
+                .await
+                .map_err(|error| CatalogError::Store(error.to_string()))?;
+            match count {
+                ReferenceOutcome::Count(count) => Ok(count),
+                ReferenceOutcome::Missing => Err(CatalogError::NotFound),
+                ReferenceOutcome::References(_) => Err(CatalogError::Store(String::from(
+                    "the reference write returned a list",
+                ))),
+            }
+        })
+    }
+
+    fn release_reference(
+        &self,
+        profile: ProfileId,
+        version: String,
+        reference_id: String,
+    ) -> BoxFuture<Result<u64, CatalogError>> {
+        let database = self.database.clone();
+        Box::pin(async move {
+            let profile_id = profile.as_str().to_owned();
+            let count = database
+                .call(move |connection| -> rusqlite::Result<ReferenceOutcome> {
+                    let transaction =
+                        connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+                    let exists: Option<i64> = transaction
+                        .query_row(
+                            &format!(
+                                "SELECT 1 FROM {DATASETS_TABLE}
+                                  WHERE profile_id = ?1 AND data_version = ?2"
+                            ),
+                            params![profile_id, version],
+                            |row| row.get(0),
+                        )
+                        .optional()?;
+                    if exists.is_none() {
+                        return Ok(ReferenceOutcome::Missing);
+                    }
+                    transaction.execute(
+                        &format!(
+                            "DELETE FROM {REFERENCES_TABLE}
+                              WHERE profile_id = ?1 AND data_version = ?2 AND reference_id = ?3"
+                        ),
+                        params![profile_id, version, reference_id],
+                    )?;
+                    let count: i64 = transaction.query_row(
+                        &format!(
+                            "SELECT count(*) FROM {REFERENCES_TABLE}
+                              WHERE profile_id = ?1 AND data_version = ?2"
+                        ),
+                        params![profile_id, version],
+                        |row| row.get(0),
+                    )?;
+                    transaction.commit()?;
+                    Ok(ReferenceOutcome::Count(
+                        u64::try_from(count).unwrap_or(u64::MAX),
+                    ))
+                })
+                .await
+                .map_err(|error| CatalogError::Store(error.to_string()))?;
+            match count {
+                ReferenceOutcome::Count(count) => Ok(count),
+                ReferenceOutcome::Missing => Err(CatalogError::NotFound),
+                ReferenceOutcome::References(_) => Err(CatalogError::Store(String::from(
+                    "the reference write returned a list",
+                ))),
+            }
+        })
+    }
+
+    fn references(
+        &self,
+        profile: ProfileId,
+        version: String,
+    ) -> BoxFuture<Result<Vec<DatasetReference>, CatalogError>> {
+        let database = self.database.clone();
+        Box::pin(async move {
+            let profile_id = profile.as_str().to_owned();
+            let outcome = database
+                .call(move |connection| -> rusqlite::Result<ReferenceOutcome> {
+                    let exists: Option<i64> = connection
+                        .query_row(
+                            &format!(
+                                "SELECT 1 FROM {DATASETS_TABLE}
+                                  WHERE profile_id = ?1 AND data_version = ?2"
+                            ),
+                            params![profile_id, version],
+                            |row| row.get(0),
+                        )
+                        .optional()?;
+                    if exists.is_none() {
+                        return Ok(ReferenceOutcome::Missing);
+                    }
+                    let mut statement = connection.prepare(&format!(
+                        "SELECT reference_id, kind, created_at FROM {REFERENCES_TABLE}
+                          WHERE profile_id = ?1 AND data_version = ?2
+                          ORDER BY reference_id"
+                    ))?;
+                    let rows = statement.query_map(params![profile_id, version], |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, String>(1)?,
+                            row.get::<_, String>(2)?,
+                        ))
+                    })?;
+                    let mut references = Vec::new();
+                    for row in rows {
+                        references.push(row?);
+                    }
+                    Ok(ReferenceOutcome::References(references))
+                })
+                .await
+                .map_err(|error| CatalogError::Store(error.to_string()))?;
+            match outcome {
+                ReferenceOutcome::References(rows) => rows
+                    .into_iter()
+                    .map(|(reference_id, kind, created_at)| {
+                        let kind = DatasetReferenceKind::parse(&kind).ok_or_else(|| {
+                            CatalogError::Store(format!(
+                                "a stored dataset reference has an unknown kind: {kind}"
+                            ))
+                        })?;
+                        Ok(DatasetReference {
+                            reference_id,
+                            kind,
+                            created_at,
+                        })
+                    })
+                    .collect(),
+                ReferenceOutcome::Missing => Err(CatalogError::NotFound),
+                ReferenceOutcome::Count(_) => Err(CatalogError::Store(String::from(
+                    "the reference read returned a count",
+                ))),
+            }
+        })
+    }
+}
+
+enum ArchiveOutcome {
+    Archived(DatasetRow),
+    NotFound,
+    AlreadyArchived,
+}
+
+enum EraseDbOutcome {
+    Erased(DatasetRow, bool),
+    NotFound,
+    NotArchived,
+    Referenced(u64),
+}
+
+enum ReferenceOutcome {
+    Count(u64),
+    References(Vec<(String, String, String)>),
+    Missing,
+}
+
+fn select_dataset(
+    connection: &rusqlite::Connection,
+    profile_id: &str,
+    version: &str,
+) -> rusqlite::Result<Option<DatasetRow>> {
+    connection
+        .query_row(
+            &format!(
+                "SELECT data_version, name, candles, first_bar, last_bar, bytes, object_key,
+                        sha256, created_at, quality, archived_at
+                   FROM {DATASETS_TABLE}
+                  WHERE profile_id = ?1 AND data_version = ?2"
+            ),
+            params![profile_id, version],
+            |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                    row.get(5)?,
+                    row.get(6)?,
+                    row.get(7)?,
+                    row.get(8)?,
+                    row.get(9)?,
+                    row.get(10)?,
+                ))
+            },
+        )
+        .optional()
 }
 
 /// A configuration catalog backed by the embedded SQLite database.
