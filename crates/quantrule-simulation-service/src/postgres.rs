@@ -313,7 +313,8 @@ impl SimulationStore for PgSimulationStore {
             let rows = match status {
                 Some(status) => {
                     sqlx::query(
-                        "SELECT r.sim_id, r.premise, r.status, r.bundle, r.archived_at,
+                        "SELECT r.sim_id, r.premise, r.status, r.bundle,
+                                to_char(r.archived_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS archived_at,
                                 COALESCE(jsonb_array_length(r.selection -> 'windows'), 0)::bigint AS windows,
                                 (SELECT count(*) FROM simulation.marks m
                                   WHERE m.sim_id = r.sim_id AND m.origin = 'human') AS marks,
@@ -322,6 +323,7 @@ impl SimulationStore for PgSimulationStore {
                                     AS marked_windows
                          FROM simulation.runs r
                          WHERE r.profile_id = $1 AND r.status = $2
+                          AND r.archived_at IS NULL
                          ORDER BY r.created_at DESC, r.sim_id
                          LIMIT $3",
                     )
@@ -333,7 +335,8 @@ impl SimulationStore for PgSimulationStore {
                 }
                 None => {
                     sqlx::query(
-                        "SELECT r.sim_id, r.premise, r.status, r.bundle, r.archived_at,
+                        "SELECT r.sim_id, r.premise, r.status, r.bundle,
+                                to_char(r.archived_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS archived_at,
                                 COALESCE(jsonb_array_length(r.selection -> 'windows'), 0)::bigint AS windows,
                                 (SELECT count(*) FROM simulation.marks m
                                   WHERE m.sim_id = r.sim_id AND m.origin = 'human') AS marks,
@@ -342,6 +345,7 @@ impl SimulationStore for PgSimulationStore {
                                     AS marked_windows
                          FROM simulation.runs r
                          WHERE r.profile_id = $1
+                          AND r.archived_at IS NULL
                          ORDER BY r.created_at DESC, r.sim_id
                          LIMIT $2",
                     )
@@ -394,7 +398,8 @@ impl SimulationStore for PgSimulationStore {
             let rows = match status {
                 Some(status) => {
                     sqlx::query(
-                        "SELECT r.sim_id, r.premise, r.status, r.bundle, r.archived_at,
+                        "SELECT r.sim_id, r.premise, r.status, r.bundle,
+                                to_char(r.archived_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS archived_at,
                                 COALESCE(jsonb_array_length(r.selection -> 'windows'), 0)::bigint AS windows,
                                 (SELECT count(*) FROM simulation.marks m
                                   WHERE m.sim_id = r.sim_id AND m.origin = 'human') AS marks,
@@ -414,7 +419,8 @@ impl SimulationStore for PgSimulationStore {
                 }
                 None => {
                     sqlx::query(
-                        "SELECT r.sim_id, r.premise, r.status, r.bundle, r.archived_at,
+                        "SELECT r.sim_id, r.premise, r.status, r.bundle,
+                                to_char(r.archived_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS archived_at,
                                 COALESCE(jsonb_array_length(r.selection -> 'windows'), 0)::bigint AS windows,
                                 (SELECT count(*) FROM simulation.marks m
                                   WHERE m.sim_id = r.sim_id AND m.origin = 'human') AS marks,

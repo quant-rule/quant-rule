@@ -13,10 +13,18 @@ history is in Git and the pull requests.
 > through `v1.0.0`. On 2026-11-16 the release-note filenames and the sections
 > below were normalized to those current tags, and the next two releases were
 > cut as `v1.1.0` and `v1.2.0`. Each release note keeps its historical heading
-> and records the version it was prepared as. The current tag is `v1.4.0`. See
+> and records the version it was prepared as. The current tag is `v1.4.1`. See
 > [`docs/releases/README.md`](docs/releases/README.md) for the mapping.
 
 ## [Unreleased]
+
+## [1.4.1] - 2026-11-20
+
+### Fixed
+
+- The simulation Postgres list queries return `archived_at` as RFC3339 text and exclude archived runs from the active list, matching the shared row type and the SQLite store.
+- The desktop shell `SHELL_VERSION` moves to 1.4.1, and the version-boundary test no longer hardcodes a version literal.
+- The release recovery records the v1.4.0 workflow failure and supersedes it with v1.4.1.
 
 ## [1.4.0] - 2026-11-20
 
