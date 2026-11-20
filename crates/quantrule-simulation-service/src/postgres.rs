@@ -16,7 +16,7 @@ use crate::records::{
     action_text, origin_text, parse_action, parse_origin, parse_quality, parse_side, parse_status,
     quality_text, side_text, status_text,
 };
-use crate::store::{SimulationStore, StoreError};
+use crate::store::{ArchiveOutcome, EraseOutcome, SimulationStore, StoreError};
 
 /// A simulation repository backed by Postgres.
 #[derive(Debug, Clone)]
@@ -313,7 +313,7 @@ impl SimulationStore for PgSimulationStore {
             let rows = match status {
                 Some(status) => {
                     sqlx::query(
-                        "SELECT r.sim_id, r.premise, r.status, r.bundle,
+                        "SELECT r.sim_id, r.premise, r.status, r.bundle, r.archived_at,
                                 COALESCE(jsonb_array_length(r.selection -> 'windows'), 0)::bigint AS windows,
                                 (SELECT count(*) FROM simulation.marks m
                                   WHERE m.sim_id = r.sim_id AND m.origin = 'human') AS marks,
@@ -333,7 +333,7 @@ impl SimulationStore for PgSimulationStore {
                 }
                 None => {
                     sqlx::query(
-                        "SELECT r.sim_id, r.premise, r.status, r.bundle,
+                        "SELECT r.sim_id, r.premise, r.status, r.bundle, r.archived_at,
                                 COALESCE(jsonb_array_length(r.selection -> 'windows'), 0)::bigint AS windows,
                                 (SELECT count(*) FROM simulation.marks m
                                   WHERE m.sim_id = r.sim_id AND m.origin = 'human') AS marks,
@@ -375,6 +375,88 @@ impl SimulationStore for PgSimulationStore {
                             row.try_get("marked_windows").map_err(backend)?,
                             "marked-window count",
                         )?,
+                        archived_at: row.try_get("archived_at").map_err(backend)?,
+                    })
+                })
+                .collect()
+        })
+    }
+
+    fn list_including_archived(
+        &self,
+        profile: ProfileId,
+        status: Option<SimulationStatus>,
+        limit: usize,
+    ) -> BoxFuture<Result<Vec<SimulationSummary>, StoreError>> {
+        let pool = self.pool.clone();
+        Box::pin(async move {
+            let limit = i64::try_from(limit).unwrap_or(i64::MAX);
+            let rows = match status {
+                Some(status) => {
+                    sqlx::query(
+                        "SELECT r.sim_id, r.premise, r.status, r.bundle, r.archived_at,
+                                COALESCE(jsonb_array_length(r.selection -> 'windows'), 0)::bigint AS windows,
+                                (SELECT count(*) FROM simulation.marks m
+                                  WHERE m.sim_id = r.sim_id AND m.origin = 'human') AS marks,
+                                (SELECT count(DISTINCT m.chart) FROM simulation.marks m
+                                  WHERE m.sim_id = r.sim_id AND m.origin = 'human')
+                                    AS marked_windows
+                         FROM simulation.runs r
+                         WHERE r.profile_id = $1 AND r.status = $2
+                         ORDER BY r.created_at DESC, r.sim_id
+                         LIMIT $3",
+                    )
+                    .bind(profile.as_str())
+                    .bind(status_text(status))
+                    .bind(limit)
+                    .fetch_all(&pool)
+                    .await
+                }
+                None => {
+                    sqlx::query(
+                        "SELECT r.sim_id, r.premise, r.status, r.bundle, r.archived_at,
+                                COALESCE(jsonb_array_length(r.selection -> 'windows'), 0)::bigint AS windows,
+                                (SELECT count(*) FROM simulation.marks m
+                                  WHERE m.sim_id = r.sim_id AND m.origin = 'human') AS marks,
+                                (SELECT count(DISTINCT m.chart) FROM simulation.marks m
+                                  WHERE m.sim_id = r.sim_id AND m.origin = 'human')
+                                    AS marked_windows
+                         FROM simulation.runs r
+                         WHERE r.profile_id = $1
+                         ORDER BY r.created_at DESC, r.sim_id
+                         LIMIT $2",
+                    )
+                    .bind(profile.as_str())
+                    .bind(limit)
+                    .fetch_all(&pool)
+                    .await
+                }
+            }
+            .map_err(backend)?;
+            rows.iter()
+                .map(|row| {
+                    let status_word: String = row.try_get("status").map_err(backend)?;
+                    let status = parse_status(&status_word).ok_or_else(|| {
+                        invalid(format!("the stored status {status_word:?} is unknown"))
+                    })?;
+                    Ok(SimulationSummary {
+                        sim_id: SimulationId(row.try_get("sim_id").map_err(backend)?),
+                        premise: row.try_get("premise").map_err(backend)?,
+                        status,
+                        windows: u32::try_from(row.try_get::<i64, _>("windows").map_err(backend)?)
+                            .map_err(|_| invalid("the window count does not fit"))?,
+                        marks: unsigned(row.try_get("marks").map_err(backend)?, "mark count")?,
+                        bundle: quantrule_api::Digest::parse(
+                            &row.try_get::<String, _>("bundle").map_err(backend)?,
+                        )
+                        .map_err(|error| {
+                            invalid(format!("the stored bundle is malformed: {error}"))
+                        })?,
+                        marked_windows: unsigned(
+                            row.try_get("marked_windows").map_err(backend)?,
+                            "marked-window count",
+                        )?,
+                        archived_at: row.try_get("archived_at").map_err(backend)?,
                     })
                 })
                 .collect()
@@ -388,6 +470,120 @@ impl SimulationStore for PgSimulationStore {
     ) -> BoxFuture<Result<Option<RunRecord>, StoreError>> {
         let pool = self.pool.clone();
         Box::pin(async move { load_run(&pool, &profile, &sim_id).await })
+    }
+
+    fn archive(
+        &self,
+        profile: ProfileId,
+        sim_id: String,
+        archived_at: String,
+    ) -> BoxFuture<Result<ArchiveOutcome, StoreError>> {
+        let pool = self.pool.clone();
+        Box::pin(async move {
+            let mut transaction = pool.begin().await.map_err(backend)?;
+            let updated = sqlx::query(
+                "UPDATE simulation.runs
+                    SET archived_at = $3::timestamptz
+                  WHERE profile_id = $1 AND sim_id = $2 AND archived_at IS NULL",
+            )
+            .bind(profile.as_str())
+            .bind(&sim_id)
+            .bind(&archived_at)
+            .execute(&mut *transaction)
+            .await
+            .map_err(backend)?;
+            if updated.rows_affected() == 0 {
+                let exists: Option<(String,)> = sqlx::query_as(
+                    "SELECT sim_id FROM simulation.runs
+                      WHERE profile_id = $1 AND sim_id = $2",
+                )
+                .bind(profile.as_str())
+                .bind(&sim_id)
+                .fetch_optional(&mut *transaction)
+                .await
+                .map_err(backend)?;
+                transaction.rollback().await.map_err(backend)?;
+                return Ok(if exists.is_some() {
+                    ArchiveOutcome::AlreadyArchived
+                } else {
+                    ArchiveOutcome::NotFound
+                });
+            }
+            sqlx::query(
+                "INSERT INTO simulation.retention_events
+                     (profile_id, kind, record_id, action, reason, bytes)
+                 VALUES ($1, 'simulation', $2, 'archive', 'operator.archive', 0)",
+            )
+            .bind(profile.as_str())
+            .bind(&sim_id)
+            .execute(&mut *transaction)
+            .await
+            .map_err(backend)?;
+            transaction.commit().await.map_err(backend)?;
+            let Some(record) = load_run(&pool, &profile, &sim_id).await? else {
+                return Err(StoreError::NotFound);
+            };
+            let mut summary = record.summary();
+            summary.archived_at = Some(archived_at);
+            Ok(ArchiveOutcome::Archived(summary))
+        })
+    }
+
+    fn erase(
+        &self,
+        profile: ProfileId,
+        sim_id: String,
+    ) -> BoxFuture<Result<EraseOutcome, StoreError>> {
+        let pool = self.pool.clone();
+        Box::pin(async move {
+            let mut transaction = pool.begin().await.map_err(backend)?;
+            let row: Option<(String, Option<String>)> = sqlx::query_as(
+                "SELECT status, to_char(archived_at AT TIME ZONE 'UTC',
+                                        'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')
+                   FROM simulation.runs
+                  WHERE profile_id = $1 AND sim_id = $2",
+            )
+            .bind(profile.as_str())
+            .bind(&sim_id)
+            .fetch_optional(&mut *transaction)
+            .await
+            .map_err(backend)?;
+            let Some((status_word, archived_at)) = row else {
+                transaction.rollback().await.map_err(backend)?;
+                return Ok(EraseOutcome::NotFound);
+            };
+            let status = parse_status(&status_word)
+                .ok_or_else(|| invalid(format!("the stored status {status_word:?} is unknown")))?;
+            if archived_at.is_none() {
+                transaction.rollback().await.map_err(backend)?;
+                return Ok(EraseOutcome::NotArchived);
+            }
+            if matches!(
+                status,
+                SimulationStatus::Checked | SimulationStatus::Decided
+            ) {
+                transaction.rollback().await.map_err(backend)?;
+                return Ok(EraseOutcome::Protected(status));
+            }
+            sqlx::query("DELETE FROM simulation.runs WHERE profile_id = $1 AND sim_id = $2")
+                .bind(profile.as_str())
+                .bind(&sim_id)
+                .execute(&mut *transaction)
+                .await
+                .map_err(backend)?;
+            sqlx::query(
+                "INSERT INTO simulation.retention_events
+                     (profile_id, kind, record_id, action, reason, bytes)
+                 VALUES ($1, 'simulation', $2, 'erase', 'operator.erase', 0)",
+            )
+            .bind(profile.as_str())
+            .bind(&sim_id)
+            .execute(&mut *transaction)
+            .await
+            .map_err(backend)?;
+            transaction.commit().await.map_err(backend)?;
+            Ok(EraseOutcome::Erased(sim_id))
+        })
     }
 
     fn save_windows(

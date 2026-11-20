@@ -33,7 +33,7 @@ async fn migrated() -> SqliteDatabase {
     )
     .await
     .expect("the simulation baseline");
-    assert_eq!(applied, 1);
+    assert_eq!(applied, 2);
     database
 }
 
@@ -345,7 +345,7 @@ async fn a_mark_survives_a_restart_on_sqlite() {
         )
         .await
         .expect("the simulation baseline");
-        assert_eq!(applied, 1);
+        assert_eq!(applied, 2);
         let service = state(database, Arc::clone(&objects));
         let id = create(Arc::clone(&service), "default", &fixture).await;
         select_windows(Arc::clone(&service), "default", &id).await;

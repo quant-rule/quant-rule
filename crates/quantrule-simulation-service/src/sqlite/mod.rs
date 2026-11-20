@@ -33,7 +33,7 @@ use crate::records::{
     DecisionKind, DecisionRecord, MarkRecord, NewSimulation, RunRecord, SimulationSummary,
     action_text, origin_text, parse_status, quality_text, side_text, status_text,
 };
-use crate::store::{SimulationStore, StoreError};
+use crate::store::{ArchiveOutcome, EraseOutcome, SimulationStore, StoreError};
 
 use rows::{backend, invalid, load_mark, load_marks, load_run, unsigned};
 
@@ -271,7 +271,67 @@ impl SimulationStore for SqliteSimulationStore {
                 let limit = i64::try_from(limit).unwrap_or(i64::MAX);
                 let sql = match status {
                     Some(_) => format!(
-                        "SELECT r.sim_id, r.premise, r.status, r.bundle,
+                        "SELECT r.sim_id, r.premise, r.status, r.bundle, r.archived_at,
+                                COALESCE(json_array_length(r.selection, '$.windows'), 0)
+                                    AS windows,
+                                (SELECT count(*) FROM {MARKS} m
+                                  WHERE m.sim_id = r.sim_id AND m.origin = 'human') AS marks,
+                                (SELECT count(DISTINCT m.chart) FROM {MARKS} m
+                                  WHERE m.sim_id = r.sim_id AND m.origin = 'human')
+                                    AS marked_windows
+                         FROM {RUNS} r
+                         WHERE r.profile_id = ?1 AND r.status = ?2
+                          AND r.archived_at IS NULL
+                         ORDER BY r.created_at DESC, r.sim_id
+                         LIMIT ?3"
+                    ),
+                    None => format!(
+                        "SELECT r.sim_id, r.premise, r.status, r.bundle, r.archived_at,
+                                COALESCE(json_array_length(r.selection, '$.windows'), 0)
+                                    AS windows,
+                                (SELECT count(*) FROM {MARKS} m
+                                  WHERE m.sim_id = r.sim_id AND m.origin = 'human') AS marks,
+                                (SELECT count(DISTINCT m.chart) FROM {MARKS} m
+                                  WHERE m.sim_id = r.sim_id AND m.origin = 'human')
+                                    AS marked_windows
+                         FROM {RUNS} r
+                         WHERE r.profile_id = ?1
+                          AND r.archived_at IS NULL
+                         ORDER BY r.created_at DESC, r.sim_id
+                         LIMIT ?2"
+                    ),
+                };
+                let mut statement = connection.prepare(&sql).map_err(backend)?;
+                let mut rows = match status {
+                    Some(status) => {
+                        statement.query(params![profile.as_str(), status_text(status), limit])
+                    }
+                    None => statement.query(params![profile.as_str(), limit]),
+                }
+                .map_err(backend)?;
+                let mut summaries = Vec::new();
+                while let Some(row) = rows.next().map_err(backend)? {
+                    summaries.push(summary_from_row(row)?);
+                }
+                Ok(summaries)
+            })
+            .await
+        })
+    }
+
+    fn list_including_archived(
+        &self,
+        profile: ProfileId,
+        status: Option<SimulationStatus>,
+        limit: usize,
+    ) -> BoxFuture<Result<Vec<SimulationSummary>, StoreError>> {
+        let database = self.database.clone();
+        Box::pin(async move {
+            read(database, move |connection| {
+                let limit = i64::try_from(limit).unwrap_or(i64::MAX);
+                let sql = match status {
+                    Some(_) => format!(
+                        "SELECT r.sim_id, r.premise, r.status, r.bundle, r.archived_at,
                                 COALESCE(json_array_length(r.selection, '$.windows'), 0)
                                     AS windows,
                                 (SELECT count(*) FROM {MARKS} m
@@ -285,7 +345,7 @@ impl SimulationStore for SqliteSimulationStore {
                          LIMIT ?3"
                     ),
                     None => format!(
-                        "SELECT r.sim_id, r.premise, r.status, r.bundle,
+                        "SELECT r.sim_id, r.premise, r.status, r.bundle, r.archived_at,
                                 COALESCE(json_array_length(r.selection, '$.windows'), 0)
                                     AS windows,
                                 (SELECT count(*) FROM {MARKS} m
@@ -326,6 +386,133 @@ impl SimulationStore for SqliteSimulationStore {
         Box::pin(async move {
             read(database, move |connection| {
                 load_run(connection, &profile, &sim_id)
+            })
+            .await
+        })
+    }
+
+    fn archive(
+        &self,
+        profile: ProfileId,
+        sim_id: String,
+        archived_at: String,
+    ) -> BoxFuture<Result<ArchiveOutcome, StoreError>> {
+        let database = self.database.clone();
+        Box::pin(async move {
+            let profile_after = profile.clone();
+            let sim_after = sim_id.clone();
+            let archived_after = archived_at.clone();
+            let outcome = write(database.clone(), move |connection| {
+                immediate(connection, move |transaction| {
+                    let update = format!(
+                        "UPDATE {RUNS} SET archived_at = ?3
+                          WHERE profile_id = ?1 AND sim_id = ?2 AND archived_at IS NULL"
+                    );
+                    let updated = transaction
+                        .execute(&update, params![profile.as_str(), &sim_id, &archived_at])
+                        .map_err(backend)?;
+                    if updated == 0 {
+                        let exists: Option<String> = transaction
+                            .query_row(
+                                &format!(
+                                    "SELECT sim_id FROM {RUNS}
+                                      WHERE profile_id = ?1 AND sim_id = ?2"
+                                ),
+                                params![profile.as_str(), &sim_id],
+                                |row| row.get(0),
+                            )
+                            .ok();
+                        return Ok(if exists.is_some() {
+                            ArchiveDbOutcome::AlreadyArchived
+                        } else {
+                            ArchiveDbOutcome::NotFound
+                        });
+                    }
+                    transaction
+                        .execute(
+                            "INSERT INTO simulation__retention_events
+                                 (profile_id, kind, record_id, action, reason, bytes)
+                             VALUES (?1, 'simulation', ?2, 'archive', 'operator.archive', 0)",
+                            params![profile.as_str(), &sim_id],
+                        )
+                        .map_err(backend)?;
+                    Ok(ArchiveDbOutcome::Archived)
+                })
+            })
+            .await
+            .map_err(|error| StoreError::Backend(error.to_string()))?;
+            match outcome {
+                ArchiveDbOutcome::NotFound => Ok(ArchiveOutcome::NotFound),
+                ArchiveDbOutcome::AlreadyArchived => Ok(ArchiveOutcome::AlreadyArchived),
+                ArchiveDbOutcome::Archived => {
+                    let record = read(database, move |connection| {
+                        load_run(connection, &profile_after, &sim_after)
+                    })
+                    .await?
+                    .ok_or(StoreError::NotFound)?;
+                    let mut summary = record.summary();
+                    summary.archived_at = Some(archived_after);
+                    Ok(ArchiveOutcome::Archived(summary))
+                }
+            }
+        })
+    }
+
+    fn erase(
+        &self,
+        profile: ProfileId,
+        sim_id: String,
+    ) -> BoxFuture<Result<EraseOutcome, StoreError>> {
+        let database = self.database.clone();
+        Box::pin(async move {
+            write(database, move |connection| {
+                immediate(connection, move |transaction| {
+                    let row: Option<(String, Option<String>)> = transaction
+                        .query_row(
+                            &format!(
+                                "SELECT status, archived_at FROM {RUNS}
+                                  WHERE profile_id = ?1 AND sim_id = ?2"
+                            ),
+                            params![profile.as_str(), &sim_id],
+                            |row| Ok((row.get(0)?, row.get(1)?)),
+                        )
+                        .map(Some)
+                        .or_else(|error| match error {
+                            rusqlite::Error::QueryReturnedNoRows => Ok(None),
+                            other => Err(other),
+                        })
+                        .map_err(backend)?;
+                    let Some((status_word, archived_at)) = row else {
+                        return Ok(EraseOutcome::NotFound);
+                    };
+                    let status = parse_status(&status_word).ok_or_else(|| {
+                        invalid(format!("the stored status {status_word:?} is unknown"))
+                    })?;
+                    if archived_at.is_none() {
+                        return Ok(EraseOutcome::NotArchived);
+                    }
+                    if matches!(
+                        status,
+                        SimulationStatus::Checked | SimulationStatus::Decided
+                    ) {
+                        return Ok(EraseOutcome::Protected(status));
+                    }
+                    transaction
+                        .execute(
+                            &format!("DELETE FROM {RUNS} WHERE profile_id = ?1 AND sim_id = ?2"),
+                            params![profile.as_str(), &sim_id],
+                        )
+                        .map_err(backend)?;
+                    transaction
+                        .execute(
+                            "INSERT INTO simulation__retention_events
+                                 (profile_id, kind, record_id, action, reason, bytes)
+                             VALUES (?1, 'simulation', ?2, 'erase', 'operator.erase', 0)",
+                            params![profile.as_str(), &sim_id],
+                        )
+                        .map_err(backend)?;
+                    Ok(EraseOutcome::Erased(sim_id))
+                })
             })
             .await
         })
@@ -606,6 +793,12 @@ impl SimulationStore for SqliteSimulationStore {
     }
 }
 
+enum ArchiveDbOutcome {
+    Archived,
+    NotFound,
+    AlreadyArchived,
+}
+
 /// Decode one list row.
 fn summary_from_row(row: &rusqlite::Row<'_>) -> Result<SimulationSummary, StoreError> {
     let status_word: String = row.get("status").map_err(backend)?;
@@ -626,6 +819,7 @@ fn summary_from_row(row: &rusqlite::Row<'_>) -> Result<SimulationSummary, StoreE
             row.get("marked_windows").map_err(backend)?,
             "marked-window count",
         )?,
+        archived_at: row.get("archived_at").map_err(backend)?,
     })
 }
 

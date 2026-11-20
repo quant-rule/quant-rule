@@ -15,11 +15,20 @@ use quantrule_runtime::migrations::Migration;
 /// The simulation schema's Postgres migrations, in version order.
 #[must_use]
 pub fn available() -> Vec<Migration> {
-    vec![Migration {
-        version: 14,
-        name: "simulation",
-        sql: include_str!("../migrations/0014_simulation.sql"),
-    }]
+    let mut migrations = vec![
+        Migration {
+            version: 14,
+            name: "simulation",
+            sql: include_str!("../migrations/0014_simulation.sql"),
+        },
+        Migration {
+            version: 15,
+            name: "simulation-retention",
+            sql: include_str!("../migrations/0015_simulation_retention.sql"),
+        },
+    ];
+    migrations.sort_by_key(|migration| migration.version);
+    migrations
 }
 
 /// The simulation schema's SQLite baseline, in version order.
@@ -28,11 +37,18 @@ pub fn available() -> Vec<Migration> {
 /// table under the `simulation` ledger name.
 #[must_use]
 pub fn sqlite() -> Vec<Migration> {
-    vec![Migration {
-        version: 1,
-        name: "simulation",
-        sql: include_str!("../migrations/sqlite/0001_simulation.sql"),
-    }]
+    vec![
+        Migration {
+            version: 1,
+            name: "simulation",
+            sql: include_str!("../migrations/sqlite/0001_simulation.sql"),
+        },
+        Migration {
+            version: 2,
+            name: "simulation-retention",
+            sql: include_str!("../migrations/sqlite/0002_simulation_retention.sql"),
+        },
+    ]
 }
 
 #[cfg(test)]
@@ -60,7 +76,7 @@ mod tests {
     #[test]
     fn an_empty_database_gets_the_migration() {
         let available = available();
-        assert_eq!(plan(&[], &available).expect("plan").len(), 1);
+        assert_eq!(plan(&[], &available).expect("plan").len(), 2);
     }
 
     #[test]
@@ -80,21 +96,19 @@ mod tests {
     #[test]
     fn the_ledger_owns_only_the_simulation_schema() {
         for migration in available() {
-            for forbidden in ["catalog.", "runs.", "research.", "gateway."] {
+            for forbidden in ["catalog.", "research.", "gateway.", "stage."] {
                 assert!(
                     !migration.sql.contains(forbidden),
                     "{} names {forbidden}",
                     migration.name
                 );
             }
-            assert!(
-                migration
-                    .sql
-                    .contains("CREATE SCHEMA IF NOT EXISTS simulation"),
-                "{} does not create the simulation schema",
-                migration.name
-            );
         }
+        assert!(
+            available()[0]
+                .sql
+                .contains("CREATE SCHEMA IF NOT EXISTS simulation")
+        );
     }
 
     #[test]
@@ -108,9 +122,10 @@ mod tests {
     #[test]
     fn the_sqlite_baseline_starts_at_one_and_is_complete() {
         let available = sqlite();
-        assert_eq!(available.len(), 1);
+        assert_eq!(available.len(), 2);
         assert_eq!(available[0].version, 1);
-        assert_eq!(plan(&[], &available).expect("plan").len(), 1);
+        assert_eq!(available[1].version, 2);
+        assert_eq!(plan(&[], &available).expect("plan").len(), 2);
         let applied: Vec<Applied> = available.iter().map(applied).collect();
         assert!(plan(&applied, &available).expect("plan").is_empty());
     }

@@ -224,6 +224,7 @@ impl RunRecord {
             marks: self.human_marks,
             bundle: self.bundle.clone(),
             marked_windows: self.marked_windows,
+            archived_at: None,
         }
     }
 
