@@ -32,6 +32,8 @@ history is in Git and the pull requests.
 
 ### Fixed
 
+- Stage recording and stage row/blob deletion share one gate, so a concurrent
+  delete waits for the record and keeps the new stage's blob.
 - Determinism evidence now covers a reordered ladder and two workers on one
   run, and the checker gate has a registry meta-test plus a file-size unit test.
 - The browser clears an open config detail on a profile switch, stage forms

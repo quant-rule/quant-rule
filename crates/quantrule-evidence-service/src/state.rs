@@ -61,6 +61,13 @@ pub struct EvidenceState {
     pub data: Option<Arc<dyn DataClient>>,
     /// The configured retention window and the last cleanup.
     pub operations: Arc<OperationsStatus>,
+    /// Serialises stage artifact recording with row/blob deletion.
+    ///
+    /// The record path verifies every blob and marks the row succeeded; the
+    /// retention and explicit-delete paths remove the row and the now-unused
+    /// blobs. Holding this gate across both prevents a delete from removing a
+    /// blob after the reference check but before the row is recorded.
+    pub stage_gate: Arc<tokio::sync::Mutex<()>>,
 }
 
 impl std::fmt::Debug for EvidenceState {
@@ -100,6 +107,7 @@ impl EvidenceState {
             queue: services.queue,
             data: services.data,
             operations: OperationsStatus::new(config.stage_retention_days, stage_store),
+            stage_gate: Arc::new(tokio::sync::Mutex::new(())),
         }
     }
 }

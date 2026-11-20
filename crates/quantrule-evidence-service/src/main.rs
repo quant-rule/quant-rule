@@ -133,6 +133,7 @@ async fn main() -> Result<(), RuntimeError> {
             Arc::clone(stages),
             Arc::clone(&objects),
             Arc::clone(&state.operations),
+            Arc::clone(&state.stage_gate),
             config.stage_retention_days,
             retention::SWEEP_INTERVAL,
         ));

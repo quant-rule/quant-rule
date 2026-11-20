@@ -120,6 +120,7 @@ pub(crate) async fn computed_stage(
         .objects
         .as_ref()
         .ok_or_else(|| failure(ErrorCode::Internal, "no object store is configured"))?;
+    let _guard = state.stage_gate.lock().await;
     record_computed(stages.as_ref(), objects.as_ref(), &id, computed.artifact)
         .await
         .map(Json)

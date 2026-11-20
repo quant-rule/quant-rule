@@ -8,11 +8,12 @@ use quantrule_evidence_service::operations::OperationsStatus;
 use quantrule_evidence_service::runs::{MemoryRuns, NewRun, RunStore};
 use quantrule_evidence_service::sqlite::SqliteRunStore;
 use quantrule_evidence_service::stage::{
-    MemoryStages, NewStageRun, SqliteStageStore, StageDeletion, StageStore, retention,
+    MemoryStages, NewStageRun, SqliteStageStore, StageDeletion, StageStore, record_computed,
+    retention,
 };
-use quantrule_runtime::adapters::ObjectStore;
 use quantrule_runtime::adapters::memory::MemoryObjects;
 use quantrule_runtime::adapters::sqlite::{SqliteDatabase, apply_migrations_in};
+use quantrule_runtime::adapters::{Backend, BoxFuture, ObjectStore, StoreError};
 use quantrule_runtime::clock;
 use quantrule_service_api::StageManifest;
 use std::sync::Arc;
@@ -340,6 +341,7 @@ async fn the_hourly_sweep_removes_a_stage_without_a_restart() {
         Arc::clone(&stages),
         Arc::clone(&objects),
         Arc::clone(&operations),
+        Arc::new(tokio::sync::Mutex::new(())),
         30,
         retention::SWEEP_INTERVAL,
     ));
@@ -391,4 +393,148 @@ async fn the_hourly_sweep_removes_a_stage_without_a_restart() {
         "the next hourly sweep did not run"
     );
     task.abort();
+}
+
+/// A store that pauses the first blob read, so a concurrent delete can be
+/// started while the record path holds the evidence gate.
+struct BlockingObjects {
+    inner: Arc<MemoryObjects>,
+    blob_key: String,
+    entered: Arc<tokio::sync::Notify>,
+    release: Arc<tokio::sync::Notify>,
+}
+
+impl ObjectStore for BlockingObjects {
+    fn backend(&self) -> Backend {
+        self.inner.backend()
+    }
+
+    fn put(&self, key: &str, bytes: Vec<u8>) -> BoxFuture<Result<(), StoreError>> {
+        self.inner.put(key, bytes)
+    }
+
+    fn get(&self, key: &str) -> BoxFuture<Result<Vec<u8>, StoreError>> {
+        let inner = Arc::clone(&self.inner);
+        let blob = self.blob_key.clone();
+        let entered = Arc::clone(&self.entered);
+        let release = Arc::clone(&self.release);
+        let key = key.to_owned();
+        Box::pin(async move {
+            if key == blob {
+                entered.notify_one();
+                release.notified().await;
+            }
+            inner.get(&key).await
+        })
+    }
+
+    fn exists(&self, key: &str) -> BoxFuture<Result<bool, StoreError>> {
+        self.inner.exists(key)
+    }
+
+    fn delete(&self, key: &str) -> BoxFuture<Result<(), StoreError>> {
+        self.inner.delete(key)
+    }
+}
+
+#[tokio::test]
+async fn a_record_in_progress_keeps_the_blob_from_a_concurrent_delete() {
+    let stages = Arc::new(MemoryStages::default());
+    let inner = Arc::new(MemoryObjects::default());
+    let artifact = artifact(b"stage-bytes");
+    let blob_key = StageManifest::blob_key(&artifact.files[0].sha256);
+
+    // The new stage is running and its manifest and blob are already written.
+    let new = stages
+        .create(profile("default"), stage(b"new", "2020-01-01T00:00:00Z"))
+        .await
+        .expect("new stage");
+    let new_id = new.record().stage_run_id.to_string();
+    stages
+        .claim(new_id.clone(), false)
+        .await
+        .expect("claim new");
+    write_stage_objects(&inner, new.record()).await;
+
+    // The expired stage owns the same blob and is deleted through the store.
+    let old = stages
+        .create(profile("default"), stage(b"old", "2020-01-01T00:00:00Z"))
+        .await
+        .expect("old stage");
+    let old_id = old.record().stage_run_id.to_string();
+    stages
+        .claim(old_id.clone(), false)
+        .await
+        .expect("claim old");
+    stages
+        .complete(old_id.clone(), artifact.clone())
+        .await
+        .expect("complete old");
+    let deletion = stages
+        .delete(profile("default"), old_id)
+        .await
+        .expect("delete old")
+        .expect("the old stage");
+
+    let entered = Arc::new(tokio::sync::Notify::new());
+    let release = Arc::new(tokio::sync::Notify::new());
+    let objects = Arc::new(BlockingObjects {
+        inner: Arc::clone(&inner),
+        blob_key: blob_key.clone(),
+        entered: Arc::clone(&entered),
+        release: Arc::clone(&release),
+    });
+    let gate = Arc::new(tokio::sync::Mutex::new(()));
+
+    let record_gate = Arc::clone(&gate);
+    let record_stages = Arc::clone(&stages);
+    let record_objects = Arc::clone(&objects);
+    let record_new = new_id.clone();
+    let record = tokio::spawn(async move {
+        let _guard = record_gate.lock().await;
+        record_computed(
+            record_stages.as_ref(),
+            record_objects.as_ref(),
+            &record_new,
+            artifact,
+        )
+        .await
+    });
+
+    tokio::time::timeout(Duration::from_secs(1), entered.notified())
+        .await
+        .expect("the record reaches the blob read");
+
+    let delete_gate = Arc::clone(&gate);
+    let delete_stages = Arc::clone(&stages);
+    let delete_objects = Arc::clone(&objects);
+    let delete = tokio::spawn(async move {
+        let _guard = delete_gate.lock().await;
+        retention::remove_deleted(delete_stages.as_ref(), delete_objects.as_ref(), &deletion).await
+    });
+
+    tokio::task::yield_now().await;
+    assert!(
+        !delete.is_finished(),
+        "the delete must wait for the record's gate"
+    );
+    release.notify_one();
+    record
+        .await
+        .expect("record task")
+        .expect("the record completes");
+    delete
+        .await
+        .expect("delete task")
+        .expect("the delete completes");
+    assert!(
+        inner.exists(&blob_key).await.expect("blob exists"),
+        "the new stage's blob was deleted"
+    );
+    let stored = stages
+        .get_any(new_id)
+        .await
+        .expect("get new")
+        .expect("new stage");
+    assert_eq!(stored.state, quantrule_api::StageState::Succeeded);
 }
