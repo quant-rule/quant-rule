@@ -93,5 +93,5 @@ or the service, not the trust boundary.
 - [Multi-host architecture](../architecture/multi-host.md)
 - [Deployment](../architecture/deployment.md)
 - [Security](../architecture/security.md)
-- [Agent runbook](https://github.com/quant-rule/quant-rule/issues/969)
-- [Deploy README](https://github.com/quant-rule/quant-rule/issues/961)
+- [Agent runbook](agent-runbook.md)
+- [Deploy README](../../deploy/multi-host/README.md)

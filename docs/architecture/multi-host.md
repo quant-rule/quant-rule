@@ -2,7 +2,7 @@
 
 - Status: Implemented; hardening #980; release pending
 - Part of: [`README.md`](README.md)
-- Decision: [`#958`](https://github.com/quant-rule/quant-rule/issues/958)
+- Decision: [ADR-2026-11-20-01](../adr/2026-11-20/958-multi-host-deployment.md)
 - Claim type: Behaviour Claim
 
 ## 1. What it is
@@ -154,5 +154,5 @@ image; and the infrastructure host is a single point of failure.
 - [`deployment.md`](deployment.md)
 - [`services.md`](services.md)
 - [`security.md`](security.md)
-- [`deploy/multi-host/README.md`](https://github.com/quant-rule/quant-rule/issues/961)
+- [`deploy/multi-host/README.md`](../../deploy/multi-host/README.md)
 - [User manual chapter 14](../manual/14-multi-host.md)
