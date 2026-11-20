@@ -35,6 +35,7 @@ pub fn render(
         .endpoints
         .object_bucket
         .clone()
+        .or_else(|| secrets.get("QR_OBJECT_STORE_BUCKET").cloned())
         .unwrap_or_else(|| "quantrule".to_owned());
     let mut written = Vec::new();
     for name in [
@@ -200,6 +201,7 @@ fn service_url(descriptor: &Descriptor, name: &str) -> Result<String, Error> {
 fn required(secrets: &BTreeMap<String, String>, name: &str) -> Result<String, Error> {
     secrets
         .get(name)
+        .filter(|value| !value.trim().is_empty())
         .cloned()
         .ok_or_else(|| Error::MissingSecret {
             name: name.to_owned(),

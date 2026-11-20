@@ -80,7 +80,11 @@ pub fn validate_with_secrets(
     check_default_credentials("endpoints.database", &database)?;
     check_default_credentials("endpoints.queue", &queue)?;
     check_default_credentials("endpoints.object_store", &object_store)?;
-    if descriptor.auth.gateway_token && !secrets.contains_key("QR_BEARER_TOKEN") {
+    if descriptor.auth.gateway_token
+        && secrets
+            .get("QR_BEARER_TOKEN")
+            .is_none_or(|value| value.trim().is_empty())
+    {
         return Err(Error::MissingSecret {
             name: "QR_BEARER_TOKEN".to_owned(),
         });
@@ -95,7 +99,7 @@ pub fn validate_with_secrets(
         "QR_QUEUE_PASSWORD",
         "QR_QUEUE_VHOST",
     ] {
-        if !secrets.contains_key(key) {
+        if secrets.get(key).is_none_or(|value| value.trim().is_empty()) {
             return Err(Error::MissingSecret {
                 name: key.to_owned(),
             });
@@ -494,6 +498,14 @@ mod tests {
         value["auth"]["gateway_token"] = serde_json::json!(false);
         let error = validate(&parse(value)).expect_err("a tokenless LAN gateway");
         assert!(error.to_string().contains("gateway_token"), "{error}");
+    }
+
+    #[test]
+    fn an_empty_token_is_a_missing_secret() {
+        let mut secrets = secrets();
+        secrets.insert("QR_BEARER_TOKEN".to_owned(), "  ".to_owned());
+        let error = validate_with_secrets(&parse(example()), &secrets).expect_err("empty token");
+        assert!(error.to_string().contains("QR_BEARER_TOKEN"), "{error}");
     }
 
     #[test]
