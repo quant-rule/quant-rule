@@ -18,11 +18,11 @@ client, not a second client.
 | Windows | Windows 10 or 11 with the WebView2 runtime (present by default) |
 | Docker | Not required; the packaged app starts its own six services on loopback |
 | Bun and Rust | Only when building the artifact from source |
-| Artifact | `QuantRule_1.3.0_amd64.AppImage` (Linux) or `QuantRule_1.3.0_x64-setup.exe` (Windows) |
+| Artifact | `QuantRule_1.4.0_amd64.AppImage` (Linux) or `QuantRule_1.4.0_x64-setup.exe` (Windows) |
 | Free ports | 8080–8089 and the 18081-and-up internal range, on loopback |
 | Access | Per-user install; no administrator, account, license key, or cloud service |
 
-The release artifact is attached to the v1.3.0 release; building it from source
+The release artifact is attached to the v1.4.0 release; building it from source
 produces the same name. A source bundle built without the staged sidecars is a
 shell without a stack: its resources directory is empty and it falls back to the
 external profile.
@@ -48,7 +48,7 @@ bun scripts/stage-package.mjs \
 bunx @tauri-apps/cli@2 build --bundles appimage
 ```
 
-Output: `apps/desktop-shell/target/release/bundle/appimage/QuantRule_1.3.0_amd64.AppImage`.
+Output: `apps/desktop-shell/target/release/bundle/appimage/QuantRule_1.4.0_amd64.AppImage`.
 
 Building needs the Tauri 2 Linux libraries (WebKitGTK 4.1, librsvg, OpenSSL,
 `patchelf`); on Fedora the development packages are `webkit2gtk4.1-devel`,
@@ -72,8 +72,8 @@ From `apps/desktop-shell`:
 ```bash
 mkdir -p ~/Applications ~/.local/share/applications \
   ~/.local/share/icons/hicolor/512x512/apps
-cp target/release/bundle/appimage/QuantRule_1.3.0_amd64.AppImage ~/Applications/
-chmod +x ~/Applications/QuantRule_1.3.0_amd64.AppImage
+cp target/release/bundle/appimage/QuantRule_1.4.0_amd64.AppImage ~/Applications/
+chmod +x ~/Applications/QuantRule_1.4.0_amd64.AppImage
 cp icons/icon.png ~/.local/share/icons/hicolor/512x512/apps/quantrule.png
 ```
 
@@ -90,7 +90,7 @@ cat > ~/.local/share/applications/quantrule.desktop <<EOF
 Type=Application
 Name=QuantRule
 Comment=A window over the QuantRule gateway
-Exec=$HOME/Applications/QuantRule_1.3.0_amd64.AppImage
+Exec=$HOME/Applications/QuantRule_1.4.0_amd64.AppImage
 Icon=$HOME/.local/share/icons/hicolor/512x512/apps/quantrule.png
 Terminal=false
 Categories=Office;Finance;
@@ -114,7 +114,7 @@ sudo dnf install fuse-libs
 Without it the artifact still runs when it extracts itself instead:
 
 ```bash
-~/Applications/QuantRule_1.3.0_amd64.AppImage --appimage-extract-and-run
+~/Applications/QuantRule_1.4.0_amd64.AppImage --appimage-extract-and-run
 ```
 
 The flag extracts to a temporary directory on every launch. To make that
@@ -136,7 +136,7 @@ see [Ports and one-stack rule](#ports-and-one-stack-rule).
 
 ## Windows NSIS
 
-The release artifact `QuantRule_1.3.0_x64-setup.exe` is built on `windows-latest`
+The release artifact `QuantRule_1.4.0_x64-setup.exe` is built on `windows-latest`
 and attached to the release. It is unsigned, so SmartScreen warns.
 
 ### Build on Windows
@@ -154,12 +154,12 @@ bun scripts/stage-package.mjs --services-dir ../../target/release --supervisor-b
 bunx @tauri-apps/cli@2 build --bundles nsis
 ```
 
-Output: `apps\desktop-shell\target\release\bundle\nsis\QuantRule_1.3.0_x64-setup.exe`.
+Output: `apps\desktop-shell\target\release\bundle\nsis\QuantRule_1.4.0_x64-setup.exe`.
 The bundler downloads NSIS; no separate installer is needed.
 
 ### Install and verify
 
-1. Run `QuantRule_1.3.0_x64-setup.exe`. It installs for the current user and
+1. Run `QuantRule_1.4.0_x64-setup.exe`. It installs for the current user and
    needs no elevation.
 2. SmartScreen shows “Windows protected your PC”. Choose **More info**, then
    **Run anyway**; the artifact carries no signature.
@@ -194,7 +194,7 @@ Linux, from the same user account:
 ```bash
 rm -f ~/.local/share/applications/quantrule.desktop
 rm -f ~/.local/share/icons/hicolor/512x512/apps/quantrule.png
-rm -f ~/Applications/QuantRule_1.3.0_amd64.AppImage
+rm -f ~/Applications/QuantRule_1.4.0_amd64.AppImage
 update-desktop-database ~/.local/share/applications
 ```
 
@@ -216,7 +216,7 @@ and stays until it is removed deliberately, with the same warning.
 | Connection badge `token required` | The window attached to a gateway that enforces a bearer token, not its own loopback stack | Enter the token to inspect that stack, or stop it and relaunch the app to reach its own gateway |
 | Port conflict, or `state: failed` in `ports.json` | `8080`–`8089` or the internal range is occupied, or a previous stack is still exiting | Close the other stack; wait for the grace period; relaunch |
 | SmartScreen “Windows protected your PC” | The NSIS installer is unsigned | **More info** → **Run anyway** |
-| “Permission denied” on launch | The copied AppImage lost its executable bit | `chmod +x ~/Applications/QuantRule_1.3.0_amd64.AppImage` |
+| “Permission denied” on launch | The copied AppImage lost its executable bit | `chmod +x ~/Applications/QuantRule_1.4.0_amd64.AppImage` |
 | `check-package.sh` fails | The bundle was built without staged sidecars, or the test stub was packaged | Re-run the staging step from the repository root, then rebuild |
 
 ## Related

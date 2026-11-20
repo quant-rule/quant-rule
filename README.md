@@ -5,20 +5,22 @@ evidence — and keeps that evidence auditable after the client that submitted i
 has closed. It is candles-only, rule-based, and deterministic. There is no
 account, no cloud provider, and no live trading.
 
-> **Status.** The current release tag is **v1.3.0** (2026-11-17), the stage
-> execution surface release: diagnostic model, strategy, and portfolio stages,
-> verified stage artifacts and Workbench tabs, promoted
-> `run submit --model-artifact`, the v3 research ledger and Research screen,
-> the Operations screen and `GET /operations`, and the 14-chapter user manual.
+> **Status.** The current release tag is **v1.4.0** (2026-11-20), the multi-host
+> deployment release: one `quantrule.deploy/v2` descriptor, per-role Compose,
+> `qr-deploy`, a private overlay with one public gateway, the
+> `QR_INTERNAL_ONLY` bind guard, backup/restore, and a local multi-host test
+> tier. The diagnostic stage surface, the v3 research ledger, the Operations
+> screen, the desktop installer, and the 14-chapter user manual remain current.
 > One image and six services serve the server profile; one installer starts the
 > same six sidecars on embedded SQLite, a filesystem CAS, and a durable
 > in-process queue for the desktop profile. The browser client, command shell,
 > and desktop shell share one `quantrule.api/v1` contract. The previous tag,
-> **v1.2.0**, is the version-alignment release; **v1.1.0** is the 1.1.0
-> alignment release; **v1.0.0** is the desktop release. Current note:
-> [`docs/releases/2026-11-17/v1.3.0.md`](docs/releases/2026-11-17/v1.3.0.md);
+> **v1.3.0**, is the stage execution surface; **v1.2.0** is the
+> version-alignment release; **v1.1.0** is the 1.1.0 alignment release;
+> **v1.0.0** is the desktop release. Current note:
+> [`docs/releases/2026-11-20/v1.4.0.md`](docs/releases/2026-11-20/v1.4.0.md);
 > previous note:
-> [`docs/releases/2026-11-16/v1.2.0.md`](docs/releases/2026-11-16/v1.2.0.md);
+> [`docs/releases/2026-11-17/v1.3.0.md`](docs/releases/2026-11-17/v1.3.0.md);
 > mapping: [`docs/releases/README.md`](docs/releases/README.md). The
 > architecture is specified in
 > [`docs/architecture/`](docs/architecture/README.md).
@@ -49,7 +51,7 @@ make up
 `make up` builds the image, starts the stack, waits for health, and prints:
 
 ```text
-QuantRule v1.3.0 ready → http://localhost:8080
+QuantRule v1.4.0 ready → http://localhost:8080
 ```
 
 `make` is the Linux and macOS path. Windows runs the same Compose file directly,
@@ -131,9 +133,9 @@ Docker requirement, no engine in the shell, and no local data read by the shell;
 the server remains the same stack and the same HTTP contract. The packaged
 desktop profile and the server profile both reproduce canonical digest
 `sha256:453c90b4442dd049074e126bb46b400b6f61baa986443c97fa27c3edd41c1daa` for
-the verification fixture. The current release is `v1.3.0`; `v1.2.0` is the
-version-alignment release, `v1.0.0` is the desktop release, and `v0.9.0` the
-distributed platform release.
+the verification fixture. The current release is `v1.4.0`; `v1.3.0` is the
+stage execution surface, `v1.2.0` is the version-alignment release, `v1.0.0` is
+the desktop release, and `v0.9.0` the distributed platform release.
 Linux installs the AppImage and a user-level `.desktop` entry so the app appears
 in Activities search; Windows installs the NSIS package. The step-by-step
 procedure is [user manual chapter 13](docs/manual/13-desktop.md), and the
