@@ -40,8 +40,8 @@ never renders a label, and never returns a raw engine type.
 | POST | `/catalog/datasets` | CSV bytes, `name` query | `201` new, `200` existing, with the record |
 | POST | `/catalog/datasets/tolerant` | CSV bytes, `name` query | the record plus the quality report |
 | GET | `/catalog/datasets/{version}` | — | one dataset record |
-| GET | `/datasets/{version}/candles` | — | canonical CSV bytes, with an ETag |
-| GET | `/datasets/{version}/ladder/{timeframe}` | — | canonical CSV for one timeframe, built once and reused |
+| GET | `/datasets/{version}/candles` | — | canonical CSV bytes, with an ETag; `If-None-Match` returns `304` |
+| GET | `/datasets/{version}/ladder/{timeframe}` | — | canonical CSV for one timeframe, built once and reused; ETag and `304` |
 | GET | `/catalog/configs` | — | run configs with validity and origin |
 | POST | `/catalog/configs` | run-config bundle | `201` new, `200` existing, with the summary |
 | POST | `/model/compute` | `{data_version, config_id, timeframes?}` | model object with registry version, timeframes, CAS key, hash, and bytes |
@@ -58,9 +58,8 @@ never renders a label, and never returns a raw engine type.
 
 ### 2.1 Diagnostic stage extension
 
-The stage surface is the extension contract in
-[`stage-surface.md`](stage-surface.md). It is diagnostic only and never
-evidence.
+The stage surface is the extension contract in [`stage-surface.md`](stage-surface.md);
+it is diagnostic only and never evidence.
 
 | Method | Path | Request | Response |
 |---|---|---|---|
@@ -83,11 +82,8 @@ keeps its status, body, content type, and ETag; a closed upstream is
 service never runs a model. `/operations` is operational metadata: retention
 days and the last cleanup; an unrun cleanup is `null`.
 
-A count is bounded by the service's 200-record list page, not an invented total.
-
-The browser client checks `/version` and `/health` and reports `connected`,
-`degraded`, `mismatch`, or `unreachable`. A different API version is a mismatch:
-the client shows the version it expected and does not use the connection. A
+The browser checks `/version` and `/health` and reports `connected`, `degraded`,
+`mismatch`, or `unreachable`; a different API version is a mismatch, and a
 failed call is `unreachable`, never a stale healthy state.
 
 ## 3. Submission
@@ -102,13 +98,18 @@ the stage provenance, computes `run_id`, writes `queued`, publishes
 `run.requested`, and returns:
 
 ```json
-{ "run_id": "sha256:…", "status": "queued" }
+{ "run_id": "sha256:…", "status": "queued", "created": true }
 ```
 
-`202` means new work. `200` means the identical run already exists. A run is
-content-addressed and shared: each profile that submits it gets a submission row,
-and the run is not duplicated. A duplicate submission publishes the message again,
-so a retry after a lost publish can recover; the worker treats it as a lookup.
+`202` means new work; `200` means the identical run already exists, and
+`created` is `true` for `202` and `false` for `200`. A run is content-addressed
+and shared: each profile that submits it gets a submission row, and the run is
+not duplicated. A duplicate submission publishes the message again, so a retry
+after a lost publish can recover; the worker treats it as a lookup.
+
+A proxied timeout is `503 service.unavailable`; retry it, because uploads and
+run submissions are content-addressed and return the existing record. Upload,
+artifact download, and model compute get 15 minutes; other calls get 30 seconds.
 
 ## 4. Run detail
 
@@ -132,11 +133,9 @@ so a retry after a lost publish can recover; the worker treats it as a lookup.
 
 `elapsed_ms` is control-plane metadata and never appears inside an artifact.
 
-`provenance.model_version` in the run record is the model identity from the run
-config's `model_id`, such as `M1.3`. The model bundle manifest records the
-registry version (`2026-11-10.2`), and an artifact's `provenance.json` records
-the compiled package version (`1.3.0`). The three values are distinct; a
-comparison names the context it reads.
+`provenance.model_version` is the run config's `model_id` (such as `M1.3`); the
+bundle manifest records the registry version (`2026-11-10.2`), and
+`provenance.json` records the package version (`1.3.0`).
 
 ## 5. Error codes
 
@@ -154,13 +153,14 @@ comparison names the context it reads.
 | `run.invalid` | 400 | Malformed run id or submission |
 | `run.model_artifact_invalid` | 400 | Unknown, non-succeeded, or mismatched frozen model artifact |
 | `run.conflict` | 409 | Cancel after completion |
+| `stage.not_found`, `stage.invalid`, `stage.conflict` | 404/400/409 | Unknown stage run, malformed stage request, or a disallowed stage transition |
 | `research.not_found` | 404 | Unknown improvement id or tier baseline |
 | `research.invalid` | 400 | Bad pre-registration, config, dataset, or note |
 | `research.conflict` | 409 | Duplicate submit/decision, or accepted without a succeeded digest |
 | `upload.too_large` | 413 | Over the configured limit |
 | `queue.unavailable` | 503 | Broker unreachable |
 | `service.unavailable` | 503 | A downstream service is unreachable or refused the proxied call |
-| `internal` | 500 | Unclassified; logged with a correlation id |
+| `internal` | 500 | Unclassified; the message is returned without a stack trace |
 | `simulation.not_found` | 404 | Unknown simulation run |
 | `simulation.mark_invalid` | 400 | Bar outside the window, or a schema violation |
 | `simulation.check_incomplete` | 409 | Fewer than 30 events, or an unmarked check window |

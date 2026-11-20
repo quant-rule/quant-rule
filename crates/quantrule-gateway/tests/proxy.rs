@@ -18,7 +18,7 @@ use futures_util::{StreamExt, stream};
 use quantrule_api::{ErrorCode, ErrorEnvelope, PROFILE_HEADER};
 use quantrule_gateway::server::router;
 use quantrule_gateway::server::{AppState, Services};
-use quantrule_runtime::client::{HttpServiceClient, Service};
+use quantrule_runtime::client::{ClientError, HttpServiceClient, Service};
 use quantrule_runtime::{Config, HealthRegistry};
 use tokio::sync::Notify;
 use tower::ServiceExt;
@@ -87,10 +87,16 @@ async fn upload(
     )
 }
 
+async fn slow() -> &'static str {
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    "slow"
+}
+
 async fn start(fake: Fake) -> (SocketAddr, tokio::task::JoinHandle<()>) {
     let app = Router::new()
         .route("/api/v1/datasets/{version}/candles", get(candles))
         .route("/catalog/datasets", post(upload))
+        .route("/slow", get(slow))
         .fallback(|State(fake): State<Fake>, uri: Uri| async move {
             fake.hits.fetch_add(1, Ordering::SeqCst);
             (StatusCode::NOT_FOUND, uri.to_string())
@@ -118,6 +124,34 @@ async fn gateway(address: SocketAddr) -> Arc<AppState> {
             ..Services::default()
         },
     ))
+}
+
+#[tokio::test]
+async fn an_explicit_deadline_allows_a_slow_forward() {
+    let (address, handle) = start(Fake::default()).await;
+    let client =
+        HttpServiceClient::new(Service::Data, &format!("http://{address}")).expect("client");
+    let request = Request::get("/slow").body(Body::empty()).expect("request");
+    let response = client
+        .forward_with_deadline(Service::Data, request, Duration::from_secs(1))
+        .await
+        .expect("forward");
+    assert_eq!(response.status(), StatusCode::OK);
+    handle.abort();
+}
+
+#[tokio::test]
+async fn a_short_deadline_times_out() {
+    let (address, handle) = start(Fake::default()).await;
+    let client =
+        HttpServiceClient::new(Service::Data, &format!("http://{address}")).expect("client");
+    let request = Request::get("/slow").body(Body::empty()).expect("request");
+    let error = client
+        .forward_with_deadline(Service::Data, request, Duration::from_millis(10))
+        .await
+        .expect_err("the deadline must expire");
+    assert!(matches!(error, ClientError::Timeout { .. }), "{error:?}");
+    handle.abort();
 }
 
 #[tokio::test]

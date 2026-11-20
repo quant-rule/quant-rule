@@ -29,6 +29,12 @@ history is in Git and the pull requests.
 
 ### Fixed
 
+- A conditional candle or ladder request with a matching `If-None-Match`
+  returns `304` instead of the full CSV.
+- The gateway gives uploads, artifact downloads, and model compute a 15-minute
+  deadline and other proxied calls 30 seconds; a timeout is a retryable `503`.
+- A non-numeric simulation chart returns the shared error envelope.
+- The HTTP contract documents `created` and the `stage.*` error codes.
 - The browser reports a clear secure-context error when Web Crypto or the
   clipboard is unavailable, instead of failing silently on a plain HTTP origin.
 - The compose stack pins its DNS search to the stack network, so a stopped
