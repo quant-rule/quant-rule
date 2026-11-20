@@ -13,9 +13,9 @@ document states which schema and run version it applies to.
 | Run v4 and the strategy | Current; `run v4` binds the strategy to the run; data schema 3, model schema 4, `execution v2`, `portfolio v2` | `docs/config/2026-11-13/run-v4-strategy.md` |
 | Run v3 and portfolio constraints | Accepted for a model-only run; `run v3` must not carry a strategy | `docs/config/2026-11-11/run-v3-and-portfolio-constraints.md` |
 | Local research memory | Historical; the local SQLite module was removed on 2026-11-16; memory lives in the evidence service (#661) | `docs/config/2026-11-11/research-memory-v1.md` |
-| Client surfaces | Product 1.4.0: Svelte browser client, command shell, and a Tauri desktop package over the gateway URL | `docs/architecture/client.md` |
+| Client surfaces | Product 1.4.1: Svelte browser client, command shell, and a Tauri desktop package over the gateway URL | `docs/architecture/client.md` |
 | Distribution | Current; container image and GitHub Release assets. The static page was retired | `ADR-2026-11-12-08` |
-| Desktop profile | Current for product 1.4.0 (current tag `v1.4.0`): embedded SQLite/filesystem/durable-queue profile, six-sidecar supervisor, Linux and Windows installers, and server↔desktop parity verified. The current release note is `2026-11-20/v1.4.0.md`. | [`apps/desktop-shell/README.md`](../../apps/desktop-shell/README.md) |
+| Desktop profile | Current for product 1.4.1 (current tag `v1.4.1`): embedded SQLite/filesystem/durable-queue profile, six-sidecar supervisor, Linux and Windows installers, and server↔desktop parity verified. The current release note is `2026-11-20/v1.4.1.md`. | [`apps/desktop-shell/README.md`](../../apps/desktop-shell/README.md) |
 | Policy blueprint | Historical; superseded by run v3 | `docs/config/2026-10-30/policy-and-strategy.md` |
 | Config tree | Current; current, evidence, and historical directories | `config/README.md` |
 | Available timeframes | `quantrule.data/v3` | `docs/config/2026-10-30/data-v3.md` |

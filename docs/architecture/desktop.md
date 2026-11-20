@@ -1,6 +1,6 @@
 # Desktop profile
 
-- Status: Current; released as v1.0.0 (prepared as v1.1.0; renumbered 2026-11-15); current in v1.4.0 (`DIST-200`, #692)
+- Status: Current; released as v1.0.0 (prepared as v1.1.0; renumbered 2026-11-15); current in v1.4.1 (`DIST-200`, #692)
 - Part of: [`README.md`](README.md)
 - Decision: [`ADR-2026-11-12-12`](../adr/2026-11-12/12-desktop-distribution.md)
 - Claim type: Behaviour Claim

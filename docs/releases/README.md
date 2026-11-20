@@ -78,18 +78,21 @@ historical heading and records the prepared version in a tag note.
 | `v1.1.0` | `a734e7fb` | new 2026-11-16 (current 1.1.0 tree) |
 | `v1.2.0` | `231c1395` | new 2026-11-16 (version alignment) |
 | `v1.3.0` | `a07def5c` | new 2026-11-17 (stage execution surface) |
-| `v1.4.0` | release merge | new 2026-11-20 (multi-host deployment) |
+| `v1.4.0` | `2b1f8abf` | new 2026-11-20 (withdrawn; workflow failed) |
+| `v1.4.1` | release merge | new 2026-11-20 (release recovery) |
 
 The GitHub release pages follow the current tag names; published asset and image
 names keep their original build versions. The `v1.0.0` desktop release was built
 as `1.1.0`, so its installers keep that name; its `v1.1.0` registry tag was
 reassigned to the 2026-11-16 release, and its digest is the stable reference.
 
-The current release tag is `v1.4.0` (2026-11-20), the multi-host deployment
-release; its note is [`v1.4.0`](2026-11-20/v1.4.0.md). The previous tag is
-`v1.3.0`, the stage execution surface, whose note is
-[`v1.3.0`](2026-11-17/v1.3.0.md); `v1.2.0` is the version-alignment release,
-`v1.1.0` is the 1.1.0 alignment release, and `v1.0.0` is the desktop release.
+The current release tag is `v1.4.1` (2026-11-20), the release recovery for the
+multi-host deployment; its note is [`v1.4.1`](2026-11-20/v1.4.1.md). `v1.4.0`
+is withdrawn because its release workflow failed; its tag is retained and its
+note records the supersession. The previous published release is `v1.3.0`, the
+stage execution surface, whose note is [`v1.3.0`](2026-11-17/v1.3.0.md);
+`v1.2.0` is the version-alignment release, `v1.1.0` is the 1.1.0 alignment
+release, and `v1.0.0` is the desktop release.
 
 The map below is authoritative: a current tag resolves to exactly one note, and
 the release workflow and `tools/check_releases.py` both read it. Paths are
@@ -112,7 +115,8 @@ above; the checker fails when the two drift.
   "v1.1.0": "2026-11-16/v1.1.0.md",
   "v1.2.0": "2026-11-16/v1.2.0.md",
   "v1.3.0": "2026-11-17/v1.3.0.md",
-  "v1.4.0": "2026-11-20/v1.4.0.md"
+  "v1.4.0": "2026-11-20/v1.4.0.md",
+  "v1.4.1": "2026-11-20/v1.4.1.md"
 }
 ```
 <!-- current-tags:end -->
@@ -167,7 +171,7 @@ keeps its historical heading and states the prepared version in a tag note.
   backfilled.
 - A correction to a released section is a new release or a dated addendum in the
   next release.
-- The current release section is `1.4.0`; `1.3.0` is the stage execution surface,
+- The current release section is `1.4.1`; `1.4.0` is withdrawn, `1.3.0` is the stage execution surface,
   `1.1.0` is the 1.1.0 alignment, `1.0.0` is the desktop release, and `0.9.0`
   is the distributed platform.
 
