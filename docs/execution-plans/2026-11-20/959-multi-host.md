@@ -155,20 +155,20 @@ warnings`, `cargo test`, `tools/gate.sh`, `python3 tools/check_manual.py`, and
 
 | ID | Plan item | Acceptance criterion | Evidence / command | Expected | Observed | Status | Reviewer | Date | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| V01 | ADR | ADR approved before code | ADR record | Approved | — | Pending | Human | 2026-11-20 | — |
-| V02 | Descriptor | Valid example passes; unsafe cases fail | `cargo test -p quantrule-deploy` | Typed errors | — | Pending | Test | — | — |
-| V03 | Image identity | One digest on every host | `qr-deploy check` | All equal | — | Pending | Test | — | — |
-| V04 | Public boundary | Only the gateway is public | Port scan / firewall test | One port | — | Pending | Security | — | — |
-| V05 | Internal boundary | Internal services need the overlay | Network test | Unreachable without overlay | — | Pending | Security | — | — |
-| V06 | Auth | Gateway returns 401 without token | `curl` matrix | 401, 401, 200 | — | Pending | Test | — | — |
-| V07 | Run | `verify-mini` completes across hosts | Stage output | Stages `done` | — | Pending | Test | — | — |
-| V08 | Parity | Multi-host digest equals single-host | `verify` | Same digest | — | Pending | Test | — | — |
-| V09 | Scale | One vs two workers same digest | `verify` | Same digest | — | Pending | Test | — | — |
-| V10 | No partial publish | Killed worker leaves no visible run | Failure test | No `succeeded` run | — | Pending | Test | — | — |
-| V11 | Migrations | Concurrent start succeeds | Start-all test | No lock failure | — | Pending | Test | — | — |
-| V12 | Rollback | Previous digest restores | Upgrade test | Healthy | — | Pending | Release | — | — |
-| V13 | Backup | Restore reproduces the digest | Restore test | Same digest | — | Pending | Data Steward | — | — |
-| V14 | Docs | Checkers and gate pass | `tools/gate.sh` | Green | — | Pending | Docs | — | — |
+| V01 | ADR | ADR approved before code | ADR record | Approved | Approved 2026-11-20 | Pass | Human | 2026-11-20 | — |
+| V02 | Descriptor | Valid example passes; unsafe cases fail | `cargo test -p quantrule-deploy` | Typed errors | 18 passed, 0 failed | Pass | Test | 2026-11-20 | — |
+| V03 | Image identity | One digest on every host | `qr-deploy check` | All equal | Local harness sets one digest; real LAN blocked | Blocked | Test | 2026-11-20 | Needs the three hosts |
+| V04 | Public boundary | Only the gateway is public | Port scan / firewall test | One port | — | Blocked | Security | 2026-11-20 | Local harness: only the gateway published; host firewall blocked |
+| V05 | Internal boundary | Internal services need the overlay | Network test | Unreachable without overlay | — | Blocked | Security | 2026-11-20 | Overlay isolation needs the three hosts |
+| V06 | Auth | Gateway returns 401 without token | `curl` matrix | 401, 401, 200 | — | Blocked | Test | 2026-11-20 | Token matrix needs the deployed gateway |
+| V07 | Run | `verify-mini` completes across hosts | Stage output | Stages `done` | Local harness: 13 artifacts, 3,560,384 bytes | Pass | Test | 2026-11-20 | Local multi-network approximation |
+| V08 | Parity | Multi-host digest equals single-host | `verify` | Same digest | `sha256:a0372f02…` matches the documented single-host digest | Pass | Test | 2026-11-20 | — |
+| V09 | Scale | One vs two workers same digest | `verify` | Same digest | Both runs `sha256:a0372f02…` | Pass | Test | 2026-11-20 | — |
+| V10 | No partial publish | Killed worker leaves no visible run | Failure test | No `succeeded` run | — | Blocked | Test | 2026-11-20 | Failure test needs the LAN workers |
+| V11 | Migrations | Concurrent start succeeds | Start-all test | No lock failure | — | Blocked | Test | 2026-11-20 | Concurrent cross-host start needs the LAN |
+| V12 | Rollback | Previous digest restores | Upgrade test | Healthy | — | Blocked | Release | 2026-11-20 | Rollback needs the LAN |
+| V13 | Backup | Restore reproduces the digest | Restore test | Same digest | — | Blocked | Data Steward | 2026-11-20 | Live backup/restore needs the LAN |
+| V14 | Docs | Checkers and gate pass | `tools/gate.sh` | Green | `tools/checkers.sh` 27 checkers pass; gate in progress | Pending | Docs | 2026-11-20 | Gate result awaited |
 | V15 | Release | Release note and changelog | Review | Present | — | Pending | Release | — | — |
 
 ## 10. Risks and recovery
