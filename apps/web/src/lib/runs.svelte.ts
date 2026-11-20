@@ -1,4 +1,5 @@
 import { call, errorText } from "./api";
+import { selectionIsCurrent } from "./selection";
 import { pollDelay } from "./runs";
 import type { RunDetail, RunSummary } from "./types";
 
@@ -67,12 +68,12 @@ export async function loadDetail(runId: string): Promise<void> {
   current = { ...current, detailLoading: true, error: null };
   try {
     const detail = await call<RunDetail>(`/runs/${encodeURIComponent(runId)}`);
-    if (at !== generation) {
+    if (!selectionIsCurrent(at, runId, generation, current.selected)) {
       return;
     }
     current = { ...current, detail, detailLoading: false, error: null };
   } catch (error) {
-    if (at !== generation) {
+    if (!selectionIsCurrent(at, runId, generation, current.selected)) {
       return;
     }
     current = { ...current, detail: null, detailLoading: false, error: errorText(error) };

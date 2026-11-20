@@ -20,8 +20,13 @@ history is in Git and the pull requests.
 
 ### Fixed
 
+<<<<<<< HEAD
+- A late detail response cannot replace a newer run, stage, or research
+  selection in the browser.
+=======
 - The browser reports a clear secure-context error when Web Crypto or the
   clipboard is unavailable, instead of failing silently on a plain HTTP origin.
+>>>>>>> origin/main
 
 - A run config reference is confined to the config directory: an absolute path
   or a `..` component in `run.json` is refused before the loader reads it.

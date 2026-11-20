@@ -7,6 +7,7 @@
  */
 
 import { errorText } from "./api";
+import { selectionIsCurrent } from "./selection";
 import {
   compareRun,
   createRun,
@@ -112,12 +113,12 @@ export async function select(improvementId: string): Promise<void> {
   };
   try {
     const detail = await fetchRun(improvementId);
-    if (at !== generation) {
+    if (!selectionIsCurrent(at, improvementId, generation, current.selected)) {
       return;
     }
     current = { ...current, detail };
   } catch (error) {
-    if (at !== generation) {
+    if (!selectionIsCurrent(at, improvementId, generation, current.selected)) {
       return;
     }
     current = { ...current, error: errorText(error) };
