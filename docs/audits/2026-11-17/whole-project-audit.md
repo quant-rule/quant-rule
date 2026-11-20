@@ -2,7 +2,7 @@
 
 - Date: 2026-11-17 (UTC)
 - Audit ID: `AUDIT-2026-11-17-whole-project`
-- Status: 53 findings `Fixed` by the merged remediation (independent Verification pending); 0 `Open` (0 Critical, 0 Major, 0 Minor, 0 Info); human review pending
+- Status: 53 findings `Fixed` by the merged remediation; human accepted the closure on 2026-11-20 with a residual-risk waiver for the independent Verifier; 0 `Open` (0 Critical, 0 Major, 0 Minor, 0 Info)
 - Baseline: `main` at `a07def5c` (2026-11-17, clean working tree)
 - Scope: the whole repository — data engine and data service, model engine and
   model service, backtest strategy/execution/portfolio and backtest service,
@@ -162,6 +162,15 @@ P4/P5 work, but they do not close the specific findings that still need their
 own tests: the health kill test, queue confirms/concurrency, Postgres retention,
 restore round-trip, remote HTTP browser origin, selection race, labels, and
 simulation parity.
+
+## Human acceptance (2026-11-20)
+
+The human accepted the audit closure on 2026-11-20. The 53 findings are
+`Fixed`; the 22 findings of the 2026-11-16 audit were `Verified` by a disclosed
+sequential Improvement Verifier pass. The independent Verifier pass for the
+current findings is waived by the human, and residual risk for those `Fixed`
+findings is accepted. The release-audit and audit-backlog checkers, the composed
+tier before the image push, and the browser quality job remain in force.
 
 ## Remediation status (2026-11-17)
 
