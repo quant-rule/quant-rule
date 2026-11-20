@@ -20,6 +20,9 @@ history is in Git and the pull requests.
 
 ### Fixed
 
+- A late detail response cannot replace a newer run, stage, or research
+  selection in the browser.
+
 - A run config reference is confined to the config directory: an absolute path
   or a `..` component in `run.json` is refused before the loader reads it.
 

@@ -1,5 +1,6 @@
 import { call, callVoid, errorText } from "./api";
 import { portfolioView } from "./portfolio";
+import { selectionIsCurrent } from "./selection";
 import {
   downloadStageArtifact,
   explainDecision,
@@ -249,7 +250,7 @@ export async function loadDetail(stageRunId: string): Promise<void> {
   };
   try {
     const detail = await call<StageRunDetail>(stagePath(stageRunId));
-    if (at !== generation) {
+    if (!selectionIsCurrent(at, stageRunId, generation, current.selected)) {
       return;
     }
     current = {
@@ -271,7 +272,7 @@ export async function loadDetail(stageRunId: string): Promise<void> {
       await loadPortfolio();
     }
   } catch (error) {
-    if (at !== generation) {
+    if (!selectionIsCurrent(at, stageRunId, generation, current.selected)) {
       return;
     }
     current = {
@@ -456,7 +457,7 @@ export async function loadPortfolio(): Promise<void> {
         throw new Error(`the stage artifact has no ${name}`);
       }
       const bytes = await downloadStageArtifact(detail.stage_run_id, file);
-      if (at !== generation) {
+      if (!selectionIsCurrent(at, detail.stage_run_id, generation, current.selected)) {
         return;
       }
       texts[name] = new TextDecoder().decode(bytes);
@@ -497,13 +498,13 @@ export async function loadDecisions(): Promise<void> {
   }
   try {
     const bytes = await downloadStageArtifact(detail.stage_run_id, decisionsFile);
-    if (at !== generation) {
+    if (!selectionIsCurrent(at, detail.stage_run_id, generation, current.selected)) {
       return;
     }
     const decisions = stageDecisions(new TextDecoder().decode(bytes));
     current = { ...current, decisions, decisionsLoading: false };
   } catch (error) {
-    if (at !== generation) {
+    if (!selectionIsCurrent(at, detail.stage_run_id, generation, current.selected)) {
       return;
     }
     current = {
