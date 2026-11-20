@@ -5,8 +5,8 @@ evidence — and keeps that evidence auditable after the client that submitted i
 has closed. It is candles-only, rule-based, and deterministic. There is no
 account, no cloud provider, and no live trading.
 
-> **Status.** The current release tag is **v1.4.1** (2026-11-20), the release
-> recovery for the multi-host deployment: one `quantrule.deploy/v2` descriptor,
+> **Status.** The current release tag is **v1.4.2** (2026-11-20), the second
+> release recovery for the multi-host deployment: one `quantrule.deploy/v2` descriptor,
 > per-role Compose, `qr-deploy`, a private overlay with one public gateway, the
 > `QR_INTERNAL_ONLY` bind guard, backup/restore, and a local multi-host test
 > tier. The diagnostic stage surface, the v3 research ledger, the Operations
@@ -14,14 +14,15 @@ account, no cloud provider, and no live trading.
 > One image and six services serve the server profile; one installer starts the
 > same six sidecars on embedded SQLite, a filesystem CAS, and a durable
 > in-process queue for the desktop profile. The browser client, command shell,
-> and desktop shell share one `quantrule.api/v1` contract. **v1.4.0** is
-> withdrawn because its release workflow failed; **v1.3.0** is the last
-> published release before it, the stage execution surface; **v1.2.0** is the
-> version-alignment release; **v1.1.0** is the 1.1.0 alignment release;
-> **v1.0.0** is the desktop release. Current note:
-> [`docs/releases/2026-11-20/v1.4.1.md`](docs/releases/2026-11-20/v1.4.1.md);
-> withdrawn note:
-> [`docs/releases/2026-11-20/v1.4.0.md`](docs/releases/2026-11-20/v1.4.0.md);
+> and desktop shell share one `quantrule.api/v1` contract. **v1.4.1** and
+> **v1.4.0** are withdrawn because their release workflows failed; **v1.3.0**
+> is the last published release before them, the stage execution surface;
+> **v1.2.0** is the version-alignment release; **v1.1.0** is the 1.1.0
+> alignment release; **v1.0.0** is the desktop release. Current note:
+> [`docs/releases/2026-11-20/v1.4.2.md`](docs/releases/2026-11-20/v1.4.2.md);
+> withdrawn notes:
+> [`docs/releases/2026-11-20/v1.4.1.md`](docs/releases/2026-11-20/v1.4.1.md)
+> and [`docs/releases/2026-11-20/v1.4.0.md`](docs/releases/2026-11-20/v1.4.0.md);
 > mapping: [`docs/releases/README.md`](docs/releases/README.md). The
 > architecture is specified in
 > [`docs/architecture/`](docs/architecture/README.md).
@@ -52,7 +53,7 @@ make up
 `make up` builds the image, starts the stack, waits for health, and prints:
 
 ```text
-QuantRule v1.4.1 ready → http://localhost:8080
+QuantRule v1.4.2 ready → http://localhost:8080
 ```
 
 `make` is the Linux and macOS path. Windows runs the same Compose file directly,
@@ -133,9 +134,9 @@ embedded SQLite, filesystem CAS, and durable in-process queue. There is no
 Docker requirement, no engine in the shell, and no local data read by the shell;
 the server remains the same stack and the same HTTP contract. The packaged
 desktop profile and the server profile both reproduce canonical digest
-`sha256:453c90b4442dd049074e126bb46b400b6f61baa986443c97fa27c3edd41c1daa` for
-the verification fixture. The current release is `v1.4.1`; `v1.4.0` is withdrawn,
-`v1.3.0` is the stage execution surface, `v1.2.0` is the version-alignment
+`sha256:a0372f02db7bc65460906eba3242943da8c56f26c46fde470726cee856bc4cea` for
+the verification fixture. The current release is `v1.4.2`; `v1.4.1` and `v1.4.0`
+are withdrawn, `v1.3.0` is the stage execution surface, `v1.2.0` is the version-alignment
 release, `v1.0.0` is the desktop release, and `v0.9.0` the distributed platform
 release.
 Linux installs the AppImage and a user-level `.desktop` entry so the app appears

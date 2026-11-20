@@ -13,10 +13,17 @@ history is in Git and the pull requests.
 > through `v1.0.0`. On 2026-11-16 the release-note filenames and the sections
 > below were normalized to those current tags, and the next two releases were
 > cut as `v1.1.0` and `v1.2.0`. Each release note keeps its historical heading
-> and records the version it was prepared as. The current tag is `v1.4.1`. See
+> and records the version it was prepared as. The current tag is `v1.4.2`. See
 > [`docs/releases/README.md`](docs/releases/README.md) for the mapping.
 
 ## [Unreleased]
+
+## [1.4.2] - 2026-11-20
+
+### Fixed
+
+- The packaged desktop parity smoke compares against the current canonical digest `sha256:a0372f02…`, so the packaged Linux and Windows profiles match the server profile.
+- The v1.4.1 release is withdrawn because its desktop package smoke failed on the stale digest; v1.4.2 supersedes it.
 
 ## [1.4.1] - 2026-11-20
 

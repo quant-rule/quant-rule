@@ -80,8 +80,8 @@ download the attached asset:
 
 ```bash
 mkdir -p ~/Applications
-curl -fL --retry 3 -o ~/Applications/QuantRule_1.4.1_amd64.AppImage \
-  https://github.com/quant-rule/quant-rule/releases/download/v1.4.1/QuantRule_1.4.1_amd64.AppImage
+curl -fL --retry 3 -o ~/Applications/QuantRule_1.4.2_amd64.AppImage \
+  https://github.com/quant-rule/quant-rule/releases/download/v1.4.2/QuantRule_1.4.2_amd64.AppImage
 ```
 
 A downloaded release asset has no checkout-local `icons/icon.png`; use the
@@ -94,8 +94,8 @@ From `apps/desktop-shell`:
 ```bash
 mkdir -p ~/Applications ~/.local/share/applications \
   ~/.local/share/icons/hicolor/512x512/apps
-cp target/release/bundle/appimage/QuantRule_1.4.1_amd64.AppImage ~/Applications/
-chmod +x ~/Applications/QuantRule_1.4.1_amd64.AppImage
+cp target/release/bundle/appimage/QuantRule_1.4.2_amd64.AppImage ~/Applications/
+chmod +x ~/Applications/QuantRule_1.4.2_amd64.AppImage
 cp icons/icon.png ~/.local/share/icons/hicolor/512x512/apps/quantrule.png
 ```
 
@@ -104,8 +104,8 @@ two `cp` lines with the icon download. The asset is already at `~/Applications/`
 
 ```bash
 curl -fL --retry 3 -o ~/.local/share/icons/hicolor/512x512/apps/quantrule.png \
-  https://raw.githubusercontent.com/quant-rule/quant-rule/v1.4.1/apps/desktop-shell/icons/icon.png
-chmod +x ~/Applications/QuantRule_1.4.1_amd64.AppImage
+  https://raw.githubusercontent.com/quant-rule/quant-rule/v1.4.2/apps/desktop-shell/icons/icon.png
+chmod +x ~/Applications/QuantRule_1.4.2_amd64.AppImage
 ```
 
 **Write the desktop entry**
@@ -116,7 +116,7 @@ cat > ~/.local/share/applications/quantrule.desktop <<EOF
 Type=Application
 Name=QuantRule
 Comment=A window over the QuantRule gateway
-Exec=$HOME/Applications/QuantRule_1.4.1_amd64.AppImage
+Exec=$HOME/Applications/QuantRule_1.4.2_amd64.AppImage
 Icon=$HOME/.local/share/icons/hicolor/512x512/apps/quantrule.png
 Terminal=false
 Categories=Office;Finance;
@@ -151,7 +151,7 @@ decision, not an AppImage defect. Ask before `sudo dnf install fuse-libs`, or
 use the no-install fallback for one launch:
 
 ```bash
-~/Applications/QuantRule_1.4.1_amd64.AppImage --appimage-extract-and-run
+~/Applications/QuantRule_1.4.2_amd64.AppImage --appimage-extract-and-run
 ```
 
 For a permanent fallback, append `--appimage-extract-and-run` to the `Exec=` line
@@ -165,7 +165,7 @@ desktop entry so it appears in GNOME search. Read AGENTS.md §7, §9, and §14 a
 docs/manual/agent-runbook.md first. Work in the task worktree and make no Git
 writes. Ask me before sudo, dnf, deleting ~/.local/share/quantrule, killing a
 process, or changing a port. Do not run make up while the desktop app runs.
-Use the chapter 13 install block: build or download the v1.4.1 AppImage, copy it
+Use the chapter 13 install block: build or download the v1.4.2 AppImage, copy it
 and icons/icon.png to the chapter's paths, chmod the AppImage, write
 ~/.local/share/applications/quantrule.desktop with the absolute Exec and Icon
 paths, run update-desktop-database, validate the file, and launch it with
@@ -181,7 +181,7 @@ It installs for the current user and needs no administrator.
 **Download**
 
 ```powershell
-$version = "1.4.1"
+$version = "1.4.2"
 $asset = "QuantRule_${version}_x64-setup.exe"
 $url = "https://github.com/quant-rule/quant-rule/releases/download/v$version/$asset"
 $out = Join-Path $env:USERPROFILE "Downloads\$asset"
@@ -218,11 +218,11 @@ the six installed sidecars, so a desktop run needs no `QR_IMAGE_DIGEST`.
 **Paste this to your agent**
 
 ```text
-Install the QuantRule v1.4.1 Windows NSIS package on this Windows 10/11 machine.
+Install the QuantRule v1.4.2 Windows NSIS package on this Windows 10/11 machine.
 Read AGENTS.md §7, §9, and §14 and docs/manual/agent-runbook.md first. Make no
 Git writes, and ask me before deleting %LOCALAPPDATA%\QuantRule, killing a
 process, changing a port, or opening a firewall port. Download
-QuantRule_1.4.1_x64-setup.exe, run it, and choose More info -> Run anyway at
+QuantRule_1.4.2_x64-setup.exe, run it, and choose More info -> Run anyway at
 SmartScreen because the artifact is unsigned. Let it launch once, then launch it
 from the Start Menu. Report the commands, the gateway URL from
 %LOCALAPPDATA%\QuantRule\supervisor\ports.json, /health and /ready JSON, the

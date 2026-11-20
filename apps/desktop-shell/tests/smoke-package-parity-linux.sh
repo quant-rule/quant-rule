@@ -42,7 +42,7 @@ root="$(cd "$here/.." && pwd)"
 repository="$(cd "$root/../.." && pwd)"
 
 services=(qr-gateway qr-data qr-model qr-backtest qr-evidence qr-simulation)
-server_digest="sha256:453c90b4442dd049074e126bb46b400b6f61baa986443c97fa27c3edd41c1daa"
+server_digest="sha256:a0372f02db7bc65460906eba3242943da8c56f26c46fde470726cee856bc4cea"
 server_image_digest="sha256:1250438fd3a28c91f193f39bb45890d484c96ecddb554875f56bd995786ef4a0"
 seeded_digest="sha256:0000000000000000000000000000000000000000000000000000000000000000"
 
