@@ -153,7 +153,9 @@ with `bun run check` and `bun run build`. The composed tier passed on a clean
 stack: both verify-mini runs published 13 canonical artifacts and the gateway
 recomputed `sha256:a0372f02…`. The first composed attempt exposed a stale MinIO
 bundle and the second exposed `tools/verify.sh` excluding `metrics.json`; the
-verifier was fixed and the third run passed.
+verifier was fixed and the third run passed. The label change rebuilt the
+model bundle; the bundle key now includes the image identity, and the
+composed tier passes again with the same canonical digest.
 
 These runs remove the browser and composed evidence blockers for the remaining
 P4/P5 work, but they do not close the specific findings that still need their
