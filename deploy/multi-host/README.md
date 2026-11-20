@@ -70,9 +70,13 @@ qr-deploy render "$DESCRIPTOR" --out deploy/multi-host/env \
   --secrets deploy/multi-host/secrets.env
 ```
 
-The example descriptor enables `auth.gateway_token`, so `QR_BEARER_TOKEN` must
-be non-empty; `qr-deploy validate --secrets` rejects an empty value.
-`tools/token.sh` prints a 256-bit token.
+The shipped descriptor and secrets file are templates, not deployable values.
+`qr-deploy validate` rejects the all-one-character image digest, and
+`--secrets` rejects the `replace-with-...` passwords and token. Replace the
+digest, every password, and `QR_BEARER_TOKEN` (use `tools/token.sh`) before the
+first validation. The token must be at least 32 characters; the passwords at
+least 16 and not a template marker. The example descriptor enables
+`auth.gateway_token`, so the token is mandatory.
 
 `env/` is ignored by Git. The renderer writes one file per service and
 `env/infra.env`; each carries at least `QR_IMAGE`, `QR_IMAGE_DIGEST`,
@@ -101,9 +105,12 @@ ssh operator@host 'docker load -i /var/tmp/quantrule-server-1.3.0.tar'
 ssh operator@host "docker image inspect --format '{{.Id}}' quantrule-server:1.3.0"
 ```
 
-Record `$digest` in the descriptor before rendering. `qr-deploy check` fails
-when a service reports another digest, and `/version` and `/health` report the
-value the service was started with.
+Record `$digest` in the descriptor before rendering, and confirm
+`docker image inspect --format '{{.Id}}'` on every host matches it. The role
+files use `pull_policy: never`, so Compose cannot pull a different tag.
+`qr-deploy check` compares the digest each service *reports*; that is an
+environment-consistency check, not proof of the running image. The operator
+must run the `docker image inspect` check on each host.
 
 ## 6. Start order
 
@@ -120,9 +127,9 @@ docker compose --env-file deploy/multi-host/env/infra.env \
 docker compose --env-file deploy/multi-host/env/data.env \
   -f deploy/multi-host/compose.core.yaml up -d --wait
 
-# compute host
+# compute host; set the count from the descriptor's services.backtest.replicas
 docker compose --env-file deploy/multi-host/env/model.env \
-  -f deploy/multi-host/compose.compute.yaml up -d --wait
+  -f deploy/multi-host/compose.compute.yaml up -d --wait --scale backtest=2
 
 # gateway host
 docker compose --env-file deploy/multi-host/env/gateway.env \
@@ -140,8 +147,13 @@ because Postgres, MinIO, and RabbitMQ use their own variable names.
 qr-deploy check "$DESCRIPTOR" --secrets deploy/multi-host/secrets.env
 ```
 
-It probes every service endpoint and asserts one image digest across the hosts.
-Then, by hand:
+Run this on the gateway host or another host on the private overlay; it needs
+the full secrets file and probes the internal services directly. It does not
+send the bearer token on the open `/version` and `/health` paths. The backtest
+worker has no HTTP surface, so the row is printed as `SKIP`; check it on the
+compute host with `docker ps --filter name=backtest`. The tool asserts that
+every probed service reports the descriptor's image digest, but it does not
+inspect the running image on a remote host. Then, by hand:
 
 ```bash
 curl -fsS "http://<gateway-overlay-ip>:8080/ready"
@@ -149,9 +161,12 @@ curl -fsS "http://<gateway-overlay-ip>:8080/version"
 ```
 
 From a host outside the overlay, `curl --max-time 3` against any core, compute,
-or infrastructure port must time out. From a client, submit the verification
-fixture through the gateway and compare its canonical digest with the
-single-host run; the multi-host tier (#964) automates that comparison.
+or infrastructure port must time out. A client VPN peer must be routed to the
+gateway only; if it can reach the overlay subnet, it can call the internal
+services without the gateway token. Submit the verification fixture through the
+gateway and compare its canonical digest with the single-host run. The local
+multi-host harness (#964) checks the fixture and two worker counts; the real
+three-host LAN comparison is a separate verification row and is not automated.
 
 ## 8. Firewall
 
@@ -178,7 +193,8 @@ forward `5672`, `5432`, or `9000` beyond the overlay.
 ## 9. Upgrade and rollback
 
 1. Load the new image on every host and confirm the image ID is identical (§5).
-2. Stop the gateway, then compute, then core. Leave infrastructure running.
+2. Stop the gateway, then compute, then core (all application roles). Leave
+   infrastructure running.
    Stopping the gateway first stops new submissions; stopping workers then lets
    the queue hold or redeliver their messages.
 3. Update the descriptor's image tag and digest, then repeat the `validate` and
@@ -204,14 +220,13 @@ a separate, destructive decision.
 
 ## 11. Backup and restore
 
-Back up the Postgres database, the MinIO bucket, the descriptor, the rendered
-`env/` directory, and `secrets.env` (separately, encrypted). The multi-host
-backup and restore procedure is tracked in
-[#963](https://github.com/quant-rule/quant-rule/issues/963); the pieces and the
-archive format are the ones in [`tools/backup.sh`](../../tools/backup.sh) and
-[`tools/restore.sh`](../../tools/restore.sh). A restore must reproduce the
-canonical digest, and copying a live database or object-store volume is not a
-backup.
+Stop the gateway, compute, and core hosts; leave infrastructure running. Run
+the backup/restore wrappers ([#963](https://github.com/quant-rule/quant-rule/issues/963)) on the infrastructure
+host with `--application-stopped`; they wrap the tested archive tools and read
+the custom database, bucket, and queue names from `env/infra.env`. The archive
+holds a Postgres dump, an object mirror, and a manifest; the queue is not
+archived. A restore must reproduce the canonical digest, and copying a live
+database or object-store volume is not a backup.
 
 ## 12. What this profile does not provide
 
@@ -221,3 +236,20 @@ trust boundary, exactly as the container network is on a single host. The
 decision, its alternatives, and its non-goals are recorded in ADR
 `958-multi-host-deployment.md` and in
 [#958](https://github.com/quant-rule/quant-rule/issues/958).
+
+The profile records these residual risks:
+
+- Every service receives the same Postgres role, MinIO root credentials, and
+  queue user. A compromised service host can read all schemas and the bucket.
+  Per-service database roles and bucket policies are not implemented.
+- There is no service-to-service authentication. The private overlay is the
+  boundary; a client VPN peer must be routed to the gateway only, and internal
+  ports must be firewalled to the exact host addresses, not the whole subnet.
+- `qr-deploy check` reads the digest each service reports. It does not inspect
+  the running image on a remote host; the operator runs `docker image inspect`
+  on each host.
+- The gateway token and TLS are not exercised by `check`; use the Connection
+  screen or a `curl` matrix against a gated route.
+- Postgres, MinIO, and RabbitMQ are single instances. The profile is not high
+  availability, and a core-host failure takes data, evidence, and simulation
+  with it.

@@ -33,7 +33,13 @@ impl CheckRow {
     /// Whether the row passed.
     #[must_use]
     pub fn ok(&self) -> bool {
-        self.error.is_none()
+        self.state != "not-http" && self.error.is_none()
+    }
+
+    /// Whether the row could not be probed and is reported as skipped.
+    #[must_use]
+    pub fn skipped(&self) -> bool {
+        self.state == "not-http"
     }
 }
 
@@ -65,7 +71,6 @@ pub fn check(
         .timeout_global(Some(timeout))
         .build();
     let agent = ureq::Agent::new_with_config(config);
-    let token = secrets.get("QR_BEARER_TOKEN").map(String::as_str);
     let mut rows = Vec::new();
     for name in ["gateway", "data", "model", "evidence", "simulation"] {
         let service = &descriptor.services[name];
@@ -79,7 +84,6 @@ pub fn check(
             name,
             &base,
             &descriptor.image.digest,
-            token,
             name == "gateway",
         ));
     }
@@ -100,7 +104,6 @@ fn check_one(
     service: &str,
     base: &str,
     expected_digest: &str,
-    token: Option<&str>,
     ready: bool,
 ) -> CheckRow {
     let version_url = format!("{base}/version");
@@ -112,7 +115,7 @@ fn check_one(
         digest: None,
         error: None,
     };
-    let version: Version = match get_json(agent, &version_url, token) {
+    let version: Version = match get_json(agent, &version_url) {
         Ok(version) => version,
         Err(error) => {
             row.error = Some(error);
@@ -126,7 +129,7 @@ fn check_one(
             version.image_digest.as_deref().unwrap_or("missing")
         ));
     }
-    let health: Health = match get_json(agent, &health_url, token) {
+    let health: Health = match get_json(agent, &health_url) {
         Ok(health) => health,
         Err(error) => {
             row.error = Some(error);
@@ -145,16 +148,8 @@ fn check_one(
     row
 }
 
-fn get_json<T: for<'de> Deserialize<'de>>(
-    agent: &ureq::Agent,
-    url: &str,
-    token: Option<&str>,
-) -> Result<T, String> {
-    let mut request = agent.get(url);
-    if let Some(token) = token {
-        request = request.header("Authorization", format!("Bearer {token}"));
-    }
-    let response = request.call().map_err(|error| error.to_string())?;
+fn get_json<T: for<'de> Deserialize<'de>>(agent: &ureq::Agent, url: &str) -> Result<T, String> {
+    let response = agent.get(url).call().map_err(|error| error.to_string())?;
     let status = response.status().as_u16();
     let body = response
         .into_body()
@@ -179,5 +174,33 @@ mod tests {
         assert_eq!(version.image_digest.as_deref(), Some("sha256:aa"));
         let health: Health = serde_json::from_str(r#"{"state":"healthy"}"#).expect("health");
         assert_eq!(health.state, "healthy");
+    }
+}
+
+#[cfg(test)]
+mod row_tests {
+    use super::*;
+
+    fn row(state: &str, error: Option<&str>) -> CheckRow {
+        CheckRow {
+            service: "service".to_owned(),
+            url: "http://127.0.0.1:1".to_owned(),
+            state: state.to_owned(),
+            digest: None,
+            error: error.map(str::to_owned),
+        }
+    }
+
+    #[test]
+    fn a_worker_row_is_skipped_not_ok() {
+        let row = row("not-http", None);
+        assert!(row.skipped());
+        assert!(!row.ok());
+    }
+
+    #[test]
+    fn a_healthy_row_is_ok_and_a_failure_is_not() {
+        assert!(row("healthy", None).ok());
+        assert!(!row("healthy", Some("mismatch")).ok());
     }
 }

@@ -30,8 +30,11 @@ pub fn validate(descriptor: &Descriptor) -> Result<(), Error> {
     match descriptor.exposure.internal {
         crate::descriptor::InternalExposure::Private => {}
     }
-    if descriptor.config_root.trim().is_empty() {
-        return Err(invalid("config_root", "must not be empty"));
+    if descriptor.config_root != "/srv/config" {
+        return Err(invalid(
+            "config_root",
+            "must be /srv/config; the data Compose mount is fixed",
+        ));
     }
     if descriptor.secrets_file.trim().is_empty() {
         return Err(invalid("secrets_file", "must not be empty"));
@@ -41,6 +44,44 @@ pub fn validate(descriptor: &Descriptor) -> Result<(), Error> {
             "infra_host",
             format!("{} is not a declared host", descriptor.infra_host),
         ));
+    }
+    let infra_address = host_address(descriptor, &descriptor.infra_host)?;
+    if !is_private_ip(infra_address) {
+        return Err(invalid(
+            "infra_host",
+            "the infrastructure host must use a private address",
+        ));
+    }
+    let core = &descriptor.services["data"].host;
+    for name in ["evidence", "simulation"] {
+        if &descriptor.services[name].host != core {
+            return Err(invalid(
+                format!("services.{name}.host"),
+                "data, evidence, and simulation must share the core host",
+            ));
+        }
+    }
+    let compute = &descriptor.services["model"].host;
+    if &descriptor.services["backtest"].host != compute {
+        return Err(invalid(
+            "services.backtest.host",
+            "model and backtest must share the compute host",
+        ));
+    }
+    let gateway_host = &descriptor.services["gateway"].host;
+    if gateway_host == core || gateway_host == compute || gateway_host == &descriptor.infra_host {
+        return Err(invalid(
+            "services.gateway.host",
+            "the gateway must not share a role host",
+        ));
+    }
+    for name in ["data", "evidence", "simulation", "model", "backtest"] {
+        if descriptor.services[name].host == descriptor.infra_host {
+            return Err(invalid(
+                format!("services.{name}.host"),
+                "a service must not run on the infrastructure host",
+            ));
+        }
     }
     if let Some(value) = descriptor.backtest_concurrency
         && value == 0
@@ -80,6 +121,8 @@ pub fn validate_with_secrets(
     check_default_credentials("endpoints.database", &database)?;
     check_default_credentials("endpoints.queue", &queue)?;
     check_default_credentials("endpoints.object_store", &object_store)?;
+    check_endpoint_targets(descriptor, &database, &queue, &object_store)?;
+    check_secret_quality(secrets)?;
     if descriptor.auth.gateway_token
         && secrets
             .get("QR_BEARER_TOKEN")
@@ -189,6 +232,16 @@ fn validate_image(descriptor: &Descriptor) -> Result<(), Error> {
     if hex.len() != 64 || !hex.chars().all(|character| character.is_ascii_hexdigit()) {
         return Err(invalid("image.digest", "must be a 64-character hex digest"));
     }
+    if hex.chars().any(|character| character.is_ascii_uppercase()) {
+        return Err(invalid("image.digest", "must use lowercase hex"));
+    }
+    let first = hex.chars().next().unwrap_or('0');
+    if hex.chars().all(|character| character == first) {
+        return Err(invalid(
+            "image.digest",
+            "must not be a placeholder made of one repeated character",
+        ));
+    }
     Ok(())
 }
 
@@ -207,6 +260,18 @@ fn validate_hosts(descriptor: &Descriptor) -> Result<(), Error> {
                 format!("{} is not an IP address", host.address),
             )
         })?;
+        if address.is_unspecified() {
+            return Err(invalid(
+                format!("hosts.{name}.address"),
+                "must not be 0.0.0.0 or ::",
+            ));
+        }
+        if address.is_ipv6() {
+            return Err(invalid(
+                format!("hosts.{name}.address"),
+                "IPv6 is not supported in deploy/v2; use an IPv4 overlay",
+            ));
+        }
         if !addresses.insert(address) {
             return Err(invalid(
                 format!("hosts.{name}.address"),
@@ -215,6 +280,14 @@ fn validate_hosts(descriptor: &Descriptor) -> Result<(), Error> {
         }
     }
     Ok(())
+}
+
+/// Parse a declared host address.
+fn host_address(descriptor: &Descriptor, name: &str) -> Result<IpAddr, Error> {
+    descriptor.hosts[name]
+        .address
+        .parse::<IpAddr>()
+        .map_err(|_| invalid(format!("hosts.{name}.address"), "host address is not an IP"))
 }
 
 fn validate_services(descriptor: &Descriptor) -> Result<(), Error> {
@@ -257,6 +330,12 @@ fn validate_service(descriptor: &Descriptor, name: &str, service: &Service) -> R
             "must be at least one",
         ));
     }
+    if service.port == Some(0) {
+        return Err(invalid(
+            format!("services.{name}.port"),
+            "must be between 1 and 65535",
+        ));
+    }
     let host = &descriptor.hosts[&service.host];
     let address = host
         .address
@@ -281,12 +360,12 @@ fn validate_service(descriptor: &Descriptor, name: &str, service: &Service) -> R
                     "must match exposure.gateway",
                 ));
             }
-            if descriptor.exposure.gateway == crate::descriptor::GatewayExposure::Private
+            if descriptor.exposure.gateway != crate::descriptor::GatewayExposure::Public
                 && !is_private_ip(address)
             {
                 return Err(invalid(
                     "services.gateway.host",
-                    "a private gateway must use a private address",
+                    "a LAN or private gateway must use a private address",
                 ));
             }
         }
@@ -296,6 +375,12 @@ fn validate_service(descriptor: &Descriptor, name: &str, service: &Service) -> R
             }
             if service.public {
                 return Err(invalid("services.backtest.public", "must be false"));
+            }
+            if !is_private_ip(address) {
+                return Err(invalid(
+                    "services.backtest.host",
+                    "a backtest host must use a private address",
+                ));
             }
         }
         _ => {
@@ -362,12 +447,12 @@ fn validate_auth(descriptor: &Descriptor) -> Result<(), Error> {
             "must be true for a LAN or public gateway",
         ));
     }
-    if descriptor.exposure.gateway == crate::descriptor::GatewayExposure::Public
+    if descriptor.exposure.gateway != crate::descriptor::GatewayExposure::Private
         && descriptor.auth.tls != Tls::ReverseProxy
     {
         return Err(invalid(
             "auth.tls",
-            "must be reverse-proxy for a public gateway",
+            "must be reverse-proxy for a LAN or public gateway",
         ));
     }
     Ok(())
@@ -420,6 +505,77 @@ fn check_default_credentials(field: &str, value: &str) -> Result<(), Error> {
     Ok(())
 }
 
+fn check_endpoint_targets(
+    descriptor: &Descriptor,
+    database: &str,
+    queue: &str,
+    object_store: &str,
+) -> Result<(), Error> {
+    let infra = &descriptor.hosts[&descriptor.infra_host].address;
+    if !database.contains(&format!("@{infra}:5432/")) {
+        return Err(invalid(
+            "endpoints.database",
+            format!("must target {infra}:5432 on the infrastructure host"),
+        ));
+    }
+    if !queue.contains(&format!("@{infra}:5672/")) {
+        return Err(invalid(
+            "endpoints.queue",
+            format!("must target {infra}:5672 on the infrastructure host"),
+        ));
+    }
+    if !object_store.contains(&format!("://{infra}:9000")) {
+        return Err(invalid(
+            "endpoints.object_store",
+            format!("must target http://{infra}:9000"),
+        ));
+    }
+    Ok(())
+}
+
+fn check_secret_quality(secrets: &BTreeMap<String, String>) -> Result<(), Error> {
+    for key in [
+        "QR_POSTGRES_PASSWORD",
+        "QR_OBJECT_STORE_PASSWORD",
+        "QR_QUEUE_PASSWORD",
+    ] {
+        let value = secrets.get(key).map(String::as_str).unwrap_or_default();
+        let lower = value.to_ascii_lowercase();
+        if value.len() < 16
+            || lower.contains("replace-with")
+            || lower.contains("change-me")
+            || lower.contains("example")
+            || lower.contains("password")
+        {
+            return Err(invalid(
+                key,
+                "must be at least 16 characters and not a template placeholder",
+            ));
+        }
+    }
+    let token = secrets
+        .get("QR_BEARER_TOKEN")
+        .map(String::as_str)
+        .unwrap_or_default();
+    let lower = token.to_ascii_lowercase();
+    let repeated = token
+        .chars()
+        .next()
+        .is_some_and(|first| token.chars().all(|character| character == first));
+    if token.len() < 32
+        || lower.contains("replace-with")
+        || lower.contains("change-me")
+        || lower.contains("example")
+        || repeated
+    {
+        return Err(invalid(
+            "QR_BEARER_TOKEN",
+            "must be at least 32 characters and not a template placeholder",
+        ));
+    }
+    Ok(())
+}
+
 fn invalid(field: impl Into<String>, message: impl Into<String>) -> Error {
     Error::Invalid {
         field: field.into(),
@@ -439,6 +595,14 @@ mod tests {
         .expect("the example parses")
     }
 
+    fn valid_example() -> serde_json::Value {
+        let mut value = example();
+        value["image"]["digest"] = serde_json::json!(
+            "sha256:3f5a9c1e7b2d4f608a1c3e5d7b9f0a2c4e6d8f1b3a5c7e9d0f2a4c6e8b1d3f5a"
+        );
+        value
+    }
+
     fn parse(value: serde_json::Value) -> Descriptor {
         serde_json::from_value(value).expect("the mutated example stays structurally valid")
     }
@@ -448,37 +612,96 @@ mod tests {
             ("QR_POSTGRES_USER".to_owned(), "quantrule".to_owned()),
             (
                 "QR_POSTGRES_PASSWORD".to_owned(),
-                "long-random-db".to_owned(),
+                "db-secret-0123456789abcdef".to_owned(),
             ),
             ("QR_POSTGRES_DB".to_owned(), "quantrule".to_owned()),
             ("QR_OBJECT_STORE_USER".to_owned(), "quantrule".to_owned()),
             (
                 "QR_OBJECT_STORE_PASSWORD".to_owned(),
-                "long-random-object".to_owned(),
+                "object-secret-0123456789abcdef".to_owned(),
             ),
             ("QR_QUEUE_USER".to_owned(), "quantrule".to_owned()),
             (
                 "QR_QUEUE_PASSWORD".to_owned(),
-                "long-random-queue".to_owned(),
+                "queue-secret-0123456789abcdef".to_owned(),
             ),
             ("QR_QUEUE_VHOST".to_owned(), "/".to_owned()),
-            ("QR_BEARER_TOKEN".to_owned(), "long-random-token".to_owned()),
+            (
+                "QR_BEARER_TOKEN".to_owned(),
+                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_owned(),
+            ),
         ])
     }
 
     #[test]
     fn the_example_is_valid() {
-        validate(&parse(example())).expect("the example validates");
+        validate(&parse(valid_example())).expect("the example validates");
     }
 
     #[test]
     fn the_example_is_valid_with_secrets() {
-        validate_with_secrets(&parse(example()), &secrets()).expect("the example validates");
+        validate_with_secrets(&parse(valid_example()), &secrets()).expect("the example validates");
+    }
+
+    #[test]
+    fn the_example_placeholder_digest_is_rejected() {
+        let error = validate(&parse(example())).expect_err("the placeholder digest");
+        assert!(error.to_string().contains("placeholder"), "{error}");
+    }
+
+    #[test]
+    fn a_template_secret_is_rejected() {
+        let mut secrets = secrets();
+        secrets.insert(
+            "QR_OBJECT_STORE_PASSWORD".to_owned(),
+            "replace-with-a-long-random-value".to_owned(),
+        );
+        let error = validate_with_secrets(&parse(valid_example()), &secrets)
+            .expect_err("a template secret");
+        assert!(
+            error.to_string().contains("QR_OBJECT_STORE_PASSWORD"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn a_public_infra_host_is_rejected() {
+        let mut value = valid_example();
+        value["hosts"]["infra"]["address"] = serde_json::json!("8.8.8.8");
+        let error = validate(&parse(value)).expect_err("a public infra host");
+        assert!(error.to_string().contains("infrastructure host"), "{error}");
+    }
+
+    #[test]
+    fn an_unspecified_or_ipv6_host_is_rejected() {
+        for address in ["0.0.0.0", "::", "fd00::10"] {
+            let mut value = valid_example();
+            value["hosts"]["core"]["address"] = serde_json::json!(address);
+            assert!(validate(&parse(value)).is_err(), "{address} was accepted");
+        }
+    }
+
+    #[test]
+    fn a_port_zero_is_rejected() {
+        let mut value = valid_example();
+        value["services"]["data"]["port"] = serde_json::json!(0);
+        let error = validate(&parse(value)).expect_err("port zero");
+        assert!(error.to_string().contains("port"), "{error}");
+    }
+
+    #[test]
+    fn an_external_endpoint_is_rejected() {
+        let mut value = valid_example();
+        value["endpoints"]["database"] =
+            serde_json::json!("postgres://quantrule:db-secret@8.8.8.8:5432/quantrule");
+        let error =
+            validate_with_secrets(&parse(value), &secrets()).expect_err("an external database");
+        assert!(error.to_string().contains("infrastructure host"), "{error}");
     }
 
     #[test]
     fn a_second_public_service_is_rejected() {
-        let mut value = example();
+        let mut value = valid_example();
         value["services"]["data"]["public"] = serde_json::json!(true);
         let error = validate(&parse(value)).expect_err("a public internal service");
         assert!(error.to_string().contains("only the gateway"), "{error}");
@@ -486,7 +709,7 @@ mod tests {
 
     #[test]
     fn a_public_internal_host_is_rejected() {
-        let mut value = example();
+        let mut value = valid_example();
         value["hosts"]["core"]["address"] = serde_json::json!("8.8.8.8");
         let error = validate(&parse(value)).expect_err("a public core host");
         assert!(error.to_string().contains("private address"), "{error}");
@@ -494,7 +717,7 @@ mod tests {
 
     #[test]
     fn a_lan_gateway_needs_a_token() {
-        let mut value = example();
+        let mut value = valid_example();
         value["auth"]["gateway_token"] = serde_json::json!(false);
         let error = validate(&parse(value)).expect_err("a tokenless LAN gateway");
         assert!(error.to_string().contains("gateway_token"), "{error}");
@@ -504,13 +727,14 @@ mod tests {
     fn an_empty_token_is_a_missing_secret() {
         let mut secrets = secrets();
         secrets.insert("QR_BEARER_TOKEN".to_owned(), "  ".to_owned());
-        let error = validate_with_secrets(&parse(example()), &secrets).expect_err("empty token");
+        let error =
+            validate_with_secrets(&parse(valid_example()), &secrets).expect_err("empty token");
         assert!(error.to_string().contains("QR_BEARER_TOKEN"), "{error}");
     }
 
     #[test]
     fn a_public_gateway_needs_tls() {
-        let mut value = example();
+        let mut value = valid_example();
         value["exposure"]["gateway"] = serde_json::json!("public");
         value["auth"]["tls"] = serde_json::json!("none");
         let error = validate(&parse(value)).expect_err("a public gateway without TLS");
@@ -519,7 +743,7 @@ mod tests {
 
     #[test]
     fn a_second_model_replica_is_rejected() {
-        let mut value = example();
+        let mut value = valid_example();
         value["services"]["model"]["replicas"] = serde_json::json!(2);
         let error = validate(&parse(value)).expect_err("two model replicas");
         assert!(error.to_string().contains("replicas"), "{error}");
@@ -527,7 +751,7 @@ mod tests {
 
     #[test]
     fn a_duplicate_host_port_is_rejected() {
-        let mut value = example();
+        let mut value = valid_example();
         value["services"]["evidence"]["port"] = serde_json::json!(18081);
         let error = validate(&parse(value)).expect_err("a duplicate port");
         assert!(
@@ -538,7 +762,7 @@ mod tests {
 
     #[test]
     fn a_default_password_is_rejected_after_expansion() {
-        let mut value = example();
+        let mut value = valid_example();
         value["endpoints"]["database"] =
             serde_json::json!("postgres://quantrule:quantrule@10.10.0.20:5432/quantrule");
         let error =
@@ -548,7 +772,7 @@ mod tests {
 
     #[test]
     fn a_missing_secret_is_reported() {
-        let mut value = example();
+        let mut value = valid_example();
         value["endpoints"]["database"] =
             serde_json::json!("postgres://${MISSING_PASSWORD}@10.10.0.20:5432/quantrule");
         let error =
@@ -558,7 +782,7 @@ mod tests {
 
     #[test]
     fn an_unknown_descriptor_field_is_rejected() {
-        let mut value = example();
+        let mut value = valid_example();
         value["unexpected"] = serde_json::json!(true);
         let error = serde_json::from_value::<Descriptor>(value).expect_err("an unknown field");
         assert!(error.to_string().contains("unknown field"), "{error}");

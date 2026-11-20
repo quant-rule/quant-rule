@@ -28,7 +28,7 @@ services:
       POSTGRES_PASSWORD: ${QR_POSTGRES_PASSWORD:?QR_POSTGRES_PASSWORD must be set}
       POSTGRES_DB: ${QR_POSTGRES_DB:?QR_POSTGRES_DB must be set}
     ports:
-      - "${QR_BIND_IP}:5432:5432"
+      - "${QR_BIND_IP:?QR_BIND_IP must be set}:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -54,7 +54,7 @@ services:
       MINIO_DEFAULT_BUCKETS: ${QR_OBJECT_BUCKET:?QR_OBJECT_BUCKET must be set}
       MINIO_BROWSER: "off"
     ports:
-      - "${QR_BIND_IP}:9000:9000"
+      - "${QR_BIND_IP:?QR_BIND_IP must be set}:9000:9000"
     volumes:
       - objects:/bitnami/minio/data
     healthcheck:
@@ -74,7 +74,7 @@ services:
       RABBITMQ_DEFAULT_PASS: ${QR_QUEUE_PASSWORD:?QR_QUEUE_PASSWORD must be set}
       RABBITMQ_DEFAULT_VHOST: ${QR_QUEUE_VHOST:?QR_QUEUE_VHOST must be set}
     ports:
-      - "${QR_BIND_IP}:5672:5672"
+      - "${QR_BIND_IP:?QR_BIND_IP must be set}:5672:5672"
     volumes:
       - mqdata:/var/lib/rabbitmq
     healthcheck:
