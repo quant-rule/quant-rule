@@ -18,7 +18,7 @@ are unchanged.
 
 | Command | Result |
 |---|---|
-| `python3 tools/check_legacy.py` | 1,989 label files, 3,433 current files, 4.1 s |
+| `python3 tools/check_legacy.py` | 1,989 label files, 3,433 current files, 4.5 s |
 | `cd tools && python3 -m unittest test_check_legacy` | 10 tests pass |
 | `bash tools/checkers.sh` | 27 checkers pass |
 
