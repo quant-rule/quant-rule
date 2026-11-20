@@ -78,7 +78,7 @@ cannot read a strategy, write a run, publish to the queue, or compute a model.
 | Stage endpoint | `evidence-service/src/stage/` | `gateway/src/server.rs`, `quantrule-api`, `stage-surface.md`, test |
 | Stage execution | `backtest-service/src/stage/` | `quantrule-service-api`, retention, no-partial-publish test |
 | Client screen | `apps/web/src/lib/<Name>Panel.svelte` | store, `client.md`, Playwright test |
-| Command | `shell/src/command/<family>.rs` | `command-surface.md`, help, tutorial, checker |
+| Command | `shell/src/command/parse/<family>.rs`, `dispatch/<family>.rs`, `src/output/<family>.rs` | `command-surface.md`, help, tutorial, `tests/cases/`, checker |
 | Config field | `app/src/config/<file>.rs` | input type, provenance, docs, registry |
 | Artifact field | `evidence-service/src/` | artifact contract, golden bundle |
 

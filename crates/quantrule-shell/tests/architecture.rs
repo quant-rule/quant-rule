@@ -198,11 +198,13 @@ fn the_binary_forbids_unsafe_code() {
 
 #[test]
 fn renderers_do_not_depend_on_the_command_module() {
-    let text = fs::read_to_string(shell_root().join("src/output.rs")).expect("output.rs exists");
-    assert!(
-        !text.contains("use crate::command"),
-        "output.rs must not import the command layer"
-    );
+    for (path, text) in source("output") {
+        assert!(
+            !text.contains("use crate::command"),
+            "{} must not import the command layer",
+            path.display()
+        );
+    }
 }
 
 #[test]

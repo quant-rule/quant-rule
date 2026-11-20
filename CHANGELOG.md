@@ -30,6 +30,13 @@ history is in Git and the pull requests.
 - The composed tier runs the ignored Postgres conformance suites against a
   disposable database.
 
+### Changed
+
+- The shell command pipeline is split by command family into `command/parse/`,
+  `command/dispatch/`, and `output/`, so a command change stays local; the
+  global documentation index is now a navigation map, and status lives in the
+  owning indexes.
+
 ### Fixed
 
 - Stage recording and stage row/blob deletion share one gate, so a concurrent
