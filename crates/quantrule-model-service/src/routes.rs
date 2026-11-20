@@ -453,8 +453,16 @@ async fn compute_bundle(
 
     let build_version = data_version.clone();
     let build_hash = config_hash.clone();
+    let build_image = state.version.image_digest.clone();
     let built = tokio::task::spawn_blocking(move || {
-        bundle::build(&config, &model, &bytes, &build_version, &build_hash)
+        bundle::build(
+            &config,
+            &model,
+            &bytes,
+            &build_version,
+            &build_hash,
+            build_image.as_ref(),
+        )
     })
     .await
     .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?

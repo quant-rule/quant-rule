@@ -35,6 +35,8 @@ history is in Git and the pull requests.
   deadline and other proxied calls 30 seconds; a timeout is a retryable `503`.
 - A non-numeric simulation chart returns the shared error envelope.
 - The HTTP contract documents `created` and the `stage.*` error codes.
+- The model bundle key includes the serving image identity, so a rebuilt image
+  cannot reuse a bundle whose presentation bytes changed.
 - Postgres and RabbitMQ are pinned by digest, and `make remote` refuses the
   local store defaults.
 - The browser reports a clear secure-context error when Web Crypto or the

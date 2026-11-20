@@ -97,6 +97,7 @@ pub(crate) fn build(
     content: &[u8],
     data_version: &Digest,
     config_hash: &Digest,
+    image_digest: Option<&Digest>,
 ) -> Result<BuiltBundle, BundleError> {
     let mut ladder = model_config.ladder.clone();
     ladder.sort_by_key(|frame| frame.seconds());
@@ -124,13 +125,7 @@ pub(crate) fn build(
     }
     artifacts.sort_by(|left, right| left.0.cmp(&right.0));
 
-    let prefix = format!(
-        "model/{}/{}/{}/{}/bundle",
-        data_version.as_hex(),
-        config_hash.as_hex(),
-        MODEL_VERSION,
-        ladder_codes.join("-")
-    );
+    let prefix = prefix(data_version, config_hash, image_digest, &ladder_codes);
     let manifest_key = format!("{prefix}/manifest.json");
     Ok(BuiltBundle {
         key_prefix: prefix,
@@ -138,6 +133,31 @@ pub(crate) fn build(
         ladder: ladder_codes,
         artifacts,
     })
+}
+
+/// The content-addressed key prefix for one model bundle.
+///
+/// The image identity is part of the key because the bundle bytes include
+/// presentation words (for example `summary.txt`); a rebuilt image must not
+/// collide with a bundle written by an older one.
+fn prefix(
+    data_version: &Digest,
+    config_hash: &Digest,
+    image_digest: Option<&Digest>,
+    ladder: &[String],
+) -> String {
+    let image = image_digest.map_or_else(
+        || "no-image".to_owned(),
+        |digest| digest.as_hex().to_owned(),
+    );
+    format!(
+        "model/{}/{}/{}/{}/{}/bundle",
+        data_version.as_hex(),
+        config_hash.as_hex(),
+        MODEL_VERSION,
+        image,
+        ladder.join("-")
+    )
 }
 
 /// Store every artifact and publish the manifest, or return the equal manifest
@@ -245,5 +265,26 @@ impl Staging {
 impl Drop for Staging {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_image_identity_is_part_of_the_bundle_key() {
+        let data = Digest::sha256(b"data");
+        let config = Digest::sha256(b"config");
+        let ladder = ["1m".to_owned()];
+        let first_image = Digest::sha256(b"image-a");
+        let second_image = Digest::sha256(b"image-b");
+        let first = prefix(&data, &config, Some(&first_image), &ladder);
+        let second = prefix(&data, &config, Some(&second_image), &ladder);
+        let none = prefix(&data, &config, None, &ladder);
+
+        assert_ne!(first, second);
+        assert!(first.contains(first_image.as_hex()));
+        assert!(none.contains("/no-image/"));
     }
 }
