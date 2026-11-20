@@ -26,8 +26,10 @@ pub mod stage;
 pub mod version;
 
 pub use catalog::{
-    ConfigOrigin, ConfigSummary, DatasetRecord, DatasetSummary, QualityReport, SkippedRow,
-    TimeframeBars, TimeframeInspection, UploadConfigRequest,
+    ConfigOrigin, ConfigSummary, DatasetRecord, DatasetReference, DatasetReferenceCount,
+    DatasetReferenceKind, DatasetReferenceRequest, DatasetSummary, EraseDatasetResponse,
+    QualityReport, ReleaseDatasetReferenceRequest, SkippedRow, TimeframeBars, TimeframeInspection,
+    UploadConfigRequest,
 };
 pub use digest::{Digest, DigestError, model_input_hash};
 pub use error::{ApiError, ErrorCode, ErrorEnvelope};

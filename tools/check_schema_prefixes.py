@@ -117,9 +117,12 @@ LEDGERS = (
         tables=(
             "catalog__config_bundles",
             "catalog__configs",
+            "catalog__dataset_references",
             "catalog__datasets",
+            "catalog__retention_events",
         ),
         baseline="migrations/sqlite/0001_catalog.sql",
+        extra_baselines=("migrations/sqlite/0002_dataset_references.sql",),
         store="src/sqlite.rs",
         main="src/main.rs",
     ),

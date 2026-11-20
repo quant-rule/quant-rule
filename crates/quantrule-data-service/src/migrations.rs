@@ -42,6 +42,11 @@ pub fn available() -> Vec<Migration> {
             name: "config-profile",
             sql: include_str!("../migrations/0005_config_profile.sql"),
         },
+        Migration {
+            version: 6,
+            name: "dataset-references",
+            sql: include_str!("../migrations/0006_dataset_references.sql"),
+        },
     ];
     migrations.sort_by_key(|migration| migration.version);
     migrations
@@ -53,11 +58,18 @@ pub fn available() -> Vec<Migration> {
 /// table under the `catalog` ledger name.
 #[must_use]
 pub fn sqlite() -> Vec<Migration> {
-    vec![Migration {
-        version: 1,
-        name: "catalog",
-        sql: include_str!("../migrations/sqlite/0001_catalog.sql"),
-    }]
+    vec![
+        Migration {
+            version: 1,
+            name: "catalog",
+            sql: include_str!("../migrations/sqlite/0001_catalog.sql"),
+        },
+        Migration {
+            version: 2,
+            name: "dataset-references",
+            sql: include_str!("../migrations/sqlite/0002_dataset_references.sql"),
+        },
+    ]
 }
 
 #[cfg(test)]
@@ -106,7 +118,7 @@ mod tests {
         let pending = plan(&applied, &available).expect("plan");
         assert_eq!(
             pending.iter().map(|m| m.version).collect::<Vec<_>>(),
-            vec![2, 3, 4, 5]
+            vec![2, 3, 4, 5, 6]
         );
     }
 
@@ -125,7 +137,7 @@ mod tests {
             .iter()
             .map(|migration| migration.version)
             .collect();
-        assert_eq!(versions, vec![1, 2, 3, 4, 5]);
+        assert_eq!(versions, vec![1, 2, 3, 4, 5, 6]);
     }
 
     #[test]
@@ -158,9 +170,10 @@ mod tests {
     #[test]
     fn the_sqlite_baseline_starts_at_one_and_is_complete() {
         let available = sqlite();
-        assert_eq!(available.len(), 1);
+        assert_eq!(available.len(), 2);
         assert_eq!(available[0].version, 1);
-        assert_eq!(plan(&[], &available).expect("plan").len(), 1);
+        assert_eq!(available[1].version, 2);
+        assert_eq!(plan(&[], &available).expect("plan").len(), 2);
     }
 
     #[test]

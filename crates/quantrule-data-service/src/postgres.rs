@@ -5,7 +5,7 @@
 //! writer and reader. A marker keeps the SQL in one module so a second backend
 //! implements the same trait operations rather than a guessed subset.
 
-use quantrule_api::{ConfigOrigin, ProfileId};
+use quantrule_api::{ConfigOrigin, DatasetReference, DatasetReferenceKind, ProfileId};
 use quantrule_runtime::adapters::BoxFuture;
 use sqlx::PgPool;
 
@@ -47,8 +47,9 @@ impl crate::catalog::DatasetCatalog for PgDatasetCatalog {
             let inserted = sqlx::query(
                 "INSERT INTO catalog.datasets
                      (profile_id, data_version, name, candles, first_bar, last_bar, bytes,
-                      object_key, sha256, quality, created_at)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11::timestamptz)
+                      object_key, sha256, quality, created_at, archived_at)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11::timestamptz,
+                         $12::timestamptz)
                  ON CONFLICT (profile_id, data_version) DO NOTHING",
             )
             .bind(profile.as_str())
@@ -69,6 +70,7 @@ impl crate::catalog::DatasetCatalog for PgDatasetCatalog {
                     .map_err(|error| CatalogError::Store(error.to_string()))?,
             )
             .bind(&record.created_at)
+            .bind(&record.summary.archived_at)
             .execute(&pool)
             .await
             .map_err(|error| CatalogError::Store(error.to_string()))?;
@@ -90,7 +92,8 @@ impl crate::catalog::DatasetCatalog for PgDatasetCatalog {
                 "SELECT data_version, name, candles, first_bar, last_bar, bytes, object_key,
                         sha256,
                         to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'),
-                        quality::text
+                        quality::text,
+                        to_char(archived_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')
                  FROM catalog.datasets
                  WHERE profile_id = $1 AND data_version = $2",
             )
@@ -113,9 +116,10 @@ impl crate::catalog::DatasetCatalog for PgDatasetCatalog {
                 "SELECT data_version, name, candles, first_bar, last_bar, bytes, object_key,
                         sha256,
                         to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'),
-                        quality::text
+                        quality::text,
+                        to_char(archived_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')
                  FROM catalog.datasets
-                 WHERE profile_id = $1 ORDER BY data_version",
+                 WHERE profile_id = $1 AND archived_at IS NULL ORDER BY data_version",
             )
             .bind(profile.as_str())
             .fetch_all(&pool)
@@ -128,13 +132,382 @@ impl crate::catalog::DatasetCatalog for PgDatasetCatalog {
     fn count(&self, profile: ProfileId) -> BoxFuture<Result<u64, CatalogError>> {
         let pool = self.pool.clone();
         Box::pin(async move {
-            let row: (i64,) =
-                sqlx::query_as("SELECT count(*) FROM catalog.datasets WHERE profile_id = $1")
-                    .bind(profile.as_str())
-                    .fetch_one(&pool)
+            let row: (i64,) = sqlx::query_as(
+                "SELECT count(*) FROM catalog.datasets
+                      WHERE profile_id = $1 AND archived_at IS NULL",
+            )
+            .bind(profile.as_str())
+            .fetch_one(&pool)
+            .await
+            .map_err(|error| CatalogError::Store(error.to_string()))?;
+            dataset_count(row.0, "dataset count")
+        })
+    }
+
+    fn list_including_archived(
+        &self,
+        profile: ProfileId,
+    ) -> BoxFuture<Result<Vec<quantrule_api::DatasetRecord>, CatalogError>> {
+        let pool = self.pool.clone();
+        Box::pin(async move {
+            let rows: Vec<DatasetRow> = sqlx::query_as(
+                "SELECT data_version, name, candles, first_bar, last_bar, bytes, object_key,
+                        sha256,
+                        to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'),
+                        quality::text,
+                        to_char(archived_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')
+                 FROM catalog.datasets
+                 WHERE profile_id = $1 ORDER BY data_version",
+            )
+            .bind(profile.as_str())
+            .fetch_all(&pool)
+            .await
+            .map_err(|error| CatalogError::Store(error.to_string()))?;
+            rows.into_iter().map(dataset_record).collect()
+        })
+    }
+
+    fn archive(
+        &self,
+        profile: ProfileId,
+        version: String,
+        archived_at: String,
+    ) -> BoxFuture<Result<quantrule_api::DatasetRecord, CatalogError>> {
+        let pool = self.pool.clone();
+        Box::pin(async move {
+            let mut transaction = pool
+                .begin()
+                .await
+                .map_err(|error| CatalogError::Store(error.to_string()))?;
+            let updated = sqlx::query(
+                "UPDATE catalog.datasets
+                    SET archived_at = $3::timestamptz
+                  WHERE profile_id = $1 AND data_version = $2 AND archived_at IS NULL",
+            )
+            .bind(profile.as_str())
+            .bind(&version)
+            .bind(&archived_at)
+            .execute(&mut *transaction)
+            .await
+            .map_err(|error| CatalogError::Store(error.to_string()))?;
+            if updated.rows_affected() == 0 {
+                let exists: Option<(String,)> = sqlx::query_as(
+                    "SELECT data_version FROM catalog.datasets
+                      WHERE profile_id = $1 AND data_version = $2",
+                )
+                .bind(profile.as_str())
+                .bind(&version)
+                .fetch_optional(&mut *transaction)
+                .await
+                .map_err(|error| CatalogError::Store(error.to_string()))?;
+                transaction
+                    .rollback()
                     .await
                     .map_err(|error| CatalogError::Store(error.to_string()))?;
-            dataset_count(row.0, "dataset count")
+                return Err(if exists.is_some() {
+                    CatalogError::Archived
+                } else {
+                    CatalogError::NotFound
+                });
+            }
+            let row: DatasetRow = sqlx::query_as(
+                "SELECT data_version, name, candles, first_bar, last_bar, bytes, object_key,
+                        sha256,
+                        to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'),
+                        quality::text,
+                        to_char(archived_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')
+                 FROM catalog.datasets
+                 WHERE profile_id = $1 AND data_version = $2",
+            )
+            .bind(profile.as_str())
+            .bind(&version)
+            .fetch_one(&mut *transaction)
+            .await
+            .map_err(|error| CatalogError::Store(error.to_string()))?;
+            sqlx::query(
+                "INSERT INTO catalog.retention_events
+                     (profile_id, kind, record_id, action, reason, bytes)
+                 VALUES ($1, 'dataset', $2, 'archive', 'operator.archive', $3)",
+            )
+            .bind(profile.as_str())
+            .bind(&version)
+            .bind(row.5)
+            .execute(&mut *transaction)
+            .await
+            .map_err(|error| CatalogError::Store(error.to_string()))?;
+            transaction
+                .commit()
+                .await
+                .map_err(|error| CatalogError::Store(error.to_string()))?;
+            dataset_record(row)
+        })
+    }
+
+    fn erase(
+        &self,
+        profile: ProfileId,
+        version: String,
+    ) -> BoxFuture<Result<crate::catalog::EraseOutcome, CatalogError>> {
+        let pool = self.pool.clone();
+        Box::pin(async move {
+            let mut transaction = pool
+                .begin()
+                .await
+                .map_err(|error| CatalogError::Store(error.to_string()))?;
+            let row: Option<DatasetRow> = sqlx::query_as(
+                "SELECT data_version, name, candles, first_bar, last_bar, bytes, object_key,
+                        sha256,
+                        to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'),
+                        quality::text,
+                        to_char(archived_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')
+                 FROM catalog.datasets
+                 WHERE profile_id = $1 AND data_version = $2",
+            )
+            .bind(profile.as_str())
+            .bind(&version)
+            .fetch_optional(&mut *transaction)
+            .await
+            .map_err(|error| CatalogError::Store(error.to_string()))?;
+            let Some(row) = row else {
+                transaction
+                    .rollback()
+                    .await
+                    .map_err(|error| CatalogError::Store(error.to_string()))?;
+                return Err(CatalogError::NotFound);
+            };
+            if row.10.is_none() {
+                transaction
+                    .rollback()
+                    .await
+                    .map_err(|error| CatalogError::Store(error.to_string()))?;
+                return Err(CatalogError::NotArchived);
+            }
+            let references: (i64,) = sqlx::query_as(
+                "SELECT count(*) FROM catalog.dataset_references
+                  WHERE profile_id = $1 AND data_version = $2",
+            )
+            .bind(profile.as_str())
+            .bind(&version)
+            .fetch_one(&mut *transaction)
+            .await
+            .map_err(|error| CatalogError::Store(error.to_string()))?;
+            if references.0 > 0 {
+                transaction
+                    .rollback()
+                    .await
+                    .map_err(|error| CatalogError::Store(error.to_string()))?;
+                return Err(CatalogError::Referenced(
+                    u64::try_from(references.0).unwrap_or(u64::MAX),
+                ));
+            }
+            sqlx::query(
+                "DELETE FROM catalog.dataset_references
+                  WHERE profile_id = $1 AND data_version = $2",
+            )
+            .bind(profile.as_str())
+            .bind(&version)
+            .execute(&mut *transaction)
+            .await
+            .map_err(|error| CatalogError::Store(error.to_string()))?;
+            sqlx::query("DELETE FROM catalog.datasets WHERE profile_id = $1 AND data_version = $2")
+                .bind(profile.as_str())
+                .bind(&version)
+                .execute(&mut *transaction)
+                .await
+                .map_err(|error| CatalogError::Store(error.to_string()))?;
+            let shared: Option<(i32,)> = sqlx::query_as(
+                "SELECT 1 FROM catalog.datasets
+                  WHERE object_key = $1
+                    AND NOT (profile_id = $2 AND data_version = $3)
+                  LIMIT 1",
+            )
+            .bind(&row.6)
+            .bind(profile.as_str())
+            .bind(&version)
+            .fetch_optional(&mut *transaction)
+            .await
+            .map_err(|error| CatalogError::Store(error.to_string()))?;
+            sqlx::query(
+                "INSERT INTO catalog.retention_events
+                     (profile_id, kind, record_id, action, reason, bytes)
+                 VALUES ($1, 'dataset', $2, 'erase', 'operator.erase', $3)",
+            )
+            .bind(profile.as_str())
+            .bind(&version)
+            .bind(row.5)
+            .execute(&mut *transaction)
+            .await
+            .map_err(|error| CatalogError::Store(error.to_string()))?;
+            transaction
+                .commit()
+                .await
+                .map_err(|error| CatalogError::Store(error.to_string()))?;
+            Ok(crate::catalog::EraseOutcome {
+                record: dataset_record(row)?,
+                object_shared: shared.is_some(),
+            })
+        })
+    }
+
+    fn add_reference(
+        &self,
+        profile: ProfileId,
+        version: String,
+        reference: DatasetReference,
+    ) -> BoxFuture<Result<u64, CatalogError>> {
+        let pool = self.pool.clone();
+        Box::pin(async move {
+            let mut transaction = pool
+                .begin()
+                .await
+                .map_err(|error| CatalogError::Store(error.to_string()))?;
+            let exists: Option<(String,)> = sqlx::query_as(
+                "SELECT data_version FROM catalog.datasets
+                  WHERE profile_id = $1 AND data_version = $2",
+            )
+            .bind(profile.as_str())
+            .bind(&version)
+            .fetch_optional(&mut *transaction)
+            .await
+            .map_err(|error| CatalogError::Store(error.to_string()))?;
+            if exists.is_none() {
+                transaction
+                    .rollback()
+                    .await
+                    .map_err(|error| CatalogError::Store(error.to_string()))?;
+                return Err(CatalogError::NotFound);
+            }
+            sqlx::query(
+                "INSERT INTO catalog.dataset_references
+                     (profile_id, data_version, reference_id, kind, created_at)
+                 VALUES ($1, $2, $3, $4, $5::timestamptz)
+                 ON CONFLICT (profile_id, data_version, reference_id) DO NOTHING",
+            )
+            .bind(profile.as_str())
+            .bind(&version)
+            .bind(&reference.reference_id)
+            .bind(reference.kind.as_str())
+            .bind(&reference.created_at)
+            .execute(&mut *transaction)
+            .await
+            .map_err(|error| CatalogError::Store(error.to_string()))?;
+            let count: (i64,) = sqlx::query_as(
+                "SELECT count(*) FROM catalog.dataset_references
+                  WHERE profile_id = $1 AND data_version = $2",
+            )
+            .bind(profile.as_str())
+            .bind(&version)
+            .fetch_one(&mut *transaction)
+            .await
+            .map_err(|error| CatalogError::Store(error.to_string()))?;
+            transaction
+                .commit()
+                .await
+                .map_err(|error| CatalogError::Store(error.to_string()))?;
+            Ok(u64::try_from(count.0).unwrap_or(u64::MAX))
+        })
+    }
+
+    fn release_reference(
+        &self,
+        profile: ProfileId,
+        version: String,
+        reference_id: String,
+    ) -> BoxFuture<Result<u64, CatalogError>> {
+        let pool = self.pool.clone();
+        Box::pin(async move {
+            let mut transaction = pool
+                .begin()
+                .await
+                .map_err(|error| CatalogError::Store(error.to_string()))?;
+            let exists: Option<(String,)> = sqlx::query_as(
+                "SELECT data_version FROM catalog.datasets
+                  WHERE profile_id = $1 AND data_version = $2",
+            )
+            .bind(profile.as_str())
+            .bind(&version)
+            .fetch_optional(&mut *transaction)
+            .await
+            .map_err(|error| CatalogError::Store(error.to_string()))?;
+            if exists.is_none() {
+                transaction
+                    .rollback()
+                    .await
+                    .map_err(|error| CatalogError::Store(error.to_string()))?;
+                return Err(CatalogError::NotFound);
+            }
+            sqlx::query(
+                "DELETE FROM catalog.dataset_references
+                  WHERE profile_id = $1 AND data_version = $2 AND reference_id = $3",
+            )
+            .bind(profile.as_str())
+            .bind(&version)
+            .bind(&reference_id)
+            .execute(&mut *transaction)
+            .await
+            .map_err(|error| CatalogError::Store(error.to_string()))?;
+            let count: (i64,) = sqlx::query_as(
+                "SELECT count(*) FROM catalog.dataset_references
+                  WHERE profile_id = $1 AND data_version = $2",
+            )
+            .bind(profile.as_str())
+            .bind(&version)
+            .fetch_one(&mut *transaction)
+            .await
+            .map_err(|error| CatalogError::Store(error.to_string()))?;
+            transaction
+                .commit()
+                .await
+                .map_err(|error| CatalogError::Store(error.to_string()))?;
+            Ok(u64::try_from(count.0).unwrap_or(u64::MAX))
+        })
+    }
+
+    fn references(
+        &self,
+        profile: ProfileId,
+        version: String,
+    ) -> BoxFuture<Result<Vec<DatasetReference>, CatalogError>> {
+        let pool = self.pool.clone();
+        Box::pin(async move {
+            let exists: Option<(String,)> = sqlx::query_as(
+                "SELECT data_version FROM catalog.datasets
+                  WHERE profile_id = $1 AND data_version = $2",
+            )
+            .bind(profile.as_str())
+            .bind(&version)
+            .fetch_optional(&pool)
+            .await
+            .map_err(|error| CatalogError::Store(error.to_string()))?;
+            if exists.is_none() {
+                return Err(CatalogError::NotFound);
+            }
+            let rows: Vec<(String, String, String)> = sqlx::query_as(
+                "SELECT reference_id, kind,
+                        to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')
+                 FROM catalog.dataset_references
+                 WHERE profile_id = $1 AND data_version = $2
+                 ORDER BY reference_id",
+            )
+            .bind(profile.as_str())
+            .bind(&version)
+            .fetch_all(&pool)
+            .await
+            .map_err(|error| CatalogError::Store(error.to_string()))?;
+            rows.into_iter()
+                .map(|(reference_id, kind, created_at)| {
+                    let kind = DatasetReferenceKind::parse(&kind).ok_or_else(|| {
+                        CatalogError::Store(format!(
+                            "a stored dataset reference has an unknown kind: {kind}"
+                        ))
+                    })?;
+                    Ok(DatasetReference {
+                        reference_id,
+                        kind,
+                        created_at,
+                    })
+                })
+                .collect()
         })
     }
 }

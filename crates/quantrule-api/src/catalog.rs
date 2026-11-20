@@ -34,6 +34,100 @@ pub struct DatasetSummary {
     pub last_bar: u64,
     /// Stored size in bytes.
     pub bytes: u64,
+    /// When the dataset was archived, RFC 3339 UTC. Absent while active.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub archived_at: Option<String>,
+}
+
+/// The kind of record that holds a dataset reference.
+///
+/// A reference is the consumer's promise that it still needs the dataset. The
+/// data service never inspects another service's rows; it counts these
+/// registered references instead.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DatasetReferenceKind {
+    /// A coupled pipeline run.
+    Run,
+    /// A diagnostic stage run.
+    Stage,
+    /// A research record.
+    Research,
+    /// A simulation run.
+    Simulation,
+    /// An accepted baseline.
+    Baseline,
+}
+
+impl DatasetReferenceKind {
+    /// The wire and storage token.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Run => "run",
+            Self::Stage => "stage",
+            Self::Research => "research",
+            Self::Simulation => "simulation",
+            Self::Baseline => "baseline",
+        }
+    }
+
+    /// Parse a stored token.
+    #[must_use]
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "run" => Some(Self::Run),
+            "stage" => Some(Self::Stage),
+            "research" => Some(Self::Research),
+            "simulation" => Some(Self::Simulation),
+            "baseline" => Some(Self::Baseline),
+            _ => None,
+        }
+    }
+}
+
+/// One registered reference to a dataset.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DatasetReference {
+    /// Stable identity of the consumer record.
+    pub reference_id: String,
+    /// What kind of record holds the reference.
+    pub kind: DatasetReferenceKind,
+    /// When the reference was registered, RFC 3339 UTC.
+    pub created_at: String,
+}
+
+/// A request to register or release a dataset reference.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DatasetReferenceRequest {
+    /// Stable identity of the consumer record.
+    pub reference_id: String,
+    /// What kind of record holds the reference.
+    pub kind: DatasetReferenceKind,
+}
+
+/// A request to release one registered reference.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReleaseDatasetReferenceRequest {
+    /// Stable identity of the consumer record.
+    pub reference_id: String,
+}
+
+/// The number of references a dataset still has.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DatasetReferenceCount {
+    /// Registered references, across every consumer kind.
+    pub references: u64,
+}
+
+/// The result of erasing a dataset.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EraseDatasetResponse {
+    /// The erased content version.
+    pub data_version: Digest,
+    /// Bytes removed from the object store, or zero when another profile still
+    /// shares the same content.
+    pub bytes: u64,
 }
 
 /// One row skipped by a tolerant ingest.
@@ -127,6 +221,7 @@ mod tests {
                 first_bar: 1_546_300_800,
                 last_bar: 1_549_065_600,
                 bytes: 65_536,
+                archived_at: None,
             },
             object_key: "candles/abc".to_owned(),
             sha256: digest(),
