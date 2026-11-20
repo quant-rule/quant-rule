@@ -7,6 +7,7 @@ mod failure;
 mod path;
 mod portfolio_stage;
 mod promotion;
+mod scale;
 mod source;
 mod strategy_stage;
 mod support;
