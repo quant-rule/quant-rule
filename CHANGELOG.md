@@ -20,6 +20,12 @@ history is in Git and the pull requests.
 
 ### Added
 
+- The user manual adds chapter 13 (desktop install) and chapter 14
+  (multi-host), plus an agent operator runbook with copyable prompts and
+  guardrails.
+- The Linux desktop install documents a user-level `.desktop` entry so
+  QuantRule appears in GNOME Activities search; the Windows NSIS path is
+  documented.
 - Multi-host backup and restore wrappers reuse the single-host archive format
   against the infrastructure host, with an explicit application-stopped gate.
 - The `multi-host` test tier runs the six services on separate container

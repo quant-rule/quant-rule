@@ -107,12 +107,12 @@ PATTERN = re.compile("|".join(re.escape(token) for token in TOKENS), re.IGNORECA
 
 # Retired architecture terms. The retired *shape* is banned, not the vendor word:
 # a Tauri shell over the gateway URL is current (ADR-2026-11-12-12), while the
-# Tauri application that embedded the app service is not.
+# Tauri application that embedded the app service is not. The AppImage and NSIS
+# artifacts are the current desktop distribution, so the artifact name is allowed.
 ARCH_TOKENS = [
     "download page",
     "static download",
     "Linux installer",
-    "AppImage",
     "apps/desktop/src-tauri",
     "Tauri IPC",
     "Tauri desktop application",

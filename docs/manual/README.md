@@ -1,7 +1,7 @@
 # QuantRule User Manual
 
-- Date: 2026-11-17 (UTC)
-- Status: Current; 12 chapters
+- Date: 2026-11-20 (UTC)
+- Status: Current; 14 chapters
 - Audience: operator, quant researcher, reviewer
 - Scope: the end-to-end use of the product through the CLI, the browser, and the desktop window
 - Claim type: Behaviour Claim
@@ -30,10 +30,12 @@ authoritative.
 | 10 | GUI reference | [10-gui-reference.md](10-gui-reference.md) | Every screen, tab, control, test id, and evidence badge | Current |
 | 11 | Glossary | [11-glossary.md](11-glossary.md) | One term per concept | Current |
 | 12 | Troubleshooting | [12-troubleshooting.md](12-troubleshooting.md) | Stable error codes, causes, and the next action | Current |
+| 13 | Desktop install | [13-desktop.md](13-desktop.md) | AppImage and menu entry, Windows NSIS, ports, and uninstall | Current |
+| 14 | Multi-host | [14-multi-host.md](14-multi-host.md) | How to place the six services on several hosts | Current |
 
 ## 3. How the chapters are written
 
-Chapters 1–8 are runnable procedures, not a reference dump:
+Chapters 1–8 and 13–14 are runnable procedures, not a reference dump:
 
 - **Goal:** the trader's question in one sentence.
 - **Before you start:** the profile, data, config, or artifact you need.
