@@ -1,7 +1,7 @@
 # Whole-Project Refactor Assessment
 
 - Date: 2026-11-20 (UTC)
-- Status: Assessment complete; REF-2026-11-20-01 and REF-2026-11-20-02 are `In progress`; decisions remain open
+- Status: Assessment complete; REF-2026-11-20-01 and REF-2026-11-20-02 are `Verified`; decisions remain open
 - Scope: repository layout, documentation, Rust modules, tests, tooling, and CI
 - Workflow: [Refactor Workflow](../../workflows/refactor-workflow.md)
 - Baseline commit: `8443697fec9e20a555b2fe900a36c19dae03b8cb`
@@ -60,8 +60,8 @@ CARGO_TARGET_DIR="$PWD/target/gate" cargo test --workspace -- --list | grep -c '
 
 | ID | Impact | Area | Finding | Evidence | Principle | Options | Recommended | Verification | Status | Links |
 |---|---|---|---|---|---|---|---|---|---|---|
-| REF-2026-11-20-01 | High | shell | The command pipeline is three near-cap monoliths with mixed responsibilities | `wc -l`: `output.rs` 995, `dispatch.rs` 992, `parse.rs` 933; `research create` crosses `types.rs:272`, `parse/parse_research.rs:52`, `dispatch.rs:135`, `help.rs:215`, `output.rs:678` | cohesion, boundary, atomicity | A / B / C | A | File-size gate, 2,394 tests, byte-identical help and command output | In progress | Plan |
-| REF-2026-11-20-02 | High | docs | The global status index sits at its cap and is machine-coupled to four checkers | `docs/README.md` 328 lines, cap 330 (`check_doc_length.py:27`); 226 commits in six months; `c3c10cc1` compressed a 20-row table to fit; `check_workflows.py:126` requires every workflow | cohesion, readability, coupling | A / B / C | A | Index length, checker pass, every workflow still discoverable | In progress | Plan |
+| REF-2026-11-20-01 | High | shell | The command pipeline is three near-cap monoliths with mixed responsibilities | `wc -l`: `output.rs` 995, `dispatch.rs` 992, `parse.rs` 933; `research create` crosses `types.rs:272`, `parse/parse_research.rs:52`, `dispatch.rs:135`, `help.rs:215`, `output.rs:678` | cohesion, boundary, atomicity | A / B / C | A | File-size gate, 2,394 tests, byte-identical help and command output | Verified | #931 |
+| REF-2026-11-20-02 | High | docs | The global status index sits at its cap and is machine-coupled to four checkers | `docs/README.md` 328 lines, cap 330 (`check_doc_length.py:27`); 226 commits in six months; `c3c10cc1` compressed a 20-row table to fit; `check_workflows.py:126` requires every workflow | cohesion, readability, coupling | A / B / C | A | Index length, checker pass, every workflow still discoverable | Verified | #932 |
 | REF-2026-11-20-03 | Medium | tools | Every PR runs retired and historical Python suites | `.github/workflows/ci.yml:58-69`; 153 improvement tests, 96 research tests, plus programme coverage; `tools/improvement/README.md` calls its adapters historical | coupling, testability | A / B / C | A | PR CI time, current checks unchanged, on-demand historical workflow | Open | Decision |
 | REF-2026-11-20-04 | Medium | naming | `research` and `improvement` name the same record at different layers | Commands/routes `research`; types/module `Improvement*`; `AGENTS.md:71` and `docs/manual/07-improvement.md:25` say "research run"; `docs/workflows/run-contract.md:366` says "improvement run is a research record" | readability, cohesion | A / B / C | A | Term inventory, command surface, no wire change | Open | Decision |
 | REF-2026-11-20-05 | Medium | docs | `AGENTS.md` repeats lists owned by other documents | 103,345 bytes, 1,263 lines; section 2 enumerates 46 commands; section 11 enumerates 20 workflows; section 10 is 375 lines of roles | readability, coupling | A / B / C | A | Agent context size, no drift, index authorities unchanged | Open | Decision |
@@ -477,3 +477,15 @@ or a behavior change is required. Naming, CI, `AGENTS.md`, config, record,
 fixture, and dependency findings are outside this campaign because they either
 change user-visible output, change what the gate enforces, or belong to Data
 Lifecycle, Recordkeeping, or a separate one-line dependency fix.
+
+## Post-merge verification (2026-11-20)
+
+The human accepted the refactor. The two cycles merged as #931 (`03500e4e`) and
+#932 (`9b4469b4`); both pull-request CI runs were green, and the workspace
+checkers pass on `main`. The task worktree and the local and remote branches were
+removed, and the issues are closed.
+
+The named metrics held: largest touched file 392 lines (`parse/mod.rs`),
+`docs/README.md` 81 lines, 2,394 tests, 27 checkers, and unchanged `help`
+output. The implementation pass was a sequential self-check; the human
+acceptance is the verification record, not an independent agent review.

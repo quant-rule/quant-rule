@@ -164,3 +164,13 @@ commit and PR; the commit and pull-request record follows.
 - Both pull-request CI runs are green (verify, web, web-e2e); issues #929 and
   #930 are `In Review`. No merge, tag, or deployment was performed. The plan is
   `In Review`; V23 (done and cleanup) is pending the merge.
+
+### Verification and closure (2026-11-20)
+
+The human accepted the refactor. #931 merged at `03500e4e`; #932 merged at
+`9b4469b4`. Both CI runs were green, and `bash tools/checkers.sh` passes on
+`main`. The task worktree and the local and remote branches were removed; the
+issues are closed. The plan is `Verified`; REF-2026-11-20-01 and
+REF-2026-11-20-02 are `Verified` by human acceptance. The board's final `Done`
+and `Closed date` fields are owned by the project-sync workflow; a final GraphQL
+read was unavailable.
