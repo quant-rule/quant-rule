@@ -56,14 +56,23 @@ The descriptor (`quantrule.deploy/v2`, JSON) is operator-owned and lives outside
 this repository. It names the hosts, service placement, endpoints, replicas,
 network gate, image tag, and one image digest.
 
+Run these from the repository root; the rendered directory is the one the
+per-role Compose files read. From `deploy/multi-host`, the same flags are
+`--secrets secrets.env` and `--out env`.
+
 ```bash
 export DESCRIPTOR=/etc/quantrule/quantrule.deploy.json
 
-cp secrets.example.env secrets.env
-chmod 600 secrets.env                 # fill every value first
-qr-deploy validate "$DESCRIPTOR"      # refuses an unsafe placement or bind
-qr-deploy render "$DESCRIPTOR"        # reads secrets.env, writes env/*.env
+cp deploy/multi-host/secrets.example.env deploy/multi-host/secrets.env
+chmod 600 deploy/multi-host/secrets.env    # fill every value first
+qr-deploy validate "$DESCRIPTOR" --secrets deploy/multi-host/secrets.env
+qr-deploy render "$DESCRIPTOR" --out deploy/multi-host/env \
+  --secrets deploy/multi-host/secrets.env
 ```
+
+The example descriptor enables `auth.gateway_token`, so `QR_BEARER_TOKEN` must
+be non-empty; `qr-deploy validate --secrets` rejects an empty value.
+`tools/token.sh` prints a 256-bit token.
 
 `env/` is ignored by Git. The renderer writes one file per service and
 `env/infra.env`; each carries at least `QR_IMAGE`, `QR_IMAGE_DIGEST`,
@@ -103,28 +112,32 @@ no `depends_on` because the dependency is on another machine; the order exists
 so the first start does not spend its retries on a backend that is not up yet.
 
 ```bash
-# infrastructure host
-docker compose --env-file env/infra.env -f compose.infra.yaml up -d --wait
+# infrastructure host, from the repository root
+docker compose --env-file deploy/multi-host/env/infra.env \
+  -f deploy/multi-host/compose.infra.yaml up -d --wait
 
 # core host
-docker compose --env-file env/data.env -f compose.core.yaml up -d --wait
+docker compose --env-file deploy/multi-host/env/data.env \
+  -f deploy/multi-host/compose.core.yaml up -d --wait
 
 # compute host
-docker compose --env-file env/model.env -f compose.compute.yaml up -d --wait
+docker compose --env-file deploy/multi-host/env/model.env \
+  -f deploy/multi-host/compose.compute.yaml up -d --wait
 
 # gateway host
-docker compose --env-file env/gateway.env -f compose.gateway.yaml up -d --wait
+docker compose --env-file deploy/multi-host/env/gateway.env \
+  -f deploy/multi-host/compose.gateway.yaml up -d --wait
 ```
 
 The `--env-file` supplies the shared `QR_IMAGE` to the project; each service
-reads its own `env_file`. The infrastructure role needs `env/infra.env` for the
-bind address, credentials, and bucket because Postgres, MinIO, and RabbitMQ use
-their own variable names.
+reads its own `env_file`. The infrastructure role needs
+`deploy/multi-host/env/infra.env` for the bind address, credentials, and bucket
+because Postgres, MinIO, and RabbitMQ use their own variable names.
 
 ## 7. Verification
 
 ```bash
-qr-deploy check "$DESCRIPTOR"
+qr-deploy check "$DESCRIPTOR" --secrets deploy/multi-host/secrets.env
 ```
 
 It probes every service endpoint and asserts one image digest across the hosts.
@@ -168,8 +181,8 @@ forward `5672`, `5432`, or `9000` beyond the overlay.
 2. Stop the gateway, then compute, then core. Leave infrastructure running.
    Stopping the gateway first stops new submissions; stopping workers then lets
    the queue hold or redeliver their messages.
-3. Update the descriptor's image tag and digest, then `qr-deploy validate` and
-   `qr-deploy render`.
+3. Update the descriptor's image tag and digest, then repeat the `validate` and
+   `render` commands in §4.
 4. Start core, then compute, then the gateway (§6). Migrations run forward at
    startup and are idempotent.
 
@@ -181,7 +194,8 @@ must tolerate it. If it cannot, restore from backup.
 ## 10. Logs and stop
 
 ```bash
-docker compose --env-file env/data.env -f compose.core.yaml logs -f --tail 200
+docker compose --env-file deploy/multi-host/env/data.env \
+  -f deploy/multi-host/compose.core.yaml logs -f --tail 200
 ```
 
 Stop in reverse order: gateway, compute, core, infrastructure. `docker compose
