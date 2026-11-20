@@ -1,7 +1,7 @@
 # Whole-Project Refactor Plan
 
 - Date: 2026-11-20 (UTC)
-- Status: In Review
+- Status: Verified
 - Workflow: [Refactor Workflow](../../workflows/refactor-workflow.md)
 - Assessment: [`docs/refactors/2026-11-20/whole-project-refactor.md`](../../refactors/2026-11-20/whole-project-refactor.md)
 - Baseline commit: `8443697fec9e20a555b2fe900a36c19dae03b8cb`
@@ -197,7 +197,7 @@ Limitations:
 | V20 | Z changelog | `CHANGELOG.md` records the structural change, or states why no entry is needed | `git diff -- CHANGELOG.md` | Entry under `Unreleased` | `Changed` entry added; `check_changelog.py` passes | Pass | Implementer (self-check) | 2026-11-20 |  |
 | V21 | Z AI log | The AI log records assessment, planning, implementation, and verification | `docs/ai-transparency-log/2026-11-20/whole-project-refactor.md` | Complete | Updated with implementation evidence | Pass | Implementer (self-check) | 2026-11-20 |  |
 | V22 | Z review | Each issue is `In Review` only with green checks and the PR open | Board status, PR checks | In Review | PRs #931 and #932 green; issues #929 and #930 In Review | Pass | Human | 2026-11-20 | Human review gate |
-| V23 | Z done | Human acceptance, merge, acceptance verification, worktree and branch cleanup | Board `Done`, `git worktree list`, `git branch -a` | Done, cleaned | Not merged; worktree retained | Pending | Human |  | Cleanup after merge |
+| V23 | Z done | Human acceptance, merge, acceptance verification, worktree and branch cleanup | Board `Done`, `git worktree list`, `git branch -a` | Done, cleaned | PRs #931 and #932 merged; issues closed; worktree and branches removed | Pass | Human (accepted 2026-11-20) | 2026-11-20 | Board sync via project workflow |
 
 ## 9. Risks and recovery
 
