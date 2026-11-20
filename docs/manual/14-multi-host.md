@@ -1,0 +1,88 @@
+# 14. Multi-Host Deployment
+
+- Status: Current
+- Audience: operator placing the six services on more than one Linux host
+
+## Goal
+
+Run the server profile across a gateway host, a core host, a compute host, and
+an infrastructure host, with only the gateway reachable from the client side and
+the same canonical digest as the single-host stack.
+
+## Before you start
+
+| Need | Value |
+|---|---|
+| Hosts | Four Linux hosts or VMs on one WireGuard/Tailscale network |
+| Container runtime | Docker Engine and Compose on every host |
+| Image | The same `quantrule-server` image on every host; build once and distribute |
+| Repository | The tree that contains `deploy/multi-host/` and `qr-deploy` |
+| Secrets | A `secrets.env` file with non-default database, object-store, queue, and token values |
+| Network | Private overlay addresses for every host; no public port except the gateway |
+
+Do not start this profile while the single-host stack or the desktop app owns
+`8080`. Stop them first.
+
+## Steps
+
+| # | Host | Action | Expect |
+|---:|---|---|---|
+| 1 | build host | `cargo build --release --bin qr-deploy` | `target/release/qr-deploy` |
+| 2 | build host | `docker save quantrule-server:<tag> -o quantrule-server.tar` | One image tar |
+| 3 | every host | `docker load -i quantrule-server.tar` | The same image ID on every host |
+| 4 | build host | Copy `deploy.example.json` to `deploy.json`; set the image reference/digest, host addresses, and ports | One descriptor |
+| 5 | build host | Create `secrets.env` from `secrets.example.env`; replace every placeholder | Owner-only file |
+| 6 | build host | `qr-deploy validate deploy.json --secrets secrets.env` | `ok: …`, no error |
+| 7 | build host | `qr-deploy render deploy.json --out deploy/multi-host/env --secrets secrets.env` | Seven env files |
+| 8 | infra host | Copy `compose.infra.yaml` and `env/infra.env`; `docker compose -f compose.infra.yaml --env-file env/infra.env up -d` | Postgres, MinIO, RabbitMQ healthy |
+| 9 | core host | Copy `compose.core.yaml`, `env/data.env`, `env/evidence.env`, `env/simulation.env`, and `config/`; start the three services | Three healthy endpoints |
+| 10 | compute host | Copy `compose.compute.yaml`, `env/model.env`, `env/backtest.env`; start `model` and the workers | Model healthy; worker consuming |
+| 11 | gateway host | Copy `compose.gateway.yaml` and `env/gateway.env`; start the gateway | `/ready` healthy |
+| 12 | client | `qr-deploy check deploy.json --secrets secrets.env` | Every HTTP service `ok`, one digest |
+| 13 | client | `QUANTRULE_API_URL=http://<gateway>:8080/api/v1`; `quantrule health` | Connected |
+| 14 | client | Submit the verification fixture and read the digest | Same digest as single-host |
+
+Each host needs only the files for the services it runs. The image is already
+loaded; the Compose files use `network_mode: host` and the env file's
+`QR_BIND_IP`/`QR_BIND_PORT`.
+
+## What you see
+
+| Field | Meaning |
+|---|---|
+| `qr-deploy validate` | Host count, service count, image digest, network gate |
+| `qr-deploy check` | Service, URL, state, image digest, or the failure |
+| `/ready` | Gateway plus data, model, evidence, and simulation states |
+| `QR_INTERNAL_ONLY` | Internal services refuse a public bind |
+| Canonical digest | The same value as the single-host verification run |
+
+## What it proves
+
+**Verification.** A completed multi-host run with one image digest and the same
+canonical digest as the single-host stack proves the deployment profile, not an
+edge. The profile is not evidence, not a baseline, and not high availability.
+
+## Failure
+
+| Code or symptom | Cause | Next action |
+|---|---|---|
+| `qr-deploy: … default credential` | The secrets file still has a documented default | Replace it; do not weaken the validator |
+| `qr-deploy: the secrets file does not define …` | A placeholder has no value | Add the key to `secrets.env` |
+| `QR_BIND: must be a private or loopback address` | `QR_INTERNAL_ONLY=1` with a public or `0.0.0.0` bind | Set the host's private address |
+| `qr-deploy check` digest mismatch | A host runs a different image | Load the same image on that host and restart |
+| `qr-deploy check` connection refused | The service is down or the overlay is down | Read the host logs and `/health` |
+| Gateway `degraded` | An upstream is down | Start the missing service; `/ready` names it |
+| Run stays `queued` | No backtest worker is consuming | Start a worker on the compute host |
+| 401 | The gateway token is missing or wrong | Enter the token in the client |
+| Port already allocated | Another stack owns `8080` | Stop the other stack; do not change the descriptor to hide the conflict |
+
+Do not publish an internal service to fix a connection problem. Fix the overlay
+or the service, not the trust boundary.
+
+## Related
+
+- [Multi-host architecture](../architecture/multi-host.md)
+- [Deployment](../architecture/deployment.md)
+- [Security](../architecture/security.md)
+- [Agent runbook](https://github.com/quant-rule/quant-rule/issues/969)
+- [Deploy README](https://github.com/quant-rule/quant-rule/issues/961)

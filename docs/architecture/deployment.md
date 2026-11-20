@@ -164,5 +164,5 @@ splitting are configuration; no code changes.
 
 ## 8. What deployment does not provide
 
-No high availability, no multi-host scheduling, no autoscaling, no TLS
-termination, no external registry. Each is a later decision with its own record.
+No high availability, no autoscaling, no TLS termination, no external registry.
+Multi-host placement is in [multi-host.md](multi-host.md); it is not HA.
