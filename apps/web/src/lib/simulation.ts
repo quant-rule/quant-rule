@@ -40,6 +40,7 @@ export interface SimulationSummary {
   bundle: string;
   /** Windows carrying at least one mark. */
   marked_windows: number;
+  archived_at?: string;
 }
 
 /** The fields a researcher supplies to create a run. */

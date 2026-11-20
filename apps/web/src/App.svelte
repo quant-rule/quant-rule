@@ -4,6 +4,7 @@
   import ConnectionPanel from "./lib/ConnectionPanel.svelte";
   import DatasetsPanel from "./lib/DatasetsPanel.svelte";
   import HelpPanel from "./lib/HelpPanel.svelte";
+  import HistoryPanel from "./lib/HistoryPanel.svelte";
   import InspectPanel from "./lib/InspectPanel.svelte";
   import OperationsPanel from "./lib/OperationsPanel.svelte";
   import ProfilesPanel from "./lib/ProfilesPanel.svelte";
@@ -90,6 +91,8 @@
         <OperationsPanel />
       {:else if section === "simulation"}
         <SimulationRunsPanel />
+      {:else if section === "history"}
+        <HistoryPanel />
       {:else if section === "inspect"}
         <InspectPanel />
       {:else if section === "help"}

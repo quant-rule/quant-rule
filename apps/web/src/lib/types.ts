@@ -48,6 +48,7 @@ export interface DatasetSummary {
   first_bar: number;
   last_bar: number;
   bytes: number;
+  archived_at?: string;
 }
 
 /** One row skipped by a tolerant ingest. */
@@ -96,6 +97,7 @@ export interface RunSummary {
   data_version: Digest;
   submitted_at: string;
   elapsed_ms: number | null;
+  archived_at?: string;
 }
 
 /** Where a configuration came from. */

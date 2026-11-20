@@ -22,6 +22,7 @@ export const SECTIONS = [
   { id: "operations", label: "Operations", hint: "Health, retention, verification" },
   { id: "inspect", label: "Inspect", hint: "Candles, ladders, events" },
   { id: "simulation", label: "Simulation", hint: "Chart-first research" },
+  { id: "history", label: "History", hint: "Archive and erase" },
   { id: "help", label: "Help", hint: "Command reference" },
 ] as const;
 
@@ -89,6 +90,9 @@ export const COMMANDS: CommandCapability[] = [
   { command: "simulation oracle", section: "simulation", control: "Oracle result", component: "SimulationRunDetail.svelte", testId: "sim-oracle" },
   { command: "simulation check", section: "simulation", control: "Check action", component: "SimulationCheckPanel.svelte", testId: "sim-check" },
   { command: "simulation decide", section: "simulation", control: "Decision action", component: "SimulationDecisionPanel.svelte", testId: "sim-decision" },
+  { command: "history list", section: "history", control: "History table with kind tabs", component: "HistoryPanel.svelte", testId: "history-table" },
+  { command: "history archive", section: "history", control: "Archive action", component: "HistoryPanel.svelte", testId: "history-archive" },
+  { command: "history erase", section: "history", control: "Typed-confirmation erase action", component: "HistoryPanel.svelte", testId: "history-erase" },
   { command: "help", section: "help", control: "Command reference table", component: "HelpPanel.svelte", testId: "help-table" },
 ];
 

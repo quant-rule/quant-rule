@@ -20,6 +20,8 @@ history is in Git and the pull requests.
 
 ### Added
 
+- The browser History screen lists run, stage, research, simulation, and
+  dataset records, archives them, and erases them with typed confirmation.
 - The shell gains `history list`, `history archive`, and `history erase` for
   run, stage, research, simulation, and dataset records, with
   `--include-archived`, `--dry-run`, and typed confirmation.

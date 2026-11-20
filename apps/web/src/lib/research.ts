@@ -53,6 +53,7 @@ export interface ImprovementRunSummary {
   created_at: string;
   submitted_at: string | null;
   decided_at: string | null;
+  archived_at?: string;
 }
 
 export interface ImprovementRunDetail extends ImprovementRunSummary {
