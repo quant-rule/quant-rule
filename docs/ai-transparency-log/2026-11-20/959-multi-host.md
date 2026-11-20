@@ -78,3 +78,23 @@ Multi-host local harness evidence:
 The real three-host LAN rows (host firewall, overlay isolation, cross-host
 failure, live backup/restore) remain blocked until the hosts exist. They are not
 claimed as passing.
+
+## Security hardening (2026-11-20)
+
+The independent security review of the integrated profile requested changes.
+The agent fixed the blocking findings in #980:
+
+- public/unspecified/IPv6 hosts, external endpoints, template secrets,
+  placeholder digests, port zero, and unsupported role splits are rejected;
+- the infrastructure Compose file requires `QR_BIND_IP` and the role files use
+  `pull_policy: never` and healthy-state healthchecks;
+- `qr-deploy check` no longer sends the bearer token on open probes and reports
+  the backtest worker as `SKIP`;
+- the runtime rechecks the internal bind at the serve boundary and redacts
+  secrets from `Config` debug output;
+- the backup wrappers source `infra.env` so custom database, bucket, and queue
+  names reach the archive tools.
+
+Verification: 26 `quantrule-deploy` tests, 18 runtime config tests, clippy,
+`tools/checkers.sh`, and Compose config tests for all four role files. The real
+three-host LAN rows remain blocked.

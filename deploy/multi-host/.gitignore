@@ -1,0 +1,7 @@
+# Rendered per-role environment files. `qr-deploy render` writes one per
+# service plus infra.env; they carry resolved credentials and are never
+# committed.
+env/
+
+# The operator's filled copy of secrets.example.env.
+secrets.env

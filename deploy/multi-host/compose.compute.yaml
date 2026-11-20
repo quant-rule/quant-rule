@@ -1,0 +1,40 @@
+# QuantRule multi-host profile — compute role (quantrule.deploy/v2).
+#
+# `model` is CPU-bound and `backtest` runs one run per worker; both scale by
+# count across hosts through the queue, and neither publishes a port outside
+# the private overlay. No depends_on: the dependencies live on another host.
+# Start the core role first, then add workers.
+#
+# `qr-deploy render` writes env/model.env and env/backtest.env. The
+# `--env-file` passed to Compose is only needed for the shared QR_IMAGE.
+name: quantrule-compute
+
+services:
+  model:
+    image: ${QR_IMAGE}
+    pull_policy: never
+    command: ["qr-model"]
+    network_mode: host
+    environment:
+      QR_INTERNAL_ONLY: "1"
+    env_file:
+      - env/model.env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://$${QR_BIND_IP}:$${QR_BIND_PORT}/health | grep -q '\"state\":\"healthy\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+  backtest:
+    image: ${QR_IMAGE}
+    pull_policy: never
+    command: ["qr-backtest"]
+    network_mode: host
+    env_file:
+      - env/backtest.env
+    restart: unless-stopped
+    # A worker serves no HTTP and publishes no liveness probe, so it has no
+    # healthcheck. Docker reports the process state; the gateway's /ready
+    # reports whether the run path has a worker.

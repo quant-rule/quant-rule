@@ -4,6 +4,7 @@
 //! that fails to parse is an error rather than a silent default.
 
 use std::collections::BTreeMap;
+use std::fmt;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 
@@ -87,7 +88,7 @@ impl std::fmt::Display for ConfigError {
 impl std::error::Error for ConfigError {}
 
 /// The runtime configuration.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Config {
     /// Where the HTTP server listens.
     pub bind: String,
@@ -127,6 +128,33 @@ pub struct Config {
     pub internal_only: bool,
 }
 
+impl fmt::Debug for Config {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("Config")
+            .field("bind", &self.bind)
+            .field("profile", &self.profile)
+            .field("data_dir", &self.data_dir)
+            .field("database_url", &"<redacted>")
+            .field("object_store_url", &"<redacted>")
+            .field("object_store_bucket", &self.object_store_bucket)
+            .field("queue_url", &"<redacted>")
+            .field("upload_limit_bytes", &self.upload_limit_bytes)
+            .field(
+                "bearer_token",
+                &self.bearer_token.as_ref().map(|_| "<redacted>"),
+            )
+            .field("static_dir", &self.static_dir)
+            .field("config_root", &self.config_root)
+            .field("backtest_concurrency", &self.backtest_concurrency)
+            .field("stage_retention_days", &self.stage_retention_days)
+            .field("image_digest", &self.image_digest)
+            .field("migrate", &self.migrate)
+            .field("internal_only", &self.internal_only)
+            .finish()
+    }
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -151,6 +179,22 @@ impl Default for Config {
 }
 
 impl Config {
+    /// Re-check the internal bind after construction.
+    ///
+    /// The parser already calls this when `QR_INTERNAL_ONLY` is set. The
+    /// service entry points call it again so a `Config` built by code cannot
+    /// bypass the guard.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConfigError::Invalid`] when the bind is not private.
+    pub fn check_internal_bind(&self) -> Result<(), ConfigError> {
+        if self.internal_only {
+            validate_internal_bind(&self.bind)?;
+        }
+        Ok(())
+    }
+
     /// Read the configuration from the process environment.
     ///
     /// # Errors
@@ -447,6 +491,41 @@ mod tests {
     fn a_present_value_overrides_the_default() {
         let config = Config::from_map(&map(&[("QR_BIND", "127.0.0.1:9000")])).expect("override");
         assert_eq!(config.bind, "127.0.0.1:9000");
+    }
+
+    #[test]
+    fn debug_redacts_connection_strings_and_the_token() {
+        let config = Config::from_map(&map(&[
+            ("QR_DATABASE_URL", "postgres://user:db-secret@host/db"),
+            ("QR_OBJECT_STORE_URL", "http://object-secret@host:9000"),
+            ("QR_QUEUE_URL", "amqp://user:queue-secret@host/%2f"),
+            ("QR_BEARER_TOKEN", "bearer-secret"),
+        ]))
+        .expect("config");
+        let text = format!("{config:?}");
+        for secret in [
+            "db-secret",
+            "object-secret",
+            "queue-secret",
+            "bearer-secret",
+        ] {
+            assert!(!text.contains(secret), "{secret} leaked in {text}");
+        }
+    }
+
+    #[test]
+    fn check_internal_bind_refuses_a_public_bind() {
+        let config = Config {
+            internal_only: true,
+            ..Config::default()
+        };
+        assert!(config.check_internal_bind().is_err());
+        let config = Config {
+            bind: "10.0.0.1:8080".to_owned(),
+            internal_only: true,
+            ..Config::default()
+        };
+        assert!(config.check_internal_bind().is_ok());
     }
 
     #[test]
