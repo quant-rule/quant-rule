@@ -1,0 +1,62 @@
+# QuantRule multi-host profile — core role (quantrule.deploy/v2).
+#
+# `data`, `evidence`, and `simulation` own separate schemas and failure units,
+# so they are separate services, but they share one host and one private
+# overlay address with a distinct port each. There is no depends_on: the
+# dependency is a host or a container on another machine, and `restart:
+# unless-stopped` plus the service's own startup retry is what recovers an
+# order mistake. Start the infrastructure role first.
+#
+# `qr-deploy render` writes env/data.env, env/evidence.env, and
+# env/simulation.env. The `--env-file` passed to Compose is only needed for the
+# shared QR_IMAGE; each service reads its own file through env_file.
+name: quantrule-core
+
+services:
+  data:
+    image: ${QR_IMAGE}
+    command: ["qr-data"]
+    network_mode: host
+    env_file:
+      - env/data.env
+    restart: unless-stopped
+    volumes:
+      # The repository config/ is the read-only catalog source, exactly as on
+      # the single-host stack. A host that carries only the deploy bundle
+      # exports QR_CONFIG_HOST_DIR before Compose runs; a rendered env file is
+      # not the place for it, because re-rendering replaces that file.
+      - ${QR_CONFIG_HOST_DIR:-../../config}:/srv/config:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://$${QR_BIND_IP}:$${QR_BIND_PORT}/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+  evidence:
+    image: ${QR_IMAGE}
+    command: ["qr-evidence"]
+    network_mode: host
+    env_file:
+      - env/evidence.env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://$${QR_BIND_IP}:$${QR_BIND_PORT}/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+  simulation:
+    image: ${QR_IMAGE}
+    command: ["qr-simulation"]
+    network_mode: host
+    env_file:
+      - env/simulation.env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://$${QR_BIND_IP}:$${QR_BIND_PORT}/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
