@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
+import { readFileSync } from "node:fs";
 
 import { archive, canArchive, erase, HISTORY_KINDS, list } from "./history";
 
@@ -106,5 +107,20 @@ describe("history actions", () => {
       "confirmation",
     );
     expect(called).toBe(false);
+  });
+});
+
+
+describe("history parity fixture", () => {
+  it("names the same five kinds the browser renders", () => {
+    const fixture = JSON.parse(
+      readFileSync(
+        new URL("../../../../tests/fixtures/client-parity/api.json", import.meta.url),
+        "utf8",
+      ),
+    ) as { history_kinds: string[] };
+    expect(HISTORY_KINDS.map((kind) => kind.id) as string[]).toEqual(
+      fixture.history_kinds,
+    );
   });
 });

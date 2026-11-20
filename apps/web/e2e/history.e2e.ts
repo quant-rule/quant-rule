@@ -107,3 +107,50 @@ test("the stage tab has no archive and no archive filter", async ({ page }) => {
   await expect(page.getByTestId("history-archive")).toHaveCount(0);
   await expect(page.getByTestId("history-include-archived")).toHaveCount(0);
 });
+
+
+test("shows a protected refusal instead of hiding it", async ({ page }) => {
+  const protectedId = "sha256:" + "f".repeat(64);
+  await installFixture(page, {
+    routes: async (path: string, route: Route) => {
+      const decoded = decodeURIComponent(path);
+      if (decoded === "/runs") {
+        await route.fulfill({
+          json: [
+            {
+              run_id: protectedId,
+              status: "succeeded",
+              config_id: "cfg_abc",
+              data_version: DATA,
+              submitted_at: "2026-11-20T00:00:00Z",
+              elapsed_ms: null,
+              archived_at: "2026-11-20T01:00:00Z",
+            },
+          ],
+        });
+        return true;
+      }
+      if (decoded === `/runs/${protectedId}` && route.request().method() === "DELETE") {
+        await route.fulfill({
+          status: 409,
+          json: {
+            v: "quantrule.api/v1",
+            error: {
+              code: "history.protected",
+              message: "a succeeded run is evidence and cannot be erased",
+            },
+          },
+        });
+        return true;
+      }
+      return false;
+    },
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: /^History/ }).click();
+  await page.getByTestId("history-erase").click();
+  await page.getByTestId("history-confirm-input").fill(protectedId);
+  await page.getByTestId("history-confirm-erase").click();
+  await expect(page.getByRole("alert")).toContainText("history.protected");
+  await expect(page.getByTestId("history-table")).toContainText("succeeded");
+});
