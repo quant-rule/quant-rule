@@ -102,12 +102,14 @@ pub async fn sweep(
     stages: Arc<dyn StageStore>,
     objects: Arc<dyn ObjectStore>,
     operations: Arc<OperationsStatus>,
+    gate: Arc<tokio::sync::Mutex<()>>,
     days: u64,
     period: Duration,
 ) {
     let mut interval = tokio::time::interval(period.max(Duration::from_millis(1)));
     loop {
         interval.tick().await;
+        let _guard = gate.lock().await;
         let report = run_cleanup(stages.as_ref(), objects.as_ref(), SystemTime::now(), days).await;
         if let Some(error) = report.error.as_deref() {
             tracing::warn!(

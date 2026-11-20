@@ -568,6 +568,9 @@ pub(crate) async fn delete_stage(
         .stages
         .as_ref()
         .ok_or_else(|| failure(ErrorCode::Internal, "no stage store is configured"))?;
+    // The record path holds the same gate while it verifies blobs and marks the
+    // row succeeded; the delete waits, then sees whether the row still exists.
+    let _guard = state.stage_gate.lock().await;
     let deletion = stages
         .delete(profile, id.clone())
         .await
