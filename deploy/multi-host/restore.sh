@@ -47,6 +47,14 @@ done
 [ -f "$compose" ] || { echo "restore: compose file not found: $compose" >&2; exit 2; }
 [ -f "$env_file" ] || { echo "restore: infra env not found: $env_file" >&2; exit 2; }
 
+# The archive tools read these shell variables; COMPOSE_ENV_FILES only feeds
+# Compose. Source the same file so custom database, bucket, and queue names
+# reach the dump, mirror, and restore.
+# shellcheck disable=SC1090
+set -a
+. "$env_file"
+set +a
+
 exec env \
   COMPOSE_FILE="$compose" \
   COMPOSE_PROJECT_NAME=quantrule-infra \
