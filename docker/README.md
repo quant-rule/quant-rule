@@ -146,10 +146,18 @@ Windows (Docker Desktop with the WSL2 Linux backend):
 ```powershell
 docker context use desktop-linux
 docker compose config
-docker compose up -d --build --wait
+docker compose build
+docker compose create gateway
+$env:QR_IMAGE_DIGEST = (docker compose images -q gateway | Select-Object -First 1)
+docker compose up -d --wait
 curl.exe -fsS http://localhost:8080/health
 docker compose down
 ```
+
+The explicit `QR_IMAGE_DIGEST` is the Windows equivalent of `make up`. Without
+it the stack still starts and `/health` answers, but every run or stage
+submission is refused with `internal` and the message to set the digest; the
+same rule applies to the browser client.
 
 Fedora (Podman):
 
