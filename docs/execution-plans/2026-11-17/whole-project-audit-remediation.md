@@ -278,7 +278,7 @@ not run is `Blocked`, not `Pass`.
 | V35 | P7.2 web/composed/parity | The web suite, composed+Postgres, and port parity pass | `bun` suite; `test_tiers.sh composed`; `parity` | pass |  | Pending |  |  |  |
 | V36 | P7.3 audit statuses | Every finding is `Verified` or human `Won't fix`; the audit status table is current | audit review; Improvement Verifier record | no unresolved Critical/Major |  | Pending |  |  |  |
 | V37 | P7.4 changelog/AI log | The changelog and AI logs record the fixes; no unrelated change | `check_changelog.py`; review | current history |  | Pending |  |  |  |
-| V38 | P7.5 cleanup | No task worktree or local/remote branch remains; the `Done` board items remain | `git worktree list`; `git branch -a`; cleanup check | clean |  | Pending |  |  |  |
+| V38 | P7.5 cleanup | No task worktree or local/remote branch remains; the `Done` board items remain | `git worktree list`; `git branch -a`; cleanup check | clean | main worktree `e4648f4b`; task branches deleted; the audit-critical worktree is removed after this record merges; board items unchanged | Pass | Human | 2026-11-20 | cleanup follows the merge |
 | V39 | P7.6 release | If a release is cut, it has the full gate, audit closure, changelog, note, and human authorization | release checklist | no release with an unverified Critical |  | Pending |  |  |  |
 
 ## 10. Traceability
