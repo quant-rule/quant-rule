@@ -47,7 +47,11 @@ fn routes() -> Router<Arc<SimulationState>> {
             "/simulation/runs",
             get(runs::list_runs).post(runs::create_run),
         )
-        .route("/simulation/runs/{id}", get(runs::get_run))
+        .route(
+            "/simulation/runs/{id}",
+            get(runs::get_run).delete(runs::erase_run),
+        )
+        .route("/simulation/runs/{id}/archive", post(runs::archive_run))
         .route("/simulation/runs/{id}/windows", post(runs::select_windows))
         .route(
             "/simulation/runs/{id}/windows/{chart}/series",

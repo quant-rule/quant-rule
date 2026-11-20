@@ -126,6 +126,16 @@ pub struct SimulationSummary {
     pub bundle: Digest,
     /// Windows carrying at least one human mark.
     pub marked_windows: u64,
+    /// When the run was archived, RFC 3339 UTC. Absent while active.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub archived_at: Option<String>,
+}
+
+/// The result of erasing one simulation run.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SimulationEraseResponse {
+    /// The erased run id.
+    pub sim_id: SimulationId,
 }
 
 /// A request to create a simulation run.
@@ -257,6 +267,7 @@ mod tests {
             marks: 3,
             bundle: Digest::sha256(b"bundle"),
             marked_windows: 2,
+            archived_at: None,
         };
         let text = serde_json::to_string(&summary).expect("encode");
         let back: SimulationSummary = serde_json::from_str(&text).expect("decode");

@@ -20,6 +20,8 @@ history is in Git and the pull requests.
 
 ### Added
 
+- Simulation runs can be archived, listed with `include_archived`, and erased
+  after typed confirmation; checked and decided runs refuse erase.
 - Dataset runtime history: archive, a cross-service reference registry, and an
   erase that refuses a referenced dataset and deletes shared bytes only when the
   last catalog row is gone.

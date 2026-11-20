@@ -52,8 +52,8 @@ pub use run::{
 };
 pub use sha256::{sha256, sha256_hex};
 pub use simulation::{
-    CreateSimulationRequest, Mark, MarkAction, MarkOrigin, MarkQuality, Side, SimulationId,
-    SimulationStatus, SimulationSummary,
+    CreateSimulationRequest, Mark, MarkAction, MarkOrigin, MarkQuality, Side,
+    SimulationEraseResponse, SimulationId, SimulationStatus, SimulationSummary,
 };
 pub use stage::{
     StageArtifact, StageArtifactError, StageInput, StageKind, StageProvenance, StageRunDetail,

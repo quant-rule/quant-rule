@@ -797,3 +797,91 @@ fn the_service_isolation_guard_holds() {
         );
     }
 }
+
+#[tokio::test]
+async fn archive_hides_a_run_and_erase_removes_it_after_confirmation() {
+    let store = Arc::new(MemoryStore::default());
+    let objects = Arc::new(MemoryObjects::default());
+    let fixture = store_bundle(&objects, 40).await;
+    let service = state(store, objects);
+    let id = create(Arc::clone(&service), "default", &fixture).await;
+    let path = format!("/simulation/runs/{id}");
+
+    let (status, body) = request(
+        Arc::clone(&service),
+        "GET",
+        "/simulation/runs",
+        "default",
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(json(&body).as_array().expect("rows").len(), 1);
+
+    let (status, body) = request(Arc::clone(&service), "DELETE", &path, "default", None).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(json(&body)["error"]["code"], "history.state");
+
+    let (status, body) = request(
+        Arc::clone(&service),
+        "POST",
+        &format!("{path}/archive"),
+        "default",
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{}", String::from_utf8_lossy(&body));
+    assert!(json(&body)["archived_at"].is_string());
+
+    let (status, body) = request(
+        Arc::clone(&service),
+        "POST",
+        &format!("{path}/archive"),
+        "default",
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(json(&body)["error"]["code"], "history.state");
+
+    let (status, body) = request(
+        Arc::clone(&service),
+        "GET",
+        "/simulation/runs",
+        "default",
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(json(&body).as_array().expect("rows").is_empty());
+
+    let (status, body) = request(
+        Arc::clone(&service),
+        "GET",
+        "/simulation/runs?include_archived=true",
+        "default",
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(json(&body).as_array().expect("rows").len(), 1);
+    assert!(json(&body)[0]["archived_at"].is_string());
+
+    let (status, body) = request(Arc::clone(&service), "DELETE", &path, "default", None).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(json(&body)["error"]["code"], "history.state");
+
+    let (status, body) = request(
+        Arc::clone(&service),
+        "DELETE",
+        &format!("{path}?confirm={id}"),
+        "default",
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{}", String::from_utf8_lossy(&body));
+    assert_eq!(json(&body)["sim_id"], id);
+
+    let (status, _body) = request(Arc::clone(&service), "GET", &path, "default", None).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}

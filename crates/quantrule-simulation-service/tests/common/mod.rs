@@ -21,7 +21,9 @@ use quantrule_simulation_service::records::{
     DecisionRecord, MarkRecord, NewSimulation, RunRecord, SimulationSummary, action_text,
     origin_text, side_text,
 };
-use quantrule_simulation_service::store::{SimulationStore, StoreError as RepositoryError};
+use quantrule_simulation_service::store::{
+    ArchiveOutcome, EraseOutcome, SimulationStore, StoreError as RepositoryError,
+};
 use quantrule_simulation_service::{SimulationServices, SimulationState, router};
 use serde_json::json;
 use tower::ServiceExt;
@@ -36,6 +38,7 @@ pub use quantrule_runtime::adapters::memory::MemoryObjects;
 struct Inner {
     runs: BTreeMap<(String, String), RunRecord>,
     marks: BTreeMap<(String, String, String), MarkRecord>,
+    archived: BTreeMap<(String, String), String>,
 }
 
 /// An in-memory simulation repository with the same contract as Postgres.
@@ -127,14 +130,18 @@ impl SimulationStore for MemoryStore {
         let store = self.clone();
         Box::pin(async move {
             let inner = store.lock();
-            let mut rows: Vec<&RunRecord> = inner
+            let mut rows: Vec<(&(String, String), &RunRecord)> = inner
                 .runs
                 .iter()
                 .filter(|((profile_id, _), _)| profile_id == profile.as_str())
+                .filter(|((profile_id, sim_id), _)| {
+                    !inner
+                        .archived
+                        .contains_key(&(profile_id.clone(), sim_id.clone()))
+                })
                 .filter(|(_, run)| status.is_none_or(|status| run.status == status))
-                .map(|(_, run)| run)
                 .collect();
-            rows.sort_by(|left, right| {
+            rows.sort_by(|(_, left), (_, right)| {
                 right
                     .created_at
                     .cmp(&left.created_at)
@@ -143,7 +150,44 @@ impl SimulationStore for MemoryStore {
             Ok(rows
                 .into_iter()
                 .take(limit)
-                .map(RunRecord::summary)
+                .map(|(key, run)| {
+                    let mut summary = run.summary();
+                    summary.archived_at = inner.archived.get(key).cloned();
+                    summary
+                })
+                .collect())
+        })
+    }
+
+    fn list_including_archived(
+        &self,
+        profile: ProfileId,
+        status: Option<SimulationStatus>,
+        limit: usize,
+    ) -> BoxFuture<Result<Vec<SimulationSummary>, RepositoryError>> {
+        let store = self.clone();
+        Box::pin(async move {
+            let inner = store.lock();
+            let mut rows: Vec<(&(String, String), &RunRecord)> = inner
+                .runs
+                .iter()
+                .filter(|((profile_id, _), _)| profile_id == profile.as_str())
+                .filter(|(_, run)| status.is_none_or(|status| run.status == status))
+                .collect();
+            rows.sort_by(|(_, left), (_, right)| {
+                right
+                    .created_at
+                    .cmp(&left.created_at)
+                    .then_with(|| left.sim_id.cmp(&right.sim_id))
+            });
+            Ok(rows
+                .into_iter()
+                .take(limit)
+                .map(|(key, run)| {
+                    let mut summary = run.summary();
+                    summary.archived_at = inner.archived.get(key).cloned();
+                    summary
+                })
                 .collect())
         })
     }
@@ -160,6 +204,59 @@ impl SimulationStore for MemoryStore {
                 .runs
                 .get(&(profile.as_str().to_owned(), sim_id))
                 .cloned())
+        })
+    }
+
+    fn archive(
+        &self,
+        profile: ProfileId,
+        sim_id: String,
+        archived_at: String,
+    ) -> BoxFuture<Result<ArchiveOutcome, RepositoryError>> {
+        let store = self.clone();
+        Box::pin(async move {
+            let mut inner = store.lock();
+            let key = (profile.as_str().to_owned(), sim_id);
+            let Some(run) = inner.runs.get(&key).cloned() else {
+                return Ok(ArchiveOutcome::NotFound);
+            };
+            if inner.archived.contains_key(&key) {
+                return Ok(ArchiveOutcome::AlreadyArchived);
+            }
+            inner.archived.insert(key, archived_at.clone());
+            let mut summary = run.summary();
+            summary.archived_at = Some(archived_at);
+            Ok(ArchiveOutcome::Archived(summary))
+        })
+    }
+
+    fn erase(
+        &self,
+        profile: ProfileId,
+        sim_id: String,
+    ) -> BoxFuture<Result<EraseOutcome, RepositoryError>> {
+        let store = self.clone();
+        Box::pin(async move {
+            let mut inner = store.lock();
+            let key = (profile.as_str().to_owned(), sim_id.clone());
+            let Some(run) = inner.runs.get(&key) else {
+                return Ok(EraseOutcome::NotFound);
+            };
+            if !inner.archived.contains_key(&key) {
+                return Ok(EraseOutcome::NotArchived);
+            }
+            if matches!(
+                run.status,
+                SimulationStatus::Checked | SimulationStatus::Decided
+            ) {
+                return Ok(EraseOutcome::Protected(run.status));
+            }
+            inner.runs.remove(&key);
+            inner.archived.remove(&key);
+            inner
+                .marks
+                .retain(|(profile_id, sid, _), _| profile_id != &key.0 || sid != &sim_id);
+            Ok(EraseOutcome::Erased(sim_id))
         })
     }
 

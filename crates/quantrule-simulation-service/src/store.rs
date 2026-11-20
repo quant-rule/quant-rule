@@ -40,6 +40,30 @@ impl std::fmt::Display for StoreError {
 
 impl std::error::Error for StoreError {}
 
+/// What an archive did.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ArchiveOutcome {
+    /// The run is now archived.
+    Archived(SimulationSummary),
+    /// The profile holds no such run.
+    NotFound,
+    /// The run was already archived.
+    AlreadyArchived,
+}
+
+/// What an erase did.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EraseOutcome {
+    /// The run and its marks were removed.
+    Erased(String),
+    /// The profile holds no such run.
+    NotFound,
+    /// The run has not been archived.
+    NotArchived,
+    /// The run is checked or decided and is evidence.
+    Protected(SimulationStatus),
+}
+
 /// The simulation repository.
 pub trait SimulationStore: Send + Sync {
     /// Insert a run, or return the stored row for the same server-assigned id.
@@ -57,12 +81,35 @@ pub trait SimulationStore: Send + Sync {
         limit: usize,
     ) -> BoxFuture<Result<Vec<SimulationSummary>, StoreError>>;
 
+    /// List this profile's active and archived runs.
+    fn list_including_archived(
+        &self,
+        profile: ProfileId,
+        status: Option<SimulationStatus>,
+        limit: usize,
+    ) -> BoxFuture<Result<Vec<SimulationSummary>, StoreError>>;
+
     /// Read one run in this profile.
     fn get(
         &self,
         profile: ProfileId,
         sim_id: String,
     ) -> BoxFuture<Result<Option<RunRecord>, StoreError>>;
+
+    /// Archive one run. The row and its marks remain.
+    fn archive(
+        &self,
+        profile: ProfileId,
+        sim_id: String,
+        archived_at: String,
+    ) -> BoxFuture<Result<ArchiveOutcome, StoreError>>;
+
+    /// Erase one archived run and its marks when its state allows it.
+    fn erase(
+        &self,
+        profile: ProfileId,
+        sim_id: String,
+    ) -> BoxFuture<Result<EraseOutcome, StoreError>>;
 
     /// Store the deterministic selection and advance `draft` to `marking`.
     fn save_windows(
