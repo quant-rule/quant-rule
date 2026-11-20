@@ -50,6 +50,9 @@
     "simulation oracle",
     "simulation check",
     "simulation decide",
+    "history list",
+    "history archive",
+    "history erase",
     "help"
   ],
   "artifact": {

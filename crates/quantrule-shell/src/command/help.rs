@@ -412,6 +412,37 @@ const COMMANDS: &[CommandHelp] = &[
         notes: &["Marking after a decision is refused with simulation.locked."],
     },
     CommandHelp {
+        name: "history list",
+        usage: "history list --kind <run|stage|research|simulation|dataset> [--include-archived] [--limit <n>]",
+        summary: "List one runtime-history kind in the active profile.",
+        output: "one header and one deterministic line per record, including its archived state",
+        notes: &[
+            "Stage runs have no archive state.",
+            "A dataset list is capped client-side when --limit is given.",
+        ],
+    },
+    CommandHelp {
+        name: "history archive",
+        usage: "history archive --kind <run|research|simulation|dataset> --id <id> [--dry-run]",
+        summary: "Archive one runtime record without deleting its bytes.",
+        output: "archived <kind> <id>",
+        notes: &[
+            "A stage has no archive; use history erase.",
+            "--dry-run prints the intent and calls nothing.",
+        ],
+    },
+    CommandHelp {
+        name: "history erase",
+        usage: "history erase --kind <run|stage|research|simulation|dataset> --id <id> --confirm <id> [--dry-run]",
+        summary: "Erase one archived runtime record after typed confirmation.",
+        output: "erased <kind> <id> bytes=<n>",
+        notes: &[
+            "--confirm must equal --id.",
+            "Succeeded runs, decided research records, checked or decided simulation runs, and referenced datasets refuse erase.",
+            "A stage erase uses the existing stage delete path.",
+        ],
+    },
+    CommandHelp {
         name: "help",
         usage: "help [<command>|all|glossary|workflows]",
         summary: "Print the command map, one command contract, or a reference topic.",
@@ -586,11 +617,14 @@ mod tests {
             "simulation oracle",
             "simulation check",
             "simulation decide",
+            "history list",
+            "history archive",
+            "history erase",
             "help",
         ] {
             assert!(is_command(name), "{name} must be documented");
         }
-        assert_eq!(COMMANDS.len(), 46);
+        assert_eq!(COMMANDS.len(), 49);
     }
 
     #[test]

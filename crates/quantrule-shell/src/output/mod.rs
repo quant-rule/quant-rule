@@ -85,6 +85,7 @@ pub(crate) fn emit_raw(
 mod config;
 mod dataset;
 mod health;
+mod history;
 mod inspect;
 mod json;
 mod profile;
@@ -97,6 +98,7 @@ mod verify;
 pub(crate) use self::config::{config_list, config_record};
 pub(crate) use self::dataset::{dataset_list, dataset_record, dataset_summary};
 pub(crate) use self::health::health;
+pub(crate) use self::history::{archived, dry_run, erased, history};
 pub(crate) use self::inspect::timeframes;
 pub(crate) use self::json::{write_json_line, write_records};
 pub(crate) use self::profile::{active_profile, profile, profiles};

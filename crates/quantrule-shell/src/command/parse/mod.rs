@@ -9,8 +9,10 @@ use std::collections::{BTreeMap, BTreeSet};
 use super::help::{is_command, usage as registered_usage};
 use super::types::{Command, GlobalOptions, HelpTopic, Invocation, ParseError};
 
+mod history;
 mod parse_research;
 mod parse_stage;
+use self::history::parse_history;
 use self::parse_research::{parse_baseline, parse_invalidation, parse_research};
 use self::parse_stage::parse_stage;
 use crate::token::BearerToken;
@@ -291,6 +293,7 @@ fn parse_command(rest: &[String]) -> Result<Command, ParseError> {
             .map(|run_id| Command::Verify { run_id }),
         "profile" => parse_profile(args),
         "simulation" => parse_simulation(args),
+        "history" => parse_history(args),
         "help" => parse_help(args).map(Command::Help),
         "quit" => no_arguments(args, "usage: quit").map(|()| Command::Quit),
         other => Err(ParseError::Unknown(other.to_owned())),

@@ -1,6 +1,6 @@
 # Command Surface — the Gateway Client
 
-- Status: Current; 46 commands, released as v1.3.0; the gateway-client surface was formerly released as v0.9.0 (prepared as v1.0.0), and the stage, research, and operations slices were added through #858
+- Status: Current; 49 commands, released as v1.3.0; the gateway-client surface was formerly released as v0.9.0 (prepared as v1.0.0), and the stage, research, and operations slices were added through #858
 - Owner: Human
 - Part of: [`docs/architecture/README.md`](README.md)
 - Claim type: Behaviour Claim
@@ -95,6 +95,9 @@ enforces the distinction.
 | `simulation oracle` | Implemented | `sim_id` | deterministic oracle marks |
 | `simulation check` | Implemented | `sim_id` | event-study table and verdict |
 | `simulation decide` | Implemented | `sim_id`, test/refine/stop, note | decision record |
+| `history list` | Implemented | kind, include-archived, limit | one runtime-history kind |
+| `history archive` | Implemented | kind, id, dry-run | archived record |
+| `history erase` | Implemented | kind, id, confirmation, dry-run | erase receipt |
 | `help` | Implemented | topic | the command map |
 | `stage run model` | Implemented | `data_version`, `config_id` | `stage_run_id`, model artifact |
 | `stage run strategy` | Implemented | `model_artifact_id`, `config_id` | `stage_run_id`, decisions artifact |

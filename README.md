@@ -233,6 +233,9 @@ browser control for every command; the table below is the command index.
 | `simulation oracle` | Research | Read the deterministic oracle marks |
 | `simulation check` | Research | Run the event study and read its verdict |
 | `simulation decide` | Research | Record test, refine, or stop |
+| `history list` | History | List one runtime kind, active or including archived |
+| `history archive` | History | Archive one run, research record, simulation, or dataset |
+| `history erase` | History | Erase one archived record after typed confirmation |
 | `help` | Shell | Show the command map and contracts |
 
 ### Stage, research, and operations surface

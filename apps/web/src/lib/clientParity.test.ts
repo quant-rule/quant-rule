@@ -12,6 +12,11 @@ import { readFileSync } from "node:fs";
 import { DEFAULT_PROFILE, call, callVoid, currentProfile, setProfile, uploadDataset } from "./api";
 import { downloadArtifact, sha256Hex } from "./artifacts";
 import { COMMANDS, SECTIONS, missingCommands } from "./capabilities";
+import {
+  archive as archiveHistory,
+  erase as eraseHistory,
+  list as listHistory,
+} from "./history";
 import { inspectCandles, inspectEvents, inspectTimeframes, verifyRun } from "./inspect";
 import {
   downloadStageArtifact,
@@ -275,6 +280,12 @@ function install(fixture: ApiFixture): Seen[] {
     }
     if (path === "/runs") {
       return respond(fixture.responses.runs);
+    }
+    if (path === `/runs/${fixture.run_id}` && method === "DELETE") {
+      return respond({ record_id: fixture.run_id, bytes: 0 });
+    }
+    if (path === `/runs/${fixture.run_id}/archive` && method === "POST") {
+      return respond(fixture.responses.runs[0]);
     }
     if (path === `/runs/${fixture.run_id}`) {
       return respond(fixture.responses.run);
@@ -727,9 +738,12 @@ describe("client parity", () => {
     await postOracle("sim-1");
     await postCheck("sim-1");
     await postDecision("sim-1", "test", "the parity note");
+    await listHistory("run", true);
+    await archiveHistory("run", API.run_id);
+    await eraseHistory("run", API.run_id, API.run_id);
 
     expect(currentProfile()).toBe("parity");
-    expect(COMMANDS.length).toBe(46);
+    expect(COMMANDS.length).toBe(49);
     expect(seen.map((request) => request.path)).toEqual(
       expect.arrayContaining([
         "/catalog/datasets",

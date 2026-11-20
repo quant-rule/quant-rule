@@ -19,6 +19,20 @@ pub(super) fn parity_route(
     let portfolio_stage_id = fixture["portfolio_stage_id"].as_str().unwrap_or_default();
     let research_id = fixture["research_id"].as_str().unwrap_or_default();
     match (request.method.as_str(), segments) {
+        ("POST", ["runs", _id, "archive"]) => {
+            let summary = responses
+                .get("runs")
+                .and_then(|value| value.as_array())
+                .and_then(|rows| rows.first())
+                .cloned()?;
+            return Some(Response::json(200, &summary));
+        }
+        ("DELETE", ["runs", id]) => {
+            return Some(Response::json(
+                200,
+                &serde_json::json!({"record_id": id, "bytes": 0}),
+            ));
+        }
         ("POST", ["research", "runs"]) => {
             return responses
                 .get("research_create")

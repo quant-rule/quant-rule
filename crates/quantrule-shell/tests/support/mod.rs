@@ -697,6 +697,19 @@ fn handle(state: &mut FixtureState, request: &Request) -> Response {
                 }
             ]),
         ),
+        ("POST", ["runs", id, "archive"]) => Response::json(
+            200,
+            &json!({
+                "run_id": id,
+                "status": "failed",
+                "config_id": "cfg_abc",
+                "data_version": data_version(),
+                "submitted_at": "2026-11-13T12:00:00Z",
+                "elapsed_ms": null,
+                "archived_at": "2026-11-20T00:00:00Z",
+            }),
+        ),
+        ("DELETE", ["runs", id]) => Response::json(200, &json!({ "record_id": id, "bytes": 0 })),
         ("GET", ["runs"]) => Response::json(
             200,
             &json!([{

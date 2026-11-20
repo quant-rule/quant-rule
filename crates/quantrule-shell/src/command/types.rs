@@ -37,6 +37,48 @@ pub(crate) struct Invocation {
     pub(crate) command: Command,
 }
 
+/// The runtime-history kinds the shell can list and erase.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum HistoryKind {
+    /// Coupled pipeline runs.
+    Run,
+    /// Diagnostic stage runs.
+    Stage,
+    /// Research records.
+    Research,
+    /// Simulation runs.
+    Simulation,
+    /// Catalog datasets.
+    Dataset,
+}
+
+impl HistoryKind {
+    /// The wire and usage token.
+    #[must_use]
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::Run => "run",
+            Self::Stage => "stage",
+            Self::Research => "research",
+            Self::Simulation => "simulation",
+            Self::Dataset => "dataset",
+        }
+    }
+
+    /// Parse a usage token.
+    #[must_use]
+    pub(crate) fn parse(value: &str) -> Option<Self> {
+        match value {
+            "run" => Some(Self::Run),
+            "stage" => Some(Self::Stage),
+            "research" => Some(Self::Research),
+            "simulation" => Some(Self::Simulation),
+            "dataset" => Some(Self::Dataset),
+            _ => None,
+        }
+    }
+}
+
 /// A parsed shell command.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Command {
@@ -337,6 +379,35 @@ pub(crate) enum Command {
     },
     /// List invalidation tombstones.
     InvalidationList,
+    /// List runtime history.
+    HistoryList {
+        /// The runtime kind.
+        kind: HistoryKind,
+        /// Include archived records.
+        include_archived: bool,
+        /// At most this many rows.
+        limit: Option<usize>,
+    },
+    /// Archive one runtime record.
+    HistoryArchive {
+        /// The runtime kind.
+        kind: HistoryKind,
+        /// The record identity.
+        id: String,
+        /// Print the intended operation without calling the gateway.
+        dry_run: bool,
+    },
+    /// Erase one runtime record.
+    HistoryErase {
+        /// The runtime kind.
+        kind: HistoryKind,
+        /// The record identity.
+        id: String,
+        /// The typed confirmation.
+        confirm: String,
+        /// Print the intended operation without calling the gateway.
+        dry_run: bool,
+    },
     /// Print the command reference.
     Help(HelpTopic),
     /// Exit the interactive shell.
