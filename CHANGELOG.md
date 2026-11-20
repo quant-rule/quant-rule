@@ -32,6 +32,8 @@ history is in Git and the pull requests.
 
 ### Fixed
 
+- Determinism evidence now covers a reordered ladder and two workers on one
+  run, and the checker gate has a registry meta-test plus a file-size unit test.
 - The browser clears an open config detail on a profile switch, stage forms
   start empty instead of the fixture `cfg_abc`, and the packaged shell passes
   `--profile desktop` rather than inheriting the environment.
