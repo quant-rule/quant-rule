@@ -49,5 +49,10 @@ set -- $product
   || fail "/version reports API '${1:-}', expected quantrule.api/v1"
 [ -n "${2:-}" ] || fail "/version reports no product version"
 
+# The preflight tests stub this check because they do not start a stack.
+if [ "${QUANTRULE_QUEUE_CHECK:-1}" = "1" ]; then
+  "$root/tools/check_queue_isolation.sh"
+fi
+
 "$verify" --api-url "$api_url" --timeout "$timeout"
-echo "composed: gateway healthy, product $2, run parity verified"
+echo "composed: gateway healthy, product $2, queue isolation verified, run parity verified"

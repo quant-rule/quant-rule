@@ -13,6 +13,7 @@ use quantrule_runtime::client::MemoryDataClient;
 use quantrule_runtime::{Config, HealthRegistry};
 use quantrule_service_api::{ConfigBundle, DatasetObject};
 use std::collections::BTreeMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tower::ServiceExt;
 
@@ -21,6 +22,7 @@ type Messages = Arc<Mutex<Vec<(String, Vec<u8>)>>>;
 #[derive(Clone, Default)]
 struct MemoryQueue {
     inner: Messages,
+    failing: Arc<AtomicBool>,
 }
 
 impl Queue for MemoryQueue {
@@ -29,6 +31,9 @@ impl Queue for MemoryQueue {
     }
 
     fn publish(&self, key: &str, payload: Vec<u8>) -> BoxFuture<Result<(), QueueError>> {
+        if self.failing.load(Ordering::SeqCst) {
+            return Box::pin(async { Err(QueueError("the broker is closed".to_owned())) });
+        }
         let inner = Arc::clone(&self.inner);
         let key = key.to_owned();
         Box::pin(async move {
@@ -44,6 +49,10 @@ impl Queue for MemoryQueue {
 impl MemoryQueue {
     fn messages(&self) -> Vec<(String, Vec<u8>)> {
         self.inner.lock().expect("the queue lock").clone()
+    }
+
+    fn set_failing(&self, failing: bool) {
+        self.failing.store(failing, Ordering::SeqCst);
     }
 }
 
@@ -178,6 +187,32 @@ async fn a_server_without_an_image_digest_refuses_submission() {
         queue.messages().is_empty(),
         "a refused run published a message"
     );
+}
+
+#[tokio::test]
+async fn a_failed_publish_is_unavailable_and_a_retry_recovers() {
+    let (state, queue) = harness().await;
+    let (data_version, config_id, _) = seed();
+    queue.set_failing(true);
+
+    let response = submit(Arc::clone(&state), "default", &data_version, &config_id).await;
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    let text = String::from_utf8(body_bytes(response).await).expect("utf8");
+    assert!(text.contains("queue.unavailable"), "{text}");
+    assert!(
+        queue.messages().is_empty(),
+        "a failed publish left a message"
+    );
+
+    queue.set_failing(false);
+    let response = submit(Arc::clone(&state), "default", &data_version, &config_id).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let existing: SubmitRunResponse =
+        serde_json::from_slice(&body_bytes(response).await).expect("submission");
+    assert!(!existing.created);
+    let messages = queue.messages();
+    assert_eq!(messages.len(), 1, "the retry republished the queued run");
+    assert_eq!(messages[0].0, "run.requested");
 }
 
 #[tokio::test]

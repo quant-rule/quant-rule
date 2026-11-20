@@ -149,6 +149,11 @@ services:
   backtest:
     <<: *server
     command: ["qr-backtest"]
+    environment:
+      <<: *server-environment
+      # Each run consumer owns a channel and one prefetch slot; the stage
+      # consumer always keeps its own slot.
+      QR_BACKTEST_CONCURRENCY: ${QR_BACKTEST_CONCURRENCY:-1}
     depends_on:
       data:
         condition: service_healthy

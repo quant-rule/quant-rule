@@ -118,7 +118,50 @@ async fn main() -> Result<(), RuntimeError> {
             ),
     );
 
-    let handler: MessageHandler = Box::new(move |message: Message| {
+    let mut consumers = tokio::task::JoinSet::new();
+    for _ in 0..config.backtest_concurrency {
+        let queue = Arc::clone(&queue);
+        let handler = make_run_handler(Arc::clone(&services));
+        consumers.spawn(async move {
+            queue
+                .consume(
+                    QUEUE_BACKTEST,
+                    &[ROUTING_REQUESTED, ROUTING_CANCELLED],
+                    handler,
+                )
+                .await
+        });
+    }
+    let stage_queue = Arc::clone(&queue);
+    let stage_handler = make_stage_handler(Arc::clone(&stage_services), Arc::clone(&dispatch));
+    consumers.spawn(async move {
+        stage_queue
+            .consume(
+                QUEUE_STAGE,
+                &[ROUTING_STAGE_REQUESTED, ROUTING_STAGE_CANCELLED],
+                stage_handler,
+            )
+            .await
+    });
+
+    tracing::info!(
+        runs = config.backtest_concurrency,
+        "backtest worker consuming {QUEUE_BACKTEST} and {QUEUE_STAGE}"
+    );
+    tokio::select! {
+        _ = quantrule_runtime::shutdown::signal() => Ok(()),
+        result = consumers.join_next() => match result {
+            Some(Ok(result)) => result.map_err(|error| RuntimeError::Queue(error.to_string())),
+            Some(Err(error)) => Err(RuntimeError::Queue(format!(
+                "a consumer task failed: {error}"
+            ))),
+            None => Ok(()),
+        },
+    }
+}
+
+fn make_run_handler(services: Arc<WorkerServices>) -> MessageHandler {
+    Box::new(move |message: Message| {
         let services = Arc::clone(&services);
         Box::pin(async move {
             let Some(run_id) = run_id(&message.payload) else {
@@ -160,10 +203,15 @@ async fn main() -> Result<(), RuntimeError> {
                 }
             }
         })
-    });
+    })
+}
 
-    let stage_handler: MessageHandler = Box::new(move |message: Message| {
-        let services = Arc::clone(&stage_services);
+fn make_stage_handler(
+    services: Arc<StageWorkerServices>,
+    dispatch: Arc<StageDispatch>,
+) -> MessageHandler {
+    Box::new(move |message: Message| {
+        let services = Arc::clone(&services);
         let dispatch = Arc::clone(&dispatch);
         Box::pin(async move {
             let Some(stage_run_id) = id(&message.payload, "stage_run_id") else {
@@ -205,26 +253,7 @@ async fn main() -> Result<(), RuntimeError> {
                 }
             }
         })
-    });
-
-    tracing::info!("backtest worker consuming {QUEUE_BACKTEST} and {QUEUE_STAGE}");
-    tokio::select! {
-        result = queue.consume(
-            QUEUE_BACKTEST,
-            &[ROUTING_REQUESTED, ROUTING_CANCELLED],
-            handler,
-        ) => {
-            result.map_err(|error| RuntimeError::Queue(error.to_string()))
-        }
-        result = queue.consume(
-            QUEUE_STAGE,
-            &[ROUTING_STAGE_REQUESTED, ROUTING_STAGE_CANCELLED],
-            stage_handler,
-        ) => {
-            result.map_err(|error| RuntimeError::Queue(error.to_string()))
-        }
-        _ = quantrule_runtime::shutdown::signal() => Ok(()),
-    }
+    })
 }
 
 fn run_id(payload: &[u8]) -> Option<String> {

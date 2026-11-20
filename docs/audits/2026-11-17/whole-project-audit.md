@@ -2,7 +2,7 @@
 
 - Date: 2026-11-17 (UTC)
 - Audit ID: `AUDIT-2026-11-17-whole-project`
-- Status: 39 findings `Fixed` by the merged remediation (independent Verification pending); 14 `Open` (0 Critical, 7 Major, 7 Minor, 0 Info); human review pending
+- Status: 41 findings `Fixed` by the merged remediation (independent Verification pending); 12 `Open` (0 Critical, 5 Major, 7 Minor, 0 Info); human review pending
 - Baseline: `main` at `a07def5c` (2026-11-17, clean working tree)
 - Scope: the whole repository — data engine and data service, model engine and
   model service, backtest strategy/execution/portfolio and backtest service,
@@ -131,8 +131,8 @@ its AI transparency log.
 | AUD-2026-11-17-37 | Info | tests/tooling | `check_event_emitters` treats `row_signal_tests.rs` and `row_tests.rs`, declared under `#[cfg(test)]`, as production emitters | `crates/quantrule-model/src/events/extended.rs:181-184`; `tools/check_event_emitters.py:34-42` | A test-only reference can mask a missing production detector; no current false pass was found | A. Exclude `#[cfg(test)]` modules and `*_tests.rs` from production sources; B. Derive the set from the module graph | A | Removing a production emitter fails the checker even when the test file references the code | Fixed | #904 |
 | AUD-2026-11-17-38 | Critical | services/lifecycle | `PgRunStore::cancel` reads the run, checks `is_cancellable`, then issues an unconditional `UPDATE ... SET status='cancelled'`; a concurrent `complete` can commit `succeeded` between the read and the update, and the cancel overwrites it | `crates/quantrule-evidence-service/src/postgres.rs:352-364,520-545`; the stage store's conditional update at `crates/quantrule-evidence-service/src/stage/postgres.rs:542-560`; `docs/architecture/control-plane.md:103-105` | A succeeded run can become cancelled while retaining its digest and artifacts; `/runs/{id}/digest` returns a digest for a cancelled run; a second concurrent cancel returns `202` instead of `409` | A. Make the update conditional (`AND status IN ('queued','running')`), inspect `rows_affected`, and return `Conflict` on zero; B. Wrap the read/check/update in a transaction with `SELECT ... FOR UPDATE` | A | A concurrent cancel/complete Postgres test leaves the run succeeded or cancelled, never both; a second cancel is a conflict | Fixed | #881 |
 | AUD-2026-11-17-39 | Major | services/health | The gateway registers only its own database probe; the shared report hardcodes `queue_depth: 0` and `workers: 0`, and `/health` always returns HTTP `200`, even when the aggregate state is `down` | `crates/quantrule-gateway/src/bin/qr_gateway.rs:27-36`; `crates/quantrule-runtime/src/health.rs:77-85`; `docs/architecture/http-api.md:31`; `docs/architecture/operations.md:18-29` | A data/model/evidence/simulation/queue/object-store outage still reports healthy; the documented worker and queue-depth signals can never fire; `make up`, the browser, and the shell all see a healthy gateway | A. Aggregate each service's `/health`, queue depth, and a worker heartbeat, and return `down`/`503` when a required dependency is down; B. Narrow the documented contract to a local liveness probe and add a separate `/ready` endpoint | A | `data` stopped makes `/ready` return `503`; `/health` stays `200` | Fixed | #914 |
-| AUD-2026-11-17-40 | Major | services/queue | `RabbitQueue::publish` awaits `basic_publish` and discards the returned confirmation; the channel is not in confirm mode | `crates/quantrule-runtime/src/adapters/rabbitmq.rs:111-127`; `docs/architecture/services.md:87`; `docs/architecture/control-plane.md:74-78` | Evidence can return `202` with a `queued` row and no durable `run.requested` message; a client that does not resubmit leaves the run stranded; "nothing is silently dropped" is false | A. Enable publisher confirms (`confirm_select`) and await `Confirmation::Ack`, returning `503` on a nack/timeout; B. Add a transactional outbox or a republish sweeper for `queued` runs with no message | A | A closed channel after publish returns an error; a queued run with no message is recovered | Open | — |
-| AUD-2026-11-17-41 | Major | services/concurrency | The run and stage consumers share one AMQP channel and one `basic_qos(1)` slot; `QR_BACKTEST_CONCURRENCY` is parsed but never read by a worker | `crates/quantrule-runtime/src/adapters/rabbitmq.rs:141-166`; `crates/quantrule-backtest-service/src/main.rs:211-226`; `crates/quantrule-runtime/src/config.rs:226-239`; `docs/architecture/control-plane.md:70-72,107-112`; `docs/architecture/deployment.md:135` | A long diagnostic stage occupies the only unacked slot and delays an evidence run; the documented isolation and the concurrency knob do nothing | A. Open a separate channel per consumer with its own `basic_qos(1)` and use `QR_BACKTEST_CONCURRENCY` to spawn N run consumers; B. Use separate processes or connections for the stage and run consumers | A | A composed test shows an evidence run is not blocked by a stage; setting the concurrency variable changes the run throughput | Open | — |
+| AUD-2026-11-17-40 | Major | services/queue | `RabbitQueue::publish` awaits `basic_publish` and discards the returned confirmation; the channel is not in confirm mode | `crates/quantrule-runtime/src/adapters/rabbitmq.rs:111-127`; `docs/architecture/services.md:87`; `docs/architecture/control-plane.md:74-78` | Evidence can return `202` with a `queued` row and no durable `run.requested` message; a client that does not resubmit leaves the run stranded; "nothing is silently dropped" is false | A. Enable publisher confirms (`confirm_select`) and await `Confirmation::Ack`, returning `503` on a nack/timeout; B. Add a transactional outbox or a republish sweeper for `queued` runs with no message | A | A failed publish returns `503`; the retry republishes the queued run | Fixed | #915 |
+| AUD-2026-11-17-41 | Major | services/concurrency | The run and stage consumers share one AMQP channel and one `basic_qos(1)` slot; `QR_BACKTEST_CONCURRENCY` is parsed but never read by a worker | `crates/quantrule-runtime/src/adapters/rabbitmq.rs:141-166`; `crates/quantrule-backtest-service/src/main.rs:211-226`; `crates/quantrule-runtime/src/config.rs:226-239`; `docs/architecture/control-plane.md:70-72,107-112`; `docs/architecture/deployment.md:135` | A long diagnostic stage occupies the only unacked slot and delays an evidence run; the documented isolation and the concurrency knob do nothing | A. Open a separate channel per consumer with its own `basic_qos(1)` and use `QR_BACKTEST_CONCURRENCY` to spawn N run consumers; B. Use separate processes or connections for the stage and run consumers | A | The run and stage consumers own separate channels; `QR_BACKTEST_CONCURRENCY=2` yields two run consumers | Fixed | #915 |
 | AUD-2026-11-17-42 | Minor | services/retention | Stage retention is a single startup cleanup, not a running TTL; a never-restarted stack never expires stage rows or blobs | `crates/quantrule-evidence-service/src/main.rs:126-160`; `docs/architecture/stage-surface.md:27`; `compose.yaml:41-44`; `docs/architecture/operations.md:120-122` | The documented retention window is not enforced while the process runs; stage rows/objects grow until an operator restarts the service | A. Run the cleanup on a tokio interval or before stage submission/list; B. Document the sweep as startup-only and change the TTL wording | A | A long-running test with an expired stage removes the row/blob without a restart; the docs match | Open | — |
 | AUD-2026-11-17-43 | Minor | docs/services | The service catalog says `backtest` must never own provenance or compute a digest, but the worker builds `RunManifest`, computes the canonical digest, and writes the manifest; the data-plane document assigns that step to the worker | `crates/quantrule-backtest-service/src/backtest/worker.rs:273-291`; `crates/quantrule-service-api/src/manifest.rs:54-71`; `docs/architecture/services.md:21`; `docs/architecture/data-plane.md:20-22`; `crates/quantrule-evidence-service/src/evidence/artifacts.rs:46-61` | Two documents disagree; evidence re-verifies today, but two digest implementations can drift and the "must never" is unenforced | A. Align the catalog with the data plane ("worker proposes; evidence owns and verifies") and add a guard; B. Move manifest/digest construction into evidence and have the worker send artifact refs | A | The two documents agree; a boundary test fails when the worker writes a manifest without evidence verification | Fixed | #895 |
 | AUD-2026-11-17-44 | Minor | services/client | The internal client gives every proxied call a fixed 30 s deadline, including large uploads, model compute, and artifact downloads; the contract also drifts on `created`, correlation ids, `If-None-Match`, a non-enveloped simulation `chart` rejection, and missing `stage.*` error rows | `crates/quantrule-runtime/src/client.rs:287-289,375-377`; `docs/architecture/http-api.md:46,84-86,123-147`; `crates/quantrule-api/src/run.rs:277-284`; `crates/quantrule-data-service/src/routes.rs:457-466`; `crates/quantrule-simulation-service/src/routes/runs.rs:196-200` | A slow but successful upload/compute is reported as a failure and requires a retry; clients cannot rely on the documented envelope/error table; the correlation-id claim is false | A. Use route-specific or configurable deadlines for streaming uploads/downloads and compute, with a documented retry contract; B. Implement or remove the `If-None-Match`/correlation-id claims, add an envelope-returning chart rejection, and document `created`/`stage.*` | A | A slow upload/compute succeeds or returns a documented retry; the error table matches every route | Open | — |
@@ -164,7 +164,7 @@ simulation parity.
 ## Remediation status (2026-11-17)
 
 The P1 Critical, P2 model/evidence, P3.2 current-document, and P3.3 AI-log work
-items are merged. Their 39 findings are `Fixed` with the pull-request link in the
+items are merged. Their 41 findings are `Fixed` with the pull-request link in the
 table; the P3.1 release/audit closure and the P4–P7 service, client, test, and
 closure work items remain `Open`. The Improvement Verifier must move a `Fixed`
 finding to `Verified`; this audit does not self-verify.
@@ -1466,9 +1466,14 @@ finding to `Verified`; this audit does not self-verify.
   B. Add a transactional outbox or a republish sweeper for `queued` runs with no
   message.
 - **Recommendation:** A.
-- **Verification:** A closed channel after publish returns an error; a queued
-  run with no message is recovered.
-- **Links:** None yet.
+- **Resolution (2026-11-20):** The publisher channel enters confirm mode and
+  `publish` awaits `Confirmation::Ack` for up to 5 s. A nack, a missing confirm
+  mode, a channel error, or a timeout is a failed publish, which the route maps
+  to `503 queue.unavailable`; a duplicate submission republishes the queued run.
+- **Verification:** A failed publish returns `503` and leaves no message; the
+  retry republishes the same queued run. Ack, nack, and not-requested are unit
+  tested, and the composed check sees two publisher channels in confirm mode.
+- **Links:** #915.
 
 ### AUD-2026-11-17-41 — worker concurrency and stage/run isolation are not wired
 
@@ -1494,9 +1499,15 @@ finding to `Verified`; this audit does not self-verify.
   `QR_BACKTEST_CONCURRENCY` to spawn N run consumers.
   B. Use separate processes or connections for the stage and run consumers.
 - **Recommendation:** A.
-- **Verification:** A composed test shows an evidence run is not blocked by a
-  stage; the concurrency variable changes run throughput.
-- **Links:** None yet.
+- **Resolution (2026-11-20):** Every `consume` call opens its own channel,
+  declares the queue there, and sets `basic_qos(1)` on that channel. The worker
+  starts `QR_BACKTEST_CONCURRENCY` run consumers plus one stage consumer, and
+  Compose exposes the variable.
+- **Verification:** The old stack failed the channel check (both consumers on
+  one channel). The rebuilt stack has one run and one stage consumer on two
+  channels; `QR_BACKTEST_CONCURRENCY=2` yields two run consumers on three
+  channels. The composed tier passes with the same canonical digest.
+- **Links:** #915.
 
 ### AUD-2026-11-17-42 — stage retention is startup-only
 

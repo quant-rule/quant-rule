@@ -68,8 +68,16 @@ queue     stages.worker         routing keys stage.requested, stage.cancelled
 ```
 
 The stage queue is separate so a long diagnostic stage cannot delay an evidence
-run. The stage consumer registers after the run consumer and declares RabbitMQ
-consumer priority `x-priority = -1`; the run consumer keeps the default `0`.
+run. Each consumer owns its channel and one prefetch slot, so the run and stage
+consumers cannot hold each other's delivery; the worker starts
+`QR_BACKTEST_CONCURRENCY` run consumers. The stage consumer registers after the
+run consumer and declares RabbitMQ consumer priority `x-priority = -1`; the run
+consumer keeps the default `0`.
+
+A publish waits for the broker's confirmation. A nack, a channel that is not in
+confirm mode, or a confirmation that misses the 5 s deadline is a failed publish:
+the route returns `503 queue.unavailable`, and a resubmission republishes the
+queued run.
 
 Retry budget: three deliveries. The handler holds the unacked delivery for 5 s
 after the first failure and 25 s after the second; the third failure marks the
