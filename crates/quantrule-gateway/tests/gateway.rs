@@ -8,14 +8,23 @@
 
 mod common;
 
-use axum::body::Body;
-use axum::http::{Request, StatusCode};
-use common::{body_bytes, state, state_with_data};
-use quantrule_api::{Digest, PROFILE_HEADER, ProfileId, ProfileSummary};
-use quantrule_gateway::server::router;
-use quantrule_runtime::client::MemoryDataClient;
-use quantrule_service_api::DatasetObject;
+use std::net::SocketAddr;
 use std::sync::Arc;
+
+use axum::body::Body;
+use axum::extract::State;
+use axum::http::{Request, StatusCode};
+use axum::routing::get;
+use axum::{Json, Router};
+use common::{body_bytes, state, state_with_data};
+use quantrule_api::{
+    Digest, HealthReport, PROFILE_HEADER, ProfileId, ProfileSummary, ServiceState,
+};
+use quantrule_gateway::server::router;
+use quantrule_gateway::server::{AppState, Services};
+use quantrule_runtime::client::{HttpServiceClient, MemoryDataClient, Service};
+use quantrule_runtime::{Config, HealthRegistry};
+use quantrule_service_api::DatasetObject;
 use tower::ServiceExt;
 
 #[tokio::test]
@@ -29,6 +38,119 @@ async fn health_is_served_as_json() {
         .await
         .expect("response");
     assert_eq!(response.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn ready_without_upstreams_is_unavailable() {
+    let response = router(state())
+        .oneshot(Request::get("/ready").body(Body::empty()).expect("request"))
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    let text = String::from_utf8(body_bytes(response).await).expect("utf8");
+    assert!(text.contains("\"state\":\"down\""), "{text}");
+}
+
+#[derive(Clone)]
+struct Identity(&'static str);
+
+async fn fake_health(State(identity): State<Identity>) -> Json<serde_json::Value> {
+    Json(serde_json::json!({
+        "v": "quantrule.api/v1",
+        "service": identity.0,
+        "state": "healthy",
+        "services": [],
+        "queue_depth": 0,
+        "workers": 0,
+        "image_digest": null
+    }))
+}
+
+async fn fake_service(service: &'static str) -> (SocketAddr, tokio::task::JoinHandle<()>) {
+    let app = Router::new()
+        .route("/health", get(fake_health))
+        .with_state(Identity(service));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("listener");
+    let address = listener.local_addr().expect("address");
+    let handle = tokio::spawn(async move {
+        axum::serve(listener, app).await.expect("health upstream");
+    });
+    (address, handle)
+}
+
+fn ready_state(addresses: [SocketAddr; 4]) -> Arc<AppState> {
+    let [data, model, evidence, simulation] = addresses;
+    let client = |service: Service, address: SocketAddr| {
+        Arc::new(HttpServiceClient::new(service, &format!("http://{address}")).expect("client"))
+    };
+    Arc::new(AppState::with_services(
+        &Config::default(),
+        HealthRegistry::named("gateway"),
+        Services {
+            upstream: Some(client(Service::Data, data)),
+            model_upstream: Some(client(Service::Model, model)),
+            evidence_upstream: Some(client(Service::Evidence, evidence)),
+            simulation_upstream: Some(client(Service::Simulation, simulation)),
+            ..Services::default()
+        },
+    ))
+}
+
+#[tokio::test]
+async fn ready_accepts_matching_service_identities() {
+    let (data, data_handle) = fake_service("data").await;
+    let (model, model_handle) = fake_service("model").await;
+    let (evidence, evidence_handle) = fake_service("evidence").await;
+    let (simulation, simulation_handle) = fake_service("simulation").await;
+    let response = router(ready_state([data, model, evidence, simulation]))
+        .oneshot(Request::get("/ready").body(Body::empty()).expect("request"))
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let report: HealthReport =
+        serde_json::from_slice(&body_bytes(response).await).expect("health report");
+    assert_eq!(report.state, ServiceState::Healthy);
+    assert_eq!(report.services.len(), 4);
+    data_handle.abort();
+    model_handle.abort();
+    evidence_handle.abort();
+    simulation_handle.abort();
+}
+
+#[tokio::test]
+async fn ready_rejects_a_response_from_another_service() {
+    let (data, data_handle) = fake_service("gateway").await;
+    let (model, model_handle) = fake_service("model").await;
+    let (evidence, evidence_handle) = fake_service("evidence").await;
+    let (simulation, simulation_handle) = fake_service("simulation").await;
+    let response = router(ready_state([data, model, evidence, simulation]))
+        .oneshot(Request::get("/ready").body(Body::empty()).expect("request"))
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    let report: HealthReport =
+        serde_json::from_slice(&body_bytes(response).await).expect("health report");
+    let entry = report
+        .services
+        .iter()
+        .find(|entry| entry.name == "data")
+        .expect("data entry");
+    assert_eq!(entry.state, ServiceState::Down);
+    assert!(
+        entry
+            .detail
+            .as_deref()
+            .unwrap_or_default()
+            .contains("identifies itself"),
+        "{:?}",
+        entry.detail
+    );
+    data_handle.abort();
+    model_handle.abort();
+    evidence_handle.abort();
+    simulation_handle.abort();
 }
 
 #[tokio::test]

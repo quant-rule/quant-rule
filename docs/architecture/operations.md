@@ -15,18 +15,21 @@ make down    # stop, keep data
 
 ## 2. Health
 
-`GET /health` is the only health authority. It reports each service, queue depth,
-and worker count. A service is healthy when its check passes, not when its
-container is running.
+`GET /health` is the local liveness probe. `GET /ready` is the dependency
+authority: it aggregates the configured upstream services and returns `503`
+when one is down or answers with a different `service` identity. A service is
+healthy when its check passes, not when its container is running.
 
 | Signal | Healthy | Action |
 |---|---|---|
 | `gateway` reachable | yes | none |
 | `postgres` reachable | yes | restart; data survives |
+| `data`, `model`, `evidence`, `simulation` reachable | yes | restart the named service |
 | object store reachable | yes | restart; objects survive |
 | queue reachable | yes | restart; durable messages replay |
-| workers ≥ 1 | yes | `make scale N=1` |
-| queue depth growing | no | add workers or investigate a stuck run |
+
+Queue depth and worker count remain in the report for the control plane; they
+are currently published as zero and are not an operational signal.
 
 ## 3. Run lifecycle operations
 

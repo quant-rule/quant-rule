@@ -19,6 +19,11 @@ x-server: &server
   restart: unless-stopped
   networks:
     - quantrule
+  # Keep service-name resolution inside the compose network. The engine
+  # inherits the operator's search domain, so a stopped `data` could otherwise
+  # resolve to a LAN host that answers on the same port.
+  dns_search:
+    - .
   environment: &server-environment
     QR_DATABASE_URL: postgres://quantrule:${QR_POSTGRES_PASSWORD:-quantrule}@postgres:5432/quantrule
     # The gateway and the backtest worker reach qr-data through this URL; both
@@ -58,6 +63,15 @@ x-server: &server
 
 # The probe reads the service's own `/health`; a running container is not a
 # healthy service. The workers have no HTTP surface and therefore no entry here.
+x-gateway-healthcheck: &gateway-healthcheck
+  test:
+    - CMD-SHELL
+    - curl -fsS http://127.0.0.1:8080/ready | grep -q '"state":"healthy"'
+  interval: 10s
+  timeout: 5s
+  retries: 6
+  start_period: 10s
+
 x-healthcheck: &http-healthcheck
   test:
     - CMD-SHELL
@@ -95,7 +109,7 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-    healthcheck: *http-healthcheck
+    healthcheck: *gateway-healthcheck
 
   data:
     <<: *server

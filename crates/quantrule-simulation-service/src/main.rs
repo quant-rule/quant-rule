@@ -26,7 +26,7 @@ async fn main() -> Result<(), RuntimeError> {
     let config = Config::from_env()?;
     logging::init("info")?;
 
-    let mut health = HealthRegistry::new();
+    let mut health = HealthRegistry::named("simulation");
     let opened = open_service_database(
         &config,
         "simulation",

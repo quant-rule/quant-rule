@@ -25,7 +25,8 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{any, get};
 use axum::{Json, Router};
 use quantrule_api::{
-    ErrorCode, ErrorEnvelope, HealthReport, PROFILE_HEADER, ProfileId, VersionInfo,
+    ErrorCode, ErrorEnvelope, HealthReport, PROFILE_HEADER, ProfileId, ServiceHealth, ServiceState,
+    VersionInfo,
 };
 use quantrule_runtime::client::{
     ClientError, DataClient, HttpServiceClient, RunCounter, Service, SimulationCounter,
@@ -161,6 +162,7 @@ pub(crate) fn service_failure(error: ClientError) -> ApiFailure {
 fn routes() -> Router<Arc<AppState>> {
     Router::new()
         .route("/health", get(health))
+        .route("/ready", get(ready))
         .route("/version", get(version))
         .route("/profiles", get(list_profiles).post(create_profile))
         .route("/runs", any(proxy_evidence))
@@ -219,6 +221,71 @@ async fn static_client(
 async fn health(State(state): State<Arc<AppState>>) -> Json<HealthReport> {
     let digest = state.version.image_digest.clone();
     Json(state.health.report(digest).await)
+}
+
+/// The readiness probe: local checks plus every configured upstream's `/health`.
+///
+/// `/health` is the local liveness probe; `/ready` is the dependency authority
+/// and returns `503` when a required service is down or unreachable.
+async fn ready(State(state): State<Arc<AppState>>) -> (StatusCode, Json<HealthReport>) {
+    let digest = state.version.image_digest.clone();
+    let mut report = state.health.report(digest).await;
+    let probes = [
+        ("data", state.upstream.as_ref(), Service::Data),
+        ("model", state.model_upstream.as_ref(), Service::Model),
+        (
+            "evidence",
+            state.evidence_upstream.as_ref(),
+            Service::Evidence,
+        ),
+        (
+            "simulation",
+            state.simulation_upstream.as_ref(),
+            Service::Simulation,
+        ),
+    ];
+    for (name, client, service) in probes {
+        let entry = match client {
+            Some(client) => match client.health(service).await {
+                Ok(remote) if remote.service == name => {
+                    report.queue_depth += remote.queue_depth;
+                    report.workers += remote.workers;
+                    ServiceHealth {
+                        name: name.to_owned(),
+                        state: remote.state,
+                        detail: (remote.state == ServiceState::Down)
+                            .then(|| "the service reports down".to_owned()),
+                    }
+                }
+                Ok(remote) => ServiceHealth {
+                    name: name.to_owned(),
+                    state: ServiceState::Down,
+                    detail: Some(format!(
+                        "the service that answered identifies itself as {:?}",
+                        remote.service
+                    )),
+                },
+                Err(error) => ServiceHealth {
+                    name: name.to_owned(),
+                    state: ServiceState::Down,
+                    detail: Some(error.to_string()),
+                },
+            },
+            None => ServiceHealth {
+                name: name.to_owned(),
+                state: ServiceState::Down,
+                detail: Some("not configured".to_owned()),
+            },
+        };
+        report.services.push(entry);
+    }
+    report.state = HealthReport::aggregate(report.services.clone());
+    let status = if report.state == ServiceState::Down {
+        StatusCode::SERVICE_UNAVAILABLE
+    } else {
+        StatusCode::OK
+    };
+    (status, Json(report))
 }
 
 async fn version(State(state): State<Arc<AppState>>) -> Json<VersionInfo> {

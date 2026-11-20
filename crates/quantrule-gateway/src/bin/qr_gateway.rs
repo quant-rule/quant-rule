@@ -24,7 +24,7 @@ async fn main() -> Result<(), RuntimeError> {
     logging::init("info")?;
     tracing::info!(profile = config.profile.as_str(), "starting gateway");
 
-    let mut health = HealthRegistry::new();
+    let mut health = HealthRegistry::named("gateway");
     let opened = open_service_database(
         &config,
         "gateway",

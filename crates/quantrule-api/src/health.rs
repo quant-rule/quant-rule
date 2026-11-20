@@ -44,6 +44,12 @@ pub struct ServiceHealth {
 pub struct HealthReport {
     /// The contract version.
     pub v: String,
+    /// The service that produced this report.
+    ///
+    /// A readiness probe compares it with the service it meant to reach, so a
+    /// name that resolves to another process is refused rather than believed.
+    #[serde(default)]
+    pub service: String,
     /// The worst state across the dependencies.
     pub state: ServiceState,
     /// Every dependency.
@@ -165,6 +171,7 @@ mod tests {
     fn a_health_report_round_trips() {
         let report = HealthReport {
             v: API_VERSION.to_owned(),
+            service: "gateway".to_owned(),
             state: ServiceState::Healthy,
             services: vec![service("postgres", ServiceState::Healthy)],
             queue_depth: 0,

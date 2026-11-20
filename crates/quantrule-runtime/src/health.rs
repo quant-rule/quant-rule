@@ -18,6 +18,7 @@ pub type Check = Arc<dyn Fn() -> CheckFuture + Send + Sync>;
 /// The set of probes behind `/health`.
 #[derive(Clone, Default)]
 pub struct HealthRegistry {
+    service: String,
     checks: Vec<(String, Check)>,
 }
 
@@ -25,6 +26,7 @@ impl std::fmt::Debug for HealthRegistry {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
             .debug_struct("HealthRegistry")
+            .field("service", &self.service)
             .field(
                 "checks",
                 &self.checks.iter().map(|(name, _)| name).collect::<Vec<_>>(),
@@ -38,6 +40,18 @@ impl HealthRegistry {
     #[must_use]
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// An empty registry that names the service it belongs to.
+    ///
+    /// The name travels in the report so a readiness probe can reject a
+    /// response from a different process that happened to answer the name.
+    #[must_use]
+    pub fn named(service: impl Into<String>) -> Self {
+        Self {
+            service: service.into(),
+            checks: Vec::new(),
+        }
     }
 
     /// Register one probe.
@@ -77,6 +91,7 @@ impl HealthRegistry {
         let state = HealthReport::aggregate(services.clone());
         HealthReport {
             v: API_VERSION.to_owned(),
+            service: self.service.clone(),
             state,
             services,
             queue_depth: 0,
@@ -122,5 +137,11 @@ mod tests {
     async fn the_report_carries_the_contract_version() {
         let report = HealthRegistry::new().report(None).await;
         assert_eq!(report.v, API_VERSION);
+    }
+
+    #[tokio::test]
+    async fn a_named_registry_reports_its_service() {
+        let report = HealthRegistry::named("data").report(None).await;
+        assert_eq!(report.service, "data");
     }
 }
