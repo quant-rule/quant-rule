@@ -24,7 +24,14 @@ use crate::server::{AppState, failure};
 ///
 /// The SPA and its assets are served by the fallback, outside the API layer, so
 /// they are exempt by construction.
-const OPEN_PATHS: [&str; 4] = ["/health", "/version", "/api/v1/health", "/api/v1/version"];
+const OPEN_PATHS: [&str; 6] = [
+    "/health",
+    "/ready",
+    "/version",
+    "/api/v1/health",
+    "/api/v1/ready",
+    "/api/v1/version",
+];
 
 /// Refuse an API request without the configured bearer token.
 pub(crate) async fn authorize(

@@ -24,7 +24,7 @@ artifact, or research evidence.
 
 | # | Shell | Browser | Expect |
 |---:|---|---|---|
-| 1 | `quantrule health` | **Connection** → health table | Aggregate state, services, queue depth, workers, image digest |
+| 1 | `quantrule health` | **Connection** → health table | Aggregate state, service states, image digest, and the reserved queue/worker counts; the gateway's `/ready` adds the upstream states |
 | 2 | `quantrule profile list` | **Profiles** → profile table | Profiles with dataset, run, and simulation counts |
 | 3 | `quantrule profile create "Research Lab" --id research-lab` | Profiles → create form | Shell prints the row and keeps the active profile; the browser creates and selects it |
 | 4 | `quantrule profile use research-lab` | **Profile switcher** → profile | The local default and the active profile change |

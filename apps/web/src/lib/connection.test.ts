@@ -15,6 +15,7 @@ function version(api = EXPECTED_API): VersionInfo {
 function health(state: HealthReport["state"] = "healthy"): HealthReport {
   return {
     v: EXPECTED_API,
+    service: "gateway",
     state,
     services: [],
     queue_depth: 0,

@@ -23,7 +23,7 @@ async fn main() -> Result<(), RuntimeError> {
     let config = Config::from_env()?;
     logging::init("info")?;
 
-    let mut health = HealthRegistry::new();
+    let mut health = HealthRegistry::named("model");
     let backend = Objects::open(&config).await?;
     let objects: Arc<dyn ObjectStore> = Arc::new(backend.clone());
     health.register("object-store", move || {

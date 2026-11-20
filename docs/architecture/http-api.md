@@ -13,7 +13,7 @@ never renders a label, and never returns a raw engine type.
 | Rule | Value |
 |---|---|
 | Base | `/api/v1`; paths below are relative to it |
-| Profile | `X-QuantRule-Profile` header on every API request; required except `/health`, `/version`, and `/profiles` |
+| Profile | `X-QuantRule-Profile` header on every API request; required except `/health`, `/ready`, `/version`, and `/profiles` |
 | Content type | `application/json` except upload and artifact download |
 | Version | `quantrule.api/v1` in `/version` and every error envelope |
 | Identifier | Content hash or opaque catalog id; never a path |
@@ -28,7 +28,8 @@ never renders a label, and never returns a raw engine type.
 
 | Method | Path | Request | Response |
 |---|---|---|---|
-| GET | `/health` | — | service states, queue depth, worker count |
+| GET | `/health` | — | local liveness: this service's dependency states |
+| GET | `/ready` | — | readiness: local and upstream service states; `503` when a required service is down |
 | GET | `/profiles` | — | profiles with dataset, run, and simulation counts |
 | POST | `/profiles` | `profile_id`, `name` | `201` new, `200` existing, with the summary |
 | GET | `/version` | — | product version, image digest, contract versions |
@@ -70,6 +71,9 @@ evidence.
 | GET | `/stages/runs/{id}/artifacts` | — | artifact files |
 | GET | `/stages/runs/{id}/artifacts/{*name}` | — | one verified artifact |
 | POST | `/stages/runs/{id}/cancel` | — | `202` or `409` |
+
+`/health` names its process in `service`; `/ready` aggregates the configured
+upstream reports and returns `503` when one is unreachable or misidentified.
 
 The gateway owns `/profiles` and proxies `/catalog/*`, `/datasets/*`,
 `/inspect/*`, `/model/compute`, `/runs/*`, `/stages/*`, `/research/*`, and
@@ -205,7 +209,7 @@ Rules:
 
 | Rule | Value |
 |---|---|
-| Header | `X-QuantRule-Profile`, required on every request except `/health`, `/version`, and `/profiles` |
+| Header | `X-QuantRule-Profile`, required on every request except `/health`, `/ready`, `/version`, and `/profiles` |
 | Default profile | `default`, created by the first migration; a missing header is never defaulted |
 | Scope | Datasets, hypotheses, run submissions, simulation, memory, and config rows; a config file bundle is shared by content id |
 | Bytes | Shared and content-addressed; profiles never duplicate an object |

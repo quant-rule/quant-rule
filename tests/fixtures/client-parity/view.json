@@ -50,6 +50,7 @@
   ],
   "health": {
     "v": "quantrule.api/v1",
+    "service": "gateway",
     "state": "degraded",
     "services": [
       {

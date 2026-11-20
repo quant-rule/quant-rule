@@ -13,7 +13,7 @@ usage drifts from the registry.
 
 | Command | Usage | Required | Optional | Output | Stable errors | Browser | Example |
 |---|---|---|---|---|---|---|---|
-| `health` | `health` | — | — | API version, aggregate state, queue depth, workers, image digest, service lines | `auth.unauthorized`, `service.unavailable`, `internal` | Connection → health table | `quantrule health` |
+| `health` | `health` | — | — | API version, aggregate state, image digest, service lines, reserved queue/worker counts | `auth.unauthorized`, `service.unavailable`, `internal` | Connection → health table | `quantrule health` |
 | `profile list` | `profile list` | — | — | Active profile and one line per profile with counts | `auth.unauthorized`, `service.unavailable` | Profiles → profile table | `quantrule profile list` |
 | `profile create` | `profile create <name> [--id <profile_id>]` | name | `--id` | `profile_id`, name, counts | `profile.invalid`, `auth.unauthorized` | Profiles → create form | `quantrule profile create "Research Lab"` |
 | `profile use` | `profile use <profile_id>` | profile id | — | Active profile | `profile.not_found`, `profile.invalid` | Profile switcher | `quantrule profile use research-lab` |

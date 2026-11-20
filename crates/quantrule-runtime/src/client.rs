@@ -18,7 +18,7 @@ use http_body_util::{BodyExt, Limited};
 use hyper_util::client::legacy::Client;
 use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::rt::TokioExecutor;
-use quantrule_api::{PROFILE_HEADER, ProfileId};
+use quantrule_api::{HealthReport, PROFILE_HEADER, ProfileId};
 use quantrule_service_api::{ConfigBundle, DatasetObject};
 
 use crate::adapters::BoxFuture;
@@ -484,6 +484,22 @@ impl ServiceClient for HttpServiceClient {
 }
 
 impl HttpServiceClient {
+    /// Read one service's own `/health` report.
+    ///
+    /// # Errors
+    ///
+    /// Returns the transport or status error; a missing `/health` is a status
+    /// error, not a healthy default.
+    pub async fn health(&self, service: Service) -> Result<HealthReport, ClientError> {
+        self.get_json::<HealthReport>(service, None, "/health".to_owned())
+            .await?
+            .ok_or(ClientError::Status {
+                service,
+                status: 404,
+                message: "/health is absent".to_owned(),
+            })
+    }
+
     async fn get_json<T>(
         &self,
         service: Service,

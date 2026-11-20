@@ -9,6 +9,8 @@ export interface ServiceHealth {
 
 export interface HealthReport {
   v: string;
+  /** The service that produced the report; `/ready` uses it to reject a mismatch. */
+  service: string;
   state: "healthy" | "degraded" | "down";
   services: ServiceHealth[];
   queue_depth: number;

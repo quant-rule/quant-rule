@@ -18,10 +18,17 @@ history is in Git and the pull requests.
 
 ## [Unreleased]
 
+### Added
+
+- The gateway's `/ready` endpoint aggregates the configured upstream services
+  and returns `503` when one is down or answers under another service identity.
+
 ### Fixed
 
 - The browser reports a clear secure-context error when Web Crypto or the
   clipboard is unavailable, instead of failing silently on a plain HTTP origin.
+- The compose stack pins its DNS search to the stack network, so a stopped
+  service name cannot resolve to a LAN host.
 - A late detail response cannot replace a newer run, stage, or research
   selection in the browser.
 
