@@ -168,8 +168,9 @@ warnings`, `cargo test`, `tools/gate.sh`, `python3 tools/check_manual.py`, and
 | V11 | Migrations | Concurrent start succeeds | Start-all test | No lock failure | — | Blocked | Test | 2026-11-20 | Concurrent cross-host start needs the LAN |
 | V12 | Rollback | Previous digest restores | Upgrade test | Healthy | — | Blocked | Release | 2026-11-20 | Rollback needs the LAN |
 | V13 | Backup | Restore reproduces the digest | Restore test | Same digest | — | Blocked | Data Steward | 2026-11-20 | Live backup/restore needs the LAN |
-| V14 | Docs | Checkers and gate pass | `tools/gate.sh` | Green | `tools/checkers.sh` 27 checkers pass; full gate pending | Pending | Docs | 2026-11-20 | Gate result awaited |
+| V14 | Docs | Checkers and gate pass | `tools/gate.sh` | Green | `workspace gate passed`; 27 checkers; 14-chapter manual | Pass | Docs | 2026-11-20 | Gate on `main` at `b78e674a` |
 | V16 | Security | Blocking review findings closed | #980 tests and Compose config | Negative tests pass | 26 deploy tests; Compose config tests; runtime redaction | Pass | Security | 2026-11-20 | Remaining risks documented |
+| V17 | AppImage | Installed app opens from the menu | `gtk-launch quantrule`; `/ready` | Window opens | AppImage installed; `/ready` healthy | Pass | Test | 2026-11-20 | Local desktop profile |
 | V15 | Release | Release note and changelog | Review | Present | — | Pending | Release | — | — |
 
 ## 10. Risks and recovery

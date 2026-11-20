@@ -98,3 +98,19 @@ The agent fixed the blocking findings in #980:
 Verification: 26 `quantrule-deploy` tests, 18 runtime config tests, clippy,
 `tools/checkers.sh`, and Compose config tests for all four role files. The real
 three-host LAN rows remain blocked.
+
+## Closure evidence (2026-11-20)
+
+- PRs #971–#982 are merged; issues #958–#970 and #980 are `Done`.
+- The workspace gate passed on `main` at `b78e674a` with
+  `CARGO_TARGET_DIR=target/gate`; the checker gate reports 27 checkers and the
+  manual reports 14 chapters.
+- The Linux AppImage was built, checked, installed under `~/Applications`, and
+  opened with `gtk-launch quantrule`; `/ready` reported sqlite, data, model,
+  evidence, and simulation healthy.
+- The local multi-host harness printed the same canonical digest with one and
+  two backtest workers: `sha256:a0372f02…`.
+- The real three-host LAN rows (host firewall, overlay isolation, cross-host
+  failure, live backup/restore) remain `Blocked`; no host was available.
+- Release note, version bump, and tag are not created. That is a separate
+  release decision.
