@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check that the client document and the status index match the tree.
+"""Check that the client document and the model index match the tree.
 
 AUD-2026-11-16-17 found three drifts: the status index named 46 indicators and
 143 events while the registry held 49 and 150, the client document described a
@@ -8,7 +8,7 @@ table named files that no longer exist.
 
 This checker reads the screen and store tables in
 ``docs/architecture/client.md``, the navigation labels in
-``apps/web/src/lib/capabilities.ts``, and the counts in ``docs/README.md``. Every
+``apps/web/src/lib/capabilities.ts``, and the counts in ``docs/model/README.md``. Every
 component and store a row names must exist, every navigation label must have a
 screen row, and the matrix counts must equal the registry. It reads no network,
 clock, or external data.
@@ -161,12 +161,12 @@ def check(root: Path) -> list[str]:
                 )
 
     registry_path = root / "docs" / "registry" / "indicators.json"
-    readme_path = root / "docs" / "README.md"
+    readme_path = root / "docs" / "model" / "README.md"
     if not registry_path.is_file():
         problems.append(f"{registry_path}: the registry is missing")
         return problems
     if not readme_path.is_file():
-        problems.append(f"{readme_path}: the status index is missing")
+        problems.append(f"{readme_path}: the model index is missing")
         return problems
     registry = json.loads(registry_path.read_text(encoding="utf-8"))
     counts = {

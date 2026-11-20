@@ -1,0 +1,35 @@
+# Configuration Index
+
+- Status: Current
+- Run contract: [`docs/workflows/run-contract.md`](../workflows/run-contract.md)
+- Config tree: [`config/README.md`](../../config/README.md)
+
+This folder holds the run, strategy, and engine configuration contracts. The
+config tree holds the current examples and the historical evidence; a config
+document states which schema and run version it applies to.
+
+| Contract | Status | Path |
+|---|---|---|
+| Run v4 and the strategy | Current; `run v4` binds the strategy to the run; data schema 3, model schema 4, `execution v2`, `portfolio v2` | `docs/config/2026-11-13/run-v4-strategy.md` |
+| Run v3 and portfolio constraints | Accepted for a model-only run; `run v3` must not carry a strategy | `docs/config/2026-11-11/run-v3-and-portfolio-constraints.md` |
+| Local research memory | Historical; the local SQLite module was removed on 2026-11-16; memory lives in the evidence service (#661) | `docs/config/2026-11-11/research-memory-v1.md` |
+| Client surfaces | Product 1.3.0: Svelte browser client, command shell, and a Tauri desktop package over the gateway URL | `docs/architecture/client.md` |
+| Distribution | Current; container image and GitHub Release assets. The static page was retired | `ADR-2026-11-12-08` |
+| Desktop profile | Current for product 1.3.0 (current tag `v1.3.0`): embedded SQLite/filesystem/durable-queue profile, six-sidecar supervisor, Linux and Windows installers, and server↔desktop parity verified. The current release note is `2026-11-17/v1.3.0.md`. | [`apps/desktop-shell/README.md`](../../apps/desktop-shell/README.md) |
+| Policy blueprint | Historical; superseded by run v3 | `docs/config/2026-10-30/policy-and-strategy.md` |
+| Config tree | Current; current, evidence, and historical directories | `config/README.md` |
+| Available timeframes | `quantrule.data/v3` | `docs/config/2026-10-30/data-v3.md` |
+| Session coverage | Current; optional weekly calendar and session-aware coverage | `docs/config/2026-11-09/data-change-SESSION-COVERAGE-01.md` |
+| MACD reading and events | Current | `docs/config/2026-11-03/model-macd.md` |
+| Engine artifacts | Current; stage bundle, provenance, and handoff contract | `docs/config/2026-11-06/engine-artifacts.md` |
+| Strategy configuration | Current; `quantrule.strategy/v1`, both generic engines, and the decision record | `docs/config/2026-11-06/strategy-config.md` |
+| Qualification criteria | Current; human-owned criteria, verdict semantics, and human acceptance | `docs/config/2026-11-06/qualification-criteria.md` |
+| Analytics benchmarks | Current; buy-and-hold and matched random-timing evaluation output | `docs/config/2026-11-09/analytics-benchmarks.md` |
+| Trade context | Historical; the Python exporter was retired by DIST-105, with the artifact and mark schemas retained as a record | `docs/config/2026-11-09/trade-context.md` |
+| Strategy position excursions | Current; entry price/ATR, unrealized, MFE/MAE, giveback exit | `docs/config/2026-11-10/strategy-position-excursions.md` |
+| Improvement run contract | Current; `quantrule.improvement-run/v3` is current, v2 is historical | `docs/workflows/run-contract.md` |
+
+A current run uses `quantrule.run/v4`, which references the strategy alongside
+the four engine files. `quantrule.run/v3` remains accepted for a model-only run
+and must not carry a `strategy` field. `analytics` is still rejected; the
+qualification criteria remain explicit command arguments.

@@ -72,9 +72,11 @@ class WorkflowCheckerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             make_tree(root)
-            write(root / "docs" / "README.md", "# Docs\n")
+            (root / "docs" / "workflows" / "README.md").unlink()
             problems = check_workflows.check(root)
-            self.assertTrue(any("docs/README.md" in problem for problem in problems))
+            self.assertTrue(
+                any("docs/workflows/README.md is missing" in problem for problem in problems)
+            )
 
     def test_a_current_workflow_linking_a_historical_one_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

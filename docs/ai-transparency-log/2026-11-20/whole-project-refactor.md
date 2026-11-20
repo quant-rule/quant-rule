@@ -151,6 +151,16 @@ created.
 
 ### Boundary
 
-The work is uncommitted. The plan is `In Progress`; V22 and V23 remain
-`Pending`. One agent performed implementation and self-check; independent
-Refactor Verifier review is pending.
+The implementation checkpoint above was uncommitted. The human then authorized
+commit and PR; the commit and pull-request record follows.
+
+### Commit and PR (2026-11-20)
+
+- Issues: #929 (cycle 1) and #930 (cycle 2).
+- Commits: `ee8162d3` (assessment and plan), `358df5da` (shell split),
+  `ac5d14f8` (documentation indexes).
+- Pull requests: #931 (cycle 1, base `main`) and #932 (cycle 2, stacked on
+  #931).
+- Both pull-request CI runs are green (verify, web, web-e2e); issues #929 and
+  #930 are `In Review`. No merge, tag, or deployment was performed. The plan is
+  `In Review`; V23 (done and cleanup) is pending the merge.

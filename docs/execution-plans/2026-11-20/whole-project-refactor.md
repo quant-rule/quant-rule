@@ -1,7 +1,7 @@
 # Whole-Project Refactor Plan
 
 - Date: 2026-11-20 (UTC)
-- Status: In Progress
+- Status: In Review
 - Workflow: [Refactor Workflow](../../workflows/refactor-workflow.md)
 - Assessment: [`docs/refactors/2026-11-20/whole-project-refactor.md`](../../refactors/2026-11-20/whole-project-refactor.md)
 - Baseline commit: `8443697fec9e20a555b2fe900a36c19dae03b8cb`
@@ -176,7 +176,7 @@ Limitations:
 |---|---|---|---|---|---|---|---|---|---|
 | V01 | P0 plan | Plan, assessment, and AI log exist and are linked | `ls docs/execution-plans/2026-11-20/ docs/refactors/2026-11-20/ docs/ai-transparency-log/2026-11-20/` | Three files present | Present | Pass | Implementer (self-check) | 2026-11-20 | Independent verification pending |
 | V02 | P0 scope | D1 approved; issue carries `Behaviour Claim` | Issue link and board field | Approved | Issues #929 and #930 carry `Behaviour Claim` | Pass | Implementer (self-check) | 2026-11-20 |  |
-| V03 | P0 worktree | Task worktree and branch exist and are based on `8443697f` | `git worktree list`, `git status --short --branch` | Worktree on `refactor/whole-project-shell` | Present at `8443697f` | Pass | Implementer (self-check) | 2026-11-20 | No commit yet |
+| V03 | P0 worktree | Task worktree and branch exist and are based on `8443697f` | `git worktree list`, `git status --short --branch` | Worktree on `refactor/whole-project-shell` | Present at `8443697f`; commits `ee8162d3`, `358df5da`, `ac5d14f8` | Pass | Implementer (self-check) | 2026-11-20 | Cycle 2 branch is stacked |
 | V04 | C1.1 parse | Family parsers live in family modules; facade is small | `wc -l` on `parse.rs` and `parse/*.rs` | No touched file over 400 lines | `parse/mod.rs` 393; largest family 222 | Pass | Implementer (self-check) | 2026-11-20 |  |
 | V05 | C1.2 dispatch | Family dispatch lives in family modules; file I/O is separate; one `run` match remains | `wc -l`, `rg -e 'fn dataset_' -e 'fn run_' -e 'fn simulation_' -e 'fn profile_'` | No touched file over 400 lines | `dispatch/mod.rs` 304; simulation 214 | Pass | Implementer (self-check) | 2026-11-20 |  |
 | V06 | C1.3 output | Family renderers live in family modules; generic JSON writers are separate | `wc -l` on `output.rs` and `output/*.rs` | No touched file over 400 lines | `output/mod.rs` 118; research 270 | Pass | Implementer (self-check) | 2026-11-20 |  |
@@ -196,7 +196,7 @@ Limitations:
 | V19 | V gate | Full gate passes after both cycles | `./tools/gate.sh` | PASS, exit 0 | PASS, exit 0 | Pass | Implementer (self-check) | 2026-11-20 | Cycle 2 gate |
 | V20 | Z changelog | `CHANGELOG.md` records the structural change, or states why no entry is needed | `git diff -- CHANGELOG.md` | Entry under `Unreleased` | `Changed` entry added; `check_changelog.py` passes | Pass | Implementer (self-check) | 2026-11-20 |  |
 | V21 | Z AI log | The AI log records assessment, planning, implementation, and verification | `docs/ai-transparency-log/2026-11-20/whole-project-refactor.md` | Complete | Updated with implementation evidence | Pass | Implementer (self-check) | 2026-11-20 |  |
-| V22 | Z review | Each issue is `In Review` only with green checks and the PR open | Board status, PR checks | In Review | No issue or PR; gated | Pending | Human |  | Commit, push, and PR authorization required |
+| V22 | Z review | Each issue is `In Review` only with green checks and the PR open | Board status, PR checks | In Review | PRs #931 and #932 green; issues #929 and #930 In Review | Pass | Human | 2026-11-20 | Human review gate |
 | V23 | Z done | Human acceptance, merge, acceptance verification, worktree and branch cleanup | Board `Done`, `git worktree list`, `git branch -a` | Done, cleaned | Not merged; worktree retained | Pending | Human |  | Cleanup after merge |
 
 ## 9. Risks and recovery

@@ -3,7 +3,8 @@
 
 The source of truth is ``docs/workflows/README.md``. Every workflow document must
 carry a status line, a purpose section, and a related-documents section, and must
-be listed in both the workflow index and the global documentation index.
+be listed in the workflow index. The global documentation index links to the
+workflow index; it is no longer a second listing authority.
 
 The checker has no dependencies beyond the Python standard library and reads no
 network, clock, or external data.
@@ -100,7 +101,6 @@ def check(root: Path) -> list[str]:
         problems.append("docs/README.md is missing")
 
     index_text = read(index, root) if index.is_file() else ""
-    global_text = read(global_index, root) if global_index.is_file() else ""
 
     files = sorted(path for path in workflows.glob("*.md") if path.name != "README.md")
     if not files:
@@ -122,8 +122,6 @@ def check(root: Path) -> list[str]:
             problems.append(f"{name}: missing a Related documents heading")
         if name not in index_text:
             problems.append(f"{name}: not listed in docs/workflows/README.md")
-        if name not in global_text:
-            problems.append(f"{name}: not listed in docs/README.md")
 
     problems.extend(historical_links(files, root))
 

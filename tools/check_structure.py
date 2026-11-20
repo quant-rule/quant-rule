@@ -409,7 +409,6 @@ def workflow_index_violations(root: Path) -> list[Violation]:
     if not workflows.exists():
         return []
     indexes = [
-        root / "docs" / "README.md",
         root / "docs" / "workflows" / "README.md",
     ]
     texts = [
