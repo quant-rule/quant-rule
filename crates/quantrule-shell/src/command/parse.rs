@@ -540,14 +540,19 @@ fn parse_simulation(args: &[String]) -> Result<Command, ParseError> {
         "create" => {
             let line = usage("simulation create");
             let usage = line.as_str();
-            let options =
-                parse_options(rest, usage, &["premise", "bundle", "seed", "criteria"], &[])?;
+            let options = parse_options(
+                rest,
+                usage,
+                &["premise", "bundle", "inputs", "seed", "criteria"],
+                &[],
+            )?;
             options.expect_positionals(0, usage)?;
             let bundle = Digest::parse(options.required("bundle", usage)?)
                 .map_err(|error| ParseError::Usage(format!("--bundle {error}")))?;
             Ok(Command::SimulationCreate {
                 premise: options.required("premise", usage)?.to_owned(),
                 bundle,
+                inputs: options.value("inputs").unwrap_or("").to_owned(),
                 seed: parse_u64(options.required("seed", usage)?, "--seed", usage)?,
                 criteria: options.required("criteria", usage)?.to_owned(),
             })
@@ -855,13 +860,17 @@ mod tests {
     fn a_simulation_create_carries_every_required_option() {
         let bundle = format!("sha256:{}", "a".repeat(64));
         let parsed = parse_line(&format!(
-            "simulation create --premise p --bundle {bundle} --seed 7 --criteria c"
+            "simulation create --premise p --bundle {bundle} --inputs context --seed 7 --criteria c"
         ))
         .expect("the line parses")
         .expect("a command");
         assert!(matches!(
             parsed.command,
-            Command::SimulationCreate { seed: 7, .. }
+            Command::SimulationCreate {
+                seed: 7,
+                ref inputs,
+                ..
+            } if inputs == "context"
         ));
     }
 

@@ -8,6 +8,15 @@ use serde::{Deserialize, Serialize};
 
 use crate::digest::Digest;
 
+/// The simulation bundle schema token.
+pub const BUNDLE_SCHEMA: &str = "quantrule.simulation-bundle/v1";
+
+/// The content-addressed key of one recorded simulation bundle.
+#[must_use]
+pub fn bundle_key(digest: &Digest) -> String {
+    format!("simulation/bundles/{}.json", digest.as_hex())
+}
+
 /// The identity of one simulation run.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct SimulationId(pub String);
@@ -227,6 +236,15 @@ mod tests {
         };
         let text = serde_json::to_string(&request).expect("encode");
         assert!(!text.contains("\"inputs\""));
+    }
+
+    #[test]
+    fn a_bundle_key_is_the_content_address() {
+        let digest = Digest::sha256(b"bundle");
+        assert_eq!(
+            bundle_key(&digest),
+            format!("simulation/bundles/{}.json", digest.as_hex())
+        );
     }
 
     #[test]

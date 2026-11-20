@@ -213,6 +213,8 @@ pub(crate) enum Command {
         premise: String,
         /// The recorded bundle to read.
         bundle: Digest,
+        /// The context inputs the run reads.
+        inputs: String,
         /// The window-selection seed.
         seed: u64,
         /// The mark criterion and check thresholds.

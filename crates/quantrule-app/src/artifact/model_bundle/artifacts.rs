@@ -408,7 +408,7 @@ fn optional(value: Option<f64>) -> String {
     value.map_or_else(String::new, |value| value.to_string())
 }
 
-fn event_completeness(event: &EventRecord) -> Option<f64> {
+pub(super) fn event_completeness(event: &EventRecord) -> Option<f64> {
     let required = match event.event_type {
         EventType::Level | EventType::Divergence => 2_u8,
         EventType::Signal => 1_u8,
@@ -418,7 +418,7 @@ fn event_completeness(event: &EventRecord) -> Option<f64> {
     Some(f64::from(present.min(required)) / f64::from(required))
 }
 
-fn ema_stack(fast: Option<f64>, mid: Option<f64>, slow: Option<f64>) -> Option<i8> {
+pub(super) fn ema_stack(fast: Option<f64>, mid: Option<f64>, slow: Option<f64>) -> Option<i8> {
     let (fast, mid, slow) = (fast?, mid?, slow?);
     if fast > mid && mid > slow {
         Some(1)
@@ -429,7 +429,7 @@ fn ema_stack(fast: Option<f64>, mid: Option<f64>, slow: Option<f64>) -> Option<i
     }
 }
 
-fn rsi_zone(rsi: f64) -> i8 {
+pub(super) fn rsi_zone(rsi: f64) -> i8 {
     if rsi < 30.0 {
         -1
     } else if rsi > 70.0 {

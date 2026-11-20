@@ -20,6 +20,9 @@ history is in Git and the pull requests.
 
 ### Added
 
+- The model bundle publishes `simulation-<timeframe>.json` artifacts and stores
+  each under `simulation/bundles/<sha256>.json`; the shell `simulation create`
+  gains `--inputs`.
 - The gateway's `/ready` endpoint aggregates the configured upstream services
   and returns `503` when one is down or answers under another service identity.
 - RabbitMQ publishes wait for the broker's confirmation; a nack, a missing
@@ -29,6 +32,9 @@ history is in Git and the pull requests.
 
 ### Fixed
 
+- The simulation tutorial uses a 1m bundle with enough bars for the default
+  window and marks a bar inside the candidate zone, so the documented path
+  creates windows and a mark.
 - A conditional candle or ladder request with a matching `If-None-Match`
   returns `304` instead of the full CSV.
 - The gateway gives uploads, artifact downloads, and model compute a 15-minute

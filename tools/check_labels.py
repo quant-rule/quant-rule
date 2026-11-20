@@ -70,6 +70,15 @@ def rust_problems(source: str, registry: dict[str, object]) -> list[str]:
         actual, _ = arms(source, function)
         problems.extend(compare(function, registry_map(codes, key), actual))
 
+    events = registry.get("events")
+    if not isinstance(events, list):
+        raise SystemExit("error: the registry has no events list")
+    expected_events = {
+        int(event["code"]): str(event["id"]) for event in events if "code" in event and "id" in event
+    }
+    actual_events, _ = arms(source, "event_name")
+    problems.extend(compare("event_name", expected_events, actual_events))
+
     expected_subtypes: dict[tuple[int, int], str] = {}
     for type_code, key in [
         (1, "level_subtypes"),

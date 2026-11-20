@@ -87,7 +87,7 @@ enforces the distinction.
 | `profile create` | Implemented | `name`, optional id | `profile_id` |
 | `profile use` | Implemented | `profile_id` | active profile |
 | `simulation list` | Implemented | `status`, `limit` | simulation run summaries |
-| `simulation create` | Implemented | premise, bundle, seed, criteria | `sim_id` |
+| `simulation create` | Implemented | premise, bundle, inputs, seed, criteria | `sim_id` |
 | `simulation windows` | Implemented | `sim_id` | deterministic window selection |
 | `simulation mark` | Implemented | `sim_id`, chart, bar, action, quality, side, note | mark id |
 | `simulation marks` | Implemented | `sim_id`, origin | human and oracle marks |
