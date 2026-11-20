@@ -42,6 +42,8 @@ history is in Git and the pull requests.
 - The research surface and improvement run have one glossary definition; the
   command and workflow lists live only in their indexes.
 - The gateway's `quantrule-service-api` dependency is test-only.
+- The legacy checker scans tracked and untracked non-ignored files, reducing its
+  local runtime from about 61 seconds to about 4 seconds.
 
 ### Fixed
 

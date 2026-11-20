@@ -23,6 +23,7 @@ commands are rejected are allowlisted explicitly.
 from __future__ import annotations
 
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -182,10 +183,30 @@ def files(root: Path) -> list[Path]:
     return sorted(set(found))
 
 
+def candidate_paths(root: Path) -> list[Path]:
+    """Return tracked plus untracked non-ignored files, or a full walk outside Git."""
+    command = [
+        "git",
+        "-C",
+        str(root),
+        "ls-files",
+        "--cached",
+        "--others",
+        "--exclude-standard",
+        "--full-name",
+        "-z",
+    ]
+    try:
+        output = subprocess.check_output(command, stderr=subprocess.DEVNULL)
+    except (OSError, subprocess.CalledProcessError):
+        return sorted(root.rglob("*"))
+    return [root / name for name in output.decode("utf-8", "surrogateescape").split("\0") if name]
+
+
 def current_files(root: Path) -> list[Path]:
     """Every readable text file outside history, the local data root, and builds."""
     found: list[Path] = []
-    for path in sorted(root.rglob("*")):
+    for path in candidate_paths(root):
         relative = path.relative_to(root)
         name = relative.as_posix()
         if relative.parts[0] in PATH_SKIP_ROOT:
