@@ -20,6 +20,8 @@ history is in Git and the pull requests.
 
 ### Added
 
+- Multi-host backup and restore wrappers reuse the single-host archive format
+  against the infrastructure host, with an explicit application-stopped gate.
 - The browser History screen lists run, stage, research, simulation, and
   dataset records, archives them, and erases them with typed confirmation.
 - The shell gains `history list`, `history archive`, and `history erase` for
