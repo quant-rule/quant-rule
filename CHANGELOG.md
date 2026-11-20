@@ -20,6 +20,9 @@ history is in Git and the pull requests.
 
 ### Added
 
+- The multi-host deployment profile adds `qr-deploy` and a
+  `quantrule.deploy/v2` descriptor that validates placement, renders per-role
+  env files, and checks the deployed image digest.
 - The browser History screen lists run, stage, research, simulation, and
   dataset records, archives them, and erases them with typed confirmation.
 - The shell gains `history list`, `history archive`, and `history erase` for

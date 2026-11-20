@@ -1,0 +1,42 @@
+{
+  "v": "quantrule.deploy/v2",
+  "profile": "multi-host",
+  "image": {
+    "reference": "quantrule-server:1.3.0",
+    "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "network_gate": "wireguard",
+  "exposure": {
+    "gateway": "lan",
+    "internal": "private"
+  },
+  "auth": {
+    "gateway_token": true,
+    "tls": "reverse-proxy"
+  },
+  "hosts": {
+    "gateway": { "address": "10.10.0.10" },
+    "core": { "address": "10.10.0.11" },
+    "compute": { "address": "10.10.0.12" },
+    "infra": { "address": "10.10.0.20" }
+  },
+  "services": {
+    "gateway": { "host": "gateway", "port": 8080, "public": true },
+    "data": { "host": "core", "port": 18081 },
+    "model": { "host": "compute", "port": 18082 },
+    "evidence": { "host": "core", "port": 18083 },
+    "simulation": { "host": "core", "port": 18084 },
+    "backtest": { "host": "compute", "replicas": 2 }
+  },
+  "endpoints": {
+    "database": "postgres://${QR_POSTGRES_USER}:${QR_POSTGRES_PASSWORD}@10.10.0.20:5432/${QR_POSTGRES_DB}",
+    "object_store": "http://10.10.0.20:9000",
+    "queue": "amqp://${QR_QUEUE_USER}:${QR_QUEUE_PASSWORD}@10.10.0.20:5672/%2f",
+    "object_bucket": "quantrule"
+  },
+  "infra_host": "infra",
+  "config_root": "/srv/config",
+  "secrets_file": "secrets.env",
+  "backtest_concurrency": 1,
+  "stage_retention_days": 30
+}
