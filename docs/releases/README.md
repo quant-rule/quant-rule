@@ -119,6 +119,29 @@ above; the checker fails when the two drift.
 for it, so it resolves to the `v0.3.0` note that records the release of that
 date. `v0.3.0` is the release commit itself and resolves to the same note.
 
+### Release notes
+
+| Release | Tag | Notes |
+|---|---|---|
+| Stage execution surface | `v1.3.0` | [`docs/releases/2026-11-17/v1.3.0.md`](2026-11-17/v1.3.0.md) |
+| Version alignment | `v1.2.0` | [`docs/releases/2026-11-16/v1.2.0.md`](2026-11-16/v1.2.0.md) |
+| 1.1.0 alignment | `v1.1.0` | [`docs/releases/2026-11-16/v1.1.0.md`](2026-11-16/v1.1.0.md) |
+| Desktop profile | `v1.0.0` | [`docs/releases/2026-11-15/v1.0.0.md`](2026-11-15/v1.0.0.md) |
+| Distributed platform | `v0.9.0` | [`docs/releases/2026-11-15/v0.9.0.md`](2026-11-15/v0.9.0.md) |
+| Tauri Platform | `v0.8.0` | [`docs/releases/2026-11-11/v0.8.0.md`](2026-11-11/v0.8.0.md) |
+| Last pre-Tauri release | `v0.7.0` | [`docs/releases/2026-11-11/v0.7.0.md`](2026-11-11/v0.7.0.md) |
+| Model states, session coverage, and SR9 | `v0.6.0` | [`docs/releases/2026-11-09/v0.6.0.md`](2026-11-09/v0.6.0.md) |
+| Workflow documentation reset | `v0.5.0` | [`docs/releases/2026-11-07/v0.5.0.md`](2026-11-07/v0.5.0.md) |
+| Workflow reset baseline | `v0.4.0` | [`docs/releases/2026-11-01/v0.4.0.md`](2026-11-01/v0.4.0.md) |
+| Lab Summary and Help | `v0.3.0` | [`docs/releases/2026-10-30/v0.3.0.md`](2026-10-30/v0.3.0.md) |
+| MVP v1 | `v0.1.0` | [`docs/releases/2026-10-28/v0.1.0.md`](2026-10-28/v0.1.0.md) |
+
+These releases describe surfaces that the P3 cutover later removed. They remain the
+record of what was released. The historical markers `v0.4.0-exp-baseline` and
+`audit-closure-2026-10-30` were renumbered to `v0.4.0` and `v0.2.0`; the latter
+shares the `v0.3.0` note, which records that date. The authoritative
+current-tag map is in section 3.
+
 ## 4. Historical tags
 
 The pre-renumbering markers `v0.4.0-exp-baseline`, the duplicate `v0.5.0`

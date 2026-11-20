@@ -36,6 +36,7 @@ templates; it remains human-owned.
 | [`index.md`](index.md) | Historical committed snapshot of the v2 generated run index | Yes, for v2; copy from `data/improvement/index.md`, never edit by hand |
 | [`baselines.md`](baselines.md) | The accepted model, strategy, and portfolio baselines | No; updated by the reviewer and the human |
 | [`INVALIDATIONS.md`](INVALIDATIONS.md) | Append-only tombstones for removed or superseded evidence | No; append only |
+| [`programmes.md`](programmes.md) | Programme evidence and programme status moved from the global index | No; human-owned |
 | `README.md` | This guide and the run record template | No |
 
 The working files under `data/improvement/` (`index.json`, `index.md`) are

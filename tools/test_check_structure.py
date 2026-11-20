@@ -279,13 +279,13 @@ class LayoutTests(unittest.TestCase):
             write(root / "docs" / "workflows" / "README.md", "# Workflows\n")
             write(root / "docs" / "workflows" / "audit-workflow.md", "# Audit\n")
             violations = check_structure.workflow_index_violations(root)
-            self.assertEqual(len(violations), 2)
-            self.assertTrue(all(violation.rule == "workflow-index" for violation in violations))
+            self.assertEqual(len(violations), 1)
+            self.assertEqual(violations[0].rule, "workflow-index")
+            self.assertIn("docs/workflows/README.md", violations[0].message)
 
-    def test_workflow_document_indexed_in_both_places_passes(self) -> None:
+    def test_workflow_document_indexed_in_the_workflow_index_passes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            write(root / "docs" / "README.md", "# Docs\n[audit](workflows/audit-workflow.md)\n")
             write(root / "docs" / "workflows" / "README.md", "# Workflows\n[audit](audit-workflow.md)\n")
             write(root / "docs" / "workflows" / "audit-workflow.md", "# Audit\n")
             self.assertEqual(check_structure.workflow_index_violations(root), [])

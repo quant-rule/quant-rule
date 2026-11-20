@@ -57,7 +57,7 @@ def write(path: Path, text: str) -> None:
 
 def seed(root: Path) -> None:
     write(root / "docs" / "architecture" / "client.md", CLIENT)
-    write(root / "docs" / "README.md", README)
+    write(root / "docs" / "model" / "README.md", README)
     write(
         root / "docs" / "registry" / "indicators.json",
         json.dumps(REGISTRY),
@@ -100,7 +100,7 @@ class ClientDocumentTests(unittest.TestCase):
             root = Path(temporary)
             seed(root)
             write(
-                root / "docs" / "README.md",
+                root / "docs" / "model" / "README.md",
                 README.replace("Current; 2 rows", "Current; 46 rows"),
             )
             problems = check_client_docs.check(root)
@@ -113,7 +113,7 @@ class ClientDocumentTests(unittest.TestCase):
             root = Path(temporary)
             seed(root)
             write(
-                root / "docs" / "README.md",
+                root / "docs" / "model" / "README.md",
                 README.replace("Current; 3 rows", "Current; 143 rows"),
             )
             problems = check_client_docs.check(root)
