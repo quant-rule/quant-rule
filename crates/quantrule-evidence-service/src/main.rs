@@ -187,7 +187,7 @@ async fn main() -> Result<(), RuntimeError> {
         contract = INTERNAL_API_VERSION,
         "starting evidence service"
     );
-    let server = quantrule_runtime::serve(&config.bind, router(state));
+    let server = quantrule_runtime::serve_config(&config, router(state));
     let consumer = async move {
         let Some(evidence) = evidence else {
             return std::future::pending::<Result<(), RuntimeError>>().await;

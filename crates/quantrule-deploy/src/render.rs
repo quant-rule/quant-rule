@@ -216,10 +216,23 @@ fn write_env(path: &Path, env: &BTreeMap<String, String>) -> Result<(), Error> {
         text.push_str(value);
         text.push('\n');
     }
-    std::fs::write(path, text).map_err(|source| Error::Write {
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create(true).truncate(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let mut file = options.open(path).map_err(|source| Error::Write {
         path: path.to_path_buf(),
         source,
     })?;
+    use std::io::Write;
+    file.write_all(text.as_bytes())
+        .map_err(|source| Error::Write {
+            path: path.to_path_buf(),
+            source,
+        })?;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -238,10 +251,14 @@ mod tests {
     use serde_json::Value;
 
     fn descriptor() -> Descriptor {
-        serde_json::from_str(include_str!(
+        let mut value: Value = serde_json::from_str(include_str!(
             "../../../deploy/multi-host/deploy.example.json"
         ))
-        .expect("example")
+        .expect("example");
+        value["image"]["digest"] = serde_json::json!(
+            "sha256:3f5a9c1e7b2d4f608a1c3e5d7b9f0a2c4e6d8f1b3a5c7e9d0f2a4c6e8b1d3f5a"
+        );
+        serde_json::from_value(value).expect("descriptor")
     }
 
     fn secrets() -> BTreeMap<String, String> {
@@ -249,21 +266,24 @@ mod tests {
             ("QR_POSTGRES_USER".to_owned(), "quantrule".to_owned()),
             (
                 "QR_POSTGRES_PASSWORD".to_owned(),
-                "long-random-db".to_owned(),
+                "db-secret-0123456789abcdef".to_owned(),
             ),
             ("QR_POSTGRES_DB".to_owned(), "quantrule".to_owned()),
             ("QR_OBJECT_STORE_USER".to_owned(), "quantrule".to_owned()),
             (
                 "QR_OBJECT_STORE_PASSWORD".to_owned(),
-                "long-random-object".to_owned(),
+                "object-secret-0123456789abcdef".to_owned(),
             ),
             ("QR_QUEUE_USER".to_owned(), "quantrule".to_owned()),
             (
                 "QR_QUEUE_PASSWORD".to_owned(),
-                "long-random-queue".to_owned(),
+                "queue-secret-0123456789abcdef".to_owned(),
             ),
             ("QR_QUEUE_VHOST".to_owned(), "/".to_owned()),
-            ("QR_BEARER_TOKEN".to_owned(), "long-random-token".to_owned()),
+            (
+                "QR_BEARER_TOKEN".to_owned(),
+                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_owned(),
+            ),
         ])
     }
 
@@ -284,7 +304,7 @@ mod tests {
         let files = render(&descriptor(), &secrets(), &out).expect("render");
         assert_eq!(files.len(), 7);
         let gateway = std::fs::read_to_string(out.join("gateway.env")).expect("gateway");
-        assert!(gateway.contains("QR_BEARER_TOKEN=long-random-token"));
+        assert!(gateway.contains("QR_BEARER_TOKEN=0123456789abcdef"));
         assert!(gateway.contains("QR_DATA_URL=http://10.10.0.11:18081"));
         assert!(gateway.contains("QR_INTERNAL_ONLY=0"));
         let data = std::fs::read_to_string(out.join("data.env")).expect("data");
@@ -317,6 +337,9 @@ mod tests {
             "../../../deploy/multi-host/deploy.example.json"
         ))
         .expect("example");
+        value["image"]["digest"] = serde_json::json!(
+            "sha256:3f5a9c1e7b2d4f608a1c3e5d7b9f0a2c4e6d8f1b3a5c7e9d0f2a4c6e8b1d3f5a"
+        );
         value["endpoints"]["database"] =
             serde_json::json!("postgres://${MISSING}@10.10.0.20:5432/quantrule");
         let descriptor: Descriptor = serde_json::from_value(value).expect("descriptor");

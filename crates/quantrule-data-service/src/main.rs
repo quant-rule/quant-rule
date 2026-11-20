@@ -15,7 +15,7 @@ use std::sync::Arc;
 
 use quantrule_runtime::adapters::ObjectStore;
 use quantrule_runtime::backends::{Objects, ServiceDatabase, open_service_database};
-use quantrule_runtime::{Config, HealthRegistry, RuntimeError, logging, serve};
+use quantrule_runtime::{Config, HealthRegistry, RuntimeError, logging, serve_config};
 
 use quantrule_data_service::postgres::{PgConfigStore, PgDatasetCatalog};
 use quantrule_data_service::sqlite::{SqliteConfigStore, SqliteDatasetCatalog};
@@ -70,5 +70,5 @@ async fn main() -> Result<(), RuntimeError> {
         },
     ));
     tracing::info!(bind = %config.bind, "starting data service");
-    serve(&config.bind, quantrule_data_service::router(state)).await
+    serve_config(&config, quantrule_data_service::router(state)).await
 }

@@ -23,7 +23,11 @@ fn main() -> ExitCode {
         Ok(code) => code,
         Err(error) => {
             eprintln!("qr-deploy: {error}");
-            ExitCode::FAILURE
+            if matches!(error, Error::Usage(_)) {
+                ExitCode::from(2)
+            } else {
+                ExitCode::FAILURE
+            }
         }
     }
 }
@@ -55,14 +59,16 @@ fn validate_command(mut args: impl Iterator<Item = String>) -> Result<ExitCode, 
         return Err(Error::Usage("validate does not accept --out".to_owned()));
     }
     let descriptor = descriptor::load(&config)?;
-    if let Some(path) = flags.secrets {
+    let checked = if let Some(path) = flags.secrets {
         let secrets = descriptor::load_env(&path)?;
         validate::validate_with_secrets(&descriptor, &secrets)?;
+        "secrets checked"
     } else {
         validate::validate(&descriptor)?;
-    }
+        "secrets not checked; pass --secrets"
+    };
     println!(
-        "ok: {} hosts, {} services, image {}, gate {}",
+        "ok: {} hosts, {} services, image {}, gate {} ({checked})",
         descriptor.hosts.len(),
         descriptor.services.len(),
         descriptor.image.digest,
@@ -104,8 +110,14 @@ fn check_command(mut args: impl Iterator<Item = String>) -> Result<ExitCode, Err
     let rows = check::check(&descriptor, &secrets)?;
     let mut failed = false;
     for row in rows {
-        let state = if row.ok() { "ok" } else { "FAIL" };
-        if !row.ok() {
+        let state = if row.skipped() {
+            "SKIP"
+        } else if row.ok() {
+            "ok"
+        } else {
+            "FAIL"
+        };
+        if !row.ok() && !row.skipped() {
             failed = true;
         }
         match (&row.digest, &row.error) {
