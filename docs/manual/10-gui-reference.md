@@ -26,7 +26,8 @@ a defect.
 | Inspect | `InspectPanel.svelte` | Candles, timeframe ladder, event batch | `inspect-candles`; `inspect-timeframes`; `inspect-events` | `read-only` badge; never evidence | `inspect candles`, `inspect timeframes`, `inspect events` |
 | Simulation | `SimulationRunsPanel.svelte` | Simulation rows, create form, status, retry | `simulation-table`; `simulation-create`; `simulation-refresh`; `simulation-retry`; `simulation-empty` | Simulation status badge; research plane, never evidence | `simulation list`, `simulation create` |
 | Simulation run | `SimulationRunDetail.svelte` | Meta, windows, chart, marks, oracle, check, decision | `simulation-run`; `sim-back`; `sim-status`; `sim-run-meta`; `sim-windows`; `sim-window-<n>`; `sim-mark`; `sim-marks`; `sim-oracle`; `sim-review`; `sim-check`; `sim-decision`; `sim-lock` | Status badge; locking notice after a decision; never evidence | `simulation windows`, `simulation mark`, `simulation marks`, `simulation oracle`, `simulation check`, `simulation decide` |
-| Help | `HelpPanel.svelte` | Every command and the screen that reaches it | `help-table` | `46 commands` badge; no evidence badge | `help` |
+| History | `HistoryPanel.svelte` | Five kind tabs, archived filter, archive, typed-confirmation erase | `history-table`; `history-tab-<kind>`; `history-include-archived`; `history-archive`; `history-erase`; `history-confirm-input`; `history-confirm-erase` | Active or archived state; a protected record refuses erase | `history list`, `history archive`, `history erase` |
+| Help | `HelpPanel.svelte` | Every command and the screen that reaches it | `help-table` | `49 commands` badge; no evidence badge | `help` |
 
 ## Screen rules
 
@@ -55,7 +56,7 @@ Strategy tab, and a portfolio detail cannot appear under Model.
 
 | Event | Browser behavior |
 |---|---|
-| Profile switch | Clears datasets, configs, runs, simulations, stages, and research rows before the next read |
+| Profile switch | Clears datasets, configs, runs, simulations, stages, research, and history rows before the next read |
 | Gateway unreachable | Shows `disconnected` or `unreachable`; does not show the previous profile's rows |
 | Token required | Shows `token required`; submission is disabled |
 | Version mismatch | Shows the expected and observed API versions; does not use the connection |
