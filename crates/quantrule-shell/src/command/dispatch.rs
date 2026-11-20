@@ -40,9 +40,15 @@ pub(crate) fn execute(
     stderr: &mut impl Write,
 ) -> i32 {
     let Invocation { globals, command } = invocation;
-    let result = match Session::new(&globals) {
-        Ok(session) => run(&session, &globals, command, stdout),
-        Err(error) => Err(error),
+    // `help` and `quit` are local: a missing or malformed token must not stop
+    // the operator from reading the command map.
+    let result = match &command {
+        Command::Help(topic) => run_help(topic, stdout),
+        Command::Quit => Ok(()),
+        _ => match Session::new(&globals) {
+            Ok(session) => run(&session, &globals, command, stdout),
+            Err(error) => Err(error),
+        },
     };
     match result {
         Ok(()) => 0,
@@ -59,11 +65,6 @@ fn run(
     command: Command,
     stdout: &mut impl Write,
 ) -> Result<(), RunError> {
-    match &command {
-        Command::Help(topic) => return run_help(topic, stdout),
-        Command::Quit => return Ok(()),
-        _ => {}
-    }
     let client = session.client()?;
     match command {
         Command::Health => health(&client, globals, stdout),
@@ -866,8 +867,8 @@ fn simulation_check(
     let path = format!("/simulation/runs/{}/check", encode(sim_id));
     let response = client.post_empty(&path)?;
     let value: Value = decode_json!(Value, response, &path);
-    output::emit_raw(globals.json, value.clone(), stdout, |writer| {
-        output::write_json_line(writer, &value)
+    output::emit(globals.json, value.clone(), stdout, |writer| {
+        output::simulation_check(writer, &value)
     })
 }
 

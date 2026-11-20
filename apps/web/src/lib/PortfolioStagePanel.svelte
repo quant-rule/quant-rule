@@ -17,7 +17,7 @@
   const view = $derived(stages());
   const rows = $derived(view.items.filter((item) => item.kind === "portfolio"));
   let decisionsArtifact = $state("");
-  let configId = $state("cfg_abc");
+  let configId = $state("");
   let submitting = $state(false);
   let downloading = $state<string | null>(null);
   let downloadError = $state<string | null>(null);

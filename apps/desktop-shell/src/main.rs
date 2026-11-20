@@ -72,6 +72,8 @@ fn spawn_supervisor(app: &tauri::AppHandle) -> Option<Child> {
             let program = directory.join(&name);
             let mut command = Command::new(&program);
             command
+                .arg("--profile")
+                .arg("desktop")
                 .arg("--resource-dir")
                 .arg(&base)
                 .arg("--parent-stdin")

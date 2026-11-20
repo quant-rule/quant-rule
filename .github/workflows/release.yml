@@ -387,6 +387,15 @@ jobs:
         # part of the desktop package.
         run: cargo build --release --locked --bin quantrule
 
+      - name: Run the desktop/server parity harness
+        if: runner.os == 'Linux'
+        # The release note records the fixture digest. The desktop side starts
+        # six local sidecars; the server oracle is the composed-tier digest.
+        run: |
+          bash tools/parity_desktop.sh --desktop-only \
+            --expected sha256:a0372f02db7bc65460906eba3242943da8c56f26c46fde470726cee856bc4cea \
+            --services-dir target/release --no-build
+
       - name: Build the desktop supervisor
         working-directory: apps/desktop-shell/supervisor
         # The embedded profile makes a packaged supervisor start the sidecars.

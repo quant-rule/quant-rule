@@ -3,8 +3,9 @@
 - Status: Current
 - Audience: operator or agent looking up one command contract
 
-Every command accepts the global flags `--profile <id>`, `--token <token>`, and
-`--json`. The table lists only command-specific arguments. Usage and output
+Every command accepts `--token <token>` and `--json`. `--profile <id>` is the
+global selection flag except on `profile use`, which names the profile as its
+argument. The table lists only command-specific arguments. Usage and output
 follow the `help` registry; the stable-error column names codes from
 `quantrule-api`. The manual checker fails when a command is missing here or its
 usage drifts from the registry.

@@ -32,6 +32,11 @@ history is in Git and the pull requests.
 
 ### Fixed
 
+- The browser clears an open config detail on a profile switch, stage forms
+  start empty instead of the fixture `cfg_abc`, and the packaged shell passes
+  `--profile desktop` rather than inheriting the environment.
+- `help` works with a malformed token, `simulation check` prints a table and
+  verdict, and the parity suite exercises every command.
 - The simulation tutorial uses a 1m bundle with enough bars for the default
   window and marks a bar inside the candidate zone, so the documented path
   creates windows and a mark.
@@ -60,6 +65,8 @@ history is in Git and the pull requests.
 
 ### Changed
 
+- The release workflow runs the desktop parity harness before it builds the
+  desktop supervisor.
 - Server artifact event, source, and stage words now come from the same registry
   values as the browser table; the label gate compares both.
 - The backtest worker opens a channel per consumer with its own prefetch slot

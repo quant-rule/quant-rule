@@ -275,6 +275,102 @@ fn difference(left: &Value, right: &Value) -> Option<String> {
 }
 
 #[test]
+fn every_command_is_exercised() {
+    // The view covers the shared normalized fields; these commands only need
+    // to reach the gateway once, so the union is the full 46-command surface.
+    let fixture = Fixture::start();
+    let api = client_parity_api();
+    let dataset_id = api["dataset_id"].as_str().expect("the fixture dataset id");
+    let config_id = api["config_id"].as_str().expect("the fixture config id");
+    let run_id = api["run_id"].as_str().expect("the fixture run id");
+    let bundle = api["artifact"]["sha256"]
+        .as_str()
+        .expect("the fixture artifact digest");
+
+    std::fs::create_dir_all(fixture.home()).expect("the fixture home");
+    let upload = fixture.home().join("upload.csv");
+    std::fs::write(&upload, "1704067200,1,2,0.5,1.5,10\n").expect("the upload fixture");
+    command(
+        &fixture,
+        &[
+            "dataset",
+            "upload",
+            upload.to_str().expect("the upload path"),
+            "--name",
+            "upload.csv",
+        ],
+    );
+    command(&fixture, &["run", "submit", dataset_id, config_id]);
+    command(&fixture, &["run", "cancel", run_id]);
+    command(
+        &fixture,
+        &["profile", "create", "Parity Profile", "--id", "parity"],
+    );
+    let output = fixture.run(&["--json", "profile", "use", "parity"]);
+    assert!(
+        output.status.success(),
+        "profile use failed; stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    command(&fixture, &["simulation", "list"]);
+    command(
+        &fixture,
+        &[
+            "simulation",
+            "create",
+            "--premise",
+            "the parity premise",
+            "--bundle",
+            bundle,
+            "--inputs",
+            "the parity inputs",
+            "--seed",
+            "7",
+            "--criteria",
+            "the parity criteria",
+        ],
+    );
+    command(&fixture, &["simulation", "windows", "sim-1"]);
+    command(
+        &fixture,
+        &[
+            "simulation",
+            "mark",
+            "sim-1",
+            "--chart",
+            "0",
+            "--bar",
+            "12",
+            "--action",
+            "entry",
+            "--quality",
+            "good",
+            "--side",
+            "long",
+        ],
+    );
+    command(
+        &fixture,
+        &["simulation", "marks", "sim-1", "--origin", "human"],
+    );
+    command(&fixture, &["simulation", "oracle", "sim-1"]);
+    command(&fixture, &["simulation", "check", "sim-1"]);
+    command(
+        &fixture,
+        &[
+            "simulation",
+            "decide",
+            "sim-1",
+            "test",
+            "--note",
+            "the parity note",
+        ],
+    );
+
+    assert_eq!(shell_commands(&fixture).len(), 46);
+}
+
+#[test]
 fn the_shell_view_matches_the_shared_client_parity_view() {
     let fixture = Fixture::start_parity();
     let view = shell_view(&fixture);

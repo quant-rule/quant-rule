@@ -14,8 +14,9 @@ stable command interface; the browser client is the human workstation. Feature
 parity is required, and a capability that only one client can reach is a parity
 gap, not a completed capability.
 
-The shell is a thin client. It parses one command, makes one gateway call, and
-renders the contract type that comes back. It has no engine dependency, opens no
+The shell is a thin client. It parses one command, usually makes one gateway
+call, and renders the contract type that comes back; `run fetch`, `stage fetch`,
+`stage explain`, and `stage events` read more than one operation. It has no engine dependency, opens no
 local database, and executes no pipeline stage. Every capability is a server
 capability; the shell is one way to type it.
 
@@ -27,8 +28,8 @@ The surface follows six rules:
    `config_id`, `run_id`, `sim_id` — never a filesystem path. The server owns its
    filesystem.
 3. **One call.** A command makes one gateway operation and prints its result.
-   `run fetch` is the exception: it reads the run record and then downloads each
-   named artifact, because the contract exposes artifacts one at a time.
+   `run fetch`, `stage fetch`, `stage explain`, and `stage events` read more than
+   one operation because the contract exposes their parts separately.
 4. **No stubs.** A command appears in `help`, the README, and a tutorial only
    when it is implemented and tested.
 5. **Deterministic output.** The same response prints the same bytes. Lists are

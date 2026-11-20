@@ -325,8 +325,9 @@ qr-desktop — QuantRule desktop sidecar supervisor
              [--sidecar-dir PATH] [--gateway-port N] [--internal-base N]
              [--health-timeout-ms N] [--shutdown-grace-ms N] [--parent-stdin]
 
-The packaged shell passes --resource-dir, --parent-stdin, and no profile; the
-build selects the default. --profile desktop starts the six bundled sidecars
+The packaged shell passes --profile desktop, --resource-dir, and --parent-stdin,
+so a stray QR_DESKTOP_PROFILE cannot change the packaged profile. --profile
+desktop starts the six bundled sidecars
 with QR_PROFILE=desktop and QR_DATA_DIR. --profile external starts nothing.
 
 Internal (not a public interface):

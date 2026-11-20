@@ -9,7 +9,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 
-import { DEFAULT_PROFILE, call, callVoid, currentProfile, setProfile } from "./api";
+import { DEFAULT_PROFILE, call, callVoid, currentProfile, setProfile, uploadDataset } from "./api";
 import { downloadArtifact, sha256Hex } from "./artifacts";
 import { COMMANDS, SECTIONS, missingCommands } from "./capabilities";
 import { inspectCandles, inspectEvents, inspectTimeframes, verifyRun } from "./inspect";
@@ -38,6 +38,16 @@ import {
   type ImprovementRunSummary,
   type InvalidationRecord,
 } from "./research";
+import {
+  createRun as createSimulation,
+  fetchMarks,
+  listRuns as listSimulations,
+  postCheck,
+  postDecision,
+  postMark,
+  postOracle,
+  selectWindows,
+} from "./simulation";
 import type {
   ConfigSummary,
   DatasetRecord,
@@ -48,6 +58,7 @@ import type {
   RunDetail,
   RunDigest,
   RunSummary,
+  SubmitRunResponse,
   StageEventView,
   StageRunDetail,
   StageRunSummary,
@@ -285,6 +296,102 @@ function install(fixture: ApiFixture): Seen[] {
     }
     if (path === "/inspect/events") {
       return respond(fixture.responses.events);
+    }
+    if (path === "/catalog/datasets" && method === "POST") {
+      return respond(fixture.responses.dataset, 201);
+    }
+    if (path === "/runs" && method === "POST") {
+      return respond(
+        { run_id: fixture.run_id, status: "queued", created: true },
+        202,
+      );
+    }
+    if (path === `/runs/${fixture.run_id}/cancel` && method === "POST") {
+      return respond({ ...fixture.responses.run, status: "cancelled" }, 202);
+    }
+    if (path === "/profiles" && method === "POST") {
+      return respond(
+        { profile_id: "parity", name: "Parity", datasets: 0, runs: 0, simulations: 0 },
+        201,
+      );
+    }
+    if (path === "/simulation/runs" && method === "GET") {
+      return respond([
+        {
+          sim_id: "sim-1",
+          premise: "the parity premise",
+          status: "draft",
+          windows: 1,
+          marks: 0,
+          bundle: fixture.artifact.sha256,
+          marked_windows: 0,
+        },
+      ]);
+    }
+    if (path === "/simulation/runs" && method === "POST") {
+      return respond({ sim_id: "sim-3" }, 201);
+    }
+    if (path === "/simulation/runs/sim-1/windows" && method === "POST") {
+      return respond({
+        sim_id: "sim-1",
+        windows: [{ index: 0, start: 0, end: 120 }],
+      });
+    }
+    if (path === "/simulation/runs/sim-1/marks" && method === "POST") {
+      return respond({ mark_id: "mark-1" }, 201);
+    }
+    if (path === "/simulation/runs/sim-1/marks" && method === "GET") {
+      return respond({
+        sim_id: "sim-1",
+        marks: [
+          {
+            mark_id: "mark-1",
+            chart: 0,
+            bar: 12,
+            marked_time_utc: "2026-11-14T10:00:00Z",
+            action: "entry",
+            quality: "good",
+            side: "long",
+            origin: "human",
+            note: "",
+          },
+        ],
+      });
+    }
+    if (path === "/simulation/runs/sim-1/oracle" && method === "POST") {
+      return respond({
+        sim_id: "sim-1",
+        marks: [
+          {
+            mark_id: "oracle-1",
+            chart: 0,
+            bar: 80,
+            marked_time_utc: "2026-11-14T10:00:00Z",
+            action: "entry",
+            quality: "good",
+            side: "long",
+            origin: "oracle",
+            note: "",
+          },
+        ],
+      });
+    }
+    if (path === "/simulation/runs/sim-1/check" && method === "POST") {
+      return respond({
+        events: 31,
+        mean_net: 0.01,
+        hit_rate: 0.6,
+        control: 60,
+        control_mean_net: 0,
+        control_hit_rate: 0.5,
+        positive_half_years: 3,
+        passed: true,
+        failures: [],
+        verdict: "pass",
+      });
+    }
+    if (path === "/simulation/runs/sim-1/decision" && method === "POST") {
+      return respond({ decision: "test", note: "the parity note" });
     }
     if (path === "/profiles") {
       return respond(fixture.responses.profiles);
@@ -583,6 +690,60 @@ describe("client parity", () => {
         `data-testid="${command.testId}"`,
       );
     }
+  });
+
+  it("exercises every command at the browser boundary", async () => {
+    const seen = install(API);
+    const upload = new File(["1704067200,1,2,0.5,1.5,10\n"], "upload.csv");
+    await uploadDataset(upload, {});
+    await call<SubmitRunResponse>("/runs", {
+      method: "POST",
+      body: JSON.stringify({ data_version: API.dataset_id, config_id: API.config_id }),
+    });
+    await call<RunDetail>(`/runs/${API.run_id}/cancel`, { method: "POST" });
+    await call<ProfileSummary>("/profiles", {
+      method: "POST",
+      body: JSON.stringify({ profile_id: "parity", name: "Parity" }),
+    });
+    setProfile("parity");
+    await listSimulations();
+    await createSimulation({
+      premise: "the parity premise",
+      bundle: API.artifact.sha256,
+      inputs: "the parity inputs",
+      seed: 7,
+      criteria: "the parity criteria",
+    });
+    await selectWindows("sim-1");
+    await postMark("sim-1", {
+      chart: 0,
+      bar: 12,
+      action: "entry",
+      quality: "good",
+      side: "long",
+      note: "the parity mark",
+    });
+    await fetchMarks("sim-1", "human");
+    await postOracle("sim-1");
+    await postCheck("sim-1");
+    await postDecision("sim-1", "test", "the parity note");
+
+    expect(currentProfile()).toBe("parity");
+    expect(COMMANDS.length).toBe(46);
+    expect(seen.map((request) => request.path)).toEqual(
+      expect.arrayContaining([
+        "/catalog/datasets",
+        "/runs",
+        `/runs/${API.run_id}/cancel`,
+        "/profiles",
+        "/simulation/runs",
+        "/simulation/runs/sim-1/windows",
+        "/simulation/runs/sim-1/marks",
+        "/simulation/runs/sim-1/oracle",
+        "/simulation/runs/sim-1/check",
+        "/simulation/runs/sim-1/decision",
+      ]),
+    );
   });
 
   it("a missing browser control is reported as a command gap", () => {
