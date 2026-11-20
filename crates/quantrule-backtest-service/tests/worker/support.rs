@@ -584,6 +584,27 @@ impl DataClient for FailingData {
     fn dataset_count(&self, profile: ProfileId) -> BoxFuture<Result<u64, ClientError>> {
         self.inner.dataset_count(profile)
     }
+
+    fn register_dataset_reference(
+        &self,
+        profile: ProfileId,
+        data_version: quantrule_api::Digest,
+        reference_id: String,
+        kind: quantrule_api::DatasetReferenceKind,
+    ) -> BoxFuture<Result<quantrule_api::DatasetReferenceCount, ClientError>> {
+        self.inner
+            .register_dataset_reference(profile, data_version, reference_id, kind)
+    }
+
+    fn release_dataset_reference(
+        &self,
+        profile: ProfileId,
+        data_version: quantrule_api::Digest,
+        reference_id: String,
+    ) -> BoxFuture<Result<quantrule_api::DatasetReferenceCount, ClientError>> {
+        self.inner
+            .release_dataset_reference(profile, data_version, reference_id)
+    }
 }
 
 /// A model client that answers one fixed transport or status error.

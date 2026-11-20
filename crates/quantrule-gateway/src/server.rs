@@ -203,6 +203,7 @@ fn routes() -> Router<Arc<AppState>> {
         .route("/profiles", get(list_profiles).post(create_profile))
         .route("/runs", any(proxy_evidence))
         .route("/runs/{id}", any(proxy_evidence))
+        .route("/runs/{id}/archive", any(proxy_evidence))
         .route("/runs/{id}/cancel", any(proxy_evidence))
         .route("/runs/{id}/digest", any(proxy_evidence))
         .route("/runs/{id}/artifacts/{*name}", any(proxy_evidence))

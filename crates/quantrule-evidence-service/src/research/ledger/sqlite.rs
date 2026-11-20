@@ -16,11 +16,15 @@ use quantrule_runtime::adapters::BoxFuture;
 use quantrule_runtime::adapters::sqlite::SqliteDatabase;
 use rusqlite::{OptionalExtension, TransactionBehavior, params};
 
+use super::sqlite_rows::{StoredRun, detail_from_stored, read_run, summary_from_stored, tier};
 use super::store::{
-    CreateOutcome, DecisionWrite, ImprovementStore, ImprovementStoreError, validate_baseline,
+    CreateOutcome, DecisionWrite, ImprovementStore, ImprovementStoreError, ResearchArchiveOutcome,
+    ResearchDatasetReference, ResearchEraseOutcome, ResearchEraseReceipt, validate_baseline,
     validate_decision_registry, validate_invalidation,
 };
-use crate::sqlite::{BASELINES_TABLE, IMPROVEMENT_RUNS_TABLE, INVALIDATIONS_TABLE};
+use crate::sqlite::{
+    BASELINES_TABLE, IMPROVEMENT_RUNS_TABLE, INVALIDATIONS_TABLE, RESEARCH_RETENTION_TABLE,
+};
 
 /// A research ledger backed by the embedded SQLite database.
 #[derive(Debug, Clone)]
@@ -40,111 +44,6 @@ impl SqliteImprovementStore {
     pub fn database(&self) -> &SqliteDatabase {
         &self.database
     }
-}
-
-#[derive(Debug)]
-struct StoredRun {
-    improvement_id: String,
-    manifest: String,
-    pipeline_run_id: Option<String>,
-    canonical_digest: Option<String>,
-    state: String,
-    decision: Option<String>,
-    decision_note: Option<String>,
-    created_at: String,
-    submitted_at: Option<String>,
-    decided_at: Option<String>,
-}
-
-fn read_run(
-    connection: &rusqlite::Connection,
-    profile_id: &str,
-    improvement_id: &str,
-) -> rusqlite::Result<Option<StoredRun>> {
-    let sql = format!(
-        "SELECT improvement_id, manifest, pipeline_run_id, canonical_digest,
-                state, decision, decision_note, created_at, submitted_at, decided_at
-           FROM {IMPROVEMENT_RUNS_TABLE}
-          WHERE profile_id = ?1 AND improvement_id = ?2"
-    );
-    connection
-        .query_row(&sql, params![profile_id, improvement_id], |row| {
-            Ok(StoredRun {
-                improvement_id: row.get(0)?,
-                manifest: row.get(1)?,
-                pipeline_run_id: row.get(2)?,
-                canonical_digest: row.get(3)?,
-                state: row.get(4)?,
-                decision: row.get(5)?,
-                decision_note: row.get(6)?,
-                created_at: row.get(7)?,
-                submitted_at: row.get(8)?,
-                decided_at: row.get(9)?,
-            })
-        })
-        .optional()
-}
-
-fn detail_from_stored(stored: StoredRun) -> Result<ImprovementRunDetail, ImprovementStoreError> {
-    let manifest: ImprovementManifest =
-        serde_json::from_str(&stored.manifest).map_err(|error| {
-            ImprovementStoreError(format!("a stored research manifest is malformed: {error}"))
-        })?;
-    let state = ImprovementRunState::parse(&stored.state).ok_or_else(|| {
-        ImprovementStoreError(format!(
-            "a stored research state is unknown: {}",
-            stored.state
-        ))
-    })?;
-    let decision = stored
-        .decision
-        .as_deref()
-        .map(|value| {
-            ImprovementDecision::parse(value).ok_or_else(|| {
-                ImprovementStoreError(format!("a stored research decision is unknown: {value}"))
-            })
-        })
-        .transpose()?;
-    let pipeline_run_id = stored
-        .pipeline_run_id
-        .as_deref()
-        .map(|value| {
-            Digest::parse(value).map(RunId).map_err(|error| {
-                ImprovementStoreError(format!("a stored run id is malformed: {error}"))
-            })
-        })
-        .transpose()?;
-    let canonical_digest = stored
-        .canonical_digest
-        .as_deref()
-        .map(|value| {
-            Digest::parse(value).map_err(|error| {
-                ImprovementStoreError(format!("a stored canonical digest is malformed: {error}"))
-            })
-        })
-        .transpose()?;
-    Ok(ImprovementRunDetail {
-        improvement_id: stored.improvement_id,
-        tier: manifest.tier,
-        state,
-        decision,
-        decision_note: stored.decision_note,
-        manifest,
-        pipeline_run_id,
-        canonical_digest,
-        created_at: stored.created_at,
-        submitted_at: stored.submitted_at,
-        decided_at: stored.decided_at,
-    })
-}
-
-fn summary_from_stored(stored: StoredRun) -> Result<ImprovementRunSummary, ImprovementStoreError> {
-    Ok(detail_from_stored(stored)?.summary())
-}
-
-fn tier(value: &str) -> Result<ImprovementTier, ImprovementStoreError> {
-    ImprovementTier::parse(value)
-        .ok_or_else(|| ImprovementStoreError(format!("a stored baseline tier is unknown: {value}")))
 }
 
 impl ImprovementStore for SqliteImprovementStore {
@@ -520,7 +419,54 @@ impl ImprovementStore for SqliteImprovementStore {
             let owner = profile.as_str().to_owned();
             let sql = format!(
                 "SELECT improvement_id, manifest, pipeline_run_id, canonical_digest,
-                        state, decision, decision_note, created_at, submitted_at, decided_at
+                        state, decision, decision_note, created_at, submitted_at, decided_at,
+                        archived_at
+                   FROM {IMPROVEMENT_RUNS_TABLE}
+                  WHERE profile_id = ?1 AND archived_at IS NULL
+                  ORDER BY created_at DESC, improvement_id
+                  LIMIT ?2"
+            );
+            let rows = database
+                .call(move |connection| {
+                    let mut statement = connection.prepare(&sql)?;
+                    let rows = statement.query_map(params![owner, limit], |row| {
+                        Ok(StoredRun {
+                            improvement_id: row.get(0)?,
+                            manifest: row.get(1)?,
+                            pipeline_run_id: row.get(2)?,
+                            canonical_digest: row.get(3)?,
+                            state: row.get(4)?,
+                            decision: row.get(5)?,
+                            decision_note: row.get(6)?,
+                            created_at: row.get(7)?,
+                            submitted_at: row.get(8)?,
+                            decided_at: row.get(9)?,
+                            archived_at: row.get(10)?,
+                        })
+                    })?;
+                    rows.collect::<rusqlite::Result<Vec<_>>>()
+                })
+                .await
+                .map_err(|error| ImprovementStoreError(error.to_string()))?;
+            rows.into_iter().map(summary_from_stored).collect()
+        })
+    }
+
+    fn list_including_archived(
+        &self,
+        profile: ProfileId,
+        limit: usize,
+    ) -> BoxFuture<Result<Vec<ImprovementRunSummary>, ImprovementStoreError>> {
+        let database = self.database.clone();
+        Box::pin(async move {
+            let limit = i64::try_from(limit).map_err(|_| {
+                ImprovementStoreError("the list limit does not fit an integer".to_owned())
+            })?;
+            let owner = profile.as_str().to_owned();
+            let sql = format!(
+                "SELECT improvement_id, manifest, pipeline_run_id, canonical_digest,
+                        state, decision, decision_note, created_at, submitted_at, decided_at,
+                        archived_at
                    FROM {IMPROVEMENT_RUNS_TABLE}
                   WHERE profile_id = ?1
                   ORDER BY created_at DESC, improvement_id
@@ -541,6 +487,7 @@ impl ImprovementStore for SqliteImprovementStore {
                             created_at: row.get(7)?,
                             submitted_at: row.get(8)?,
                             decided_at: row.get(9)?,
+                            archived_at: row.get(10)?,
                         })
                     })?;
                     rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -564,6 +511,189 @@ impl ImprovementStore for SqliteImprovementStore {
                 .await
                 .map_err(|error| ImprovementStoreError(error.to_string()))?;
             stored.map(detail_from_stored).transpose()
+        })
+    }
+
+    fn archive(
+        &self,
+        profile: ProfileId,
+        improvement_id: String,
+        archived_at: String,
+    ) -> BoxFuture<Result<ResearchArchiveOutcome, ImprovementStoreError>> {
+        let database = self.database.clone();
+        Box::pin(async move {
+            let owner = profile.as_str().to_owned();
+            let read_owner = owner.clone();
+            let read_id = improvement_id.clone();
+            let archived_for_read = archived_at.clone();
+            let outcome = database
+                .clone()
+                .call(
+                    move |connection| -> rusqlite::Result<ResearchArchiveOutcome> {
+                        let transaction =
+                            connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+                        let updated = transaction.execute(
+                            &format!(
+                                "UPDATE {IMPROVEMENT_RUNS_TABLE} SET archived_at = ?3
+                                  WHERE profile_id = ?1 AND improvement_id = ?2
+                                    AND archived_at IS NULL"
+                            ),
+                            params![owner, improvement_id, archived_at],
+                        )?;
+                        if updated == 0 {
+                            let exists: Option<i64> = transaction
+                                .query_row(
+                                    &format!(
+                                        "SELECT 1 FROM {IMPROVEMENT_RUNS_TABLE}
+                                      WHERE profile_id = ?1 AND improvement_id = ?2"
+                                    ),
+                                    params![owner, improvement_id],
+                                    |row| row.get(0),
+                                )
+                                .optional()?;
+                            return Ok(if exists.is_some() {
+                                ResearchArchiveOutcome::AlreadyArchived
+                            } else {
+                                ResearchArchiveOutcome::Missing
+                            });
+                        }
+                        transaction.execute(
+                            &format!(
+                                "INSERT INTO {RESEARCH_RETENTION_TABLE}
+                                 (profile_id, kind, record_id, action, reason, bytes)
+                             VALUES (?1, 'research', ?2, 'archive', 'operator.archive', 0)"
+                            ),
+                            params![owner, improvement_id],
+                        )?;
+                        transaction.commit()?;
+                        Ok(ResearchArchiveOutcome::Archived(ImprovementRunSummary {
+                            improvement_id: String::new(),
+                            tier: ImprovementTier::Model,
+                            state: ImprovementRunState::Created,
+                            decision: None,
+                            created_at: String::new(),
+                            submitted_at: None,
+                            decided_at: None,
+                            archived_at: Some(archived_for_read),
+                        }))
+                    },
+                )
+                .await
+                .map_err(|error| ImprovementStoreError(error.to_string()))?;
+            let ResearchArchiveOutcome::Archived(_) = outcome else {
+                return Ok(outcome);
+            };
+            let stored = database
+                .call(move |connection| read_run(connection, &read_owner, &read_id))
+                .await
+                .map_err(|error| ImprovementStoreError(error.to_string()))?
+                .ok_or_else(|| {
+                    ImprovementStoreError("the research record vanished after archive".to_owned())
+                })?;
+            Ok(ResearchArchiveOutcome::Archived(summary_from_stored(
+                stored,
+            )?))
+        })
+    }
+
+    fn erase(
+        &self,
+        profile: ProfileId,
+        improvement_id: String,
+    ) -> BoxFuture<Result<ResearchEraseOutcome, ImprovementStoreError>> {
+        let database = self.database.clone();
+        Box::pin(async move {
+            database
+                .call(
+                    move |connection| -> Result<ResearchEraseOutcome, ImprovementStoreError> {
+                        let transaction = connection
+                            .transaction_with_behavior(TransactionBehavior::Immediate)
+                            .map_err(|error| ImprovementStoreError(error.to_string()))?;
+                        let stored = read_run(&transaction, profile.as_str(), &improvement_id)
+                            .map_err(|error| ImprovementStoreError(error.to_string()))?;
+                        let Some(stored) = stored else {
+                            return Ok(ResearchEraseOutcome::Missing);
+                        };
+                        if stored.archived_at.is_none() {
+                            return Ok(ResearchEraseOutcome::NotArchived);
+                        }
+                        let detail = detail_from_stored(stored)?;
+                        if detail.state == ImprovementRunState::Decided {
+                            return Ok(ResearchEraseOutcome::Protected);
+                        }
+                        transaction
+                            .execute(
+                                &format!(
+                                    "DELETE FROM {IMPROVEMENT_RUNS_TABLE}
+                                  WHERE profile_id = ?1 AND improvement_id = ?2"
+                                ),
+                                params![profile.as_str(), improvement_id],
+                            )
+                            .map_err(|error| ImprovementStoreError(error.to_string()))?;
+                        transaction
+                            .execute(
+                                &format!(
+                                    "INSERT INTO {RESEARCH_RETENTION_TABLE}
+                                     (profile_id, kind, record_id, action, reason, bytes)
+                                 VALUES (?1, 'research', ?2, 'erase', 'operator.erase', 0)"
+                                ),
+                                params![profile.as_str(), improvement_id],
+                            )
+                            .map_err(|error| ImprovementStoreError(error.to_string()))?;
+                        transaction
+                            .commit()
+                            .map_err(|error| ImprovementStoreError(error.to_string()))?;
+                        Ok(ResearchEraseOutcome::Erased(ResearchEraseReceipt {
+                            improvement_id,
+                            data_version: detail.manifest.data_version,
+                        }))
+                    },
+                )
+                .await
+                .map_err(|error| ImprovementStoreError(error.to_string()))
+        })
+    }
+
+    fn submitted_datasets(
+        &self,
+    ) -> BoxFuture<Result<Vec<ResearchDatasetReference>, ImprovementStoreError>> {
+        let database = self.database.clone();
+        Box::pin(async move {
+            let rows: Vec<(String, String, String)> = database
+                .call(move |connection| {
+                    let mut statement = connection.prepare(&format!(
+                        "SELECT profile_id, improvement_id, manifest
+                           FROM {IMPROVEMENT_RUNS_TABLE}
+                          ORDER BY profile_id, improvement_id"
+                    ))?;
+                    let mapped = statement.query_map([], |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, String>(1)?,
+                            row.get::<_, String>(2)?,
+                        ))
+                    })?;
+                    mapped.collect::<rusqlite::Result<Vec<_>>>()
+                })
+                .await
+                .map_err(|error| ImprovementStoreError(error.to_string()))?;
+            rows.into_iter()
+                .map(|(profile, improvement_id, manifest)| {
+                    let manifest: ImprovementManifest =
+                        serde_json::from_str(&manifest).map_err(|error| {
+                            ImprovementStoreError(format!(
+                                "a stored research manifest is malformed: {error}"
+                            ))
+                        })?;
+                    Ok(ResearchDatasetReference {
+                        profile: ProfileId::parse(&profile).map_err(|error| {
+                            ImprovementStoreError(format!("a stored profile is malformed: {error}"))
+                        })?,
+                        improvement_id,
+                        data_version: manifest.data_version,
+                    })
+                })
+                .collect()
         })
     }
 

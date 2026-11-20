@@ -37,6 +37,7 @@ const ATTEMPTS: &str = "crates/quantrule-evidence-service/migrations/0013_run_at
 const MODEL_ARTIFACT: &str =
     "crates/quantrule-evidence-service/migrations/0015_run_model_artifact.sql";
 const STAGE: &str = "crates/quantrule-evidence-service/migrations/0014_stage.sql";
+const RETENTION: &str = "crates/quantrule-evidence-service/migrations/0017_retention.sql";
 const SQLITE: &str = "crates/quantrule-evidence-service/migrations/sqlite/0001_runs_research.sql";
 const SQLITE_STAGE: &str = "crates/quantrule-evidence-service/migrations/sqlite/0002_stage.sql";
 const FIXTURE: &str = include_str!("fixtures/run_parity.json");
@@ -61,7 +62,7 @@ fn statements(sql: &str) -> String {
 fn sqlite_type(postgres: &str) -> &'static str {
     match postgres {
         "text" | "jsonb" | "timestamptz" | "uuid" => "TEXT",
-        "bigint" | "integer" | "smallint" | "boolean" => "INTEGER",
+        "bigint" | "bigserial" | "integer" | "smallint" | "boolean" => "INTEGER",
         "real" | "double" => "REAL",
         "bytea" => "BLOB",
         other => panic!("the parity suite has no SQLite mapping for Postgres type {other:?}"),
@@ -144,9 +145,22 @@ fn expected_tables() -> Vec<(&'static str, Vec<(String, String)>)> {
             "runs__artifacts",
             create_table_columns(RUNS, "runs.artifacts"),
         ),
+        ("runs__submissions", {
+            let mut columns = create_table_columns(SUBMISSIONS, "runs.submissions");
+            columns.extend(added_columns(RETENTION, "runs.submissions"));
+            columns
+        }),
         (
-            "runs__submissions",
-            create_table_columns(SUBMISSIONS, "runs.submissions"),
+            "runs__retention_events",
+            create_table_columns(RETENTION, "runs.retention_events"),
+        ),
+        (
+            "research__retention_events",
+            create_table_columns(RETENTION, "research.retention_events"),
+        ),
+        (
+            "stage__retention_events",
+            create_table_columns(RETENTION, "stage.retention_events"),
         ),
         ("research__hypotheses", hypotheses),
         ("stage__runs", create_table_columns(STAGE, "stage.runs")),
@@ -623,7 +637,7 @@ async fn the_baseline_is_idempotent_and_a_changed_body_is_refused() {
         apply_migrations_in(&database, "runs", &migrations::sqlite())
             .await
             .expect("the first apply"),
-        4
+        5
     );
     assert_eq!(
         apply_migrations_in(&database, "runs", &migrations::sqlite())
@@ -650,22 +664,22 @@ async fn the_baseline_is_idempotent_and_a_changed_body_is_refused() {
 async fn a_database_ahead_or_an_unknown_applied_version_is_refused() {
     let ahead = SqliteDatabase::open_in_memory().expect("the database opens");
     baseline(&ahead).await;
-    insert_ledger_row(&ahead, 5).await;
+    insert_ledger_row(&ahead, 6).await;
     assert_eq!(
         apply_migrations_in(&ahead, "runs", &migrations::sqlite())
             .await
             .expect_err("the database is ahead"),
         MigrationError::DatabaseAhead {
-            applied: 5,
-            available: 4
+            applied: 6,
+            available: 5
         }
     );
 
     let unknown = SqliteDatabase::open_in_memory().expect("the database opens");
     baseline(&unknown).await;
-    insert_ledger_row(&unknown, 5).await;
+    insert_ledger_row(&unknown, 6).await;
     let probe = Migration {
-        version: 6,
+        version: 7,
         name: "probe",
         sql: "CREATE TABLE probe_version (id TEXT PRIMARY KEY) STRICT;",
     };
@@ -675,7 +689,7 @@ async fn a_database_ahead_or_an_unknown_applied_version_is_refused() {
         apply_migrations_in(&unknown, "runs", &available)
             .await
             .expect_err("the unknown applied version"),
-        MigrationError::UnknownApplied(5)
+        MigrationError::UnknownApplied(6)
     );
     assert!(
         !table_exists(&unknown, "probe_version").await,
@@ -705,6 +719,11 @@ async fn a_database_ahead_or_an_unknown_applied_version_is_refused() {
         )),
         "the research-ledger migration checksum is not the checked-in body"
     );
+    assert_eq!(
+        checksum(migrations::sqlite()[4].sql),
+        checksum(include_str!("../migrations/sqlite/0005_retention.sql")),
+        "the retention migration checksum is not the checked-in body"
+    );
 }
 
 #[tokio::test]
@@ -733,6 +752,7 @@ async fn the_ledger_holds_only_the_evidence_migrations() {
             ("runs".to_owned(), 2, "stage".to_owned()),
             ("runs".to_owned(), 3, "run-model-artifact".to_owned()),
             ("runs".to_owned(), 4, "research-ledger".to_owned()),
+            ("runs".to_owned(), 5, "retention".to_owned()),
         ],
         "the evidence ledger holds another service's rows"
     );

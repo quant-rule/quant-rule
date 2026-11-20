@@ -762,3 +762,158 @@ async fn the_postgres_ledger_conforms() {
     .await;
     assert!(skip_submit.is_err(), "created must move to submitted first");
 }
+
+#[tokio::test]
+async fn a_research_record_is_archived_and_erased() {
+    use quantrule_evidence_service::research::{ResearchArchiveOutcome, ResearchEraseOutcome};
+
+    let store = MemoryImprovementStore::default();
+    let owner = profile("retention-research");
+    let id = "MODEL-2026-11-17-01";
+    let manifest = manifest(id);
+    let data_version = manifest.data_version.clone();
+    store
+        .create(owner.clone(), manifest, "2026-11-17T00:00:00Z".to_owned())
+        .await
+        .expect("the pre-registration");
+    assert_eq!(
+        store
+            .erase(owner.clone(), id.to_owned())
+            .await
+            .expect("erase"),
+        ResearchEraseOutcome::NotArchived
+    );
+    let ResearchArchiveOutcome::Archived(summary) = store
+        .archive(
+            owner.clone(),
+            id.to_owned(),
+            "2026-11-17T00:00:01Z".to_owned(),
+        )
+        .await
+        .expect("archive")
+    else {
+        panic!("the record was not archived");
+    };
+    assert_eq!(summary.archived_at.as_deref(), Some("2026-11-17T00:00:01Z"));
+    assert!(
+        store
+            .list(owner.clone(), 10)
+            .await
+            .expect("active list")
+            .is_empty()
+    );
+    assert_eq!(
+        store
+            .list_including_archived(owner.clone(), 10)
+            .await
+            .expect("history list")
+            .len(),
+        1
+    );
+    let ResearchEraseOutcome::Erased(receipt) = store
+        .erase(owner.clone(), id.to_owned())
+        .await
+        .expect("erase")
+    else {
+        panic!("the archived record was not erased");
+    };
+    assert_eq!(receipt.improvement_id, id);
+    assert_eq!(receipt.data_version, data_version);
+    assert!(
+        store
+            .get(owner, id.to_owned())
+            .await
+            .expect("get")
+            .is_none()
+    );
+}
+
+#[tokio::test]
+async fn a_decided_research_record_refuses_erase() {
+    use quantrule_evidence_service::research::{ResearchArchiveOutcome, ResearchEraseOutcome};
+
+    let store = MemoryImprovementStore::default();
+    let owner = profile("retention-decided");
+    let id = "MODEL-2026-11-17-02";
+    store
+        .create(
+            owner.clone(),
+            manifest(id),
+            "2026-11-17T00:00:00Z".to_owned(),
+        )
+        .await
+        .expect("the pre-registration");
+    store
+        .link_run(
+            owner.clone(),
+            id.to_owned(),
+            RunId(Digest::sha256(b"retention-decided-run")),
+            "2026-11-17T00:01:00Z".to_owned(),
+        )
+        .await
+        .expect("the run link");
+    store
+        .decide(
+            owner.clone(),
+            id.to_owned(),
+            ImprovementDecision::Rejected,
+            "the premise did not hold".to_owned(),
+            "2026-11-17T00:02:00Z".to_owned(),
+        )
+        .await
+        .expect("the decision");
+    assert!(matches!(
+        store
+            .archive(
+                owner.clone(),
+                id.to_owned(),
+                "2026-11-17T00:03:00Z".to_owned()
+            )
+            .await
+            .expect("archive"),
+        ResearchArchiveOutcome::Archived(_)
+    ));
+    assert_eq!(
+        store.erase(owner, id.to_owned()).await.expect("erase"),
+        ResearchEraseOutcome::Protected
+    );
+}
+
+#[tokio::test]
+async fn the_sqlite_research_store_archives_and_erases() {
+    use quantrule_evidence_service::research::{ResearchArchiveOutcome, ResearchEraseOutcome};
+
+    let database = SqliteDatabase::open_in_memory().expect("the database opens");
+    apply_migrations_in(&database, "runs", &migrations::sqlite())
+        .await
+        .expect("the evidence baseline");
+    let store = SqliteImprovementStore::new(database);
+    let owner = profile("retention-research-sqlite");
+    let id = "MODEL-2026-11-17-03";
+    store
+        .create(
+            owner.clone(),
+            manifest(id),
+            "2026-11-17T00:00:00Z".to_owned(),
+        )
+        .await
+        .expect("the pre-registration");
+    assert!(matches!(
+        store
+            .archive(
+                owner.clone(),
+                id.to_owned(),
+                "2026-11-20T00:00:01Z".to_owned()
+            )
+            .await
+            .expect("archive"),
+        ResearchArchiveOutcome::Archived(_)
+    ));
+    assert_eq!(
+        store.erase(owner, id.to_owned()).await.expect("erase"),
+        ResearchEraseOutcome::Erased(quantrule_evidence_service::research::ResearchEraseReceipt {
+            improvement_id: id.to_owned(),
+            data_version: manifest(id).data_version,
+        })
+    );
+}

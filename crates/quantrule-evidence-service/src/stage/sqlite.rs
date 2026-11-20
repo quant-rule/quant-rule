@@ -740,6 +740,14 @@ impl StageStore for SqliteStageStore {
                             params![stage_run_id],
                         )
                         .map_err(store_error)?;
+                    transaction
+                        .execute(
+                            "INSERT INTO stage__retention_events
+                                 (profile_id, kind, record_id, action, reason, bytes)
+                             VALUES (?1, 'stage', ?2, 'erase', 'operator.erase', 0)",
+                            params![profile_id, stage_run_id],
+                        )
+                        .map_err(store_error)?;
                     transaction.commit().map_err(store_error)?;
                     Ok(Some(StageDeletion {
                         stage_run_id: record.stage_run_id,

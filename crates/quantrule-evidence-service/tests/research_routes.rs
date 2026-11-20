@@ -811,3 +811,88 @@ async fn unknown_records_and_unknown_baselines_have_stable_not_found_codes() {
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
     assert_eq!(error_code(response).await, "research.not_found");
 }
+
+#[tokio::test]
+async fn archive_and_erase_manage_the_dataset_reference() {
+    let harness = harness();
+    let detail = create(
+        &harness,
+        "default",
+        ImprovementTier::Model,
+        ImprovementPartition::ModelDev,
+    )
+    .await;
+    let id = detail.improvement_id.clone();
+    let data_version = detail.manifest.data_version.to_string();
+    let reference = format!("research:{id}");
+    assert_eq!(
+        harness
+            .data
+            .reference_ids(&profile("default"), &data_version),
+        vec![reference.clone()]
+    );
+
+    let response = send(
+        harness.state.clone(),
+        "default",
+        Method::POST,
+        &format!("/research/runs/{id}/archive"),
+        None,
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let summary: ImprovementRunSummary =
+        serde_json::from_slice(&body_bytes(response).await).expect("summary");
+    assert!(summary.archived_at.is_some());
+
+    let response = send(
+        harness.state.clone(),
+        "default",
+        Method::GET,
+        "/research/runs?include_archived=true",
+        None,
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let rows: Vec<ImprovementRunSummary> =
+        serde_json::from_slice(&body_bytes(response).await).expect("research list");
+    assert!(rows.iter().any(|row| row.improvement_id == id));
+
+    let response = send(
+        harness.state.clone(),
+        "default",
+        Method::DELETE,
+        &format!("/research/runs/{id}?confirm=wrong"),
+        None,
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::CONFLICT);
+    assert_eq!(error_code(response).await, "history.state");
+
+    let response = send(
+        harness.state.clone(),
+        "default",
+        Method::DELETE,
+        &format!("/research/runs/{id}?confirm={id}"),
+        None,
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert!(
+        harness
+            .data
+            .reference_ids(&profile("default"), &data_version)
+            .is_empty(),
+        "the dataset reference survived the research erase"
+    );
+
+    let response = send(
+        harness.state,
+        "default",
+        Method::GET,
+        &format!("/research/runs/{id}"),
+        None,
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}

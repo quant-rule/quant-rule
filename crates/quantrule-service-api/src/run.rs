@@ -177,6 +177,7 @@ impl RunRecord {
             data_version: self.data_version.clone(),
             submitted_at: self.submitted_at.clone(),
             elapsed_ms: None,
+            archived_at: None,
         }
     }
 

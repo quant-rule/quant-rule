@@ -15,6 +15,7 @@ pub mod catalog;
 pub mod digest;
 pub mod error;
 pub mod health;
+pub mod history;
 pub mod improvement;
 pub mod model;
 pub mod operations;
@@ -34,6 +35,7 @@ pub use catalog::{
 pub use digest::{Digest, DigestError, model_input_hash};
 pub use error::{ApiError, ErrorCode, ErrorEnvelope};
 pub use health::{HealthReport, ServiceHealth, ServiceState, VersionInfo};
+pub use history::EraseReceipt;
 pub use improvement::{
     BaselineRecord, ComparisonRow, CreateImprovementRequest, DecideImprovementRequest,
     HoldoutAccess, IMPROVEMENT_RUN_SCHEMA, IMPROVEMENT_RUN_SCHEMA_V2, ImprovementComparison,

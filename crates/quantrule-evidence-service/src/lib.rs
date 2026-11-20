@@ -14,6 +14,8 @@ pub mod evidence;
 pub mod migrations;
 pub mod operations;
 pub mod postgres;
+pub mod postgres_runs;
+pub mod reconcile;
 pub mod research;
 pub mod routes;
 pub mod runs;

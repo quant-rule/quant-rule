@@ -20,6 +20,10 @@ history is in Git and the pull requests.
 
 ### Added
 
+- Evidence runs and research records can be archived, listed with
+  `include_archived`, and erased after typed confirmation; succeeded runs and
+  decided records refuse erase, run blobs are removed only when unreferenced,
+  and current rows are reconciled into the dataset registry at startup.
 - Simulation runs can be archived, listed with `include_archived`, and erased
   after typed confirmation; checked and decided runs refuse erase.
 - Dataset runtime history: archive, a cross-service reference registry, and an
