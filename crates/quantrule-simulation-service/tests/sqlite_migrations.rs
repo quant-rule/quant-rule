@@ -47,7 +47,7 @@ async fn migrated() -> SqliteDatabase {
     let applied = apply_migrations_in(&database, "simulation", &sqlite())
         .await
         .expect("the simulation baseline");
-    assert_eq!(applied, 1);
+    assert_eq!(applied, 2);
     database
 }
 
@@ -202,7 +202,14 @@ async fn the_baseline_applies_once_and_a_second_apply_is_a_no_op() {
     assert_eq!(second, 0);
     assert_eq!(
         ledger(&database).await,
-        vec![("simulation".to_owned(), 1, "simulation".to_owned())]
+        vec![
+            ("simulation".to_owned(), 1, "simulation".to_owned()),
+            (
+                "simulation".to_owned(),
+                2,
+                "simulation-retention".to_owned()
+            ),
+        ]
     );
 }
 
@@ -210,8 +217,10 @@ async fn the_baseline_applies_once_and_a_second_apply_is_a_no_op() {
 async fn the_baseline_matches_the_postgres_columns() {
     let database = migrated().await;
     for table in ["runs", "marks"] {
+        let mut columns = sqlite_columns(&database, &format!("simulation__{table}")).await;
+        columns.retain(|(name, _)| name != "archived_at");
         assert_eq!(
-            sqlite_columns(&database, &format!("simulation__{table}")).await,
+            columns,
             postgres_columns(table),
             "the {table} shape drifted"
         );
@@ -239,11 +248,15 @@ async fn the_baseline_matches_the_postgres_columns() {
 #[tokio::test]
 async fn a_changed_body_is_refused_and_the_schema_stays() {
     let database = migrated().await;
-    let changed = [Migration {
-        version: 1,
-        name: "simulation",
-        sql: "CREATE TABLE simulation__probe (id INTEGER) STRICT;",
-    }];
+    let original = sqlite();
+    let changed = [
+        Migration {
+            version: 1,
+            name: "simulation",
+            sql: "CREATE TABLE simulation__probe (id INTEGER) STRICT;",
+        },
+        original[1],
+    ];
     let error = apply_migrations_in(&database, "simulation", &changed)
         .await
         .expect_err("a changed body");
@@ -252,7 +265,7 @@ async fn a_changed_body_is_refused_and_the_schema_stays() {
         "{error:?}"
     );
     assert!(!table_exists(&database, "simulation__probe").await);
-    assert_eq!(ledger(&database).await.len(), 1);
+    assert_eq!(ledger(&database).await.len(), 2);
 }
 
 #[tokio::test]
@@ -273,7 +286,7 @@ async fn a_database_ahead_of_the_binary_is_refused() {
             error,
             MigrationError::DatabaseAhead {
                 applied: 9,
-                available: 1
+                available: 2
             }
         ),
         "{error:?}"
@@ -286,14 +299,15 @@ async fn an_applied_version_the_binary_does_not_know_is_refused() {
     execute(
         &database,
         "INSERT INTO schema_migrations (ledger, version, name, checksum)
-         VALUES ('simulation', 2, 'unknown', 'x')",
+         VALUES ('simulation', 3, 'unknown', 'x')",
     )
     .await
     .expect("the unknown row");
     let available = vec![
         sqlite()[0],
+        sqlite()[1],
         Migration {
-            version: 3,
+            version: 4,
             name: "future",
             sql: "SELECT 1;",
         },
@@ -302,7 +316,7 @@ async fn an_applied_version_the_binary_does_not_know_is_refused() {
         .await
         .expect_err("an unknown applied version");
     assert!(
-        matches!(error, MigrationError::UnknownApplied(2)),
+        matches!(error, MigrationError::UnknownApplied(3)),
         "{error:?}"
     );
 }
@@ -411,4 +425,27 @@ async fn the_baseline_keeps_a_decision_and_its_time_together() {
     .await
     .expect_err("a marking run with a decision");
     assert!(error.contains("CHECK constraint failed"), "{error}");
+}
+
+#[tokio::test]
+async fn the_retention_migration_adds_the_archive_and_event_shape() {
+    let database = migrated().await;
+    assert_eq!(sqlite_columns(&database, "simulation__runs").await, {
+        let mut columns = postgres_columns("runs");
+        columns.push(("archived_at".to_owned(), "TEXT".to_owned()));
+        columns
+    });
+    assert_eq!(
+        sqlite_columns(&database, "simulation__retention_events").await,
+        vec![
+            ("event_id".to_owned(), "INTEGER".to_owned()),
+            ("profile_id".to_owned(), "TEXT".to_owned()),
+            ("kind".to_owned(), "TEXT".to_owned()),
+            ("record_id".to_owned(), "TEXT".to_owned()),
+            ("action".to_owned(), "TEXT".to_owned()),
+            ("reason".to_owned(), "TEXT".to_owned()),
+            ("bytes".to_owned(), "INTEGER".to_owned()),
+            ("created_at".to_owned(), "TEXT".to_owned()),
+        ]
+    );
 }

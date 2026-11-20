@@ -82,6 +82,12 @@ pub enum ErrorCode {
     /// Marking is closed after a decision is recorded.
     #[serde(rename = "simulation.locked")]
     SimulationLocked,
+    /// A runtime record is protected by its state or by a live reference.
+    #[serde(rename = "history.protected")]
+    HistoryProtected,
+    /// The requested history transition is not allowed in the current state.
+    #[serde(rename = "history.state")]
+    HistoryState,
     /// The bearer token is absent or does not match the configured one.
     #[serde(rename = "auth.unauthorized")]
     Unauthorized,
@@ -119,6 +125,8 @@ impl ErrorCode {
             Self::SimulationMarkInvalid => "simulation.mark_invalid",
             Self::SimulationCheckIncomplete => "simulation.check_incomplete",
             Self::SimulationLocked => "simulation.locked",
+            Self::HistoryProtected => "history.protected",
+            Self::HistoryState => "history.state",
             Self::Unauthorized => "auth.unauthorized",
             Self::Internal => "internal",
         }
@@ -150,7 +158,9 @@ impl ErrorCode {
             | Self::StageConflict
             | Self::ResearchConflict
             | Self::SimulationCheckIncomplete
-            | Self::SimulationLocked => 409,
+            | Self::SimulationLocked
+            | Self::HistoryProtected
+            | Self::HistoryState => 409,
             Self::Unauthorized => 401,
             Self::UploadTooLarge => 413,
             Self::QueueUnavailable | Self::ServiceUnavailable => 503,
@@ -209,7 +219,7 @@ impl ErrorEnvelope {
 mod tests {
     use super::*;
 
-    const ALL: [ErrorCode; 25] = [
+    const ALL: [ErrorCode; 27] = [
         ErrorCode::ProfileNotFound,
         ErrorCode::ProfileInvalid,
         ErrorCode::HypothesisNotFound,
@@ -233,6 +243,8 @@ mod tests {
         ErrorCode::SimulationMarkInvalid,
         ErrorCode::SimulationCheckIncomplete,
         ErrorCode::SimulationLocked,
+        ErrorCode::HistoryProtected,
+        ErrorCode::HistoryState,
         ErrorCode::Unauthorized,
         ErrorCode::Internal,
     ];

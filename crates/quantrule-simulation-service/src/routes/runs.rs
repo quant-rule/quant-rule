@@ -6,7 +6,9 @@ use axum::Json;
 use axum::extract::rejection::{JsonRejection, QueryRejection};
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
-use quantrule_api::{CreateSimulationRequest, Digest, ErrorCode};
+use quantrule_api::{
+    CreateSimulationRequest, Digest, ErrorCode, SimulationEraseResponse, SimulationId,
+};
 use quantrule_runtime::clock;
 use serde::{Deserialize, Serialize};
 
@@ -14,6 +16,7 @@ use crate::bundle::{self, LoadedBundle};
 use crate::criteria::Criteria;
 use crate::records::{
     NewSimulation, RunRecord, SimulationDetail, SimulationSummary, WindowView, parse_status,
+    status_text,
 };
 use crate::research::{self, SeriesView};
 use crate::routes::{
@@ -21,12 +24,14 @@ use crate::routes::{
     store, store_failure,
 };
 use crate::state::SimulationState;
+use crate::store::{ArchiveOutcome, EraseOutcome};
 
 /// The optional filters on a run list.
 #[derive(Debug, Deserialize)]
 pub(crate) struct RunListQuery {
     status: Option<String>,
     limit: Option<usize>,
+    include_archived: Option<bool>,
 }
 
 /// The small ack a create returns.
@@ -60,11 +65,91 @@ pub(crate) async fn list_runs(
         })
         .transpose()?;
     let limit = query.limit.unwrap_or(50).clamp(1, 200);
-    let runs = store(&state)?
-        .list(profile, status, limit)
-        .await
-        .map_err(store_failure)?;
+    let runs = if query.include_archived.unwrap_or(false) {
+        store(&state)?
+            .list_including_archived(profile, status, limit)
+            .await
+    } else {
+        store(&state)?.list(profile, status, limit).await
+    }
+    .map_err(store_failure)?;
     Ok(Json(runs))
+}
+
+/// The typed confirmation required by a simulation erase.
+#[derive(Debug, Deserialize)]
+pub(crate) struct EraseQuery {
+    confirm: Option<String>,
+}
+
+pub(crate) async fn archive_run(
+    State(state): State<Arc<SimulationState>>,
+    headers: HeaderMap,
+    Path(sim_id): Path<String>,
+) -> Result<Json<SimulationSummary>, ApiFailure> {
+    let profile = request_profile(&headers)?;
+    let archived_at =
+        clock::now_utc().map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
+    match store(&state)?
+        .archive(profile, sim_id, archived_at)
+        .await
+        .map_err(store_failure)?
+    {
+        ArchiveOutcome::Archived(summary) => Ok(Json(summary)),
+        ArchiveOutcome::NotFound => Err(failure(
+            ErrorCode::SimulationNotFound,
+            "the simulation run is unknown",
+        )),
+        ArchiveOutcome::AlreadyArchived => Err(failure(
+            ErrorCode::HistoryState,
+            "the simulation run is already archived",
+        )),
+    }
+}
+
+pub(crate) async fn erase_run(
+    State(state): State<Arc<SimulationState>>,
+    headers: HeaderMap,
+    Path(sim_id): Path<String>,
+    query: Result<Query<EraseQuery>, QueryRejection>,
+) -> Result<Json<SimulationEraseResponse>, ApiFailure> {
+    let profile = request_profile(&headers)?;
+    let Query(query) = query.map_err(|_| {
+        failure(
+            ErrorCode::SimulationMarkInvalid,
+            "the query is not a simulation erase confirmation",
+        )
+    })?;
+    if query.confirm.as_deref() != Some(sim_id.as_str()) {
+        return Err(failure(
+            ErrorCode::HistoryState,
+            "erase requires --confirm with the exact simulation id",
+        ));
+    }
+    match store(&state)?
+        .erase(profile, sim_id.clone())
+        .await
+        .map_err(store_failure)?
+    {
+        EraseOutcome::Erased(sim_id) => Ok(Json(SimulationEraseResponse {
+            sim_id: SimulationId(sim_id),
+        })),
+        EraseOutcome::NotFound => Err(failure(
+            ErrorCode::SimulationNotFound,
+            "the simulation run is unknown",
+        )),
+        EraseOutcome::NotArchived => Err(failure(
+            ErrorCode::HistoryState,
+            "archive the simulation run before erasing it",
+        )),
+        EraseOutcome::Protected(status) => Err(failure(
+            ErrorCode::HistoryProtected,
+            format!(
+                "a {} simulation run is evidence and cannot be erased",
+                status_text(status)
+            ),
+        )),
+    }
 }
 
 pub(crate) async fn create_run(

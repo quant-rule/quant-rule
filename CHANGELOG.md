@@ -20,6 +20,8 @@ history is in Git and the pull requests.
 
 ### Added
 
+- Simulation runs can be archived, listed with `include_archived`, and erased
+  after typed confirmation; checked and decided runs refuse erase.
 - `qr-governance history` lists, archives, and erases historical repository
   evidence with a verified manifest; it is developer tooling and is not in the
   product image.

@@ -26,7 +26,9 @@ use quantrule_simulation_service::records::{
     DecisionKind, DecisionRecord, MarkRecord, NewSimulation,
 };
 use quantrule_simulation_service::sqlite::SqliteSimulationStore;
-use quantrule_simulation_service::store::{SimulationStore, StoreError};
+use quantrule_simulation_service::store::{
+    ArchiveOutcome, EraseOutcome, SimulationStore, StoreError,
+};
 
 const PROFILE: &str = "conformance-sim-a";
 const OTHER: &str = "conformance-sim-b";
@@ -544,10 +546,123 @@ async fn conformance(store: &dyn SimulationStore) {
     // The other profile is empty.
     assert!(
         store
-            .list(other, None, 10)
+            .list(other.clone(), None, 10)
             .await
             .expect("the other profile list")
             .is_empty()
+    );
+
+    // Archive hides the run; erase requires archive and a non-evidence state.
+    let archived = new_simulation("sim_conformance_retention", "2026-11-20T00:00:00Z");
+    store
+        .create(profile.clone(), archived)
+        .await
+        .expect("the retention create");
+    let summary = store
+        .archive(
+            profile.clone(),
+            "sim_conformance_retention".to_owned(),
+            "2026-11-20T00:00:01Z".to_owned(),
+        )
+        .await
+        .expect("the archive");
+    let ArchiveOutcome::Archived(summary) = summary else {
+        panic!("the run was not archived");
+    };
+    assert_eq!(summary.archived_at.as_deref(), Some("2026-11-20T00:00:01Z"));
+    assert!(
+        store
+            .list(profile.clone(), None, 50)
+            .await
+            .expect("the active list")
+            .iter()
+            .all(|run| run.sim_id.0.as_str() != "sim_conformance_retention")
+    );
+    assert!(
+        store
+            .list_including_archived(profile.clone(), None, 50)
+            .await
+            .expect("the history list")
+            .iter()
+            .any(|run| run.sim_id.0.as_str() == "sim_conformance_retention")
+    );
+    assert_eq!(
+        store
+            .archive(
+                other.clone(),
+                "sim_conformance_retention".to_owned(),
+                "2026-11-20T00:00:02Z".to_owned(),
+            )
+            .await,
+        Ok(ArchiveOutcome::NotFound)
+    );
+    assert_eq!(
+        store
+            .erase(other.clone(), "sim_conformance_retention".to_owned())
+            .await,
+        Ok(EraseOutcome::NotFound)
+    );
+    assert_eq!(
+        store
+            .erase(profile.clone(), "sim_conformance_retention".to_owned())
+            .await
+            .expect("the erase"),
+        EraseOutcome::Erased("sim_conformance_retention".to_owned())
+    );
+    assert!(
+        store
+            .get(profile.clone(), "sim_conformance_retention".to_owned())
+            .await
+            .expect("the erased get")
+            .is_none()
+    );
+
+    let active = new_simulation("sim_conformance_active", "2026-11-20T00:00:03Z");
+    store
+        .create(profile.clone(), active)
+        .await
+        .expect("the active create");
+    assert_eq!(
+        store
+            .erase(profile.clone(), "sim_conformance_active".to_owned())
+            .await,
+        Ok(EraseOutcome::NotArchived)
+    );
+}
+
+#[tokio::test]
+async fn a_checked_run_refuses_erase() {
+    let store = sqlite_store().await;
+    let profile = profile_id("conformance-sim-protected");
+    store
+        .create(
+            profile.clone(),
+            new_simulation("sim_protected", "2026-11-20T00:00:00Z"),
+        )
+        .await
+        .expect("the protected create");
+    store
+        .archive(
+            profile.clone(),
+            "sim_protected".to_owned(),
+            "2026-11-20T00:00:01Z".to_owned(),
+        )
+        .await
+        .expect("the protected archive");
+    store
+        .database()
+        .call(|connection| {
+            connection.execute(
+                "UPDATE simulation__runs SET status = 'checked'
+                  WHERE profile_id = 'conformance-sim-protected' AND sim_id = 'sim_protected'",
+                [],
+            )
+        })
+        .await
+        .expect("the checked state");
+    assert_eq!(
+        store.erase(profile, "sim_protected".to_owned()).await,
+        Ok(EraseOutcome::Protected(SimulationStatus::Checked))
     );
 }
 
@@ -589,6 +704,11 @@ async fn the_postgres_store_conforms() {
             .execute(database.pool())
             .await
             .expect("the mark cleanup");
+        sqlx::query("DELETE FROM simulation.retention_events WHERE profile_id = $1")
+            .bind(profile)
+            .execute(database.pool())
+            .await
+            .expect("the retention-event cleanup");
         sqlx::query("DELETE FROM simulation.runs WHERE profile_id = $1")
             .bind(profile)
             .execute(database.pool())
