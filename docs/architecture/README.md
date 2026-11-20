@@ -74,6 +74,7 @@ repeating a status.
 | [`module-map.md`](module-map.md) | Current; released as v0.9.0 (prepared as v1.0.0); current in v1.3.0 | Where code lives |
 | [`command-surface.md`](command-surface.md) | Current; 46 commands, released as v1.3.0 | Implemented commands and the retirement record |
 | [`stage-surface.md`](stage-surface.md) | Current; released as v1.3.0 | The stage, research, and operations API, commands, services, and client screens |
+| [`history-retention.md`](history-retention.md) | Current; design for #937 | Runtime history ownership, states, and safety |
 | [S3 command-surface plan](../execution-plans/2026-11-06/s3-command-surface.md) | Approved 2026-11-06; all phases merged; human acceptance pending | The command-surface phases |
 
 ## Glossary
