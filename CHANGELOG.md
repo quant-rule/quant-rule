@@ -22,6 +22,9 @@ history is in Git and the pull requests.
 
 - Multi-host backup and restore wrappers reuse the single-host archive format
   against the infrastructure host, with an explicit application-stopped gate.
+- The `multi-host` test tier runs the six services on separate container
+  addresses, proves one image digest and gateway-only publication, and compares
+  the canonical digest with one and two backtest workers.
 - The multi-host validator now rejects public or unspecified hosts, external
   database/queue/object-store endpoints, template secrets, placeholder image
   digests, IPv6, port zero, and placements the role Compose files cannot run.
