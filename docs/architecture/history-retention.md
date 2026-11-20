@@ -1,6 +1,6 @@
 # Runtime History Retention
 
-- Status: Current; design for #937
+- Status: Current; implemented for #937
 - Scope: runtime history for runs, stages, research, simulation, and datasets
 - Claim type: Behaviour Claim
 

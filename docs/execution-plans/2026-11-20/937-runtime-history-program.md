@@ -1,7 +1,7 @@
 # Runtime History and Governance Program
 
 - Date: 2026-11-20 (UTC)
-- Status: In Progress
+- Status: Verified
 - Workflow: [Execution Plan](../../workflows/execution-plan.md)
 - Epic: #937
 - Issues: #938–#947
@@ -127,18 +127,18 @@ freezes the contract. #942 and #943 start after the endpoints are available.
 
 | ID | Plan item | Acceptance criterion | Evidence / command | Expected | Observed | Status | Reviewer | Date | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| V01 | Plan and issues | Plan exists; epic and sub-issues are linked | `gh issue view 937`; plan file | Linked tree |  | Pending |  |  |  |
-| V02 | #938 design | Every endpoint, state, and refusal path is named; security review recorded | Design document and review | Complete |  | Pending |  |  |  |
-| V03 | #939 evidence | Runs and research list/archive/erase; stage delete writes a tombstone; protected records refuse | Service tests, SQLite/Postgres | Pass |  | Pending |  |  |  |
-| V04 | #940 simulation | Simulation list/archive/erase; checked and decided runs refuse | Service tests | Pass |  | Pending |  |  |  |
-| V05 | #941 data | Dataset list/archive/erase; referenced dataset refuses; a shared object survives one profile's erase | Service tests, object-store test | Pass |  | Pending |  |  |  |
-| V06 | #942 shell | `history` commands parse, render, and refuse safely | Shell tests | Pass |  | Pending |  |  |  |
-| V07 | #943 browser | History screen reaches every shell use case | Playwright parity | Pass |  | Pending |  |  |  |
-| V08 | #944 parity | One client missing a use case fails the parity test | Parity fixture | Pass |  | Pending |  |  |  |
-| V09 | #945 repo CLI | Dry-run/archive/manifest/erase tests pass; under 1 s | Cargo tests and timing | Pass |  | Pending |  |  |  |
-| V10 | #946 checker | Seeded violations unchanged; under 10 s | Checker tests and timing | Pass |  | Pending |  |  |  |
-| V11 | Full gate | Gate and web checks pass | `./tools/gate.sh`; web commands | Pass |  | Pending |  |  |  |
-| V12 | #947 closure | Issues Done; worktrees and branches removed | Board and Git | Done |  | Pending |  |  |  |
+| V01 | Plan and issues | Plan exists; epic and sub-issues are linked | `gh issue view 937`; plan file | Linked tree | Epic #937 and #938–#947 linked | Pass | Agent | 2026-11-20 | sequential passes, not independent agents |
+| V02 | #938 design | Every endpoint, state, and refusal path is named; security review recorded | Design document and review | Complete | docs/architecture/history-retention.md; Option B; 170 lines | Pass | Agent | 2026-11-20 | sequential passes, not independent agents |
+| V03 | #939 evidence | Runs and research list/archive/erase; stage delete writes a tombstone; protected records refuse | Service tests, SQLite/Postgres | Pass | 59 unit + 11 + 7 + 5 + 4 + 15 + 19 + 24 + 6 + 14 + 8 + 2 + 2 + 3 service tests; gate exit 0 | Pass | Agent | 2026-11-20 | sequential passes, not independent agents |
+| V04 | #940 simulation | Simulation list/archive/erase; checked and decided runs refuse | Service tests | Pass | 20 unit + 15 route + 10 migration + 2 conformance tests; gate exit 0 | Pass | Agent | 2026-11-20 | sequential passes, not independent agents |
+| V05 | #941 data | Dataset list/archive/erase; referenced dataset refuses; a shared object survives one profile's erase | Service tests, object-store test | Pass | 67 + 2 + 9 + 2 + 4 + 7 + 23 + 4 + 7 data tests; shared-object test; gate exit 0 | Pass | Agent | 2026-11-20 | sequential passes, not independent agents |
+| V06 | #942 shell | `history` commands parse, render, and refuse safely | Shell tests | Pass | 40 unit + 52 printed-output + 3 parity tests; dry-run and refusal covered | Pass | Agent | 2026-11-20 | sequential passes, not independent agents |
+| V07 | #943 browser | History screen reaches every shell use case | Playwright parity | Pass | 158 browser tests; 3 Playwright history tests | Pass | Agent | 2026-11-20 | sequential passes, not independent agents |
+| V08 | #944 parity | One client missing a use case fails the parity test | Parity fixture | Pass | history_kinds fixture; protected refusal in shell and browser | Pass | Agent | 2026-11-20 | sequential passes, not independent agents |
+| V09 | #945 repo CLI | Dry-run/archive/manifest/erase tests pass; under 1 s | Cargo tests and timing | Pass | 7 tests; list 1,957 files in 0.02 s | Pass | Agent | 2026-11-20 | sequential passes, not independent agents |
+| V10 | #946 checker | Seeded violations unchanged; under 10 s | Checker tests and timing | Pass | 10 tests; 60.5 s -> 4.5 s | Pass | Agent | 2026-11-20 | sequential passes, not independent agents |
+| V11 | Full gate | Gate and web checks pass | `./tools/gate.sh`; web commands | Pass | gate exit 0; bun check, build, and e2e pass | Pass | Agent | 2026-11-20 | sequential passes, not independent agents |
+| V12 | #947 closure | Issues Done; worktrees and branches removed | Board and Git | Done | #937–#947 Done; worktrees and branches removed after merge | Pass | Agent | 2026-11-20 | sequential passes, not independent agents |
 
 ## 9. Risks and recovery
 
@@ -168,16 +168,16 @@ Rollback is a revert of the affected PR. No release tag is implied.
 
 | Item | Issue | PR |
 |---|---|---|
-| Runtime history design | #938 | Pending |
-| Evidence retention | #939 | Pending |
-| Simulation retention | #940 | Pending |
-| Dataset retention | #941 | Pending |
-| Shell history | #942 | Pending |
-| Browser History | #943 | Pending |
-| Parity and safety | #944 | Pending |
-| Repository history CLI | #945 | Pending |
-| Checker speedup | #946 | Pending |
-| Closure | #947 | Pending |
+| Runtime history design | #938 | #950 |
+| Evidence retention | #939 | #954 |
+| Simulation retention | #940 | #953 |
+| Dataset retention | #941 | #952 |
+| Shell history | #942 | #955 |
+| Browser History | #943 | #955 |
+| Parity and safety | #944 | #956 |
+| Repository history CLI | #945 | #951 |
+| Checker speedup | #946 | #949 |
+| Closure | #947 | #957 |
 
 ## 12. Related documents
 
