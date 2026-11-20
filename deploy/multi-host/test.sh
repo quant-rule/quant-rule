@@ -26,7 +26,7 @@ network=qr-mh-test
 prefix=qr-mh-test
 work=$(mktemp -d "${TMPDIR:-/tmp}/quantrule-mh.XXXXXX")
 gateway_port=18080
-digest="sha256:1111111111111111111111111111111111111111111111111111111111111111"
+digest=$(docker image inspect --format '{{.Id}}' "$image")
 db_password=test-db-password
 object_password=test-object-password
 queue_password=test-queue-password
@@ -209,9 +209,13 @@ curl -fsS "http://127.0.0.1:$gateway_port/ready" >/dev/null ||
 
 published=$(docker ps --filter "name=$prefix" --format '{{.Names}} {{.Ports}}' | grep -v "^$prefix-gateway " | grep -c -- '->' || true)
 [ "$published" -eq 0 ] || fail 'a non-gateway service published a host port'
-gateway_digest=$(curl -fsS "http://127.0.0.1:$gateway_port/version" |
-  python3 -c 'import json,sys; print(json.load(sys.stdin).get("image_digest",""))')
-[ "$gateway_digest" = "$digest" ] || fail "gateway digest $gateway_digest != $digest"
+for spec in "gateway 172.31.238.10 18080" "data 172.31.238.11 18081" "model 172.31.238.12 18082" "evidence 172.31.238.14 18083" "simulation 172.31.238.15 18084"; do
+  set -- $spec
+  name=$1; ip=$2; port=$3
+  reported=$(docker exec "$prefix-$name" curl -fsS "http://$ip:$port/version" |
+    python3 -c 'import json,sys; print(json.load(sys.stdin).get("image_digest",""))')
+  [ "$reported" = "$digest" ] || fail "$name digest $reported != $digest"
+done
 
 echo 'multi-host test: first verification (one worker)'
 first=$(tools/verify.sh --api-url "http://127.0.0.1:$gateway_port/api/v1" |
