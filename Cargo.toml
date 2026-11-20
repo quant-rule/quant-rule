@@ -11,6 +11,7 @@ members = [
     "crates/quantrule-data-service",
     "crates/quantrule-evidence-service",
     "crates/quantrule-gateway",
+    "crates/quantrule-governance",
     "crates/quantrule-model",
     "crates/quantrule-model-service",
     "crates/quantrule-runtime",

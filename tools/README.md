@@ -22,10 +22,22 @@ workspace gate and in CI.
 | Changelog checker | Checks the grouped release structure, allowed types, and release order. | `tools/check_changelog.py` |
 | Release checker | Checks release notes, tag names, dates, and changelog alignment. | `tools/check_releases.py` |
 | Partition checker | Checks canonical instruments, aliases, partitions, and config references. | `tools/check_partitions.py` |
-| Command-surface checker | Fails when `help.rs`, the README command table, the command registry, a tutorial, a current workflow, or the `AGENTS.md` surface list disagree; keeps planned commands out of the available surface. | `tools/check_command_surface.py` |
+| Command-surface checker | Fails when `help.rs`, the README command table, the command registry, a tutorial, or a current workflow disagree; keeps planned commands out of the available surface. | `tools/check_command_surface.py` |
 | Client-doc checker | Checks the client screen and store tables, the navigation labels, and the indicator/event counts. | `tools/check_client_docs.py` |
 | Composed tier | Checks a running Compose stack's gateway, then submits two equivalent runs and compares their canonical digest. | `tools/composed.sh` |
 | Structural fitness checker | Enforces module docs, engine purity, data allowlist, workflow indexing, dated docs directories, and naming rules; reports size, surface, and layout metrics. | `tools/check_structure.py` |
+
+## Governance CLI
+
+`crates/quantrule-governance` builds `qr-governance`, a Rust developer tool for
+historical repository evidence. It is not a product client, is not in the
+product image, and never reads a service.
+
+| Command | Purpose |
+|---|---|
+| `qr-governance history list --kind config|docs|records` | List historical files with bytes and date |
+| `qr-governance history archive --kind ... --out ... (--before ... | --all)` | Copy a selected set and write a verified manifest |
+| `qr-governance history erase --manifest ... --confirm ...` | Erase only a manifest that still matches the source bytes |
 
 The historical experiment matrix runner and research model-cell runner are
 retained for reproducibility and are not current tools. The improvement run store

@@ -20,6 +20,9 @@ history is in Git and the pull requests.
 
 ### Added
 
+- `qr-governance history` lists, archives, and erases historical repository
+  evidence with a verified manifest; it is developer tooling and is not in the
+  product image.
 - The model bundle publishes `simulation-<timeframe>.json` artifacts and stores
   each under `simulation/bundles/<sha256>.json`; the shell `simulation create`
   gains `--inputs`.

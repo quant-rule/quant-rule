@@ -1,0 +1,19 @@
+[package]
+name = "quantrule-governance"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Repository governance: historical evidence retention"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[[bin]]
+name = "qr-governance"
+path = "src/main.rs"
+
+[dependencies]
+serde_json = { version = "1", features = ["float_roundtrip"] }
+sha2 = "0.10.9"
+
+[lints]
+workspace = true
