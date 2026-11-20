@@ -186,7 +186,6 @@ $asset = "QuantRule_${version}_x64-setup.exe"
 $url = "https://github.com/quant-rule/quant-rule/releases/download/v$version/$asset"
 $out = Join-Path $env:USERPROFILE "Downloads\$asset"
 Invoke-WebRequest -Uri $url -OutFile $out
-Unblock-File -Path $out
 Start-Process -FilePath $out
 ```
 
