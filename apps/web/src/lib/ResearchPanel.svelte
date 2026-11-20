@@ -139,8 +139,8 @@
   {/if}
 
   <p class="rule">
-    A research run is a coupled run. The config must carry a strategy; a
-    model-tier run still freezes strategy and portfolio.
+    An improvement run is a coupled pipeline run. The config must carry a strategy; a
+    model-tier improvement run still freezes strategy and portfolio.
   </p>
   <p class="rule">
     An accepted decision needs a succeeded pipeline run and canonical digest.
@@ -241,7 +241,7 @@
               <td><button class="ghost" onclick={() => open(item.improvement_id)}>Open</button></td>
             </tr>
           {:else}
-            <tr><td colspan="5" class="muted">No research runs.</td></tr>
+            <tr><td colspan="5" class="muted">No improvement runs.</td></tr>
           {/each}
         </tbody>
       </table>

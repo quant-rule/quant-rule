@@ -219,7 +219,7 @@ const COMMANDS: &[CommandHelp] = &[
         notes: &[
             "The server assigns the improvement_id and created_utc; the manifest is immutable.",
             "A repeated public create is a new pre-registration; an internal same-id create is idempotent.",
-            "A research run is a coupled run: the config must carry a strategy, and model tier still runs strategy and portfolio.",
+            "An improvement run is a coupled pipeline run: the config must carry a strategy, and model tier still runs strategy and portfolio.",
             "--criteria is required for a strategy or portfolio run; it is optional for model.",
         ],
     },

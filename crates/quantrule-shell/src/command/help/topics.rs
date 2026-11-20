@@ -35,7 +35,7 @@ pub(super) fn render_glossary(writer: &mut impl Write) -> io::Result<()> {
     )?;
     writeln!(
         writer,
-        "simulation    A chart-first research run with a recorded bundle and human marks."
+        "simulation    A chart-first simulation run with a recorded bundle and human marks."
     )?;
     writeln!(
         writer,

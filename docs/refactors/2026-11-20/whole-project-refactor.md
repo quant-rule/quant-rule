@@ -1,7 +1,7 @@
 # Whole-Project Refactor Assessment
 
 - Date: 2026-11-20 (UTC)
-- Status: Assessment complete; REF-2026-11-20-01 and REF-2026-11-20-02 are `Verified`; decisions remain open
+- Status: Assessment complete; REF-2026-11-20-01 and REF-2026-11-20-02 are `Verified`; REF-2026-11-20-04, -05, and -10 are `In progress` in Phase 0; REF-2026-11-20-03, -07, -08, and -09 are `Deferred`
 - Scope: repository layout, documentation, Rust modules, tests, tooling, and CI
 - Workflow: [Refactor Workflow](../../workflows/refactor-workflow.md)
 - Baseline commit: `8443697fec9e20a555b2fe900a36c19dae03b8cb`
@@ -62,14 +62,14 @@ CARGO_TARGET_DIR="$PWD/target/gate" cargo test --workspace -- --list | grep -c '
 |---|---|---|---|---|---|---|---|---|---|---|
 | REF-2026-11-20-01 | High | shell | The command pipeline is three near-cap monoliths with mixed responsibilities | `wc -l`: `output.rs` 995, `dispatch.rs` 992, `parse.rs` 933; `research create` crosses `types.rs:272`, `parse/parse_research.rs:52`, `dispatch.rs:135`, `help.rs:215`, `output.rs:678` | cohesion, boundary, atomicity | A / B / C | A | File-size gate, 2,394 tests, byte-identical help and command output | Verified | #931 |
 | REF-2026-11-20-02 | High | docs | The global status index sits at its cap and is machine-coupled to four checkers | `docs/README.md` 328 lines, cap 330 (`check_doc_length.py:27`); 226 commits in six months; `c3c10cc1` compressed a 20-row table to fit; `check_workflows.py:126` requires every workflow | cohesion, readability, coupling | A / B / C | A | Index length, checker pass, every workflow still discoverable | Verified | #932 |
-| REF-2026-11-20-03 | Medium | tools | Every PR runs retired and historical Python suites | `.github/workflows/ci.yml:58-69`; 153 improvement tests, 96 research tests, plus programme coverage; `tools/improvement/README.md` calls its adapters historical | coupling, testability | A / B / C | A | PR CI time, current checks unchanged, on-demand historical workflow | Open | Decision |
-| REF-2026-11-20-04 | Medium | naming | `research` and `improvement` name the same record at different layers | Commands/routes `research`; types/module `Improvement*`; `AGENTS.md:71` and `docs/manual/07-improvement.md:25` say "research run"; `docs/workflows/run-contract.md:366` says "improvement run is a research record" | readability, cohesion | A / B / C | A | Term inventory, command surface, no wire change | Open | Decision |
-| REF-2026-11-20-05 | Medium | docs | `AGENTS.md` repeats lists owned by other documents | 103,345 bytes, 1,263 lines; section 2 enumerates 46 commands; section 11 enumerates 20 workflows; section 10 is 375 lines of roles | readability, coupling | A / B / C | A | Agent context size, no drift, index authorities unchanged | Open | Decision |
+| REF-2026-11-20-03 | Medium | tools | Every PR runs retired and historical Python suites | `.github/workflows/ci.yml:58-69`; 153 improvement tests, 96 research tests, plus programme coverage; `tools/improvement/README.md` calls its adapters historical | coupling, testability | A / B / C | A | PR CI time, current checks unchanged, on-demand historical workflow | Deferred | Rust governance program |
+| REF-2026-11-20-04 | Medium | naming | `research` and `improvement` name the same record at different layers | Commands/routes `research`; types/module `Improvement*`; `AGENTS.md:71` and `docs/manual/07-improvement.md:25` say "research run"; `docs/workflows/run-contract.md:366` says "improvement run is a research record" | readability, cohesion | A / B / C | A | Term inventory, command surface, no wire change | In progress | #934 |
+| REF-2026-11-20-05 | Medium | docs | `AGENTS.md` repeats lists owned by other documents | 103,345 bytes, 1,263 lines; section 2 enumerates 46 commands; section 11 enumerates 20 workflows; section 10 is 375 lines of roles | readability, coupling | A / B / C | A | Agent context size, no drift, index authorities unchanged | In progress | #934 |
 | REF-2026-11-20-06 | Info | Rust | The 600-line advisory is crossed widely, but most large files are cohesive | 87 files over 600; 23 over 800; 10 over 900. Largest non-shell: `adapters/filesystem.rs` 964 (one struct/impl), `progression/leg.rs` 955 (one `Leg` impl), `api/improvement.rs` 928 (one contract aggregate) | size, cohesion | A / B | A | Review trigger, not a target | Open | None |
-| REF-2026-11-20-07 | Info | layout | Historical experiment config is interleaved with current config | 2,178 files; `config/research/` 1,119; `config/sr*` and `config/sbe-01` 838; `config/README.md` calls them evidence, not current | layout, readability | A / B / C | Defer | Data Lifecycle decision; no path change in this campaign | Open | Data Lifecycle |
-| REF-2026-11-20-08 | Info | docs | Historical records are 70% of the documentation mass | 442 logs + 198 plans + 107 improvement + 41 reports = 788 files, 88,504 lines of 125,293 | readability | A / B | Defer | Recordkeeping decision; no deletion | Open | Recordkeeping |
-| REF-2026-11-20-09 | Info | tools | Port-parity fixtures are 24 MB of the 125 MiB pack | `PORT-001.datasets.json` 16.9 MB, `PORT-001.golden.json` 7.0 MB | layout | A / B / C | Defer | Clone and gate time | Open | None |
-| REF-2026-11-20-10 | Low | deps | The gateway declares `quantrule-service-api` as a production dependency but only its tests use it | `crates/quantrule-gateway/Cargo.toml` `[dependencies]`; `rg` finds uses only in `tests/surface.rs:26` and `tests/gateway.rs:27`; `src/` has none | coupling, boundary | A / B / C | A | `cargo tree -p quantrule-gateway`, tests, boundary guard | Open | Follow-up |
+| REF-2026-11-20-07 | Info | layout | Historical experiment config is interleaved with current config | 2,178 files; `config/research/` 1,119; `config/sr*` and `config/sbe-01` 838; `config/README.md` calls them evidence, not current | layout, readability | A / B / C | Defer | Data Lifecycle decision; no path change in this campaign | Deferred | Data Lifecycle |
+| REF-2026-11-20-08 | Info | docs | Historical records are 70% of the documentation mass | 442 logs + 198 plans + 107 improvement + 41 reports = 788 files, 88,504 lines of 125,293 | readability | A / B | Defer | Recordkeeping decision; no deletion | Deferred | Recordkeeping |
+| REF-2026-11-20-09 | Info | tools | Port-parity fixtures are 24 MB of the 125 MiB pack | `PORT-001.datasets.json` 16.9 MB, `PORT-001.golden.json` 7.0 MB | layout | A / B / C | Defer | Clone and gate time | Deferred | None |
+| REF-2026-11-20-10 | Low | deps | The gateway declares `quantrule-service-api` as a production dependency but only its tests use it | `crates/quantrule-gateway/Cargo.toml` `[dependencies]`; `rg` finds uses only in `tests/surface.rs:26` and `tests/gateway.rs:27`; `src/` has none | coupling, boundary | A / B / C | A | `cargo tree -p quantrule-gateway`, tests, boundary guard | In progress | #934 |
 
 ## Findings in detail
 
@@ -477,6 +477,17 @@ or a behavior change is required. Naming, CI, `AGENTS.md`, config, record,
 fixture, and dependency findings are outside this campaign because they either
 change user-visible output, change what the gate enforces, or belong to Data
 Lifecycle, Recordkeeping, or a separate one-line dependency fix.
+
+## Deferred decisions (2026-11-20)
+
+The human accepted these decisions on 2026-11-20.
+
+| Finding | Decision | Trigger to revisit |
+|---|---|---|
+| REF-2026-11-20-03 | Move the historical improvement suite and the research analysis tests out of PR CI; schedule the 16-second coverage check for the Rust governance port. | The historical suite exceeds two minutes, or a historical failure blocks an unrelated PR. |
+| REF-2026-11-20-07 | Keep `config/research/`, `config/sr*`, and `config/sbe-01` in place as evidence. | Pack above 500 MiB, clean clone above two minutes, or `rg` over `config/` above two seconds. |
+| REF-2026-11-20-08 | Keep the record documents in place; do not delete governed evidence. | A Recordkeeping policy change, not a refactor. |
+| REF-2026-11-20-09 | Keep the port-parity fixtures; they are gate evidence. | The same archive trigger as REF-07. |
 
 ## Post-merge verification (2026-11-20)
 

@@ -22,7 +22,7 @@ decision.
 | Code commit | The commit that will execute the run |
 | Human | The person who owns the decision |
 
-A research run is a coupled run. The config must carry a strategy; a model-tier
+An improvement run is a coupled pipeline run. The config must carry a strategy; a model-tier
 run still freezes strategy and portfolio. Stages are never research inputs.
 
 ## Steps

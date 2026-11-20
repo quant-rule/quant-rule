@@ -2,7 +2,7 @@
  * The profile-scoped client boundary.
  *
  * Every row the browser shows belongs to one profile: datasets, configs, runs,
- * simulation runs, diagnostic stage runs, and research runs, baselines, and
+ * simulation runs, diagnostic stage runs, and improvement runs, baselines, and
  * invalidations. Selecting another profile or losing the gateway clears all six
  * scoped stores before any new read starts, so a slow or failed request cannot
  * leave the previous profile's rows on screen. The stores keep their own

@@ -298,7 +298,7 @@ pub(crate) enum Command {
         /// The improvement id.
         improvement_id: String,
     },
-    /// List research runs.
+    /// List improvement runs.
     ResearchList {
         /// Only this tier.
         tier: Option<ImprovementTier>,
@@ -307,12 +307,12 @@ pub(crate) enum Command {
         /// At most this many rows.
         limit: Option<usize>,
     },
-    /// Read one research run.
+    /// Read one improvement run.
     ResearchShow {
         /// The improvement id.
         improvement_id: String,
     },
-    /// Compare one research run with a baseline.
+    /// Compare one improvement run with a baseline.
     ResearchCompare {
         /// The improvement id.
         improvement_id: String,

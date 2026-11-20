@@ -167,7 +167,7 @@ quantrule baseline list
 quantrule baseline show model
 quantrule invalidation list
 ```
-A research run is a coupled run; the config must carry a strategy. `accepted`
+An improvement run is a coupled pipeline run; the config must carry a strategy. `accepted`
 requires a succeeded run and canonical digest; `rejected`, `no-edge`,
 `new-hypothesis`, and `invalidated` may omit it. `research show` links a
 succeeded digest lazily. A stage artifact is never a pipeline run or a baseline.

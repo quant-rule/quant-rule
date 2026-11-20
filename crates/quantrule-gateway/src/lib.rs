@@ -6,8 +6,8 @@
 //! the gateway has no dataset, config, inspection, model, run, research, or
 //! simulation handler and no domain store.
 //!
-//! The crate links `quantrule-api`, `quantrule-service-api`, and
-//! `quantrule-runtime` only. It does not link `quantrule-app` or an engine, so
+//! The crate links `quantrule-api` and `quantrule-runtime` only. Its integration
+//! tests use `quantrule-service-api`. It does not link `quantrule-app` or an engine, so
 //! the gateway cannot compute a reading, a model, a fill, or a run result even
 //! by accident. P8 retired `quantrule-server`; the worker lives in
 //! `quantrule-backtest-service`.

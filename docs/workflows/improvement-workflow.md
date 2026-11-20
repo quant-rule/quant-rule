@@ -34,7 +34,7 @@ Run -> Results -> Review -> New Hypothesis
 A run is not a result until its artifacts are reproducible. A result is not a
 baseline until the human accepts it with `research decide`. The research
 commands are explicit: nothing submits, compares, or accepts automatically. A
-model-tier research run is still a coupled full run with a strategy file; it is
+model-tier improvement run is still a coupled full run with a strategy file; it is
 not a model-only run.
 
 ## Tiers
