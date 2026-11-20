@@ -56,6 +56,27 @@ evidence and simulation use their own domain crates.
 - Workers may call `quantrule-app` freely. Evidence and simulation must not.
 - No service crate depends on another service crate.
 
+## 2.1 Public boundary and supported topologies
+
+Only the gateway publishes a host port. The other services are reachable on the
+container network, or on the private overlay in the multi-host profile, and
+never from the client side. Publishing `data`, `model`, `evidence`,
+`simulation`, or `backtest` would expose an internal contract, bypass the
+gateway token, and let a client depend on another service's schema.
+
+| Topology | Status | Shape |
+|---|---|---|
+| Single host, Compose | Supported; default | Six services and three infrastructure containers on one host |
+| Desktop, embedded | Supported | Six sidecars on loopback with SQLite, filesystem CAS, in-process queue |
+| Split host, client/server | Supported | Full stack on one server; browser and shell on another machine |
+| Multi-host services | Supported; implemented, release pending | Six services across hosts, private overlay, one image digest |
+| Cloud, HA, Kubernetes, mTLS | Not supported | A later decision with its own ADR |
+
+Distribution is about separate processes, failure units, and scaling units, not
+about one published port per service. The one-port rule is a deployability and
+security characteristic. The multi-host profile keeps it: internal services bind
+only to the private overlay.
+
 ## 3. Scaling profile
 
 | Service | Scale | Reason |

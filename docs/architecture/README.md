@@ -66,6 +66,7 @@ repeating a status.
 | [`control-plane.md`](control-plane.md) | Current; released as v0.9.0 (prepared as v1.0.0); current in v1.3.0 | How a run is submitted, retried, and cancelled |
 | [`http-api.md`](http-api.md) | Current; released as v0.9.0 (prepared as v1.0.0); current in v1.3.0 | The client contract |
 | [`deployment.md`](deployment.md) | Current; released as v1.0.0 (prepared as v1.1.0); current in v1.3.0 | How to run it with one command |
+| [`multi-host.md`](multi-host.md) | Implemented; hardening #980; release pending | How the six services run across hosts |
 | [`desktop.md`](desktop.md) | Current; released as v1.0.0 (prepared as v1.1.0); current in v1.3.0 | The embedded profile: SQLite, ledgers, prefixes, start and stop |
 | [`client.md`](client.md) | Current; product 1.3.0, current tag v1.3.0 | The browser client |
 | [`user-journey.md`](user-journey.md) | Current; released as v1.0.0 (prepared as v1.1.0); current in v1.3.0 | How it is used and what it returns |
