@@ -4,6 +4,7 @@ mod assertions;
 mod config;
 mod dataset;
 mod health;
+mod history;
 mod inspect;
 mod profile;
 mod run;

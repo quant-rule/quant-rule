@@ -367,7 +367,26 @@ fn every_command_is_exercised() {
         ],
     );
 
-    assert_eq!(shell_commands(&fixture).len(), 46);
+    command(&fixture, &["history", "list", "--kind", "run"]);
+    command(
+        &fixture,
+        &["history", "archive", "--kind", "run", "--id", run_id],
+    );
+    command(
+        &fixture,
+        &[
+            "history",
+            "erase",
+            "--kind",
+            "run",
+            "--id",
+            run_id,
+            "--confirm",
+            run_id,
+        ],
+    );
+
+    assert_eq!(shell_commands(&fixture).len(), 49);
 }
 
 #[test]

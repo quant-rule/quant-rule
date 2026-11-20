@@ -101,6 +101,14 @@ verify-mini data), or record a smaller `window_bars` in the criteria JSON. Both
 clients send the context `inputs`; the same text produces the same
 `inputs_digest`.
 
+## History
+
+| Command | Usage | Required | Optional | Output | Stable errors | Browser | Example |
+|---|---|---|---|---|---|---|---|
+| `history list` | `history list --kind <run\|stage\|research\|simulation\|dataset> [--include-archived] [--limit <n>]` | kind | `--include-archived`, `--limit` | One header and one deterministic line per record with its archived state | `profile.not_found`, `service.unavailable` | History → kind table | `quantrule history list --kind run --include-archived` |
+| `history archive` | `history archive --kind <run\|research\|simulation\|dataset> --id <id> [--dry-run]` | kind, id | `--dry-run` | `archived <kind> <id>` | `history.state`, `run.not_found`, `research.not_found`, `simulation.not_found`, `dataset.not_found` | History → Archive | `quantrule history archive --kind run --id <run_id>` |
+| `history erase` | `history erase --kind <run\|stage\|research\|simulation\|dataset> --id <id> --confirm <id> [--dry-run]` | kind, id, confirmation | `--dry-run` | `erased <kind> <id> bytes=<n>` | `history.state`, `history.protected`, `run.not_found`, `stage.not_found`, `research.not_found`, `simulation.not_found`, `dataset.not_found` | History → Erase with typed confirmation | `quantrule history erase --kind run --id <run_id> --confirm <run_id>` |
+
 ## Verify
 
 | Command | Usage | Required | Optional | Output | Stable errors | Browser | Example |

@@ -6,6 +6,7 @@
 
 use std::io::Write;
 
+use self::history::{history_archive, history_erase, history_list};
 use super::help::run_help;
 use super::research_commands::{
     baseline_list, baseline_show, invalidation_list, research_compare, research_create,
@@ -186,6 +187,20 @@ fn run(
             data_version,
             timeframe,
         } => inspect_events(&client, globals, stdout, &data_version, &timeframe),
+        Command::HistoryList {
+            kind,
+            include_archived,
+            limit,
+        } => history_list(&client, globals, stdout, kind, include_archived, limit),
+        Command::HistoryArchive { kind, id, dry_run } => {
+            history_archive(&client, globals, stdout, kind, &id, dry_run)
+        }
+        Command::HistoryErase {
+            kind,
+            id,
+            confirm,
+            dry_run,
+        } => history_erase(&client, globals, stdout, kind, &id, &confirm, dry_run),
         Command::Verify { run_id } => verify(&client, globals, stdout, &run_id),
         Command::ProfileList => profile_list(session, &client, globals, stdout),
         Command::ProfileCreate { name, id } => {
@@ -283,6 +298,7 @@ macro_rules! json_view {
 mod config;
 mod dataset;
 mod health;
+mod history;
 mod inspect;
 mod path;
 mod profile;

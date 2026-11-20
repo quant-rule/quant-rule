@@ -179,3 +179,46 @@ fn an_empty_or_spaced_token_is_rejected_without_echoing_it() {
         assert!(rendered.contains("--token"), "{rendered}");
     }
 }
+
+#[test]
+fn history_list_parses_a_kind_and_the_history_filters() {
+    let parsed = parse_line("history list --kind run --include-archived --limit 5")
+        .expect("the line parses")
+        .expect("a command");
+    match parsed.command {
+        Command::HistoryList {
+            kind,
+            include_archived,
+            limit,
+        } => {
+            assert_eq!(kind.as_str(), "run");
+            assert!(include_archived);
+            assert_eq!(limit, Some(5));
+        }
+        other => panic!("unexpected command: {other:?}"),
+    }
+}
+
+#[test]
+fn history_archive_refuses_a_stage() {
+    let error =
+        parse_line("history archive --kind stage --id x").expect_err("a stage has no archive");
+    assert!(error.to_string().contains("no archive"), "{error}");
+}
+
+#[test]
+fn history_erase_requires_the_exact_confirmation() {
+    assert!(parse_line("history erase --kind run --id a --confirm b").is_err());
+    let parsed = parse_line("history erase --kind run --id a --confirm a --dry-run")
+        .expect("the line parses")
+        .expect("a command");
+    assert!(matches!(
+        parsed.command,
+        Command::HistoryErase { dry_run: true, .. }
+    ));
+}
+
+#[test]
+fn history_rejects_an_unknown_kind() {
+    assert!(parse_line("history list --kind config").is_err());
+}

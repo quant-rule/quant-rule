@@ -20,6 +20,9 @@ history is in Git and the pull requests.
 
 ### Added
 
+- The shell gains `history list`, `history archive`, and `history erase` for
+  run, stage, research, simulation, and dataset records, with
+  `--include-archived`, `--dry-run`, and typed confirmation.
 - Evidence runs and research records can be archived, listed with
   `include_archived`, and erased after typed confirmation; succeeded runs and
   decided records refuse erase, run blobs are removed only when unreferenced,
