@@ -52,3 +52,10 @@ crate and checker port are later phases.
 | Delete historical config or records | Rejected; governed evidence |
 | Rename commands or `Improvement*` types | Rejected; public command and wire contracts stay stable |
 | Move the historical CI suites in this phase | Deferred to the Rust governance phases |
+
+### Phase 0 closure (2026-11-20)
+
+PR #935 merged at `6283ecb0`; issue #934 is closed and the board item is `Done`.
+The task worktree and local and remote branches were removed. The assessment
+marks REF-2026-11-20-04, -05, and -10 `Verified`; REF-2026-11-20-03, -07, -08,
+and -09 remain `Deferred` with their triggers.
