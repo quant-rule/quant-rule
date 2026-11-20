@@ -11,13 +11,16 @@ use quantrule_api::Digest;
 /// The default bind address.
 pub const DEFAULT_BIND: &str = "0.0.0.0:8080";
 /// The default Postgres URL used by the compose stack.
-pub const DEFAULT_DATABASE_URL: &str = "postgres://quantrule:quantrule@postgres:5432/quantrule";
+///
+/// It carries no password: the compose stack supplies the full URL from
+/// `QR_DATABASE_URL`, and a process started without one fails closed.
+pub const DEFAULT_DATABASE_URL: &str = "postgres://quantrule@postgres:5432/quantrule";
 /// The default object-store endpoint used by the compose stack.
 pub const DEFAULT_OBJECT_STORE_URL: &str = "http://minio:9000";
 /// The default object-store bucket used by the compose stack.
 pub const DEFAULT_OBJECT_BUCKET: &str = "quantrule";
-/// The default broker URL used by the compose stack.
-pub const DEFAULT_QUEUE_URL: &str = "amqp://quantrule:quantrule@rabbitmq:5672/%2f";
+/// The default broker URL used by the compose stack, without a password.
+pub const DEFAULT_QUEUE_URL: &str = "amqp://quantrule@rabbitmq:5672/%2f";
 /// The default upload limit: 512 MiB.
 pub const DEFAULT_UPLOAD_LIMIT: u64 = 512 * 1024 * 1024;
 /// The default diagnostic stage retention, in days.
@@ -294,8 +297,10 @@ mod tests {
     }
 
     #[test]
-    fn defaults_are_startable_without_any_variable() {
+    fn defaults_carry_no_store_password() {
         let config = Config::from_map(&BTreeMap::new()).expect("defaults");
+        assert!(!config.database_url.contains("quantrule:quantrule"));
+        assert!(!config.queue_url.contains("quantrule:quantrule"));
         assert_eq!(config.bind, DEFAULT_BIND);
         assert_eq!(config.profile, DeploymentProfile::Server);
         assert!(config.data_dir.is_none());

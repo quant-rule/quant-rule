@@ -43,15 +43,12 @@ see [`docker/README.md`](../../docker/README.md) §7.
 | `backtest` | `quantrule-server` | — | — |
 | `evidence` | `quantrule-server` | — | — |
 | `simulation` | `quantrule-server` | — | — |
-| `postgres` | `postgres:17` | — | `pgdata` |
+| `postgres` | `postgres@sha256:846a…` (`QR_POSTGRES_IMAGE` override) | — | `pgdata` |
 | `minio` | `bitnamilegacy/minio` (pinned digest; `QR_OBJECT_STORE_IMAGE` override) | — | `objects` |
-| `rabbitmq` | `rabbitmq:4-management` | — | `mqdata` |
+| `rabbitmq` | `rabbitmq@sha256:7530…` (`QR_RABBITMQ_IMAGE` override) | — | `mqdata` |
 
 One bridge network. Services resolve each other by container name. Only the
 gateway is reachable from the host.
-
-Nine containers: six service binaries from one image, plus Postgres, the object
-store, and the broker.
 
 The image also carries the static client, built with **Bun** (`bun install`,
 `bun run build`). No Bun runtime and no Python runtime are present at run time.
@@ -134,6 +131,7 @@ to start.
 | `QR_BEARER_TOKEN` | empty | Enables the token check when set |
 | `QR_BACKTEST_CONCURRENCY` | `1` | Runs per worker |
 | `QR_STAGE_RETENTION_DAYS` | `30` | Diagnostic stage retention in days |
+| Store passwords | `quantrule` on the loopback stack | `QR_POSTGRES_PASSWORD`, `QR_RABBITMQ_PASSWORD`, and `QR_OBJECT_STORE_PASSWORD`; required non-default for `make remote` |
 
 A config bundle is capped at 4 MiB by the config route, independently of `QR_UPLOAD_LIMIT_BYTES`; a larger config returns `413 upload.too_large`. Secrets come from the environment; no secret is committed.
 

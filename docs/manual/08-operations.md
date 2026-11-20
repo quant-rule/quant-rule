@@ -34,9 +34,11 @@ artifact, or research evidence.
 | 8 | `make backup` | — | One timestamped archive and a SHA-256 sidecar |
 | 9 | `make restore FILE=<archive>` | — | A clean stack restored from the verified archive |
 
-`make remote` checks the 401/401/200 token matrix before it prints the token. The
-browser stores the token in local storage and sends it only as
-`Authorization: Bearer`; it never enters the URL or page text.
+`make remote` requires `QR_POSTGRES_PASSWORD`, `QR_RABBITMQ_PASSWORD`, and
+`QR_OBJECT_STORE_PASSWORD` to be non-default; the local stack keeps the
+documented loopback defaults. It checks the 401/401/200 token matrix before it
+prints the token. The browser stores the token in local storage and sends it
+only as `Authorization: Bearer`; it never enters the URL or page text.
 
 ## Retention fields
 

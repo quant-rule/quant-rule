@@ -2,7 +2,7 @@
 
 - Date: 2026-11-17 (UTC)
 - Audit ID: `AUDIT-2026-11-17-whole-project`
-- Status: 44 findings `Fixed` by the merged remediation (independent Verification pending); 9 `Open` (0 Critical, 5 Major, 4 Minor, 0 Info); human review pending
+- Status: 45 findings `Fixed` by the merged remediation (independent Verification pending); 8 `Open` (0 Critical, 5 Major, 3 Minor, 0 Info); human review pending
 - Baseline: `main` at `a07def5c` (2026-11-17, clean working tree)
 - Scope: the whole repository — data engine and data service, model engine and
   model service, backtest strategy/execution/portfolio and backtest service,
@@ -104,7 +104,7 @@ its AI transparency log.
 | AUD-2026-11-17-10 | Major | security/input | An uploaded config's `run.json` can reference a path outside the bundle; the data service reads it, the catalog's `files` is then overwritten with the client's map, and the worker uses `data_key`/`strategy_key` without the `safe_key` check, so the config is valid with a hash over bytes absent from its bundle | `crates/quantrule-data-service/src/configs/upload.rs:51-63,84-113`; `crates/quantrule-app/src/config/run.rs:93-108`; `crates/quantrule-data-service/src/configs/scan.rs:95-120`; `crates/quantrule-backtest-service/src/backtest/workspace.rs:43-50,60-70,189-203`; the escape test at `crates/quantrule-data-service/tests/configs.rs:230-245` covers only a file-map key | A path outside the upload bundle is read by the data service; the catalog hash can be computed over bytes that are not in the bundle, so the config is not reproducible; a reference to `/dev/zero` or a huge file can block the blocking read until OOM; the worker can read a strategy path outside its workspace | A. Give `RunConfig::load` a containment root and reject a resolved path outside it; B. Require every `run.json` reference to be a submitted bundle key, store the referenced bytes, and apply `safe_key` to `data_key`/`strategy_key`; C. Reject an absolute or `..` reference before any read | A + B | A bundle with `"data":"../…"` or an absolute path is rejected at upload; a `/dev/zero` reference is refused; a valid bundle still works; the test covers a referenced path, not only a file key | Fixed | #905 |
 | AUD-2026-11-17-11 | Minor | concurrency | Stage retention and delete check `artifact_referenced` after removing rows and then delete the blob; a concurrent stage creation can reference the same blob after the check | `crates/quantrule-evidence-service/src/stage/retention.rs:135-158`; `crates/quantrule-evidence-service/src/stage/postgres.rs:680-689`; `crates/quantrule-evidence-service/src/routes/stages.rs:556-580` | A new stage's artifact can become unreadable; the stage is advertised as content-addressed and verified | A. Delete under a store transaction or advisory lock shared with create; B. Tombstone the blob and delete after a grace period with a re-check; C. Accept and document the race | A | A two-writer test with a create between check and delete; the new stage's blob survives | Open | — |
 | AUD-2026-11-17-12 | Minor | docs/config | The config upload route has a 4 MiB cap while the deployment table documents `QR_UPLOAD_LIMIT_BYTES` (512 MiB) as the upload cap; the 4 MiB config cap is undocumented | `crates/quantrule-data-service/src/routes.rs:62-66`; `crates/quantrule-data-service/src/configs/upload.rs:78-80`; `docs/architecture/deployment.md:133` | A user uploading a 5 MiB config gets `413 upload.too_large` despite the documented 512 MiB cap | A. Document the 4 MiB config cap; B. Apply `QR_UPLOAD_LIMIT_BYTES` to configs too; C. Raise the config cap | A | The documentation and the route agree; a 5 MiB config test asserts the documented result | Fixed | #895 |
-| AUD-2026-11-17-13 | Minor | security/reproducibility | Compose pins MinIO by digest but uses mutable tags for Postgres and RabbitMQ, and defaults every store to the known `quantrule` credential | `compose.yaml:23,38,55-56,190,196,210,216,230,236`; `crates/quantrule-runtime/src/config.rs:14,20`; `docs/architecture/deployment.md:44-48,138`; `docs/architecture/security.md:95` | A fresh `make up` can pull a different database/broker than the verified run, and a compromised bridge container or shared host has the store credentials; the "No secret is committed" claim is weaker | A. Pin every image by digest and record it; require store passwords for non-local use and fail closed on the defaults; B. Document the tags/credentials as deliberate and require a fresh-pull/secret check | A | `docker compose config` shows digests and no default credential; the release note records the digests | Open | — |
+| AUD-2026-11-17-13 | Minor | security/reproducibility | Compose pins MinIO by digest but uses mutable tags for Postgres and RabbitMQ, and defaults every store to the known `quantrule` credential | `compose.yaml:23,38,55-56,190,196,210,216,230,236`; `crates/quantrule-runtime/src/config.rs:14,20`; `docs/architecture/deployment.md:44-48,138`; `docs/architecture/security.md:95` | A fresh `make up` can pull a different database/broker than the verified run, and a compromised bridge container or shared host has the store credentials; the "No secret is committed" claim is weaker | A. Pin every image by digest and record it; require store passwords for non-local use and fail closed on the defaults; B. Document the tags/credentials as deliberate and require a fresh-pull/secret check | A | `docker compose config` shows the pinned digests; `make remote` refuses the local defaults | Fixed | #918 |
 | AUD-2026-11-17-14 | Minor | docs | `docs/README.md` is 350 lines, above the 330-line reference cap, and the length checker does not cover it | `wc -l docs/README.md` (350); `AGENTS.md:174`; `tools/check_doc_length.py:43-55` | The index is longer than the cap the project says it enforces; the checker's coverage is narrower than the rule | A. Trim the index to 330 or add an explicit override; B. Extend the checker to the index and current config documents; C. Scope the cap to architecture documents and say so | A | `check_doc_length` covers `docs/README.md`; the line count is within the cap or an override | Fixed | #895 |
 | AUD-2026-11-17-15 | Info | tests/tooling | `tools/test_worktree_cleanup.py` has eight passing tests but is not in `tools/checker_tests.txt`, the gate, or CI | `tools/test_worktree_cleanup.py`; `tools/checker_tests.txt`; `.github/workflows/ci.yml:44-49`; `tools/gate.sh:18-23` | The mandatory cleanup path can regress without the gate noticing; its regression evidence is manual | A. Add the test to `tools/checker_tests.txt`; B. Add a `tools/test_tools.sh` step; C. Accept it as manual and record that | A | The gate runs the test; a seeded cleanup regression fails | Fixed | #902 |
 | AUD-2026-11-17-16 | Info | docs/records | Nine execution plans have no same-named AI transparency log; some are sub-plans, some have a related log under another name | `docs/execution-plans/2026-10-24/14-model-engine-completion.md`; `2026-11-01/workflow-reset-cleanup.md`; `2026-11-05/410-legacy-inventory.md`; `2026-11-06/521-refactor-report-run.md`; `2026-11-11/588-tauri-platform.md`; `2026-11-13/kata-alignment.md`; `2026-11-13/649-run-worker.md`; `2026-11-14/776-646-salvage.md`; `2026-11-14/776-split-service-binaries.md`; `AGENTS.md` §6 | A work item's AI record is not discoverable by its plan name; the record may exist under a different base name | A. Add the missing logs or rename the related log; B. Allow a `- AI log:` link and check it; C. Mark sub-plans explicitly in the plan | A | A checker resolves each current plan to a log through the same name or a recorded link | Fixed | #896 |
@@ -164,7 +164,7 @@ simulation parity.
 ## Remediation status (2026-11-17)
 
 The P1 Critical, P2 model/evidence, P3.2 current-document, and P3.3 AI-log work
-items are merged. Their 44 findings are `Fixed` with the pull-request link in the
+items are merged. Their 45 findings are `Fixed` with the pull-request link in the
 table; the P3.1 release/audit closure and the P4–P7 service, client, test, and
 closure work items remain `Open`. The Improvement Verifier must move a `Fixed`
 finding to `Verified`; this audit does not self-verify.
@@ -649,9 +649,15 @@ finding to `Verified`; this audit does not self-verify.
   B. Document the tags as deliberate and require a fresh-pull check.
   C. Use digest overrides.
 - **Recommendation:** A.
-- **Verification:** `docker compose config` shows digests; the release note
-  records them.
-- **Links:** None yet.
+- **Resolution (2026-11-20):** Postgres and RabbitMQ are pinned by digest,
+  with image overrides; the disposable Postgres tier uses the same pin. The
+  runtime default URLs carry no password, and `tools/remote.sh` refuses the
+  local store defaults before starting a container. The local loopback stack
+  keeps its one-command default and the docs state that exception.
+- **Verification:** `docker compose config` shows the three pinned digests;
+  `make remote` with the local defaults exits 1 with the credential message;
+  the runtime config test and the full gate pass.
+- **Links:** #918.
 
 ### AUD-2026-11-17-14 — the status index exceeds the reference cap
 

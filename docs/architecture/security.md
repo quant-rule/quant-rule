@@ -94,6 +94,8 @@ Every rejection returns a code a client can act on and a message a human can rea
 - Backup archives contain candle data and must be handled as sensitive.
 - No secret is committed and no token is logged. The browser keeps the token in
   `localStorage`; the shell writes it to no file.
+- The local store defaults are for the unpublished loopback stack; `make remote`
+  refuses them and requires non-default store passwords.
 
 ## 5. Data in transit
 
