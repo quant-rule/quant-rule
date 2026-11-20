@@ -153,23 +153,23 @@ warnings`, `cargo test`, `tools/gate.sh`, `python3 tools/check_manual.py`, and
 
 ## Verification table
 
-| ID | Plan item | Acceptance criterion | Evidence or command | Expected | Observed | Status | Reviewer | Date | Notes |
+| ID | Plan item | Acceptance criterion | Evidence / command | Expected | Observed | Status | Reviewer | Date | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| V01 | ADR | ADR approved before code | ADR record | Approved | — | — | Human | 2026-11-20 | — |
-| V02 | Descriptor | Valid example passes; unsafe cases fail | `cargo test -p quantrule-deploy` | Typed errors | — | — | Test | — | — |
-| V03 | Image identity | One digest on every host | `qr-deploy check` | All equal | — | — | Test | — | — |
-| V04 | Public boundary | Only the gateway is public | Port scan / firewall test | One port | — | — | Security | — | — |
-| V05 | Internal boundary | Internal services need the overlay | Network test | Unreachable without overlay | — | — | Security | — | — |
-| V06 | Auth | Gateway returns 401 without token | `curl` matrix | 401, 401, 200 | — | — | Test | — | — |
-| V07 | Run | `verify-mini` completes across hosts | Stage output | Stages `done` | — | — | Test | — | — |
-| V08 | Parity | Multi-host digest equals single-host | `verify` | Same digest | — | — | Test | — | — |
-| V09 | Scale | One vs two workers same digest | `verify` | Same digest | — | — | Test | — | — |
-| V10 | No partial publish | Killed worker leaves no visible run | Failure test | No `succeeded` run | — | — | Test | — | — |
-| V11 | Migrations | Concurrent start succeeds | Start-all test | No lock failure | — | — | Test | — | — |
-| V12 | Rollback | Previous digest restores | Upgrade test | Healthy | — | — | Release | — | — |
-| V13 | Backup | Restore reproduces the digest | Restore test | Same digest | — | — | Data Steward | — | — |
-| V14 | Docs | Checkers and gate pass | `tools/gate.sh` | Green | — | — | Docs | — | — |
-| V15 | Release | Release note and changelog | Review | Present | — | — | Release | — | — |
+| V01 | ADR | ADR approved before code | ADR record | Approved | — | Pending | Human | 2026-11-20 | — |
+| V02 | Descriptor | Valid example passes; unsafe cases fail | `cargo test -p quantrule-deploy` | Typed errors | — | Pending | Test | — | — |
+| V03 | Image identity | One digest on every host | `qr-deploy check` | All equal | — | Pending | Test | — | — |
+| V04 | Public boundary | Only the gateway is public | Port scan / firewall test | One port | — | Pending | Security | — | — |
+| V05 | Internal boundary | Internal services need the overlay | Network test | Unreachable without overlay | — | Pending | Security | — | — |
+| V06 | Auth | Gateway returns 401 without token | `curl` matrix | 401, 401, 200 | — | Pending | Test | — | — |
+| V07 | Run | `verify-mini` completes across hosts | Stage output | Stages `done` | — | Pending | Test | — | — |
+| V08 | Parity | Multi-host digest equals single-host | `verify` | Same digest | — | Pending | Test | — | — |
+| V09 | Scale | One vs two workers same digest | `verify` | Same digest | — | Pending | Test | — | — |
+| V10 | No partial publish | Killed worker leaves no visible run | Failure test | No `succeeded` run | — | Pending | Test | — | — |
+| V11 | Migrations | Concurrent start succeeds | Start-all test | No lock failure | — | Pending | Test | — | — |
+| V12 | Rollback | Previous digest restores | Upgrade test | Healthy | — | Pending | Release | — | — |
+| V13 | Backup | Restore reproduces the digest | Restore test | Same digest | — | Pending | Data Steward | — | — |
+| V14 | Docs | Checkers and gate pass | `tools/gate.sh` | Green | — | Pending | Docs | — | — |
+| V15 | Release | Release note and changelog | Review | Present | — | Pending | Release | — | — |
 
 ## 10. Risks and recovery
 
