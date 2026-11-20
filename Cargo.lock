@@ -2785,6 +2785,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "quantrule-governance"
+version = "1.3.0"
+dependencies = [
+ "serde_json",
+ "sha2 0.10.9",
+]
+
+[[package]]
 name = "quantrule-model"
 version = "1.3.0"
 dependencies = [

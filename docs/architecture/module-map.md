@@ -81,7 +81,14 @@ cannot read a strategy, write a run, publish to the queue, or compute a model.
 | Config field | `app/src/config/<file>.rs` | input type, provenance, docs, registry |
 | Artifact field | `evidence-service/src/` | artifact contract, golden bundle |
 
-## 4. Reading order
+## 4. Repository tooling
+
+`crates/quantrule-governance` is the `qr-governance` binary for historical
+repository evidence. It is developer tooling, not a product service: it depends
+only on `serde_json` and `sha2`, is not in the product image, and never reads a
+runtime store.
+
+## 5. Reading order
 
 1. `AGENTS.md` sections 2–4.
 2. `docs/architecture/README.md`, `kata.md`, `characteristics.md`.
@@ -94,7 +101,7 @@ cannot read a strategy, write a run, publish to the queue, or compute a model.
 9. `crates/quantrule-shell/src/command.rs`.
 10. `apps/web/README.md`.
 
-## 5. Maintenance
+## 6. Maintenance
 
 Update this map in the same pull request as any module move. A module that is not
 on the map is either new and incomplete or stale.
