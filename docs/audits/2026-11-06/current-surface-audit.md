@@ -4,6 +4,7 @@
 - Audit ID: `AUDIT-2026-11-06-current-surface`
 - Status: Published; all findings fixed in PR [#496](https://github.com/quant-rule/quant-rule/pull/496) at `dc82043`; independent verification pending
 - Baseline: `main` at `6ec84eb`
+- Triage (2026-11-20): the findings remain `Fixed`; a sequential verifier pass is recorded in the 2026-11-16 audit; independent verification is pending.
 - Scope: current shell surface, M1.0 model/event/registry contract, config
   loading, report/provenance artifacts, current docs, and gates
 - Limitations: one sequential audit pass; S3.x backtest/strategy/portfolio

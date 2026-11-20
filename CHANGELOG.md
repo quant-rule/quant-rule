@@ -69,6 +69,10 @@ history is in Git and the pull requests.
 
 ### Changed
 
+- The release workflow runs the composed tier on the locally built image before
+  pushing and requires a browser/tooling quality job.
+- The old audit findings carry dated triage statuses; the release note names
+  the audit status and `check_release_audit`/`check_audit_backlog` enforce it.
 - The release workflow runs the desktop parity harness before it builds the
   desktop supervisor.
 - Server artifact event, source, and stage words now come from the same registry

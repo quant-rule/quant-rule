@@ -23,3 +23,5 @@ check_client_docs
 check_manual
 check_execution_plans
 check_board_permanence
+check_release_audit
+check_audit_backlog

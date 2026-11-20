@@ -246,8 +246,25 @@ jobs:
           fi
           echo "the image reports quantrule-server $reported"
 
-      # Push only after both image checks pass: a rejected image must not be
-      # visible in the registry, where a deployment could pull it.
+      - name: Install the pinned toolchain
+        run: rustup show
+
+      - name: Run the composed suite on the local image
+        # The image is not pushed until the composed tier passes. The local
+        # image ID is the run identity; the canonical digest excludes
+        # provenance, so it matches the published image.
+        env:
+          IMAGE: ${{ steps.reference.outputs.ref }}
+        run: |
+          digest="$(docker image inspect "$IMAGE" --format '{{.Id}}')"
+          QR_IMAGE="$IMAGE" QR_IMAGE_DIGEST="$digest" \
+            docker compose up -d --wait --no-build
+          trap 'docker compose down --volumes --remove-orphans' EXIT
+          bash tools/test_tiers.sh composed
+
+      # Push only after both image checks and the composed suite pass: a
+      # rejected image must not be visible in the registry, where a deployment
+      # could pull it.
       - name: Push the verified image
         if: steps.reference.outputs.publish == 'true'
         env:
@@ -278,9 +295,6 @@ jobs:
             echo "- Digest: \`$digest\`"
             echo "- Digest source: $source"
           } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Install the pinned toolchain
-        run: rustup show
 
       - name: Verify the digest in /health
         env:
@@ -316,11 +330,39 @@ jobs:
             echo "::error::the default stack started $running containers, expected 9" >&2
             exit 1
           fi
-          bash tools/test_tiers.sh composed
+
+  quality:
+    name: Browser and tooling
+    needs: gate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
+      - name: Install Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.4.2"
+      - name: Install the client dependencies
+        run: bun install --frozen-lockfile
+      - name: Type check
+        run: bun run check
+      - name: Unit tests
+        run: bun test
+      - name: Build
+        run: bun run build
+      - name: Install the browser
+        run: bunx playwright install --with-deps chromium
+      - name: End-to-end tests
+        run: bun run e2e
 
   desktop:
     name: Desktop (${{ matrix.os }})
-    needs: gate
+    needs: [gate, quality]
     strategy:
       fail-fast: false
       matrix:
@@ -533,6 +575,7 @@ jobs:
       - gate
       - image
       - desktop
+      - quality
     runs-on: ubuntu-latest
     permissions:
       actions: read
