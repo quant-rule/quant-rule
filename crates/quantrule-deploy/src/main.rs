@@ -5,6 +5,8 @@
 //! run in review; `render` writes service env files; `check` probes a deployed
 //! stack and compares its image digest.
 
+#![forbid(unsafe_code)]
+
 mod check;
 mod descriptor;
 mod error;
