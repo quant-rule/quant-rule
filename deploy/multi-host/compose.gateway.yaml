@@ -1,0 +1,32 @@
+# QuantRule multi-host profile — gateway role (quantrule.deploy/v2).
+#
+# The gateway host is the only host with a port reachable from outside the
+# private overlay. Host networking is deliberate: the overlay address is an
+# address of the host, so a bridge network would publish the port on every
+# interface of the host instead of the overlay interface alone.
+#
+# `qr-deploy render` writes env/gateway.env. Run this file with
+# `--env-file env/gateway.env` so the project-level values below resolve, and
+# keep the distinct project name so removing another role never touches this
+# one.
+name: quantrule-gateway
+
+services:
+  gateway:
+    image: ${QR_IMAGE}
+    command: ["qr-gateway"]
+    network_mode: host
+    env_file:
+      - env/gateway.env
+    restart: unless-stopped
+    healthcheck:
+      # $$ defers expansion to the container: the probe reads the bind from the
+      # service's own env file rather than from the Compose-level environment,
+      # which carries no per-service bind when several services share a host.
+      # /ready reports dependency state and answers 503 when a dependency is
+      # unhealthy, so -f is the whole assertion.
+      test: ["CMD-SHELL", "curl -fsS http://$${QR_BIND_IP}:$${QR_BIND_PORT}/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s

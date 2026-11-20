@@ -65,6 +65,19 @@ evidence are permanent.
 | Exposure | Private network or TLS; plain HTTP exposes the header |
 | Reset | Revoke by restarting with a new token; old tokens stop working |
 
+On a second machine that runs no containers, point the shell at the server and
+use the same token:
+
+```bash
+export QUANTRULE_API_URL=http://<server>:8080/api/v1
+export QUANTRULE_TOKEN='<token printed by make remote>'
+quantrule health
+```
+
+Open `http://<server>:8080` in the browser on that machine and enter the token on
+**Connection**. The shell default is `http://127.0.0.1:8080/api/v1`, so the
+export is what makes the laptop a client rather than a local stack.
+
 A token is a network gate, not an account. There is one principal.
 
 ## Backup and restore

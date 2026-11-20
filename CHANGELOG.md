@@ -20,6 +20,9 @@ history is in Git and the pull requests.
 
 ### Added
 
+- The multi-host deployment profile adds `qr-deploy` and a
+  `quantrule.deploy/v2` descriptor that validates placement, renders per-role
+  env files, and checks the deployed image digest.
 - HTTP services can refuse a public bind with `QR_INTERNAL_ONLY`; the
   multi-host profile sets it on the internal services.
 - The browser History screen lists run, stage, research, simulation, and
