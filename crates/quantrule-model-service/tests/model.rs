@@ -22,7 +22,7 @@ use tower::ServiceExt;
 /// The object key's model-registry component (`2026-11-10.2`) is unchanged, and
 /// no reading, event, or report value changed.
 const BASELINE_SHA256: &str =
-    "sha256:90473762600e1a1c4de0fd9d38fe8ec7289ac55dde76e7457a71a1ffb7b48e48";
+    "sha256:69cb4b4b94c32784e69b3284b8aa54e626ac205aaa5978405be75b02944609b1";
 const BASELINE_BYTES: u64 = 66_022;
 
 async fn compute(

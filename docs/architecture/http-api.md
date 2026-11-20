@@ -1,6 +1,6 @@
 # HTTP API — `quantrule.api/v1`
 
-- Status: Current; released as v1.3.0 on 2026-11-17; the stage routes are part of this contract
+- Status: Current; released as v1.3.0 on 2026-11-17; current in v1.4.0; the stage routes are part of this contract
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 
@@ -135,7 +135,7 @@ artifact download, and model compute get 15 minutes; other calls get 30 seconds.
 
 `provenance.model_version` is the run config's `model_id` (such as `M1.3`); the
 bundle manifest records the registry version (`2026-11-10.2`), and
-`provenance.json` records the package version (`1.3.0`).
+`provenance.json` records the package version (`1.4.0`).
 
 ## 5. Error codes
 
