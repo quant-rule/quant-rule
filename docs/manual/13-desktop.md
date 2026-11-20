@@ -104,8 +104,8 @@ PNG), and `Categories` (`Office;Finance;`).
 
 ### FUSE
 
-An AppImage type 2 mounts itself through `libfuse.so.2`. Fedora installs the
-library as `fuse-libs`:
+An AppImage type 2 mounts itself through `libfuse.so.2`. Fedora carries the
+library in the `fuse-libs` package:
 
 ```bash
 sudo dnf install fuse-libs
