@@ -64,6 +64,7 @@ def run_composed(api_url: str) -> subprocess.CompletedProcess[str]:
             "QUANTRULE_API_URL": api_url,
             "QUANTRULE_TIMEOUT": "1",
             "QUANTRULE_VERIFY": "/bin/true",
+            "QUANTRULE_QUEUE_CHECK": "0",
             "QR_PYTHON": sys.executable,
         }
     )

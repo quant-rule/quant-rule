@@ -4,14 +4,15 @@
 //! routing key; the envelope is `quantrule.queue/v1` and belongs to the caller.
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use futures_util::StreamExt;
 use lapin::options::{
     BasicAckOptions, BasicConsumeOptions, BasicNackOptions, BasicPublishOptions, BasicQosOptions,
-    ExchangeDeclareOptions, QueueBindOptions, QueueDeclareOptions,
+    ConfirmSelectOptions, ExchangeDeclareOptions, QueueBindOptions, QueueDeclareOptions,
 };
 use lapin::types::{AMQPValue, FieldTable};
-use lapin::{Channel, Connection, ConnectionProperties, ExchangeKind};
+use lapin::{Channel, Confirmation, Connection, ConnectionProperties, ExchangeKind};
 
 use crate::adapters::{
     Backend, BoxFuture, Message, MessageHandler, Queue, QueueConsumer, QueueError,
@@ -24,6 +25,9 @@ use crate::queue::{
 
 /// The control-plane exchange.
 pub const EXCHANGE: &str = "quantrule.runs";
+
+/// How long a publish waits for the broker's confirmation.
+const PUBLISH_CONFIRM_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// A RabbitMQ channel.
 pub struct RabbitQueue {
@@ -52,6 +56,13 @@ impl RabbitQueue {
             .map_err(|error| QueueError(error.to_string()))?;
         let channel = connection
             .create_channel()
+            .await
+            .map_err(|error| QueueError(error.to_string()))?;
+        // The publisher channel confirms every write before `publish` returns.
+        // Consumers open their own channels below, so a consumer's QoS never
+        // changes the publisher's confirmation mode.
+        channel
+            .confirm_select(ConfirmSelectOptions::default())
             .await
             .map_err(|error| QueueError(error.to_string()))?;
         channel
@@ -112,7 +123,7 @@ impl Queue for RabbitQueue {
         let channel = self.channel.clone();
         let routing_key = routing_key.to_owned();
         Box::pin(async move {
-            channel
+            let confirmation = channel
                 .basic_publish(
                     EXCHANGE.into(),
                     routing_key.as_str().into(),
@@ -121,8 +132,13 @@ impl Queue for RabbitQueue {
                     lapin::BasicProperties::default().with_delivery_mode(2),
                 )
                 .await
-                .map(|_| ())
-                .map_err(|error| QueueError(error.to_string()))
+                .map_err(|error| QueueError(error.to_string()))?;
+            match tokio::time::timeout(PUBLISH_CONFIRM_TIMEOUT, confirmation).await {
+                Ok(result) => confirmed(result),
+                Err(_) => Err(QueueError(
+                    "the broker did not confirm the message in time".to_owned(),
+                )),
+            }
         })
     }
 }
@@ -138,10 +154,17 @@ impl QueueConsumer for RabbitQueue {
         keys: &[&str],
         handler: MessageHandler,
     ) -> BoxFuture<Result<(), QueueError>> {
-        let channel = self.channel.clone();
+        let connection = Arc::clone(&self.connection);
         let queue = queue.to_owned();
         let keys: Vec<String> = keys.iter().map(|key| (*key).to_owned()).collect();
         Box::pin(async move {
+            // A consumer owns its channel and its prefetch slot. The run and
+            // stage consumers therefore cannot hold each other's delivery, and
+            // a second run consumer gets its own slot instead of sharing one.
+            let channel = connection
+                .create_channel()
+                .await
+                .map_err(|error| QueueError(error.to_string()))?;
             declare_queue(&channel, &queue, &keys).await?;
             channel
                 .basic_qos(1, BasicQosOptions::default())
@@ -224,4 +247,39 @@ async fn declare_queue<S: AsRef<str>>(
             .map_err(|error| QueueError(error.to_string()))?;
     }
     Ok(())
+}
+
+/// Map one broker confirmation onto the queue result.
+fn confirmed(result: Result<Confirmation, lapin::Error>) -> Result<(), QueueError> {
+    match result {
+        Ok(Confirmation::Ack(_)) => Ok(()),
+        Ok(Confirmation::Nack(_)) => Err(QueueError("the broker rejected the message".to_owned())),
+        Ok(Confirmation::NotRequested) => Err(QueueError(
+            "the channel is not in publisher-confirm mode".to_owned(),
+        )),
+        Err(error) => Err(QueueError(error.to_string())),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_ack_is_success() {
+        assert!(confirmed(Ok(Confirmation::Ack(None))).is_ok());
+    }
+
+    #[test]
+    fn a_nack_is_an_error() {
+        let error = confirmed(Ok(Confirmation::Nack(None))).expect_err("a nack is an error");
+        assert!(error.0.contains("rejected"), "{error}");
+    }
+
+    #[test]
+    fn a_channel_without_confirms_is_an_error() {
+        let error =
+            confirmed(Ok(Confirmation::NotRequested)).expect_err("a missing confirm is an error");
+        assert!(error.0.contains("confirm"), "{error}");
+    }
 }

@@ -22,6 +22,8 @@ history is in Git and the pull requests.
 
 - The gateway's `/ready` endpoint aggregates the configured upstream services
   and returns `503` when one is down or answers under another service identity.
+- RabbitMQ publishes wait for the broker's confirmation; a nack, a missing
+  confirm mode, or a confirmation timeout is a failed publish.
 
 ### Fixed
 
@@ -40,6 +42,8 @@ history is in Git and the pull requests.
 
 ### Changed
 
+- The backtest worker opens a channel per consumer with its own prefetch slot
+  and starts `QR_BACKTEST_CONCURRENCY` run consumers.
 - The documentation-length checker now covers `docs/README.md`.
 
 ### Fixed
