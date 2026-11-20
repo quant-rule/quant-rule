@@ -2,7 +2,7 @@
 
 - Date: 2026-11-01 (UTC)
 - Audit ID: AUDIT-2026-11-01-crypto-2023
-- Status: Published; finding `AUD-2026-11-01-70` is `Open`
+- Status: Published; finding `AUD-2026-11-01-70` is `Stale` (triage 2026-11-20: 2023 is excluded from every current partition; the historical experiment keeps its limitation)
 - Auditor: Audit Agent (AI), sequential read-only pass
 - Baseline: `main` at `3ed2bef`; audit worktree `feat/improvement-cycle-2026-11-01`
 - Data: local Dukascopy BID M1 sources plus one fresh provider fetch probe
@@ -30,7 +30,7 @@ experiment's 2023 cells are therefore a data blocker, not evidence of no edge.
 
 | ID | Severity | Area | Finding | Evidence | Impact | Options | Recommended | Verification | Status | Links |
 |---|---|---|---|---|---|---|---|---|---|---|
-| AUD-2026-11-01-70 | Major | data | 2023 crypto M1 provider gaps are amplified by the strict complete-bucket rule, leaving 46%/28% 4h coverage | Local source counts; fresh fetch probe; `crates/quantrule-data/src/bucket.rs:1-5`; `timeframe_set.rs:1-12,383-392` | The 2023 BTCUSD/ETHUSD treatment cells are not a clean out-of-sample test; the experiment cannot claim `no edge` from them | A. exclude 2023; B. add a dense source; C. change partial-bucket policy; D. interpolate | B, else A; reject C for a trading result and D outright | Re-run the coverage probe after a source change; a fresh fetch of a gap must not reproduce it | Open | — |
+| AUD-2026-11-01-70 | Major | data | 2023 crypto M1 provider gaps are amplified by the strict complete-bucket rule, leaving 46%/28% 4h coverage | Local source counts; fresh fetch probe; `crates/quantrule-data/src/bucket.rs:1-5`; `timeframe_set.rs:1-12,383-392` | The 2023 BTCUSD/ETHUSD treatment cells are not a clean out-of-sample test; the experiment cannot claim `no edge` from them | A. exclude 2023; B. add a dense source; C. change partial-bucket policy; D. interpolate | B, else A; reject C for a trading result and D outright | Re-run the coverage probe after a source change; a fresh fetch of a gap must not reproduce it | Stale | 2026-11-20 triage: 2023 is excluded from current partitions |
 
 ## Detail
 

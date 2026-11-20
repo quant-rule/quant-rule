@@ -500,3 +500,13 @@ Stop and request human direction when:
 | V36 | P6 independent verification | The Improvement Verifier checks every finding without self-verification | verification record; audit statuses | `Verified` or returned; no self-verification | | Pending | | | |
 | V37 | P6 records | The changelog, AI log, board, and prior-finding triage are updated | review; `python3 tools/check_changelog.py` | pass; every prior finding resolved | CHANGELOG [Unreleased] has Added/Changed/Fixed/Removed; AI log extended; check_changelog passes; board unchanged | Pending | | | |
 | V38 | P6 cleanup | The worktrees and branches are removed after merge; the `Done` board items remain | `git worktree list`; `git branch -a`; `python3 tools/worktree_cleanup.py check <worktree>` | no task worktree or branch; board unchanged | | Pending | | | |
+
+## Verification addendum (2026-11-20)
+
+The 22 findings are `Verified` by a sequential Improvement Verifier pass against
+the merged tree. The evidence is the current full gate, the browser suite, the
+composed tier, and the targeted tests recorded in the 2026-11-17 whole-project
+audit. The plan's process rows remain as recorded: V5 (issue creation) was
+human-gated and used work-item IDs, and V10 (Windows packaged smoke) is covered
+by the current release workflow's packaged Windows test. The plan stays
+`In Review` for human acceptance of those process rows.

@@ -24,15 +24,21 @@ BUILD = "Build the image"
 NO_PYTHON = "Assert the image carries no Python"
 CONTRACT = "Check the image contract"
 PUSH = "Push the verified image"
+COMPOSED = "Run the composed suite on the local image"
 CHECK_STEPS = (NO_PYTHON, CONTRACT)
 
 
-def image_job(text: str) -> str:
-    start = text.find("\n  image:\n")
-    end = text.find("\n  desktop:\n", start + 1)
+def job(text: str, name: str, next_name: str) -> str:
+    start = text.find(f"\n  {name}:\n")
+    end = text.find(f"\n  {next_name}:\n", start + 1)
     if start == -1 or end == -1:
         return ""
     return text[start:end]
+
+
+def image_job(text: str) -> str:
+    block = job(text, "image", "quality")
+    return block if block else job(text, "image", "desktop")
 
 
 def steps(text: str) -> dict[str, str]:
@@ -61,10 +67,10 @@ def problems(text: str) -> list[str]:
     if group_line != GROUP:
         found.append(f"concurrency group is {group_line!r}, expected {GROUP!r}")
 
-    job = image_job(text)
-    if not job:
+    image = image_job(text)
+    if not image:
         return found + ["the image job is missing"]
-    order = steps(job)
+    order = steps(image)
     for name in (BUILD, *CHECK_STEPS, PUSH):
         if name not in order:
             found.append(f"the image job has no {name!r} step")
@@ -81,6 +87,29 @@ def problems(text: str) -> list[str]:
     for name in CHECK_STEPS:
         if names.index(name) > push_at:
             found.append(f"{name!r} runs after the image is published")
+    if COMPOSED not in order:
+        found.append(f"the image job has no {COMPOSED!r} step")
+    else:
+        if "docker push" in order[COMPOSED]:
+            found.append(f"{COMPOSED!r} publishes the image before the suite passes")
+        if names.index(COMPOSED) > push_at:
+            found.append(f"{COMPOSED!r} runs after the image is published")
+        if "tools/test_tiers.sh composed" not in order[COMPOSED]:
+            found.append(f"{COMPOSED!r} does not run the composed tier")
+
+    quality = job(text, "quality", "desktop")
+    if not quality:
+        found.append("the quality job is missing")
+    else:
+        for command in ("bun run check", "bun test", "bun run build", "bun run e2e"):
+            if command not in quality:
+                found.append(f"the quality job does not run {command!r}")
+    desktop = job(text, "desktop", "publish")
+    if "needs: [gate, quality]" not in desktop:
+        found.append("the desktop job does not require the quality job")
+    publish = text[text.find("\n  publish:\n") :]
+    if "\n      - quality\n" not in publish:
+        found.append("the publish job does not require the quality job")
     if "if: steps.reference.outputs.publish == 'true'" not in order[PUSH]:
         found.append(f"{PUSH!r} is not limited to a publish run")
     if "docker push \"$IMAGE:$sha_tag\"" not in order[PUSH]:
@@ -120,6 +149,18 @@ class ReleaseWorkflowTests(unittest.TestCase):
         seeded = self.text.replace(f"- name: {NO_PYTHON}", "- name: Skipped check", 1)
         self.assertTrue(
             any("has no 'Assert the image carries no Python' step" in problem for problem in problems(seeded))
+        )
+
+    def test_a_missing_composed_step_is_reported(self) -> None:
+        seeded = self.text.replace(f"- name: {COMPOSED}", "- name: Skipped composed", 1)
+        self.assertTrue(
+            any("has no 'Run the composed suite on the local image' step" in problem for problem in problems(seeded))
+        )
+
+    def test_a_missing_quality_job_is_reported(self) -> None:
+        seeded = self.text.replace("\n  quality:\n", "\n  skipped-quality:\n", 1)
+        self.assertTrue(
+            any("quality job is missing" in problem for problem in problems(seeded))
         )
 
     def test_a_push_before_the_contract_check_is_reported(self) -> None:
