@@ -58,6 +58,29 @@ async fn windows(
 }
 
 #[tokio::test]
+async fn a_non_numeric_chart_returns_the_error_envelope() {
+    let store = Arc::new(MemoryStore::default());
+    let objects = Arc::new(MemoryObjects::default());
+    let fixture = store_bundle(&objects, 40).await;
+    let service = state(store, objects);
+    let id = create(Arc::clone(&service), "default", &fixture).await;
+    windows(Arc::clone(&service), "default", &id).await;
+
+    let (status, body) = request(
+        service,
+        "GET",
+        &format!("/simulation/runs/{id}/windows/not-a-number/series"),
+        "default",
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    let error = json(&body);
+    assert_eq!(error["error"]["code"], "simulation.not_found");
+    assert_eq!(error["error"]["message"], "the chart index is not a number");
+}
+
+#[tokio::test]
 async fn the_eleven_endpoints_answer_in_order() {
     let store = Arc::new(MemoryStore::default());
     let objects = Arc::new(MemoryObjects::default());

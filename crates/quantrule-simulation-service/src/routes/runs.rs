@@ -196,8 +196,14 @@ pub(crate) async fn select_windows(
 pub(crate) async fn get_series(
     State(state): State<Arc<SimulationState>>,
     headers: HeaderMap,
-    Path((sim_id, chart)): Path<(String, u64)>,
+    Path((sim_id, chart)): Path<(String, String)>,
 ) -> Result<Json<SeriesView>, ApiFailure> {
+    let chart = chart.parse::<u64>().map_err(|_| {
+        failure(
+            ErrorCode::SimulationNotFound,
+            "the chart index is not a number",
+        )
+    })?;
     let profile = request_profile(&headers)?;
     let run = load_run(&state, &profile, &sim_id).await?;
     let criteria = recorded_criteria(&run)?;

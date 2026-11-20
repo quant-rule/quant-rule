@@ -14,7 +14,7 @@ use axum::body::Body;
 use axum::extract::rejection::{JsonRejection, QueryRejection};
 use axum::extract::{DefaultBodyLimit, Json, Path, Query, Request, State};
 use axum::http::{HeaderMap, StatusCode, header};
-use axum::response::IntoResponse;
+use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Router, routing::post};
 use quantrule_api::{
@@ -427,7 +427,7 @@ async fn get_ladder(
     })?;
     let (record, source) = load_dataset_object(&state, &headers, &version).await?;
     if timeframe == Timeframe::M1 {
-        return Ok(csv_response(source));
+        return Ok(csv_response(&headers, source));
     }
     let objects = state
         .objects
@@ -447,7 +447,7 @@ async fn get_ladder(
             .get(&key)
             .await
             .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
-        return Ok(csv_response(cached));
+        return Ok(csv_response(&headers, cached));
     }
     let object = ladder(&source, timeframe)
         .map_err(|error| failure(ErrorCode::DatasetInvalid, error.to_string()))?;
@@ -455,12 +455,20 @@ async fn get_ladder(
         .put(&key, object.clone())
         .await
         .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
-    Ok(csv_response(object))
+    Ok(csv_response(&headers, object))
 }
 
-/// A CSV body with a content ETag.
-fn csv_response(bytes: Vec<u8>) -> impl IntoResponse {
+/// A CSV body with a content ETag, or `304` when the caller already has it.
+fn csv_response(headers: &HeaderMap, bytes: Vec<u8>) -> Response {
     let etag = format!("\"{}\"", Digest::sha256(&bytes));
+    csv_with_etag(headers, etag, bytes)
+}
+
+/// Build the CSV response, honoring `If-None-Match`.
+fn csv_with_etag(headers: &HeaderMap, etag: String, bytes: Vec<u8>) -> Response {
+    if if_none_match(headers, &etag) {
+        return (StatusCode::NOT_MODIFIED, [(header::ETAG, etag)]).into_response();
+    }
     (
         StatusCode::OK,
         [
@@ -469,6 +477,20 @@ fn csv_response(bytes: Vec<u8>) -> impl IntoResponse {
         ],
         bytes,
     )
+        .into_response()
+}
+
+/// Whether the caller's `If-None-Match` covers this ETag.
+fn if_none_match(headers: &HeaderMap, etag: &str) -> bool {
+    headers
+        .get(header::IF_NONE_MATCH)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| {
+            value.split(',').any(|candidate| {
+                let candidate = candidate.trim();
+                candidate == "*" || candidate == etag
+            })
+        })
 }
 
 /// Resolve a dataset and read its stored bytes, verifying the digest.
@@ -531,17 +553,10 @@ async fn get_candles(
     State(state): State<Arc<DataState>>,
     headers: HeaderMap,
     Path(version): Path<String>,
-) -> Result<impl IntoResponse, ApiFailure> {
+) -> Result<Response, ApiFailure> {
     let (record, bytes) = load_dataset_object(&state, &headers, &version).await?;
     let etag = format!("\"{}\"", record.summary.data_version);
-    Ok((
-        StatusCode::OK,
-        [
-            (header::CONTENT_TYPE, "text/csv".to_owned()),
-            (header::ETAG, etag),
-        ],
-        bytes,
-    ))
+    Ok(csv_with_etag(&headers, etag, bytes))
 }
 
 async fn inspect_candles(

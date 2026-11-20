@@ -285,7 +285,8 @@ pub trait DataClient: Send + Sync {
 }
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(2);
-const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
+/// The default deadline for one internal request.
+pub const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 const MAX_INTERNAL_BODY: usize = 8 * 1024 * 1024;
 
 /// The concrete HTTP transport for the internal surface.
@@ -363,6 +364,25 @@ impl HttpServiceClient {
         service: Service,
         request: Request<Body>,
     ) -> Result<Response<Body>, ClientError> {
+        self.forward_with_deadline(service, request, REQUEST_TIMEOUT)
+            .await
+    }
+
+    /// Forward with an explicit deadline.
+    ///
+    /// A streaming upload, a download, or a model compute may outlive the
+    /// default read deadline; the caller names the bound for that work.
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport error when the service is unreachable or does not
+    /// answer headers inside `deadline`.
+    pub async fn forward_with_deadline(
+        &self,
+        service: Service,
+        request: Request<Body>,
+        deadline: Duration,
+    ) -> Result<Response<Body>, ClientError> {
         let (mut parts, body) = request.into_parts();
         parts.uri = self.endpoint(
             service,
@@ -372,7 +392,7 @@ impl HttpServiceClient {
                 .map_or("/", http::uri::PathAndQuery::as_str),
         )?;
         let request = Request::from_parts(parts, body);
-        let response = tokio::time::timeout(REQUEST_TIMEOUT, self.client.request(request))
+        let response = tokio::time::timeout(deadline, self.client.request(request))
             .await
             .map_err(|_| ClientError::Timeout { service })?
             .map_err(|error| ClientError::Unreachable {

@@ -346,7 +346,7 @@ async fn the_candle_stream_is_byte_identical() {
     let record = read_dataset(&body_bytes(response).await);
     let version = record.summary.data_version.to_string();
 
-    let response = router(state)
+    let response = router(Arc::clone(&state))
         .oneshot(
             Request::get(format!("/datasets/{version}/candles"))
                 .header(PROFILE_HEADER, "default")
@@ -375,6 +375,26 @@ async fn the_candle_stream_is_byte_identical() {
         body_bytes(response).await,
         b"1704067200,100,101,99,100.5,10\n1704067260,100.5,101.5,100,101,12"
     );
+
+    let response = router(state)
+        .oneshot(
+            Request::get(format!("/datasets/{version}/candles"))
+                .header(PROFILE_HEADER, "default")
+                .header("if-none-match", etag.clone())
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::NOT_MODIFIED);
+    assert_eq!(
+        response
+            .headers()
+            .get("etag")
+            .and_then(|value| value.to_str().ok()),
+        Some(etag.as_str())
+    );
+    assert!(body_bytes(response).await.is_empty());
 }
 
 #[tokio::test]
@@ -433,13 +453,18 @@ async fn a_five_minute_ladder_is_built_and_reused() {
         .await
         .expect("response");
     assert_eq!(response.status(), StatusCode::OK);
-    assert!(response.headers().get("etag").is_some());
+    let etag = response
+        .headers()
+        .get("etag")
+        .and_then(|value| value.to_str().ok())
+        .expect("etag")
+        .to_owned();
     assert_eq!(body_bytes(response).await, expected);
 
     let key = format!("ladder/{}/full/5m", record.summary.data_version.as_hex());
     assert_eq!(objects.get(&key).await.expect("cached"), expected);
 
-    let response = router(state)
+    let response = router(Arc::clone(&state))
         .oneshot(
             Request::get(format!("/datasets/{version}/ladder/5m"))
                 .header(PROFILE_HEADER, "default")
@@ -450,6 +475,19 @@ async fn a_five_minute_ladder_is_built_and_reused() {
         .expect("response");
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(body_bytes(response).await, expected);
+
+    let response = router(state)
+        .oneshot(
+            Request::get(format!("/datasets/{version}/ladder/5m"))
+                .header(PROFILE_HEADER, "default")
+                .header("if-none-match", etag)
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::NOT_MODIFIED);
+    assert!(body_bytes(response).await.is_empty());
 }
 
 #[tokio::test]

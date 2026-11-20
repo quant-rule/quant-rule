@@ -17,6 +17,7 @@
 
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 
 use axum::extract::State;
 use axum::http::{HeaderMap, Method, Request, StatusCode, Uri, header};
@@ -29,7 +30,8 @@ use quantrule_api::{
     VersionInfo,
 };
 use quantrule_runtime::client::{
-    ClientError, DataClient, HttpServiceClient, RunCounter, Service, SimulationCounter,
+    ClientError, DataClient, HttpServiceClient, REQUEST_TIMEOUT, RunCounter, Service,
+    SimulationCounter,
 };
 use quantrule_runtime::config::Config;
 use quantrule_runtime::error::RuntimeError;
@@ -131,6 +133,40 @@ impl AppState {
             bearer_token: config.bearer_token.as_deref().map(Arc::<str>::from),
         }
     }
+}
+
+/// A streaming upload/download or a model compute gets a transfer deadline.
+const LONG_REQUEST_TIMEOUT: Duration = Duration::from_secs(15 * 60);
+
+/// The deadline for one proxied request.
+///
+/// A candle download, an artifact download, a dataset upload, or a model
+/// compute can outlive the default read deadline; every other call keeps it.
+fn proxy_deadline(method: &Method, path: &str) -> Duration {
+    let long = (method == Method::POST
+        && matches!(
+            path,
+            "/catalog/datasets" | "/catalog/datasets/tolerant" | "/model/compute"
+        ))
+        || (method == Method::GET
+            && (path.starts_with("/datasets/") || path.contains("/artifacts/")));
+    if long {
+        LONG_REQUEST_TIMEOUT
+    } else {
+        REQUEST_TIMEOUT
+    }
+}
+
+/// Forward one proxied request under the deadline its route needs.
+async fn forward_upstream(
+    upstream: &HttpServiceClient,
+    service: Service,
+    request: Request<axum::body::Body>,
+) -> Result<Response, ClientError> {
+    let deadline = proxy_deadline(request.method(), request.uri().path());
+    upstream
+        .forward_with_deadline(service, request, deadline)
+        .await
 }
 
 /// A failed request: a status and the shared envelope.
@@ -375,8 +411,7 @@ async fn forward_data(
     }
     let headers = proxy_request_headers(forwarded.headers(), &profile);
     *forwarded.headers_mut() = headers;
-    let response = upstream
-        .forward(Service::Data, forwarded)
+    let response = forward_upstream(upstream.as_ref(), Service::Data, forwarded)
         .await
         .map_err(|error| {
             failure(
@@ -445,8 +480,7 @@ async fn forward_events(
         .body(axum::body::Body::empty())
         .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
     *forwarded.headers_mut() = headers;
-    let response = upstream
-        .forward(Service::Model, forwarded)
+    let response = forward_upstream(upstream.as_ref(), Service::Model, forwarded)
         .await
         .map_err(|error| {
             failure(
@@ -508,8 +542,7 @@ async fn forward_model(
     }
     let headers = proxy_request_headers(forwarded.headers(), &profile);
     *forwarded.headers_mut() = headers;
-    let response = upstream
-        .forward(Service::Model, forwarded)
+    let response = forward_upstream(upstream.as_ref(), Service::Model, forwarded)
         .await
         .map_err(|error| {
             failure(
@@ -587,8 +620,7 @@ async fn forward_simulation(
     }
     let headers = proxy_request_headers(forwarded.headers(), &profile);
     *forwarded.headers_mut() = headers;
-    let response = upstream
-        .forward(Service::Simulation, forwarded)
+    let response = forward_upstream(upstream.as_ref(), Service::Simulation, forwarded)
         .await
         .map_err(|error| {
             failure(
@@ -666,8 +698,7 @@ async fn forward_evidence(
     }
     let headers = proxy_request_headers(forwarded.headers(), &profile);
     *forwarded.headers_mut() = headers;
-    let response = upstream
-        .forward(Service::Evidence, forwarded)
+    let response = forward_upstream(upstream.as_ref(), Service::Evidence, forwarded)
         .await
         .map_err(|error| {
             failure(
@@ -774,4 +805,39 @@ fn proxy_response(response: Response<axum::body::Body>) -> Response {
 /// server fails.
 pub async fn serve(config: &Config, state: Arc<AppState>) -> Result<(), RuntimeError> {
     quantrule_runtime::serve(&config.bind, router(state)).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn long_routes_get_the_transfer_deadline() {
+        assert_eq!(
+            proxy_deadline(&Method::POST, "/catalog/datasets"),
+            LONG_REQUEST_TIMEOUT
+        );
+        assert_eq!(
+            proxy_deadline(&Method::POST, "/model/compute"),
+            LONG_REQUEST_TIMEOUT
+        );
+        assert_eq!(
+            proxy_deadline(&Method::GET, "/datasets/sha256:abc/candles"),
+            LONG_REQUEST_TIMEOUT
+        );
+        assert_eq!(
+            proxy_deadline(&Method::GET, "/runs/sha256:abc/artifacts/results.json"),
+            LONG_REQUEST_TIMEOUT
+        );
+        assert_eq!(
+            proxy_deadline(&Method::GET, "/stages/runs/abc/artifacts/results.json"),
+            LONG_REQUEST_TIMEOUT
+        );
+        assert_eq!(proxy_deadline(&Method::GET, "/runs"), REQUEST_TIMEOUT);
+        assert_eq!(proxy_deadline(&Method::POST, "/runs"), REQUEST_TIMEOUT);
+        assert_eq!(
+            proxy_deadline(&Method::GET, "/inspect/candles"),
+            REQUEST_TIMEOUT
+        );
+    }
 }
