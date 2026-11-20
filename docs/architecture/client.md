@@ -27,11 +27,11 @@ path never falls back to the client.
 | Inspect | `InspectPanel.svelte` | Candles, timeframe ladder, and event batch for one dataset; read-only | "No datasets to inspect." |
 | Simulation | `SimulationRunsPanel.svelte` | `sim_id`, premise, bundle, windows, marked/unmarked, status | "No simulation runs." |
 | Simulation run | `SimulationRunDetail.svelte` | Run state and requests from `simulationRun.svelte.ts`; window navigator, chart, review, and the marks, check, and decision panels | Only for a known run |
-| Help | `HelpPanel.svelte` | The 46 registered commands and the screen that reaches each use case | — |
+| History | `HistoryPanel.svelte` | Kind tabs, archived filter, archive, and typed-confirmation erase | "No run records." |
+| Help | `HelpPanel.svelte` | The 49 registered commands and the screen that reaches each use case | — |
 
-Every screen is owned by one component. The browser and the command shell reach
-one HTTP contract; the shared fixture and both parity tests enforce that every
-registered command has a browser control (`tests/fixtures/client-parity/api.json`).
+Every screen is owned by one component. The browser and the command shell reach one HTTP
+contract; the shared fixture and both parity tests enforce one browser control per command.
 ## 2. Stores
 
 | Store | Holds | Polling |
