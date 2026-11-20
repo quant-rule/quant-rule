@@ -32,7 +32,7 @@ evidence_dir=""
 python_bin="${QR_PYTHON:-python3}"
 
 # The canonical digest of the fixture artifact list used by --self-test.
-self_test_digest="4acf7e9c323e2c30f293169bf96a41ee0387fb323d20950ad8e9ae043f2f9bb7"
+self_test_digest="773aea9ea27012c85ebaebe6661c5917ad8fe7c5bbc9d2e8ee22308c548f2ab2"
 
 usage() {
   cat <<'USAGE'
@@ -159,7 +159,7 @@ normalize_expected() {
 # of "name<TAB>sha256-hex" lines; the output is the bare 64-hex digest.
 canonical_digest() {
   awk -F'\t' '
-    $1 == "results.json" || $1 ~ /\.csv$/ || $1 ~ /\.ndjson$/ { print $1 "\t" $2 }
+    $1 == "results.json" || $1 ~ /(^|\/)metrics\.json$/ || $1 ~ /\.csv$/ || $1 ~ /\.ndjson$/ { print $1 "\t" $2 }
   ' | LC_ALL=C sort | while IFS=$'\t' read -r name sha; do
     [ -n "$name" ] || continue
     sha="${sha#sha256:}"
@@ -170,7 +170,7 @@ canonical_digest() {
 canonical_artifacts() {
   printf '%s\n' "$1" \
     | sed -n 's/^artifact \(.*\): bytes=[0-9][0-9]* sha256=sha256:\([0-9a-f]*\)$/\1\t\2/p' \
-    | awk -F'\t' '$1 == "results.json" || $1 ~ /\.csv$/ || $1 ~ /\.ndjson$/'
+    | awk -F'\t' '$1 == "results.json" || $1 ~ /(^|\/)metrics\.json$/ || $1 ~ /\.csv$/ || $1 ~ /\.ndjson$/'
 }
 
 compare_expected() {
@@ -199,6 +199,7 @@ artifact provenance.json: bytes=55 sha256=sha256:5555555555555555555555555555555
 artifact summary.txt: bytes=66 sha256=sha256:6666666666666666666666666666666666666666666666666666666666666666
 artifact manifest.json: bytes=77 sha256=sha256:7777777777777777777777777777777777777777777777777777777777777777
 artifact model/result.json: bytes=88 sha256=sha256:8888888888888888888888888888888888888888888888888888888888888888
+artifact portfolio/metrics.json: bytes=99 sha256=sha256:9999999999999999999999999999999999999999999999999999999999999999
 EOF
 )"
   artifacts="$(canonical_artifacts "$detail")"

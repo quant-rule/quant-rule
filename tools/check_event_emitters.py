@@ -31,15 +31,21 @@ def load_registry() -> dict[int, dict[str, object]]:
     return {event["code"]: event for event in registry["events"]}
 
 
-def production_sources() -> list[str]:
-    sources = []
+def production_paths() -> list[Path]:
+    paths = []
     for path in EVENTS.rglob("*.rs"):
         if path.name == "codes.rs" or path.name == "tests.rs":
             continue
+        if path.name.endswith("_tests.rs"):
+            continue
         if "tests" in path.parts:
             continue
-        sources.append(path.read_text(encoding="utf-8"))
-    return sources
+        paths.append(path)
+    return paths
+
+
+def production_sources() -> list[str]:
+    return [path.read_text(encoding="utf-8") for path in production_paths()]
 
 
 def main() -> int:

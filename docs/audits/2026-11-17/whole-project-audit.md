@@ -146,6 +146,21 @@ its AI transparency log.
 | AUD-2026-11-17-52 | Minor | docs/data | `docs/config/2026-10-30/data-v3.md` requires the instrument and timeframes to be in a policy universe, but the policy document is `Historical`; the loader only checks that the instrument is non-empty and the timeframes are ordered/1m-derived | `docs/config/2026-10-30/data-v3.md:43,57-59`; `docs/config/2026-10-30/policy-and-strategy.md:3-4`; `crates/quantrule-app/src/config/data.rs:90-96` | The documented admission check does not exist; a data config with an unknown instrument is accepted | A. Remove the policy-universe clauses from data-v3; B. Validate against a current universe such as `data/partitions.json` | A | The data-v3 document and the loader agree; an unknown instrument is refused | Fixed | #894 |
 | AUD-2026-11-17-53 | Info | model/API | `retention.rs` says the event batch/history contains every event, but `timeframe.rs` builds both views from the base `events` vector only; extended events exist only in `merged_events` | `crates/quantrule-model/src/retention.rs:5-8`; `crates/quantrule-model/src/timeframe.rs:296-305` | A public consumer of the batch/history misses extended events; the retention test only exercises base events; no production consumer was found | A. Build both views from `merged_events`; B. Rename/document them as base-only and adjust the retention contract | A | The batch/history includes a known extended event; the retention test covers it | Fixed | #894 |
 
+## Verification note (2026-11-20)
+
+The browser suite passed locally: 146 `bun test` cases and 53 Playwright cases,
+with `bun run check` and `bun run build`. The composed tier passed on a clean
+stack: both verify-mini runs published 13 canonical artifacts and the gateway
+recomputed `sha256:a0372f02…`. The first composed attempt exposed a stale MinIO
+bundle and the second exposed `tools/verify.sh` excluding `metrics.json`; the
+verifier was fixed and the third run passed.
+
+These runs remove the browser and composed evidence blockers for the remaining
+P4/P5 work, but they do not close the specific findings that still need their
+own tests: the health kill test, queue confirms/concurrency, Postgres retention,
+restore round-trip, remote HTTP browser origin, selection race, labels, and
+simulation parity.
+
 ## Remediation status (2026-11-17)
 
 The P1 Critical, P2 model/evidence, P3.2 current-document, and P3.3 AI-log work
