@@ -156,7 +156,7 @@ warnings`, `cargo test`, `tools/gate.sh`, `python3 tools/check_manual.py`, and
 | ID | Plan item | Acceptance criterion | Evidence / command | Expected | Observed | Status | Reviewer | Date | Notes |
 |---|---|---|---|---|---|---|---|---|---|
 | V01 | ADR | ADR approved before code | ADR record | Approved | Approved 2026-11-20 | Pass | Human | 2026-11-20 | — |
-| V02 | Descriptor | Valid example passes; unsafe cases fail | `cargo test -p quantrule-deploy` | Typed errors | 18 passed, 0 failed | Pass | Test | 2026-11-20 | — |
+| V02 | Descriptor | Valid example passes; unsafe cases fail | `cargo test -p quantrule-deploy` | Typed errors | 26 passed, 0 failed | Pass | Test | 2026-11-20 | Hardening #980 |
 | V03 | Image identity | One digest on every host | `qr-deploy check` | All equal | Local harness sets one digest; real LAN blocked | Blocked | Test | 2026-11-20 | Needs the three hosts |
 | V04 | Public boundary | Only the gateway is public | Port scan / firewall test | One port | — | Blocked | Security | 2026-11-20 | Local harness: only the gateway published; host firewall blocked |
 | V05 | Internal boundary | Internal services need the overlay | Network test | Unreachable without overlay | — | Blocked | Security | 2026-11-20 | Overlay isolation needs the three hosts |
@@ -168,7 +168,8 @@ warnings`, `cargo test`, `tools/gate.sh`, `python3 tools/check_manual.py`, and
 | V11 | Migrations | Concurrent start succeeds | Start-all test | No lock failure | — | Blocked | Test | 2026-11-20 | Concurrent cross-host start needs the LAN |
 | V12 | Rollback | Previous digest restores | Upgrade test | Healthy | — | Blocked | Release | 2026-11-20 | Rollback needs the LAN |
 | V13 | Backup | Restore reproduces the digest | Restore test | Same digest | — | Blocked | Data Steward | 2026-11-20 | Live backup/restore needs the LAN |
-| V14 | Docs | Checkers and gate pass | `tools/gate.sh` | Green | `tools/checkers.sh` 27 checkers pass; gate in progress | Pending | Docs | 2026-11-20 | Gate result awaited |
+| V14 | Docs | Checkers and gate pass | `tools/gate.sh` | Green | `tools/checkers.sh` 27 checkers pass; full gate pending | Pending | Docs | 2026-11-20 | Gate result awaited |
+| V16 | Security | Blocking review findings closed | #980 tests and Compose config | Negative tests pass | 26 deploy tests; Compose config tests; runtime redaction | Pass | Security | 2026-11-20 | Remaining risks documented |
 | V15 | Release | Release note and changelog | Review | Present | — | Pending | Release | — | — |
 
 ## 10. Risks and recovery

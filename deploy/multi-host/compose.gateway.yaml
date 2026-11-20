@@ -14,6 +14,7 @@ name: quantrule-gateway
 services:
   gateway:
     image: ${QR_IMAGE}
+    pull_policy: never
     command: ["qr-gateway"]
     network_mode: host
     env_file:
@@ -25,7 +26,7 @@ services:
       # which carries no per-service bind when several services share a host.
       # /ready reports dependency state and answers 503 when a dependency is
       # unhealthy, so -f is the whole assertion.
-      test: ["CMD-SHELL", "curl -fsS http://$${QR_BIND_IP}:$${QR_BIND_PORT}/ready"]
+      test: ["CMD-SHELL", "curl -fsS http://$${QR_BIND_IP}:$${QR_BIND_PORT}/ready | grep -q '\"state\":\"healthy\"'"]
       interval: 10s
       timeout: 5s
       retries: 6

@@ -56,10 +56,13 @@ QuantRule v1.3.0 ready → http://localhost:8080
 and make is optional there:
 
 ```powershell
-docker compose up -d --build --wait
+docker compose build
+docker compose create gateway
+$env:QR_IMAGE_DIGEST = (docker compose images -q gateway | Select-Object -First 1)
+docker compose up -d --wait
 ```
 
-A direct Compose start must also set `QR_IMAGE_DIGEST` to the built image id;
+A direct Compose start must set `QR_IMAGE_DIGEST` to the built image id;
 `make up` records it automatically. A server without the digest refuses run and
 stage submissions instead of inventing a build identity.
 

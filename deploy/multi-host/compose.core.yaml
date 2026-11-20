@@ -15,8 +15,11 @@ name: quantrule-core
 services:
   data:
     image: ${QR_IMAGE}
+    pull_policy: never
     command: ["qr-data"]
     network_mode: host
+    environment:
+      QR_INTERNAL_ONLY: "1"
     env_file:
       - env/data.env
     restart: unless-stopped
@@ -27,7 +30,7 @@ services:
       # not the place for it, because re-rendering replaces that file.
       - ${QR_CONFIG_HOST_DIR:-../../config}:/srv/config:ro
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://$${QR_BIND_IP}:$${QR_BIND_PORT}/health"]
+      test: ["CMD-SHELL", "curl -fsS http://$${QR_BIND_IP}:$${QR_BIND_PORT}/health | grep -q '\"state\":\"healthy\"'"]
       interval: 10s
       timeout: 5s
       retries: 6
@@ -35,13 +38,16 @@ services:
 
   evidence:
     image: ${QR_IMAGE}
+    pull_policy: never
     command: ["qr-evidence"]
     network_mode: host
+    environment:
+      QR_INTERNAL_ONLY: "1"
     env_file:
       - env/evidence.env
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://$${QR_BIND_IP}:$${QR_BIND_PORT}/health"]
+      test: ["CMD-SHELL", "curl -fsS http://$${QR_BIND_IP}:$${QR_BIND_PORT}/health | grep -q '\"state\":\"healthy\"'"]
       interval: 10s
       timeout: 5s
       retries: 6
@@ -49,13 +55,16 @@ services:
 
   simulation:
     image: ${QR_IMAGE}
+    pull_policy: never
     command: ["qr-simulation"]
     network_mode: host
+    environment:
+      QR_INTERNAL_ONLY: "1"
     env_file:
       - env/simulation.env
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://$${QR_BIND_IP}:$${QR_BIND_PORT}/health"]
+      test: ["CMD-SHELL", "curl -fsS http://$${QR_BIND_IP}:$${QR_BIND_PORT}/health | grep -q '\"state\":\"healthy\"'"]
       interval: 10s
       timeout: 5s
       retries: 6

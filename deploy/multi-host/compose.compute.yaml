@@ -12,13 +12,16 @@ name: quantrule-compute
 services:
   model:
     image: ${QR_IMAGE}
+    pull_policy: never
     command: ["qr-model"]
     network_mode: host
+    environment:
+      QR_INTERNAL_ONLY: "1"
     env_file:
       - env/model.env
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://$${QR_BIND_IP}:$${QR_BIND_PORT}/health"]
+      test: ["CMD-SHELL", "curl -fsS http://$${QR_BIND_IP}:$${QR_BIND_PORT}/health | grep -q '\"state\":\"healthy\"'"]
       interval: 10s
       timeout: 5s
       retries: 6
@@ -26,6 +29,7 @@ services:
 
   backtest:
     image: ${QR_IMAGE}
+    pull_policy: never
     command: ["qr-backtest"]
     network_mode: host
     env_file:

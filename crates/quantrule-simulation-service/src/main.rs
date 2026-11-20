@@ -62,5 +62,5 @@ async fn main() -> Result<(), RuntimeError> {
         },
     ));
     tracing::info!(bind = %config.bind, "starting simulation service");
-    quantrule_runtime::serve(&config.bind, router(state)).await
+    quantrule_runtime::serve_config(&config, router(state)).await
 }

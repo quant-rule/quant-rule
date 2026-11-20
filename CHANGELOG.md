@@ -20,6 +20,15 @@ history is in Git and the pull requests.
 
 ### Added
 
+- The multi-host validator now rejects public or unspecified hosts, external
+  database/queue/object-store endpoints, template secrets, placeholder image
+  digests, IPv6, port zero, and placements the role Compose files cannot run.
+- The multi-host Compose files require `QR_BIND_IP`, set `pull_policy: never`,
+  and require a healthy state in every healthcheck.
+- `qr-deploy check` no longer sends the bearer token on open probes and prints
+  the backtest worker as `SKIP` instead of a false success.
+- The runtime redacts connection strings and the token from `Config`'s debug
+  output and rechecks the internal bind at the serve boundary.
 - The multi-host deployment profile adds `qr-deploy` and a
   `quantrule.deploy/v2` descriptor that validates placement, renders per-role
   env files, and checks the deployed image digest.
