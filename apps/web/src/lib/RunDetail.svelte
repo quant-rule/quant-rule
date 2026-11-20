@@ -18,6 +18,7 @@
   } = $props();
 
   let copied = $state(false);
+  let copyError = $state<string | null>(null);
   let verifying = $state(false);
   let verified = $state<RunDigest | null>(null);
   let verifyError = $state<string | null>(null);
@@ -26,11 +27,20 @@
   let saved = $state<string | null>(null);
 
   async function copy(): Promise<void> {
-    if (!detail?.digest || !navigator.clipboard) {
+    if (!detail?.digest) {
       return;
     }
-    await navigator.clipboard.writeText(detail.digest);
-    copied = true;
+    if (!navigator.clipboard) {
+      copyError = "Copying requires HTTPS or localhost; this page is not a secure context";
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(detail.digest);
+      copied = true;
+      copyError = null;
+    } catch (error) {
+      copyError = errorText(error);
+    }
   }
 
   /** Read the recorded digest; this is the `verify` command's use case. */
@@ -181,6 +191,9 @@
         <button onclick={() => void copy()} aria-label="Copy canonical digest">
           {copied ? "Copied" : "Copy"}
         </button>
+        {#if copyError}
+          <span class="notice error small" role="alert">{copyError}</span>
+        {/if}
       </div>
       <pre class="mono digest">{detail.digest}</pre>
       {#if verified}

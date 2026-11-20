@@ -20,6 +20,9 @@ history is in Git and the pull requests.
 
 ### Fixed
 
+- The browser reports a clear secure-context error when Web Crypto or the
+  clipboard is unavailable, instead of failing silently on a plain HTTP origin.
+
 - A run config reference is confined to the config directory: an absolute path
   or a `..` component in `run.json` is refused before the loader reads it.
 - `tools/verify.sh` includes `metrics.json` in its canonical set, so the
