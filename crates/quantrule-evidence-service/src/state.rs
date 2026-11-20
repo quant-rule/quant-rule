@@ -59,7 +59,7 @@ pub struct EvidenceState {
     pub queue: Option<Arc<dyn Queue>>,
     /// The data service's typed reads; absent in a test that does not submit.
     pub data: Option<Arc<dyn DataClient>>,
-    /// The configured retention window and the last startup cleanup.
+    /// The configured retention window and the last cleanup.
     pub operations: Arc<OperationsStatus>,
 }
 

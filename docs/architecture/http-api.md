@@ -81,7 +81,7 @@ The gateway owns `/profiles` and proxies `/catalog/*`, `/datasets/*`,
 keeps its status, body, content type, and ETag; a closed upstream is
 `503 service.unavailable`. `/inspect/events` goes to `qr-model`; the data
 service never runs a model. `/operations` is operational metadata: retention
-days and the last startup cleanup; an unrun cleanup is `null`.
+days and the last cleanup; an unrun cleanup is `null`.
 
 A count is bounded by the service's 200-record list page, not an invented total.
 

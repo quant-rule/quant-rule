@@ -1,7 +1,7 @@
 //! The operations status route.
 //!
 //! `/operations` reports the configured diagnostic stage retention window and
-//! the last startup cleanup. It is operational metadata: every profile may read
+//! the last cleanup. It is operational metadata: every profile may read
 //! it, it carries no run or stage row, and it never enters an artifact. The
 //! gateway still requires a valid profile and, when configured, a bearer token.
 

@@ -4,6 +4,7 @@ use quantrule_api::{
     ArtifactRef, Digest, ProfileId, RunId, StageArtifact, StageInput, StageKind, StageProvenance,
 };
 use quantrule_evidence_service::migrations;
+use quantrule_evidence_service::operations::OperationsStatus;
 use quantrule_evidence_service::runs::{MemoryRuns, NewRun, RunStore};
 use quantrule_evidence_service::sqlite::SqliteRunStore;
 use quantrule_evidence_service::stage::{
@@ -14,6 +15,7 @@ use quantrule_runtime::adapters::memory::MemoryObjects;
 use quantrule_runtime::adapters::sqlite::{SqliteDatabase, apply_migrations_in};
 use quantrule_runtime::clock;
 use quantrule_service_api::StageManifest;
+use std::sync::Arc;
 use std::time::{Duration, UNIX_EPOCH};
 
 fn profile(name: &str) -> ProfileId {
@@ -320,4 +322,73 @@ async fn an_unexpired_stage_is_kept() {
             .expect("stage")
             .is_some()
     );
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_hourly_sweep_removes_a_stage_without_a_restart() {
+    let stages: Arc<dyn StageStore> = Arc::new(MemoryStages::default());
+    let storage = Arc::new(MemoryObjects::default());
+    let objects: Arc<dyn ObjectStore> = storage.clone();
+    let operations = OperationsStatus::new(30, true);
+    let created = stages
+        .create(profile("default"), stage(b"old", "2020-01-01T00:00:00Z"))
+        .await
+        .expect("stage");
+    write_stage_objects(&storage, created.record()).await;
+
+    let task = tokio::spawn(retention::sweep(
+        Arc::clone(&stages),
+        Arc::clone(&objects),
+        Arc::clone(&operations),
+        30,
+        retention::SWEEP_INTERVAL,
+    ));
+
+    // The first tick is immediate; wait for the startup pass to record.
+    for _ in 0..10 {
+        tokio::task::yield_now().await;
+        if operations.report().last_cleanup.is_some() {
+            break;
+        }
+    }
+    assert!(
+        operations.report().last_cleanup.is_some(),
+        "the startup sweep did not run"
+    );
+    assert!(
+        stages
+            .get_any(created.record().stage_run_id.to_string())
+            .await
+            .expect("stage")
+            .is_none()
+    );
+
+    // A stage written after the startup pass is removed by the next tick,
+    // without restarting the service.
+    let second = stages
+        .create(profile("default"), stage(b"later", "2020-01-01T00:00:00Z"))
+        .await
+        .expect("stage");
+    write_stage_objects(&storage, second.record()).await;
+    tokio::time::advance(retention::SWEEP_INTERVAL).await;
+    for _ in 0..10 {
+        tokio::task::yield_now().await;
+        if stages
+            .get_any(second.record().stage_run_id.to_string())
+            .await
+            .expect("stage")
+            .is_none()
+        {
+            break;
+        }
+    }
+    assert!(
+        stages
+            .get_any(second.record().stage_run_id.to_string())
+            .await
+            .expect("stage")
+            .is_none(),
+        "the next hourly sweep did not run"
+    );
+    task.abort();
 }

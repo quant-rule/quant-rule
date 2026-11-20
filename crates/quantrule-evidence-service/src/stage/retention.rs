@@ -11,13 +11,15 @@
 //! and a run blob lives under a different prefix, so a shared digest is never a
 //! reason to delete a run artifact.
 
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::sync::Arc;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use quantrule_api::CleanupReport;
 use quantrule_runtime::adapters::{ObjectStore, StoreError};
 use quantrule_runtime::clock;
 use quantrule_service_api::StageManifest;
 
+use crate::operations::OperationsStatus;
 use crate::stage::{StageDeletion, StageExpiry, StageStore, StageStoreError};
 
 /// Why stage retention could not finish.
@@ -42,6 +44,9 @@ impl std::fmt::Display for RetentionError {
 }
 
 impl std::error::Error for RetentionError {}
+
+/// The interval between stage-retention sweeps.
+pub const SWEEP_INTERVAL: Duration = Duration::from_secs(60 * 60);
 
 /// What one cleanup pass removed.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -88,7 +93,42 @@ pub async fn purge_expired(
     })
 }
 
-/// Run one startup cleanup and describe it for the operations route.
+/// Sweep expired stages now, then on every `period` until the task is dropped.
+///
+/// The first tick is immediate, so a restart still performs the startup pass.
+/// The period is clamped to at least 1 ms so a zero value cannot panic the
+/// interval constructor.
+pub async fn sweep(
+    stages: Arc<dyn StageStore>,
+    objects: Arc<dyn ObjectStore>,
+    operations: Arc<OperationsStatus>,
+    days: u64,
+    period: Duration,
+) {
+    let mut interval = tokio::time::interval(period.max(Duration::from_millis(1)));
+    loop {
+        interval.tick().await;
+        let report = run_cleanup(stages.as_ref(), objects.as_ref(), SystemTime::now(), days).await;
+        if let Some(error) = report.error.as_deref() {
+            tracing::warn!(
+                %error,
+                completed_utc = %report.completed_utc,
+                "stage retention did not finish"
+            );
+        } else {
+            tracing::info!(
+                stages = report.stages_removed,
+                objects = report.objects_removed,
+                days,
+                completed_utc = %report.completed_utc,
+                "expired stage runs removed"
+            );
+        }
+        operations.record(report);
+    }
+}
+
+/// Run one cleanup pass and describe it for the operations route.
 ///
 /// The cleanup instant is read once from the injected clock. A failed cutoff or
 /// purge still returns a report with the error, so the caller records a visible

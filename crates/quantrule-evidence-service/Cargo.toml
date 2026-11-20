@@ -25,6 +25,7 @@ tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "signal",
 tracing = "0.1.44"
 
 [dev-dependencies]
+tokio = { version = "1.54.1", features = ["test-util"] }
 tower = { version = "0.5.3", features = ["util"] }
 
 [lints]
