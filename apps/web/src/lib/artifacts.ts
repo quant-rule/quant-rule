@@ -19,9 +19,30 @@ export async function artifactBytes(runId: Digest, name: string): Promise<ArrayB
   return fetchBytes(`/runs/${encodeURIComponent(runId)}/artifacts/${path}`);
 }
 
+/** The clear error for a page that cannot use the Web Crypto API. */
+export class SecureContextRequiredError extends Error {
+  constructor() {
+    super(
+      "Artifact verification requires HTTPS or localhost; this page is not a secure context",
+    );
+    this.name = "SecureContextRequiredError";
+  }
+}
+
 /** The lowercase `sha256:<hex>` digest of one byte body. */
 export async function sha256Hex(bytes: BufferSource): Promise<Digest> {
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return sha256HexWithSubtle(bytes, globalThis.crypto?.subtle);
+}
+
+/** The testable seam: hash with an explicit Web Crypto implementation. */
+export async function sha256HexWithSubtle(
+  bytes: BufferSource,
+  subtle: SubtleCrypto | undefined,
+): Promise<Digest> {
+  if (!subtle) {
+    throw new SecureContextRequiredError();
+  }
+  const digest = await subtle.digest("SHA-256", bytes);
   const hex = [...new Uint8Array(digest)]
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
