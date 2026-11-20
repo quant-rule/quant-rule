@@ -2405,7 +2405,7 @@ dependencies = [
 
 [[package]]
 name = "quantrule-desktop-shell"
-version = "1.4.1"
+version = "1.4.2"
 dependencies = [
  "tauri",
  "tauri-build",

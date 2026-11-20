@@ -1,6 +1,6 @@
 # Service Catalog
 
-- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); current in v1.4.1; approved 2026-11-12
+- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); current in v1.4.2; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Decision: [`ADR-2026-11-12-01`](../adr/2026-11-12/01-adopt-distributed-service-based-architecture.md)
 - Claim type: Behaviour Claim
