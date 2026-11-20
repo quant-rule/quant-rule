@@ -66,6 +66,11 @@ pub fn available() -> Vec<Migration> {
             name: "research-ledger",
             sql: include_str!("../migrations/0016_research_ledger.sql"),
         },
+        Migration {
+            version: 17,
+            name: "retention",
+            sql: include_str!("../migrations/0017_retention.sql"),
+        },
     ];
     migrations.sort_by_key(|migration| migration.version);
     migrations
@@ -98,6 +103,11 @@ pub fn sqlite() -> Vec<Migration> {
             version: 4,
             name: "research-ledger",
             sql: include_str!("../migrations/sqlite/0004_research_ledger.sql"),
+        },
+        Migration {
+            version: 5,
+            name: "retention",
+            sql: include_str!("../migrations/sqlite/0005_retention.sql"),
         },
     ]
 }
@@ -136,7 +146,7 @@ mod tests {
         let pending = plan(&applied, &available).expect("plan");
         assert_eq!(
             pending.iter().map(|m| m.version).collect::<Vec<_>>(),
-            vec![4, 5, 8, 9, 13, 14, 15, 16]
+            vec![4, 5, 8, 9, 13, 14, 15, 16, 17]
         );
     }
 
@@ -155,7 +165,7 @@ mod tests {
             .iter()
             .map(|migration| migration.version)
             .collect();
-        assert_eq!(versions, vec![2, 4, 5, 8, 9, 13, 14, 15, 16]);
+        assert_eq!(versions, vec![2, 4, 5, 8, 9, 13, 14, 15, 16, 17]);
     }
 
     #[test]
@@ -206,6 +216,42 @@ mod tests {
             .expect("sqlite migration 3");
         assert_eq!(sqlite.name, "run-model-artifact");
         assert!(sqlite.sql.contains("ADD COLUMN model_artifact_id"));
+    }
+
+    #[test]
+    fn the_retention_migration_is_registered() {
+        let postgres = available()
+            .into_iter()
+            .find(|migration| migration.version == 17)
+            .expect("migration 17");
+        assert_eq!(postgres.name, "retention");
+        for table in [
+            "runs.retention_events",
+            "research.retention_events",
+            "stage.retention_events",
+        ] {
+            assert!(
+                postgres.sql.contains(table),
+                "migration 17 must create {table}"
+            );
+        }
+        assert!(postgres.sql.contains("ADD COLUMN archived_at"));
+
+        let sqlite = sqlite()
+            .into_iter()
+            .find(|migration| migration.version == 5)
+            .expect("sqlite migration 5");
+        assert_eq!(sqlite.name, "retention");
+        for table in [
+            "runs__retention_events",
+            "research__retention_events",
+            "stage__retention_events",
+        ] {
+            assert!(
+                sqlite.sql.contains(table),
+                "sqlite migration 5 must create {table}"
+            );
+        }
     }
 
     #[test]
@@ -290,12 +336,13 @@ mod tests {
     #[test]
     fn the_sqlite_baseline_starts_at_one_and_is_complete() {
         let baseline = sqlite();
-        assert_eq!(baseline.len(), 4);
+        assert_eq!(baseline.len(), 5);
         assert_eq!(baseline[0].version, 1);
         assert_eq!(baseline[1].version, 2);
         assert_eq!(baseline[2].version, 3);
         assert_eq!(baseline[3].version, 4);
-        assert_eq!(plan(&[], &baseline).expect("plan").len(), 4);
+        assert_eq!(baseline[4].version, 5);
+        assert_eq!(plan(&[], &baseline).expect("plan").len(), 5);
     }
 
     #[test]

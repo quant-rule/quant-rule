@@ -30,7 +30,11 @@ use crate::state::EvidenceState;
 pub(super) fn routes() -> Router<Arc<EvidenceState>> {
     Router::new()
         .route("/research/runs", get(create::list).post(create::create))
-        .route("/research/runs/{id}", get(create::show))
+        .route(
+            "/research/runs/{id}",
+            get(create::show).delete(create::erase),
+        )
+        .route("/research/runs/{id}/archive", post(create::archive))
         .route("/research/runs/{id}/submit", post(create::submit))
         .route("/research/runs/{id}/compare", get(compare::compare))
         .route("/research/runs/{id}/decision", post(decision::decide))

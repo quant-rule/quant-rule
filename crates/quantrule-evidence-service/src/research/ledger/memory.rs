@@ -11,7 +11,8 @@ use quantrule_api::{
 use quantrule_runtime::adapters::BoxFuture;
 
 use super::store::{
-    CreateOutcome, DecisionWrite, ImprovementStore, ImprovementStoreError, validate_baseline,
+    CreateOutcome, DecisionWrite, ImprovementStore, ImprovementStoreError, ResearchArchiveOutcome,
+    ResearchDatasetReference, ResearchEraseOutcome, ResearchEraseReceipt, validate_baseline,
     validate_decision_registry, validate_invalidation,
 };
 
@@ -26,6 +27,7 @@ struct MemoryState {
     runs: BTreeMap<(String, String), ImprovementRunDetail>,
     baselines: BTreeMap<(String, String), BaselineRecord>,
     invalidations: BTreeMap<(String, String), InvalidationRecord>,
+    archived: BTreeMap<(String, String), String>,
 }
 
 fn lock(
@@ -258,13 +260,13 @@ impl ImprovementStore for MemoryImprovementStore {
         let inner = Arc::clone(&self.inner);
         Box::pin(async move {
             let state = lock(&inner)?;
-            let mut rows: Vec<&ImprovementRunDetail> = state
+            let mut rows: Vec<(&(String, String), &ImprovementRunDetail)> = state
                 .runs
                 .iter()
                 .filter(|((owner, _), _)| owner == profile.as_str())
-                .map(|(_, record)| record)
+                .filter(|(key, _)| !state.archived.contains_key(*key))
                 .collect();
-            rows.sort_by(|left, right| {
+            rows.sort_by(|(_, left), (_, right)| {
                 right
                     .created_at
                     .cmp(&left.created_at)
@@ -273,7 +275,42 @@ impl ImprovementStore for MemoryImprovementStore {
             Ok(rows
                 .into_iter()
                 .take(limit)
-                .map(ImprovementRunDetail::summary)
+                .map(|(key, record)| {
+                    let mut summary = record.summary();
+                    summary.archived_at = state.archived.get(key).cloned();
+                    summary
+                })
+                .collect())
+        })
+    }
+
+    fn list_including_archived(
+        &self,
+        profile: ProfileId,
+        limit: usize,
+    ) -> BoxFuture<Result<Vec<ImprovementRunSummary>, ImprovementStoreError>> {
+        let inner = Arc::clone(&self.inner);
+        Box::pin(async move {
+            let state = lock(&inner)?;
+            let mut rows: Vec<(&(String, String), &ImprovementRunDetail)> = state
+                .runs
+                .iter()
+                .filter(|((owner, _), _)| owner == profile.as_str())
+                .collect();
+            rows.sort_by(|(_, left), (_, right)| {
+                right
+                    .created_at
+                    .cmp(&left.created_at)
+                    .then_with(|| left.improvement_id.cmp(&right.improvement_id))
+            });
+            Ok(rows
+                .into_iter()
+                .take(limit)
+                .map(|(key, record)| {
+                    let mut summary = record.summary();
+                    summary.archived_at = state.archived.get(key).cloned();
+                    summary
+                })
                 .collect())
         })
     }
@@ -289,6 +326,78 @@ impl ImprovementStore for MemoryImprovementStore {
                 .runs
                 .get(&(profile.as_str().to_owned(), improvement_id))
                 .cloned())
+        })
+    }
+
+    fn archive(
+        &self,
+        profile: ProfileId,
+        improvement_id: String,
+        archived_at: String,
+    ) -> BoxFuture<Result<ResearchArchiveOutcome, ImprovementStoreError>> {
+        let inner = Arc::clone(&self.inner);
+        Box::pin(async move {
+            let mut state = lock(&inner)?;
+            let key = (profile.as_str().to_owned(), improvement_id);
+            let Some(record) = state.runs.get(&key).cloned() else {
+                return Ok(ResearchArchiveOutcome::Missing);
+            };
+            if state.archived.contains_key(&key) {
+                return Ok(ResearchArchiveOutcome::AlreadyArchived);
+            }
+            state.archived.insert(key, archived_at.clone());
+            let mut summary = record.summary();
+            summary.archived_at = Some(archived_at);
+            Ok(ResearchArchiveOutcome::Archived(summary))
+        })
+    }
+
+    fn erase(
+        &self,
+        profile: ProfileId,
+        improvement_id: String,
+    ) -> BoxFuture<Result<ResearchEraseOutcome, ImprovementStoreError>> {
+        let inner = Arc::clone(&self.inner);
+        Box::pin(async move {
+            let mut state = lock(&inner)?;
+            let key = (profile.as_str().to_owned(), improvement_id.clone());
+            let Some(record) = state.runs.get(&key).cloned() else {
+                return Ok(ResearchEraseOutcome::Missing);
+            };
+            if !state.archived.contains_key(&key) {
+                return Ok(ResearchEraseOutcome::NotArchived);
+            }
+            if record.state == ImprovementRunState::Decided {
+                return Ok(ResearchEraseOutcome::Protected);
+            }
+            state.runs.remove(&key);
+            state.archived.remove(&key);
+            Ok(ResearchEraseOutcome::Erased(ResearchEraseReceipt {
+                improvement_id,
+                data_version: record.manifest.data_version,
+            }))
+        })
+    }
+
+    fn submitted_datasets(
+        &self,
+    ) -> BoxFuture<Result<Vec<ResearchDatasetReference>, ImprovementStoreError>> {
+        let inner = Arc::clone(&self.inner);
+        Box::pin(async move {
+            let state = lock(&inner)?;
+            state
+                .runs
+                .iter()
+                .map(|((profile, _), record)| {
+                    Ok(ResearchDatasetReference {
+                        profile: ProfileId::parse(profile).map_err(|error| {
+                            ImprovementStoreError(format!("a stored profile is malformed: {error}"))
+                        })?,
+                        improvement_id: record.improvement_id.clone(),
+                        data_version: record.manifest.data_version.clone(),
+                    })
+                })
+                .collect()
         })
     }
 

@@ -478,6 +478,9 @@ pub struct ImprovementRunSummary {
     pub submitted_at: Option<String>,
     /// The human decision time.
     pub decided_at: Option<String>,
+    /// When the profile archived the record, RFC 3339 UTC. Absent while active.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub archived_at: Option<String>,
 }
 
 /// One improvement run detail.
@@ -520,6 +523,7 @@ impl ImprovementRunDetail {
             created_at: self.created_at.clone(),
             submitted_at: self.submitted_at.clone(),
             decided_at: self.decided_at.clone(),
+            archived_at: None,
         }
     }
 }

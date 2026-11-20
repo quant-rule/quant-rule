@@ -233,6 +233,9 @@ pub struct RunSummary {
     pub submitted_at: String,
     /// Elapsed milliseconds once finished.
     pub elapsed_ms: Option<u64>,
+    /// When the profile archived the run, RFC 3339 UTC. Absent while active.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub archived_at: Option<String>,
 }
 
 /// A run in detail.

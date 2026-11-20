@@ -11,6 +11,6 @@ pub use quantrule_service_api::{
     MAX_ATTEMPTS, derive_run_id as derive, derive_run_id_with_model as derive_with_model,
 };
 pub use store::{
-    CancelOutcome, ClaimOutcome, MemoryRuns, NewRun, RunRecord, RunStore, RunStoreError,
-    SubmitOutcome,
+    CancelOutcome, ClaimOutcome, MemoryRuns, NewRun, RunArchiveOutcome, RunDatasetReference,
+    RunEraseOutcome, RunEraseReceipt, RunRecord, RunStore, RunStoreError, SubmitOutcome,
 };

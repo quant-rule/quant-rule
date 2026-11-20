@@ -13,6 +13,7 @@
 #![forbid(unsafe_code)]
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use quantrule_runtime::adapters::{
     Message, MessageHandler, ObjectStore, Queue, QueueConsumer, QueueError,
@@ -109,6 +110,8 @@ async fn main() -> Result<(), RuntimeError> {
         Arc::new(HttpServiceClient::from_env(Service::Data).map_err(data_config_error)?);
 
     let publish: Arc<dyn Queue> = queue.clone();
+    let reconcile_runs = runs.as_ref().map(Arc::clone);
+    let reconcile_improvements = improvements.as_ref().map(Arc::clone);
     let state = Arc::new(EvidenceState::with_services(
         &config,
         health,
@@ -122,6 +125,36 @@ async fn main() -> Result<(), RuntimeError> {
             data: Some(data),
         },
     ));
+
+    // Rows written before the dataset-reference registry existed are registered
+    // once. The sweep is idempotent and retries until the data service answers;
+    // a missing reference blocks a dataset erase, which is the safe direction.
+    if let (Some(runs), Some(improvements), Some(data)) = (
+        reconcile_runs,
+        reconcile_improvements,
+        state.data.as_ref().map(Arc::clone),
+    ) {
+        tokio::spawn(async move {
+            loop {
+                match quantrule_evidence_service::reconcile::register_all(
+                    Arc::clone(&runs),
+                    Arc::clone(&improvements),
+                    Arc::clone(&data),
+                )
+                .await
+                {
+                    Ok(count) => {
+                        tracing::info!(count, "dataset references reconciled");
+                        break;
+                    }
+                    Err(error) => {
+                        tracing::warn!(%error, "dataset-reference reconciliation will retry");
+                        tokio::time::sleep(Duration::from_secs(30)).await;
+                    }
+                }
+            }
+        });
+    }
 
     // Retention sweeps at startup and hourly. It names only the stage schema
     // and the stage object namespace; a run, a research record, and a run

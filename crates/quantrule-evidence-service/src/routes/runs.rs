@@ -12,8 +12,8 @@ use axum::extract::{Json, Path, Query, State};
 use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::IntoResponse;
 use quantrule_api::{
-    Digest, ErrorCode, ProfileId, RunDetail, RunDigest, RunState, RunSummary, StageKind,
-    SubmitRunRequest, SubmitRunResponse,
+    DatasetReferenceKind, Digest, EraseReceipt, ErrorCode, ProfileId, RunDetail, RunDigest,
+    RunState, RunSummary, StageKind, SubmitRunRequest, SubmitRunResponse,
 };
 use quantrule_runtime::clock;
 use quantrule_runtime::queue::{ROUTING_CANCELLED, ROUTING_REQUESTED};
@@ -21,7 +21,9 @@ use quantrule_service_api::{ConfigBundle, RunManifest};
 use serde::Deserialize;
 
 use crate::routes::{ApiFailure, data_failure, failure, request_profile};
-use crate::runs::{CancelOutcome, NewRun, RunRecord, derive_with_model};
+use crate::runs::{
+    CancelOutcome, NewRun, RunArchiveOutcome, RunEraseOutcome, RunRecord, derive_with_model,
+};
 use crate::state::EvidenceState;
 
 /// The optional filters on a run list.
@@ -29,6 +31,7 @@ use crate::state::EvidenceState;
 pub(crate) struct RunListQuery {
     status: Option<String>,
     limit: Option<usize>,
+    include_archived: Option<bool>,
 }
 
 /// The model identity recorded in a run config, or `none` when absent.
@@ -187,11 +190,31 @@ pub(crate) async fn submit_validated_pipeline(
         &image_digest,
         model_artifact_id.as_ref(),
     );
+    let reference_id = format!("run:{run_id}");
+    let data = state.data.as_ref().ok_or_else(|| {
+        failure(
+            ErrorCode::ServiceUnavailable,
+            "no data service is configured",
+        )
+    })?;
     let runs = state
         .runs
         .as_ref()
         .ok_or_else(|| failure(ErrorCode::Internal, "no run store is configured"))?;
-    let outcome = runs
+    // The dataset reference is registered before the run row exists. A crash
+    // between the two leaves a blocking reference, not an unprotected dataset,
+    // and the registration is idempotent on a retry.
+    let _gate = state.history_gate.lock().await;
+    data.register_dataset_reference(
+        profile.clone(),
+        request.data_version.clone(),
+        reference_id.clone(),
+        DatasetReferenceKind::Run,
+    )
+    .await
+    .map_err(data_failure)?;
+    let data_version = request.data_version.clone();
+    let outcome = match runs
         .submit(
             profile.clone(),
             NewRun {
@@ -208,7 +231,18 @@ pub(crate) async fn submit_validated_pipeline(
             },
         )
         .await
-        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
+    {
+        Ok(outcome) => outcome,
+        Err(error) => {
+            if let Err(release) = data
+                .release_dataset_reference(profile.clone(), data_version, reference_id)
+                .await
+            {
+                tracing::warn!(%release, "run submission failed and its dataset reference was not released");
+            }
+            return Err(failure(ErrorCode::Internal, error.to_string()));
+        }
+    };
     let record = outcome.record().clone();
 
     // Publish for a duplicate too: a retry after a lost publish must be able to
@@ -281,11 +315,140 @@ pub(crate) async fn list_runs(
         .runs
         .as_ref()
         .ok_or_else(|| failure(ErrorCode::Internal, "no run store is configured"))?;
-    let summaries = runs
-        .list(profile, status, limit)
+    let summaries = if query.include_archived.unwrap_or(false) {
+        runs.list_including_archived(profile, status, limit).await
+    } else {
+        runs.list(profile, status, limit).await
+    }
+    .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
+    Ok(Json(summaries))
+}
+
+/// The typed confirmation required by a run erase.
+#[derive(Debug, Deserialize)]
+pub(crate) struct EraseRunQuery {
+    confirm: Option<String>,
+}
+
+pub(crate) async fn archive_run(
+    State(state): State<Arc<EvidenceState>>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> Result<Json<RunSummary>, ApiFailure> {
+    let profile = request_profile(&headers)?;
+    let id = parse_run_id(&id)?;
+    let runs = state
+        .runs
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no run store is configured"))?;
+    let _gate = state.history_gate.lock().await;
+    let archived_at =
+        clock::now_utc().map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
+    match runs
+        .archive(profile, id, archived_at)
+        .await
+        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?
+    {
+        RunArchiveOutcome::Archived(summary) => Ok(Json(summary)),
+        RunArchiveOutcome::Missing => Err(failure(
+            ErrorCode::RunNotFound,
+            "the run is unknown in this profile",
+        )),
+        RunArchiveOutcome::AlreadyArchived => Err(failure(
+            ErrorCode::HistoryState,
+            "the run is already archived",
+        )),
+    }
+}
+
+pub(crate) async fn erase_run(
+    State(state): State<Arc<EvidenceState>>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    query: Result<Query<EraseRunQuery>, QueryRejection>,
+) -> Result<Json<EraseReceipt>, ApiFailure> {
+    let profile = request_profile(&headers)?;
+    let id = parse_run_id(&id)?;
+    let Query(query) = query.map_err(|_| {
+        failure(
+            ErrorCode::RunInvalid,
+            "the query is not an erase confirmation",
+        )
+    })?;
+    if query.confirm.as_deref() != Some(id.as_str()) {
+        return Err(failure(
+            ErrorCode::HistoryState,
+            "erase requires --confirm with the exact run id",
+        ));
+    }
+    let runs = state
+        .runs
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no run store is configured"))?;
+    let objects = state
+        .objects
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no object store is configured"))?;
+    let data = state.data.as_ref().ok_or_else(|| {
+        failure(
+            ErrorCode::ServiceUnavailable,
+            "no data service is configured",
+        )
+    })?;
+    let _gate = state.history_gate.lock().await;
+    let outcome = runs
+        .erase(profile.clone(), id.clone())
         .await
         .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
-    Ok(Json(summaries))
+    let receipt = match outcome {
+        RunEraseOutcome::Erased(receipt) => receipt,
+        RunEraseOutcome::Missing => {
+            return Err(failure(
+                ErrorCode::RunNotFound,
+                "the run is unknown in this profile",
+            ));
+        }
+        RunEraseOutcome::NotArchived => {
+            return Err(failure(
+                ErrorCode::HistoryState,
+                "archive the run before erasing it",
+            ));
+        }
+        RunEraseOutcome::Protected(status) => {
+            return Err(failure(
+                ErrorCode::HistoryProtected,
+                format!("a {} run is evidence and cannot be erased", status.as_str()),
+            ));
+        }
+    };
+    if receipt.removed_run {
+        if let Err(error) = objects.delete(&RunManifest::key(&id)).await {
+            tracing::warn!(run_id = %id, %error, "erased run left its manifest behind");
+        }
+        for blob in &receipt.blobs {
+            if let Err(error) = objects.delete(&RunManifest::blob_key(blob)).await {
+                tracing::warn!(run_id = %id, %error, "erased run left a blob behind");
+            }
+        }
+    }
+    if let Err(error) = data
+        .release_dataset_reference(
+            profile,
+            receipt.data_version.clone(),
+            format!("run:{}", receipt.run_id),
+        )
+        .await
+    {
+        tracing::warn!(
+            run_id = %id,
+            %error,
+            "erased run left its dataset reference behind"
+        );
+    }
+    Ok(Json(EraseReceipt {
+        record_id: id,
+        bytes: receipt.bytes,
+    }))
 }
 
 pub(crate) fn parse_run_id(id: &str) -> Result<String, ApiFailure> {

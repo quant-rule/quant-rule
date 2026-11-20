@@ -58,6 +58,50 @@ pub struct DecisionWrite {
     pub invalidation: Option<InvalidationRecord>,
 }
 
+/// One profile's research record and the dataset it references.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResearchDatasetReference {
+    /// The profile that owns the record.
+    pub profile: ProfileId,
+    /// The pre-registration identity.
+    pub improvement_id: String,
+    /// The dataset the manifest names.
+    pub data_version: Digest,
+}
+
+/// What a research archive did.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ResearchArchiveOutcome {
+    /// The record is archived.
+    Archived(ImprovementRunSummary),
+    /// The profile holds no such record.
+    Missing,
+    /// The record was already archived.
+    AlreadyArchived,
+}
+
+/// The receipt for an erased research record.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResearchEraseReceipt {
+    /// The pre-registration identity.
+    pub improvement_id: String,
+    /// The dataset reference to release.
+    pub data_version: Digest,
+}
+
+/// What a research erase did.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ResearchEraseOutcome {
+    /// The record was removed.
+    Erased(ResearchEraseReceipt),
+    /// The profile holds no such record.
+    Missing,
+    /// The record has not been archived.
+    NotArchived,
+    /// The record is decided and is evidence.
+    Protected,
+}
+
 /// Where research-ledger records live.
 pub trait ImprovementStore: Send + Sync {
     /// Create one v3 pre-registration for a profile.
@@ -121,12 +165,39 @@ pub trait ImprovementStore: Send + Sync {
         limit: usize,
     ) -> BoxFuture<Result<Vec<ImprovementRunSummary>, ImprovementStoreError>>;
 
+    /// List active and archived records, newest first.
+    fn list_including_archived(
+        &self,
+        profile: ProfileId,
+        limit: usize,
+    ) -> BoxFuture<Result<Vec<ImprovementRunSummary>, ImprovementStoreError>>;
+
     /// Read one record.
     fn get(
         &self,
         profile: ProfileId,
         improvement_id: String,
     ) -> BoxFuture<Result<Option<ImprovementRunDetail>, ImprovementStoreError>>;
+
+    /// Archive one record. A decided record may be archived but not erased.
+    fn archive(
+        &self,
+        profile: ProfileId,
+        improvement_id: String,
+        archived_at: String,
+    ) -> BoxFuture<Result<ResearchArchiveOutcome, ImprovementStoreError>>;
+
+    /// Erase one archived, undecided record.
+    fn erase(
+        &self,
+        profile: ProfileId,
+        improvement_id: String,
+    ) -> BoxFuture<Result<ResearchEraseOutcome, ImprovementStoreError>>;
+
+    /// Every record and the dataset its manifest names, for reconciliation.
+    fn submitted_datasets(
+        &self,
+    ) -> BoxFuture<Result<Vec<ResearchDatasetReference>, ImprovementStoreError>>;
 
     /// Append one accepted baseline and return the stored row.
     ///

@@ -68,6 +68,12 @@ pub struct EvidenceState {
     /// blobs. Holding this gate across both prevents a delete from removing a
     /// blob after the reference check but before the row is recorded.
     pub stage_gate: Arc<tokio::sync::Mutex<()>>,
+    /// Serialises run submission with archive and erase.
+    ///
+    /// A run is content-addressed and shared. The gate keeps a last-submission
+    /// erase from deleting the run row while another submission is being
+    /// written, and keeps a dataset reference registered before its run exists.
+    pub history_gate: Arc<tokio::sync::Mutex<()>>,
 }
 
 impl std::fmt::Debug for EvidenceState {
@@ -108,6 +114,7 @@ impl EvidenceState {
             data: services.data,
             operations: OperationsStatus::new(config.stage_retention_days, stage_store),
             stage_gate: Arc::new(tokio::sync::Mutex::new(())),
+            history_gate: Arc::new(tokio::sync::Mutex::new(())),
         }
     }
 }

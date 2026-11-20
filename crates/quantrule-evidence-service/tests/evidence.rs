@@ -11,8 +11,8 @@ use quantrule_evidence_service::evidence::{
     EvidenceError, EvidenceServices, FinalizeOutcome, RunManifest, digest, finalize,
 };
 use quantrule_evidence_service::runs::{
-    CancelOutcome, ClaimOutcome, MemoryRuns, NewRun, RunRecord, RunStore, RunStoreError,
-    SubmitOutcome, derive,
+    CancelOutcome, ClaimOutcome, MemoryRuns, NewRun, RunArchiveOutcome, RunDatasetReference,
+    RunEraseOutcome, RunRecord, RunStore, RunStoreError, SubmitOutcome, derive,
 };
 use quantrule_runtime::adapters::{BoxFuture, ObjectStore};
 
@@ -87,6 +87,36 @@ impl RunStore for CompleteFails {
         run_id: String,
     ) -> BoxFuture<Result<Option<RunRecord>, RunStoreError>> {
         self.inner.get(profile, run_id)
+    }
+
+    fn list_including_archived(
+        &self,
+        profile: ProfileId,
+        status: Option<RunState>,
+        limit: usize,
+    ) -> BoxFuture<Result<Vec<RunSummary>, RunStoreError>> {
+        self.inner.list_including_archived(profile, status, limit)
+    }
+
+    fn archive(
+        &self,
+        profile: ProfileId,
+        run_id: String,
+        archived_at: String,
+    ) -> BoxFuture<Result<RunArchiveOutcome, RunStoreError>> {
+        self.inner.archive(profile, run_id, archived_at)
+    }
+
+    fn erase(
+        &self,
+        profile: ProfileId,
+        run_id: String,
+    ) -> BoxFuture<Result<RunEraseOutcome, RunStoreError>> {
+        self.inner.erase(profile, run_id)
+    }
+
+    fn submitted_datasets(&self) -> BoxFuture<Result<Vec<RunDatasetReference>, RunStoreError>> {
+        self.inner.submitted_datasets()
     }
 
     fn cancel(

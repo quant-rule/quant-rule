@@ -132,12 +132,16 @@ LEDGERS = (
         prefix="runs",
         tables=(
             "runs__artifacts",
+            "runs__retention_events",
             "runs__runs",
             "runs__stages",
             "runs__submissions",
         ),
         baseline="migrations/sqlite/0001_runs_research.sql",
-        extra_baselines=("migrations/sqlite/0003_run_model_artifact.sql",),
+        extra_baselines=(
+            "migrations/sqlite/0003_run_model_artifact.sql",
+            "migrations/sqlite/0005_retention.sql",
+        ),
         store="src/sqlite/mod.rs",
         main="src/main.rs",
     ),
@@ -158,6 +162,7 @@ LEDGERS = (
             "research__improvement_runs",
             "research__baselines",
             "research__invalidations",
+            "research__retention_events",
         ),
         baseline="migrations/sqlite/0004_research_ledger.sql",
         store="src/sqlite/mod.rs",
@@ -169,6 +174,7 @@ LEDGERS = (
         prefix="stage",
         tables=(
             "stage__artifacts",
+            "stage__retention_events",
             "stage__runs",
             "stage__submissions",
         ),

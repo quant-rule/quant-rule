@@ -18,7 +18,10 @@ use http_body_util::{BodyExt, Limited};
 use hyper_util::client::legacy::Client;
 use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::rt::TokioExecutor;
-use quantrule_api::{HealthReport, PROFILE_HEADER, ProfileId};
+use quantrule_api::{
+    DatasetReferenceCount, DatasetReferenceKind, DatasetReferenceRequest, HealthReport,
+    PROFILE_HEADER, ProfileId, ReleaseDatasetReferenceRequest,
+};
 use quantrule_service_api::{ConfigBundle, DatasetObject};
 
 use crate::adapters::BoxFuture;
@@ -282,6 +285,23 @@ pub trait DataClient: Send + Sync {
 
     /// How many datasets a profile holds.
     fn dataset_count(&self, profile: ProfileId) -> BoxFuture<Result<u64, ClientError>>;
+
+    /// Register one consumer reference to a dataset.
+    fn register_dataset_reference(
+        &self,
+        profile: ProfileId,
+        data_version: quantrule_api::Digest,
+        reference_id: String,
+        kind: DatasetReferenceKind,
+    ) -> BoxFuture<Result<DatasetReferenceCount, ClientError>>;
+
+    /// Release one consumer reference to a dataset.
+    fn release_dataset_reference(
+        &self,
+        profile: ProfileId,
+        data_version: quantrule_api::Digest,
+        reference_id: String,
+    ) -> BoxFuture<Result<DatasetReferenceCount, ClientError>>;
 }
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(2);
@@ -580,6 +600,39 @@ impl HttpServiceClient {
             }),
         }
     }
+
+    async fn post_json_for<T, B>(
+        &self,
+        service: Service,
+        profile: &ProfileId,
+        path: String,
+        body: &B,
+    ) -> Result<T, ClientError>
+    where
+        T: serde::de::DeserializeOwned,
+        B: serde::Serialize + ?Sized,
+    {
+        let body = serde_json::to_vec(body).map_err(|error| ClientError::InvalidResponse {
+            service,
+            message: error.to_string(),
+        })?;
+        let request =
+            ServiceRequest::post(path, body).with_header(PROFILE_HEADER, profile.as_str());
+        let response = <Self as ServiceClient>::send(self, service, request).await?;
+        match response.status {
+            200 => serde_json::from_slice(&response.body).map_err(|error| {
+                ClientError::InvalidResponse {
+                    service,
+                    message: error.to_string(),
+                }
+            }),
+            status => Err(ClientError::Status {
+                service,
+                status,
+                message: upstream_message(&response.body),
+            }),
+        }
+    }
 }
 
 fn upstream_message(body: &[u8]) -> String {
@@ -639,13 +692,57 @@ impl DataClient for HttpServiceClient {
                 })
         })
     }
+
+    fn register_dataset_reference(
+        &self,
+        profile: ProfileId,
+        data_version: quantrule_api::Digest,
+        reference_id: String,
+        kind: DatasetReferenceKind,
+    ) -> BoxFuture<Result<DatasetReferenceCount, ClientError>> {
+        let client = self.clone();
+        Box::pin(async move {
+            let request = DatasetReferenceRequest { reference_id, kind };
+            client
+                .post_json_for(
+                    Service::Data,
+                    &profile,
+                    format!("/internal/v1/datasets/{data_version}/references"),
+                    &request,
+                )
+                .await
+        })
+    }
+
+    fn release_dataset_reference(
+        &self,
+        profile: ProfileId,
+        data_version: quantrule_api::Digest,
+        reference_id: String,
+    ) -> BoxFuture<Result<DatasetReferenceCount, ClientError>> {
+        let client = self.clone();
+        Box::pin(async move {
+            let request = ReleaseDatasetReferenceRequest { reference_id };
+            client
+                .post_json_for(
+                    Service::Data,
+                    &profile,
+                    format!("/internal/v1/datasets/{data_version}/references/release"),
+                    &request,
+                )
+                .await
+        })
+    }
 }
+
+type DatasetReferenceMap = BTreeMap<(String, String), std::collections::BTreeSet<String>>;
 
 /// An in-memory data client, for route and worker tests.
 #[derive(Debug, Clone, Default)]
 pub struct MemoryDataClient {
     configs: std::sync::Arc<std::sync::Mutex<BTreeMap<(String, String), ConfigBundle>>>,
     datasets: std::sync::Arc<std::sync::Mutex<BTreeMap<(String, String), DatasetObject>>>,
+    references: std::sync::Arc<std::sync::Mutex<DatasetReferenceMap>>,
 }
 
 impl MemoryDataClient {
@@ -663,6 +760,17 @@ impl MemoryDataClient {
             (profile.as_str().to_owned(), object.data_version.to_string()),
             object,
         );
+    }
+
+    /// The reference ids registered for one dataset, in identity order.
+    #[must_use]
+    pub fn reference_ids(&self, profile: &ProfileId, data_version: &str) -> Vec<String> {
+        self.references
+            .lock()
+            .expect("the reference map")
+            .get(&(profile.as_str().to_owned(), data_version.to_owned()))
+            .map(|ids| ids.iter().cloned().collect())
+            .unwrap_or_default()
     }
 }
 
@@ -706,6 +814,46 @@ impl DataClient for MemoryDataClient {
                 .keys()
                 .filter(|(owner, _)| owner.as_str() == profile.as_str())
                 .count() as u64)
+        })
+    }
+
+    fn register_dataset_reference(
+        &self,
+        profile: ProfileId,
+        data_version: quantrule_api::Digest,
+        reference_id: String,
+        _kind: DatasetReferenceKind,
+    ) -> BoxFuture<Result<DatasetReferenceCount, ClientError>> {
+        let references = std::sync::Arc::clone(&self.references);
+        Box::pin(async move {
+            let mut map = references.lock().expect("the reference map");
+            let ids = map
+                .entry((profile.as_str().to_owned(), data_version.to_string()))
+                .or_default();
+            ids.insert(reference_id);
+            Ok(DatasetReferenceCount {
+                references: ids.len() as u64,
+            })
+        })
+    }
+
+    fn release_dataset_reference(
+        &self,
+        profile: ProfileId,
+        data_version: quantrule_api::Digest,
+        reference_id: String,
+    ) -> BoxFuture<Result<DatasetReferenceCount, ClientError>> {
+        let references = std::sync::Arc::clone(&self.references);
+        Box::pin(async move {
+            let mut map = references.lock().expect("the reference map");
+            let key = (profile.as_str().to_owned(), data_version.to_string());
+            let count = if let Some(ids) = map.get_mut(&key) {
+                ids.remove(&reference_id);
+                ids.len() as u64
+            } else {
+                0
+            };
+            Ok(DatasetReferenceCount { references: count })
         })
     }
 }

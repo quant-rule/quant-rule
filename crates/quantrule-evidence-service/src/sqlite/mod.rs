@@ -22,6 +22,7 @@
 //! the first process's committed attempt count.
 
 pub mod research;
+pub mod run_store;
 pub mod runs;
 
 pub use research::SqliteHypothesisStore;
@@ -35,10 +36,14 @@ pub(crate) const STAGES_TABLE: &str = "runs__stages";
 pub(crate) const ARTIFACTS_TABLE: &str = "runs__artifacts";
 /// The profile-to-run binding table.
 pub(crate) const SUBMISSIONS_TABLE: &str = "runs__submissions";
+/// The append-only run retention events.
+pub(crate) const RUN_RETENTION_TABLE: &str = "runs__retention_events";
 /// The sealed hypothesis table.
 pub(crate) const HYPOTHESES_TABLE: &str = "research__hypotheses";
 /// The pre-registered improvement-run table.
 pub(crate) const IMPROVEMENT_RUNS_TABLE: &str = "research__improvement_runs";
+/// The append-only research retention events.
+pub(crate) const RESEARCH_RETENTION_TABLE: &str = "research__retention_events";
 /// The accepted-baseline registry table.
 pub(crate) const BASELINES_TABLE: &str = "research__baselines";
 /// The append-only invalidation registry table.

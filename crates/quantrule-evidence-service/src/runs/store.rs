@@ -1,9 +1,9 @@
 //! Run storage behind one trait.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
-use quantrule_api::{ArtifactRef, Digest, ProfileId, RunState, RunSummary, StageProgress};
+use quantrule_api::{ArtifactRef, Digest, ProfileId, RunId, RunState, RunSummary, StageProgress};
 
 use quantrule_runtime::adapters::BoxFuture;
 
@@ -49,6 +49,56 @@ impl SubmitOutcome {
     }
 }
 
+/// One profile's reference to a run's dataset, for reconciliation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RunDatasetReference {
+    /// The profile that sees the run.
+    pub profile: ProfileId,
+    /// The run identity.
+    pub run_id: RunId,
+    /// The dataset the run consumes.
+    pub data_version: Digest,
+}
+
+/// What an archive did.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RunArchiveOutcome {
+    /// The profile's view is archived.
+    Archived(RunSummary),
+    /// The profile does not see the run.
+    Missing,
+    /// The profile already archived it.
+    AlreadyArchived,
+}
+
+/// The receipt for one erased run submission.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RunEraseReceipt {
+    /// The run identity.
+    pub run_id: RunId,
+    /// The dataset reference to release.
+    pub data_version: Digest,
+    /// Artifact bytes whose blobs became unreferenced.
+    pub bytes: u64,
+    /// Blob hashes with no remaining run reference.
+    pub blobs: Vec<Digest>,
+    /// Whether the shared run row itself was removed.
+    pub removed_run: bool,
+}
+
+/// What an erase did.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RunEraseOutcome {
+    /// The submission and possibly the run row were removed.
+    Erased(RunEraseReceipt),
+    /// The profile does not see the run.
+    Missing,
+    /// The profile has not archived the run.
+    NotArchived,
+    /// The run is evidence or still active.
+    Protected(RunState),
+}
+
 /// Where runs live.
 pub trait RunStore: Send + Sync {
     /// Submit one run for a profile.
@@ -66,12 +116,38 @@ pub trait RunStore: Send + Sync {
         limit: usize,
     ) -> BoxFuture<Result<Vec<RunSummary>, RunStoreError>>;
 
+    /// List a profile's runs including archived submissions, newest first.
+    fn list_including_archived(
+        &self,
+        profile: ProfileId,
+        status: Option<RunState>,
+        limit: usize,
+    ) -> BoxFuture<Result<Vec<RunSummary>, RunStoreError>>;
+
     /// Read one run within a profile.
     fn get(
         &self,
         profile: ProfileId,
         run_id: String,
     ) -> BoxFuture<Result<Option<RunRecord>, RunStoreError>>;
+
+    /// Archive one profile's view of a run.
+    fn archive(
+        &self,
+        profile: ProfileId,
+        run_id: String,
+        archived_at: String,
+    ) -> BoxFuture<Result<RunArchiveOutcome, RunStoreError>>;
+
+    /// Erase one archived submission and, when it is the last one, the run.
+    fn erase(
+        &self,
+        profile: ProfileId,
+        run_id: String,
+    ) -> BoxFuture<Result<RunEraseOutcome, RunStoreError>>;
+
+    /// Every run a profile sees, for dataset-reference reconciliation.
+    fn submitted_datasets(&self) -> BoxFuture<Result<Vec<RunDatasetReference>, RunStoreError>>;
 
     /// Cancel a run within a profile.
     fn cancel(
@@ -121,7 +197,7 @@ pub trait RunStore: Send + Sync {
 #[derive(Debug, Default)]
 struct MemoryState {
     runs: BTreeMap<String, RunRecord>,
-    submissions: BTreeSet<(String, String)>,
+    submissions: BTreeMap<(String, String), Option<String>>,
 }
 
 /// An in-memory store, for tests and for a local instance.
@@ -144,7 +220,10 @@ impl RunStore for MemoryRuns {
             let key = run.run_id.to_string();
             let profile = profile.as_str().to_owned();
             let existing = state.runs.get(&key).cloned();
-            state.submissions.insert((profile, key.clone()));
+            state
+                .submissions
+                .entry((profile, key.clone()))
+                .or_insert(None);
             match existing {
                 Some(record) => Ok(SubmitOutcome::Existing(record)),
                 None => {
@@ -174,7 +253,8 @@ impl RunStore for MemoryRuns {
                 .filter(|(key, record)| {
                     state
                         .submissions
-                        .contains(&(profile.to_owned(), (*key).clone()))
+                        .get(&(profile.to_owned(), (*key).clone()))
+                        .is_some_and(Option::is_none)
                         && status.is_none_or(|wanted| wanted == record.status)
                 })
                 .map(|(_, record)| record)
@@ -193,6 +273,51 @@ impl RunStore for MemoryRuns {
         })
     }
 
+    fn list_including_archived(
+        &self,
+        profile: ProfileId,
+        status: Option<RunState>,
+        limit: usize,
+    ) -> BoxFuture<Result<Vec<RunSummary>, RunStoreError>> {
+        let inner = Arc::clone(&self.inner);
+        Box::pin(async move {
+            let state = inner
+                .lock()
+                .map_err(|_| RunStoreError("the run lock is poisoned".to_owned()))?;
+            let profile = profile.as_str();
+            let mut runs: Vec<((String, String), &RunRecord)> = state
+                .runs
+                .iter()
+                .filter(|(key, record)| {
+                    state
+                        .submissions
+                        .contains_key(&(profile.to_owned(), (*key).clone()))
+                        && status.is_none_or(|wanted| wanted == record.status)
+                })
+                .map(|(key, record)| ((profile.to_owned(), key.clone()), record))
+                .collect();
+            runs.sort_by(|(_, left), (_, right)| {
+                right
+                    .submitted_at
+                    .cmp(&left.submitted_at)
+                    .then_with(|| left.run_id.cmp(&right.run_id))
+            });
+            Ok(runs
+                .into_iter()
+                .take(limit)
+                .map(|(key, record)| {
+                    let mut summary = record.summary();
+                    summary.archived_at = state
+                        .submissions
+                        .get(&(profile.to_owned(), key.0))
+                        .cloned()
+                        .flatten();
+                    summary
+                })
+                .collect())
+        })
+    }
+
     fn get(
         &self,
         profile: ProfileId,
@@ -205,11 +330,125 @@ impl RunStore for MemoryRuns {
                 .map_err(|_| RunStoreError("the run lock is poisoned".to_owned()))?;
             if !state
                 .submissions
-                .contains(&(profile.as_str().to_owned(), run_id.clone()))
+                .contains_key(&(profile.as_str().to_owned(), run_id.clone()))
             {
                 return Ok(None);
             }
             Ok(state.runs.get(&run_id).cloned())
+        })
+    }
+
+    fn archive(
+        &self,
+        profile: ProfileId,
+        run_id: String,
+        archived_at: String,
+    ) -> BoxFuture<Result<RunArchiveOutcome, RunStoreError>> {
+        let inner = Arc::clone(&self.inner);
+        Box::pin(async move {
+            let mut state = inner
+                .lock()
+                .map_err(|_| RunStoreError("the run lock is poisoned".to_owned()))?;
+            let key = (profile.as_str().to_owned(), run_id.clone());
+            let Some(entry) = state.submissions.get_mut(&key) else {
+                return Ok(RunArchiveOutcome::Missing);
+            };
+            if entry.is_some() {
+                return Ok(RunArchiveOutcome::AlreadyArchived);
+            }
+            *entry = Some(archived_at.clone());
+            let Some(record) = state.runs.get(&run_id) else {
+                return Ok(RunArchiveOutcome::Missing);
+            };
+            let mut summary = record.summary();
+            summary.archived_at = Some(archived_at);
+            Ok(RunArchiveOutcome::Archived(summary))
+        })
+    }
+
+    fn erase(
+        &self,
+        profile: ProfileId,
+        run_id: String,
+    ) -> BoxFuture<Result<RunEraseOutcome, RunStoreError>> {
+        let inner = Arc::clone(&self.inner);
+        Box::pin(async move {
+            let mut state = inner
+                .lock()
+                .map_err(|_| RunStoreError("the run lock is poisoned".to_owned()))?;
+            let key = (profile.as_str().to_owned(), run_id.clone());
+            let Some(archived_at) = state.submissions.get(&key) else {
+                return Ok(RunEraseOutcome::Missing);
+            };
+            if archived_at.is_none() {
+                return Ok(RunEraseOutcome::NotArchived);
+            }
+            let Some(record) = state.runs.get(&run_id).cloned() else {
+                return Ok(RunEraseOutcome::Missing);
+            };
+            if !matches!(record.status, RunState::Failed | RunState::Cancelled) {
+                return Ok(RunEraseOutcome::Protected(record.status));
+            }
+            state.submissions.remove(&key);
+            let remaining = state.submissions.keys().any(|(_, id)| id == &run_id);
+            if remaining {
+                return Ok(RunEraseOutcome::Erased(RunEraseReceipt {
+                    run_id: record.run_id,
+                    data_version: record.data_version,
+                    bytes: 0,
+                    blobs: Vec::new(),
+                    removed_run: false,
+                }));
+            }
+            state.runs.remove(&run_id);
+            let mut blobs = Vec::new();
+            let mut bytes = 0u64;
+            let mut seen = std::collections::BTreeSet::new();
+            for artifact in &record.artifacts {
+                if !seen.insert(artifact.sha256.clone()) {
+                    continue;
+                }
+                let shared = state.runs.values().any(|other| {
+                    other
+                        .artifacts
+                        .iter()
+                        .any(|candidate| candidate.sha256 == artifact.sha256)
+                });
+                if !shared {
+                    bytes = bytes.saturating_add(artifact.bytes);
+                    blobs.push(artifact.sha256.clone());
+                }
+            }
+            Ok(RunEraseOutcome::Erased(RunEraseReceipt {
+                run_id: record.run_id,
+                data_version: record.data_version,
+                bytes,
+                blobs,
+                removed_run: true,
+            }))
+        })
+    }
+
+    fn submitted_datasets(&self) -> BoxFuture<Result<Vec<RunDatasetReference>, RunStoreError>> {
+        let inner = Arc::clone(&self.inner);
+        Box::pin(async move {
+            let state = inner
+                .lock()
+                .map_err(|_| RunStoreError("the run lock is poisoned".to_owned()))?;
+            let mut rows = Vec::new();
+            for (profile, run_id) in state.submissions.keys() {
+                let Some(record) = state.runs.get(run_id) else {
+                    continue;
+                };
+                rows.push(RunDatasetReference {
+                    profile: ProfileId::parse(profile).map_err(|error| {
+                        RunStoreError(format!("a stored profile is malformed: {error}"))
+                    })?,
+                    run_id: record.run_id.clone(),
+                    data_version: record.data_version.clone(),
+                });
+            }
+            Ok(rows)
         })
     }
 
@@ -225,7 +464,7 @@ impl RunStore for MemoryRuns {
                 .map_err(|_| RunStoreError("the run lock is poisoned".to_owned()))?;
             if !state
                 .submissions
-                .contains(&(profile.as_str().to_owned(), run_id.clone()))
+                .contains_key(&(profile.as_str().to_owned(), run_id.clone()))
             {
                 return Ok(CancelOutcome::Missing);
             }

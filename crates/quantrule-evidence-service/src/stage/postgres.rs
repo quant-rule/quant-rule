@@ -594,9 +594,27 @@ impl StageStore for PgStageStore {
             .fetch_all(&pool)
             .await
             .map_err(|error| StageStoreError(error.to_string()))?;
+            let mut transaction = pool
+                .begin()
+                .await
+                .map_err(|error| StageStoreError(error.to_string()))?;
             sqlx::query("DELETE FROM stage.runs WHERE stage_run_id = $1")
                 .bind(&stage_run_id)
-                .execute(&pool)
+                .execute(&mut *transaction)
+                .await
+                .map_err(|error| StageStoreError(error.to_string()))?;
+            sqlx::query(
+                "INSERT INTO stage.retention_events
+                     (profile_id, kind, record_id, action, reason, bytes)
+                 VALUES ($1, 'stage', $2, 'erase', 'operator.erase', 0)",
+            )
+            .bind(profile.as_str())
+            .bind(&stage_run_id)
+            .execute(&mut *transaction)
+            .await
+            .map_err(|error| StageStoreError(error.to_string()))?;
+            transaction
+                .commit()
                 .await
                 .map_err(|error| StageStoreError(error.to_string()))?;
             let artifact_hashes = hashes
