@@ -44,7 +44,7 @@ browser stores the token in local storage and sends it only as
 |---|---|
 | `stage_retention_days` | The configured `QR_STAGE_RETENTION_DAYS`; default 30 |
 | `stage_store` | Whether the evidence service has a stage store |
-| `last_cleanup.completed_utc` | When the startup cleanup pass ran |
+| `last_cleanup.completed_utc` | When the last cleanup pass ran |
 | `last_cleanup.stages_removed` | Diagnostic stage rows removed |
 | `last_cleanup.objects_removed` | Stage object keys removed |
 | `last_cleanup.error` | The failure, or `null` on success |
@@ -101,7 +101,7 @@ None of this is research evidence or an edge claim.
 | `run.not_found` | The digest form names an unknown run | Re-read the run list |
 | `service.unavailable` | A service is unreachable | Read `health`; stop |
 | `queue.unavailable` | The broker is unreachable | Read `health`; stop |
-| Retention error | The startup cleanup failed | Read the error; do not delete evidence by hand |
+| Retention error | The last cleanup failed | Read the error; do not delete evidence by hand |
 | Backup archive exists | The timestamped name already exists | Re-run later; never overwrite the archive |
 | Restore refused | Sidecar, payload, or stack state failed verification | Stop; do not force without a human decision |
 

@@ -122,4 +122,5 @@ campaign.
 
 - Unreferenced objects are harmless; no garbage collector is required.
 - Logs rotate per container; the host keeps no unbounded log.
-- No cron, no daemon, no scheduled job. The system is request-driven.
+- Stage retention sweeps at startup and hourly; every other action is
+  request-driven.

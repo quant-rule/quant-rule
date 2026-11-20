@@ -49,9 +49,13 @@ set -- $product
   || fail "/version reports API '${1:-}', expected quantrule.api/v1"
 [ -n "${2:-}" ] || fail "/version reports no product version"
 
-# The preflight tests stub this check because they do not start a stack.
+# The preflight tests stub these checks because they do not start a stack or a
+# disposable database.
 if [ "${QUANTRULE_QUEUE_CHECK:-1}" = "1" ]; then
   "$root/tools/check_queue_isolation.sh"
+fi
+if [ "${QUANTRULE_POSTGRES_CHECK:-1}" = "1" ]; then
+  "$root/tools/postgres_composed.sh"
 fi
 
 "$verify" --api-url "$api_url" --timeout "$timeout"

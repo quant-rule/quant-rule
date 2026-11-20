@@ -44,8 +44,8 @@ x-server: &server
     QR_STATIC_DIR: /srv/static
     QR_CONFIG_ROOT: /srv/config
     # Diagnostic stage rows and their object-store blobs expire after this many
-    # days. Evidence applies the cleanup at startup; a run and its artifacts are
-    # never touched.
+    # days. Evidence applies the cleanup at startup and hourly; a run and its
+    # artifacts are never touched.
     QR_STAGE_RETENTION_DAYS: "30"
     # Each schema owner migrates its own ledger: the gateway applies the gateway
     # ledger, data applies catalog, evidence applies runs and research, and

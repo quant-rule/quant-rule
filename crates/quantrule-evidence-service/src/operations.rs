@@ -1,6 +1,6 @@
 //! The evidence service's operational status.
 //!
-//! The startup retention pass writes one snapshot here and the public
+//! Each retention sweep writes one snapshot here and the public
 //! `/operations` route reads it. It holds no run, stage, or research row and is
 //! shared by every profile: a cleanup is process metadata, not a profile
 //! record. A poisoned lock returns the last written value rather than failing a
@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 
 use quantrule_api::{CleanupReport, OperationsReport};
 
-/// The configured retention window and the last startup cleanup.
+/// The configured retention window and the last cleanup.
 pub struct OperationsStatus {
     stage_retention_days: u64,
     stage_store: bool,
@@ -28,7 +28,7 @@ impl OperationsStatus {
         })
     }
 
-    /// Record the startup cleanup, successful or failed.
+    /// Record one cleanup sweep, successful or failed.
     pub fn record(&self, report: CleanupReport) {
         *lock(&self.last_cleanup) = Some(report);
     }

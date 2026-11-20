@@ -123,41 +123,19 @@ async fn main() -> Result<(), RuntimeError> {
         },
     ));
 
-    // Retention runs once at startup. It names only the stage schema and the
-    // stage object namespace; a run, a research record, and a run artifact key
-    // are untouched. The outcome is recorded on the shared operations status,
-    // success or failure, and the service still starts because the health
-    // probes say what is down.
-    if let (Some(stages), Some(objects)) = (stages.as_ref(), state.objects.as_ref()) {
-        let stages = Arc::clone(stages);
-        let objects = Arc::clone(objects);
-        let days = config.stage_retention_days;
-        let operations = Arc::clone(&state.operations);
-        tokio::spawn(async move {
-            let report = retention::run_cleanup(
-                stages.as_ref(),
-                objects.as_ref(),
-                std::time::SystemTime::now(),
-                days,
-            )
-            .await;
-            if let Some(error) = report.error.as_deref() {
-                tracing::warn!(
-                    %error,
-                    completed_utc = %report.completed_utc,
-                    "stage retention did not finish"
-                );
-            } else {
-                tracing::info!(
-                    stages = report.stages_removed,
-                    objects = report.objects_removed,
-                    days,
-                    completed_utc = %report.completed_utc,
-                    "expired stage runs removed"
-                );
-            }
-            operations.record(report);
-        });
+    // Retention sweeps at startup and hourly. It names only the stage schema
+    // and the stage object namespace; a run, a research record, and a run
+    // artifact key are untouched. The outcome is recorded on the shared
+    // operations status, success or failure, and the service still starts
+    // because the health probes say what is down.
+    if let Some(stages) = stages.as_ref() {
+        tokio::spawn(retention::sweep(
+            Arc::clone(stages),
+            Arc::clone(&objects),
+            Arc::clone(&state.operations),
+            config.stage_retention_days,
+            retention::SWEEP_INTERVAL,
+        ));
     }
 
     // A database that is merely unreachable is a health state, not a startup

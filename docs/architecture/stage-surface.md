@@ -49,7 +49,7 @@ The implemented base contract is in [`http-api.md`](http-api.md); the stage, res
 | GET | `/research/baselines` | Read the baseline registry |
 | GET | `/research/baselines/{tier}` | Read the current tier baseline |
 | GET | `/research/invalidations` | Read the invalidation tombstones |
-| GET | `/operations` | Read retention days and the last startup cleanup |
+| GET | `/operations` | Read retention days and the last cleanup |
 
 A strategy submission keeps the input
 `{kind:"model_artifact", model_artifact_id}`. The server resolves the succeeded
@@ -119,7 +119,7 @@ capability that only one client can reach is a parity gap.
 
 | Service | Stage responsibility |
 |---|---|
-| `evidence` | Owns the `stage` schema: `stage.runs`, `stage.submissions`, `stage.artifacts`; stage lifecycle, profile scoping, expiry; reports retention and the last startup cleanup on `/operations` |
+| `evidence` | Owns the `stage` schema: `stage.runs`, `stage.submissions`, `stage.artifacts`; stage lifecycle, profile scoping, expiry; reports retention and the last cleanup on `/operations` |
 | `backtest` | Stage worker: claims a stage, dispatches to the model, strategy, or portfolio executor, publishes the artifact, publishes `stage.computed` |
 | `model` | Computes the model bundle that a model stage publishes; serves model-stage event reads |
 | `data` | Supplies the dataset and config bundle; never executes a stage |

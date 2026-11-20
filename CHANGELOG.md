@@ -24,6 +24,8 @@ history is in Git and the pull requests.
   and returns `503` when one is down or answers under another service identity.
 - RabbitMQ publishes wait for the broker's confirmation; a nack, a missing
   confirm mode, or a confirmation timeout is a failed publish.
+- The composed tier runs the ignored Postgres conformance suites against a
+  disposable database.
 
 ### Fixed
 
@@ -44,6 +46,8 @@ history is in Git and the pull requests.
 
 - The backtest worker opens a channel per consumer with its own prefetch slot
   and starts `QR_BACKTEST_CONCURRENCY` run consumers.
+- Stage retention sweeps at startup and hourly, so an expired stage no longer
+  waits for an evidence restart.
 - The documentation-length checker now covers `docs/README.md`.
 
 ### Fixed
