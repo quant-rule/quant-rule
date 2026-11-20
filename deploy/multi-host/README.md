@@ -221,7 +221,7 @@ a separate, destructive decision.
 ## 11. Backup and restore
 
 Stop the gateway, compute, and core hosts; leave infrastructure running. Run
-the backup/restore wrappers ([#963](https://github.com/quant-rule/quant-rule/issues/963)) on the infrastructure
+the [`backup.sh`](backup.sh) and [`restore.sh`](restore.sh) wrappers on the infrastructure
 host with `--application-stopped`; they wrap the tested archive tools and read
 the custom database, bucket, and queue names from `env/infra.env`. The archive
 holds a Postgres dump, an object mirror, and a manifest; the queue is not

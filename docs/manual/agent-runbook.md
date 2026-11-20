@@ -2,7 +2,7 @@
 
 - Status: Current
 - Audience: a coding agent handed an install, desktop, or remote-access task by the human
-- Related: [AGENTS.md](../../AGENTS.md), [First run](01-first-run.md), [Operations](08-operations.md), [Desktop install](https://github.com/quant-rule/quant-rule/issues/968), [Command reference](09-command-reference.md), [Deployment](../architecture/deployment.md), [Security](../architecture/security.md), [Docker stack](../../docker/README.md)
+- Related: [AGENTS.md](../../AGENTS.md), [First run](01-first-run.md), [Operations](08-operations.md), [Desktop install](13-desktop.md), [Command reference](09-command-reference.md), [Deployment](../architecture/deployment.md), [Security](../architecture/security.md), [Docker stack](../../docker/README.md)
 
 This is the procedure an agent follows when the human asks it to install
 QuantRule, start the desktop package, or point a client at another host. It does
@@ -17,7 +17,7 @@ what each command does, and this page does not repeat their tables.
 | [`AGENTS.md`](../../AGENTS.md) §7, §9, §14 | Worktree discipline, Git gates, and decisions reserved to the human |
 | [First run](01-first-run.md) | `health`, upload, `run submit`, `run fetch`, and `verify` |
 | [Operations](08-operations.md) | Remote profile, bearer token, retention, backup, and restore |
-| [Desktop install](https://github.com/quant-rule/quant-rule/issues/968) | AppImage, desktop entry, Windows NSIS, and the app-menu check |
+| [Desktop install](13-desktop.md) | AppImage, desktop entry, Windows NSIS, and the app-menu check |
 | [Command reference](09-command-reference.md) | The exact arguments and output of every command |
 | [Deployment](../architecture/deployment.md) §1, §6, §8 | Quick start, split host, and what deployment does not provide |
 | [Security](../architecture/security.md) §2 | Private network or token plus TLS; never public `:8080` |
@@ -70,7 +70,7 @@ Unresolved:
 
 Use this on the Fedora workstation. It is a user-level install; no root is
 needed for the AppImage, the desktop file, or the menu database. These are the
-commands in [chapter 13](https://github.com/quant-rule/quant-rule/issues/968), repeated so the agent does not have to
+commands in [chapter 13](13-desktop.md), repeated so the agent does not have to
 interpret them.
 
 **Get the artifact**
@@ -385,7 +385,7 @@ unverified.
 ## 8. Related
 
 - [Command reference](09-command-reference.md)
-- [Desktop install](https://github.com/quant-rule/quant-rule/issues/968)
+- [Desktop install](13-desktop.md)
 - [Operations](08-operations.md)
 - [Troubleshooting](12-troubleshooting.md)
 - [Remote compute tutorial](../tutorials/2026-11-12/03-remote-compute.md)

@@ -9,7 +9,7 @@ account, no cloud provider, and no live trading.
 > execution surface release: diagnostic model, strategy, and portfolio stages,
 > verified stage artifacts and Workbench tabs, promoted
 > `run submit --model-artifact`, the v3 research ledger and Research screen,
-> the Operations screen and `GET /operations`, and the 12-chapter user manual.
+> the Operations screen and `GET /operations`, and the 14-chapter user manual.
 > One image and six services serve the server profile; one installer starts the
 > same six sidecars on embedded SQLite, a filesystem CAS, and a durable
 > in-process queue for the desktop profile. The browser client, command shell,
@@ -134,6 +134,10 @@ desktop profile and the server profile both reproduce canonical digest
 the verification fixture. The current release is `v1.3.0`; `v1.2.0` is the
 version-alignment release, `v1.0.0` is the desktop release, and `v0.9.0` the
 distributed platform release.
+Linux installs the AppImage and a user-level `.desktop` entry so the app appears
+in Activities search; Windows installs the NSIS package. The step-by-step
+procedure is [user manual chapter 13](docs/manual/13-desktop.md), and the
+agent-assisted version is [`docs/manual/agent-runbook.md`](docs/manual/agent-runbook.md).
 Details: [`apps/desktop-shell/README.md`](apps/desktop-shell/README.md) and
 [ADR-12](docs/adr/2026-11-12/12-desktop-distribution.md).
 
@@ -174,7 +178,8 @@ browser ── HTTP ── gateway ── postgres
 Details: [`services.md`](docs/architecture/services.md),
 [`data-plane.md`](docs/architecture/data-plane.md),
 [`control-plane.md`](docs/architecture/control-plane.md),
-[`http-api.md`](docs/architecture/http-api.md).
+[`http-api.md`](docs/architecture/http-api.md),
+[`multi-host.md`](docs/architecture/multi-host.md).
 
 ## Commands (current surface)
 
@@ -271,6 +276,7 @@ and cleanup status and the browser Operations screen. The contract is
 | [`docs/architecture/kata.md`](docs/architecture/kata.md) | Why the product exists |
 | [`docs/architecture/characteristics.md`](docs/architecture/characteristics.md) | Measurable qualities and fitness functions |
 | [`docs/architecture/deployment.md`](docs/architecture/deployment.md) | How to run it |
+| [`docs/architecture/multi-host.md`](docs/architecture/multi-host.md) | How the six services run across hosts |
 | [User manual](docs/manual/README.md) | Every journey, command, screen, term, and error |
 | [Stage to backtest tutorial](docs/tutorials/2026-11-17/stage-to-backtest.md) | Diagnostic stages to a promoted evidence run |
 | [End-to-end verification tutorial](docs/tutorials/2026-11-17/end-to-end-verification.md) | Clean-stack proof and the two-run digest |
