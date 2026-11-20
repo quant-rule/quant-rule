@@ -114,6 +114,17 @@ function stage(stageRunId: string) {
   };
 }
 
+function config(profile: string) {
+  return {
+    config_id: profile === "alpha" ? "cfg_alpha" : "cfg_default",
+    name: profile === "alpha" ? "alpha/run.json" : "default/run.json",
+    origin: "repository",
+    valid: true,
+    message: null,
+    config_hash: DIGEST,
+  };
+}
+
 function summary(simId: string, premise: string) {
   return {
     sim_id: simId,
@@ -156,8 +167,11 @@ async function install(page: Page, server: Server): Promise<void> {
     if (path === "/profiles") {
       return route.fulfill({ json: PROFILES });
     }
-    if (path === "/catalog/datasets" || path === "/catalog/configs") {
+    if (path === "/catalog/datasets") {
       return route.fulfill({ json: [] });
+    }
+    if (path === "/catalog/configs") {
+      return route.fulfill({ json: [config(profile)] });
     }
     if (path === "/runs") {
       return route.fulfill({
@@ -230,6 +244,21 @@ test("a profile switch clears runs and simulations before the new read", async (
   await page.getByRole("button", { name: /Runs/ }).click();
   await expect(page.getByRole("row", { name: /dddddddd/ })).toBeVisible();
   await expect(page.getByText(/cccccccc/)).toHaveCount(0);
+});
+
+test("a profile switch clears the open config detail", async ({ page }) => {
+  const server: Server = { online: true, gate: null };
+  await install(page, server);
+  await page.goto("/");
+
+  await page.getByRole("button", { name: /Configs/ }).click();
+  await expect(page.getByTestId("config-table")).toContainText("default/run.json");
+  await page.getByTestId("config-detail-open").first().click();
+  await expect(page.getByTestId("config-detail")).toContainText("cfg_default");
+
+  await page.getByLabel("Active profile").selectOption("alpha");
+  await expect(page.getByTestId("config-detail")).toHaveCount(0);
+  await expect(page.getByTestId("config-table")).toContainText("alpha/run.json");
 });
 
 test("a profile switch clears and reloads stage rows", async ({ page }) => {

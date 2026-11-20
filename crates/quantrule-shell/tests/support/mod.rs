@@ -841,7 +841,20 @@ fn handle(state: &mut FixtureState, request: &Request) -> Response {
         ),
         ("POST", ["simulation", "runs", _, "check"]) => Response::json(
             200,
-            &json!({ "sim_id": "sim-1", "events": 31, "verdict": "pass" }),
+            &json!({
+                "sim_id": "sim-1",
+                "events": 31,
+                "mean_net": 0.01,
+                "hit_rate": 0.6,
+                "control": 60,
+                "control_mean_net": 0.0,
+                "control_hit_rate": 0.5,
+                "positive_half_years": 3,
+                "passed": true,
+                "failures": [],
+                "verdict": "pass",
+                "sides": [{ "side": "long", "verdict": "survives" }],
+            }),
         ),
         ("POST", ["simulation", "runs", _, "decision"]) => {
             let body = request.json();

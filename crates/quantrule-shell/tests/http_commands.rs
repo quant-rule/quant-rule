@@ -875,7 +875,7 @@ fn simulation_check_and_decide_print_the_gateway_result() {
     assert_success(&check);
     assert_eq!(
         stdout(&check),
-        "{\"events\":31,\"sim_id\":\"sim-1\",\"verdict\":\"pass\"}\n"
+        "check: pass\nevents: 31\nmean_net: 0.01\nhit_rate: 0.6\ncontrol: 60\ncontrol_mean_net: 0.0\ncontrol_hit_rate: 0.5\npositive_half_years: 3\npassed: true\nside long: survives\n"
     );
 
     let decide = fixture.run(&[
@@ -967,6 +967,15 @@ fn help_does_not_need_a_gateway() {
         stdout(&output)
             .contains("usage:  run submit <data_version> <config_id> [--model-artifact <id>]")
     );
+    assert!(fixture.requests().is_empty());
+}
+
+#[test]
+fn help_survives_a_malformed_token() {
+    let fixture = Fixture::start();
+    let output = fixture.run_with_env(&["help", "run", "submit"], "QUANTRULE_TOKEN", "not a token");
+    assert_success(&output);
+    assert!(stdout(&output).starts_with("run submit\n"));
     assert!(fixture.requests().is_empty());
 }
 

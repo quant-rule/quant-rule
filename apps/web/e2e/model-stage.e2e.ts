@@ -160,7 +160,9 @@ test("submits, inspects, downloads, and deletes a model stage", async ({ page })
 
   await expect(page.getByRole("tab", { name: "Data" })).toBeVisible();
   await page.getByLabel("Data version").fill(DATA);
+  await expect(page.getByRole("button", { name: "Run model stage" })).toBeDisabled();
   await page.getByLabel("Config id").fill("cfg_abc");
+  await expect(page.getByRole("button", { name: "Run model stage" })).toBeEnabled();
   await page.getByRole("button", { name: "Run model stage" }).click();
 
   const table = page.getByTestId("stage-table");

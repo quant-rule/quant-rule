@@ -29,6 +29,17 @@
     }
   });
 
+  // A profile switch replaces the config rows; the open detail must not
+  // survive as a config the next submission could name.
+  $effect(() => {
+    if (
+      selected !== null &&
+      !view.items.some((item) => item.config_id === selected?.config_id)
+    ) {
+      selected = null;
+    }
+  });
+
   function open(configId: string): void {
     selected = findConfig(view.items, configId);
   }
