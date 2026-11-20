@@ -59,6 +59,15 @@ compose() {
 }
 compose version >/dev/null 2>&1 || die "cannot run '${COMPOSE:-docker compose}'"
 
+# The local stack may use the documented loopback defaults; a remotely exposed
+# stack may not. Refuse the known default before any container starts.
+for variable in QR_POSTGRES_PASSWORD QR_OBJECT_STORE_PASSWORD QR_RABBITMQ_PASSWORD; do
+  value="${!variable:-}"
+  if [ -z "$value" ] || [ "$value" = "quantrule" ]; then
+    die "$variable must be set to a non-default value for a remote stack"
+  fi
+done
+
 url=${QR_URL:-http://localhost:8080}
 url=${url%/}
 

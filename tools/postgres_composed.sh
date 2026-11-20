@@ -10,7 +10,7 @@ set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
 
-image="${QR_TEST_POSTGRES_IMAGE:-postgres:17}"
+image="${QR_TEST_POSTGRES_IMAGE:-postgres@sha256:846a7ddaa67a4b354ae1d21087b683901aa6113a4ed626d3787cfbf6c85e3e07}"
 container="quantrule-postgres-tier-$$"
 cleanup() {
   docker rm -f "$container" >/dev/null 2>&1 || true
