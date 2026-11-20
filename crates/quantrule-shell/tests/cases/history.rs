@@ -89,3 +89,34 @@ fn history_archive_refuses_a_stage() {
     assert!(!output.status.success());
     assert!(String::from_utf8_lossy(&output.stderr).contains("no archive"));
 }
+
+#[test]
+fn history_erase_surfaces_a_protected_refusal() {
+    let fixture = Fixture::start();
+    let protected = format!("sha256:{}", "f".repeat(64));
+    let output = fixture.run(&[
+        "history",
+        "erase",
+        "--kind",
+        "run",
+        "--id",
+        &protected,
+        "--confirm",
+        &protected,
+    ]);
+    assert!(!output.status.success());
+    let error = String::from_utf8_lossy(&output.stderr);
+    assert!(error.contains("history.protected"), "{error}");
+    assert!(error.contains("evidence"), "{error}");
+}
+
+#[test]
+fn history_list_carries_the_selected_profile() {
+    let fixture = Fixture::start();
+    let output = fixture.run(&["--profile", "alpha", "history", "list", "--kind", "run"]);
+    assert_success(&output);
+    assert_eq!(
+        fixture.last_request().header("x-quantrule-profile"),
+        Some("alpha")
+    );
+}

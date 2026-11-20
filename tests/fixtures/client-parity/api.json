@@ -866,5 +866,12 @@
       "sha256": "sha256:522ccc6ccdf4cec2f74a0ab5ad4534de6fcf2f0e0cb9cc9580e478f8764b242b"
     }
   ],
-  "research_id": "MODEL-2026-11-17-01"
+  "research_id": "MODEL-2026-11-17-01",
+  "history_kinds": [
+    "run",
+    "stage",
+    "research",
+    "simulation",
+    "dataset"
+  ]
 }

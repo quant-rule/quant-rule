@@ -709,6 +709,11 @@ fn handle(state: &mut FixtureState, request: &Request) -> Response {
                 "archived_at": "2026-11-20T00:00:00Z",
             }),
         ),
+        ("DELETE", ["runs", id]) if *id == format!("sha256:{}", "f".repeat(64)) => Response::error(
+            409,
+            "history.protected",
+            "a succeeded run is evidence and cannot be erased",
+        ),
         ("DELETE", ["runs", id]) => Response::json(200, &json!({ "record_id": id, "bytes": 0 })),
         ("GET", ["runs"]) => Response::json(
             200,
