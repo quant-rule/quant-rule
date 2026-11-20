@@ -47,17 +47,20 @@ async fn the_first_apply_records_the_catalog_ledger_and_the_second_is_a_no_op() 
     let applied = apply_migrations_in(&database, "catalog", &migrations::sqlite())
         .await
         .expect("the first apply");
-    assert_eq!(applied, 1);
+    assert_eq!(applied, 2);
     assert_eq!(
         ledger_rows(&database).await,
-        vec![("catalog".to_owned(), 1, "catalog".to_owned())]
+        vec![
+            ("catalog".to_owned(), 1, "catalog".to_owned()),
+            ("catalog".to_owned(), 2, "dataset-references".to_owned()),
+        ]
     );
 
     let applied = apply_migrations_in(&database, "catalog", &migrations::sqlite())
         .await
         .expect("the second apply");
     assert_eq!(applied, 0, "the second apply was not a no-op");
-    assert_eq!(ledger_rows(&database).await.len(), 1);
+    assert_eq!(ledger_rows(&database).await.len(), 2);
 }
 
 #[tokio::test]
@@ -67,18 +70,25 @@ async fn a_changed_migration_body_is_refused() {
         .await
         .expect("the first apply");
 
-    let changed = vec![Migration {
-        version: 1,
-        name: "catalog",
-        sql: CHANGED_CATALOG,
-    }];
+    let original = migrations::sqlite();
+    let changed = vec![
+        Migration {
+            version: 1,
+            name: "catalog",
+            sql: CHANGED_CATALOG,
+        },
+        original[1],
+    ];
     assert_eq!(
         apply_migrations_in(&database, "catalog", &changed).await,
         Err(MigrationError::ChecksumMismatch { version: 1 })
     );
     assert_eq!(
         ledger_rows(&database).await,
-        vec![("catalog".to_owned(), 1, "catalog".to_owned())],
+        vec![
+            ("catalog".to_owned(), 1, "catalog".to_owned()),
+            ("catalog".to_owned(), 2, "dataset-references".to_owned()),
+        ],
         "a refused plan changed the ledger"
     );
     assert_eq!(
@@ -165,6 +175,10 @@ async fn the_ledgers_are_independent_in_one_file() {
         .expect("the ledger rows");
     assert_eq!(
         rows,
-        vec![("catalog".to_owned(), 1), ("probe".to_owned(), 1)]
+        vec![
+            ("catalog".to_owned(), 1),
+            ("catalog".to_owned(), 2),
+            ("probe".to_owned(), 1),
+        ]
     );
 }

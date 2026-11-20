@@ -43,6 +43,13 @@ pub struct DataState {
     pub config_root: PathBuf,
     /// The largest upload the service accepts, in bytes.
     pub max_upload: u64,
+    /// Serialises dataset insert, archive, and erase with object deletion.
+    ///
+    /// The catalog row and the object store cannot share a transaction. The
+    /// gate makes the check-then-delete window single-writer inside this
+    /// service, so a concurrent upload cannot observe an object that an erase
+    /// is about to remove.
+    pub dataset_gate: Arc<tokio::sync::Mutex<()>>,
 }
 
 impl std::fmt::Debug for DataState {
@@ -56,6 +63,7 @@ impl std::fmt::Debug for DataState {
             .field("objects", &self.objects.is_some())
             .field("config_root", &self.config_root)
             .field("max_upload", &self.max_upload)
+            .field("dataset_gate", &Arc::strong_count(&self.dataset_gate))
             .finish()
     }
 }
@@ -72,6 +80,7 @@ impl DataState {
             objects: services.objects,
             config_root: config.config_root.clone(),
             max_upload: config.upload_limit_bytes,
+            dataset_gate: Arc::new(tokio::sync::Mutex::new(())),
         }
     }
 }

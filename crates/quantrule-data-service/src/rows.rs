@@ -14,8 +14,8 @@ use crate::configs::{ConfigRecord, ConfigStoreError};
 
 /// The columns of one catalog row, in select order.
 ///
-/// `quality` is nullable, so it must be the last position and typed as an
-/// option. The timestamp is non-null and precedes it.
+/// `quality` and `archived_at` are nullable, so they must be the last positions
+/// and typed as options. The timestamp is non-null and precedes them.
 pub(crate) type DatasetRow = (
     String,
     String,
@@ -26,6 +26,7 @@ pub(crate) type DatasetRow = (
     String,
     String,
     String,
+    Option<String>,
     Option<String>,
 );
 
@@ -61,6 +62,7 @@ pub(crate) fn dataset_record(
         first_bar: dataset_count(row.3, "first bar")?,
         last_bar: dataset_count(row.4, "last bar")?,
         bytes: dataset_count(row.5, "byte count")?,
+        archived_at: row.10,
     };
     Ok(quantrule_api::DatasetRecord {
         summary,

@@ -10,7 +10,8 @@
 use std::collections::BTreeMap;
 
 use quantrule_api::{
-    ConfigOrigin, DatasetRecord, DatasetSummary, Digest, ProfileId, QualityReport, SkippedRow,
+    ConfigOrigin, DatasetRecord, DatasetReference, DatasetReferenceKind, DatasetSummary, Digest,
+    ProfileId, QualityReport, SkippedRow,
 };
 use quantrule_data_service::migrations;
 use quantrule_data_service::postgres::{PgConfigStore, PgDatasetCatalog};
@@ -36,6 +37,7 @@ fn summary(seed: &[u8], name: &str) -> DatasetSummary {
         first_bar: 1_704_067_200,
         last_bar: 1_704_067_260,
         bytes: 128,
+        archived_at: None,
     }
 }
 
@@ -116,7 +118,7 @@ async fn dataset_conformance(catalog: &dyn DatasetCatalog) {
         .await
         .expect("the second insert");
 
-    let mut ordered = vec![first, second];
+    let mut ordered = vec![first.clone(), second];
     ordered.sort_by_key(|record| record.summary.data_version.clone());
     let listed = catalog.list(owner.clone()).await.expect("the ordered list");
     assert_eq!(listed, ordered, "the list is not ordered by version");
@@ -132,7 +134,7 @@ async fn dataset_conformance(catalog: &dyn DatasetCatalog) {
     assert_eq!(
         catalog
             .get(
-                owner,
+                owner.clone(),
                 Digest::sha256(b"conformance-catalog-missing").to_string()
             )
             .await
@@ -141,10 +143,160 @@ async fn dataset_conformance(catalog: &dyn DatasetCatalog) {
     );
     assert!(
         catalog
-            .list(empty)
+            .list(empty.clone())
             .await
             .expect("the empty profile list")
             .is_empty()
+    );
+
+    // Runtime history: archive hides the row, a reference blocks erase, and the
+    // shared object keeps the other profile's row readable.
+    let version = first.summary.data_version.to_string();
+    assert_eq!(
+        catalog.erase(owner.clone(), version.clone()).await,
+        Err(CatalogError::NotArchived),
+        "an active dataset was erased"
+    );
+    let archived = catalog
+        .archive(
+            owner.clone(),
+            version.clone(),
+            "2026-11-20T00:00:00Z".to_owned(),
+        )
+        .await
+        .expect("the archive");
+    assert_eq!(
+        archived.summary.archived_at.as_deref(),
+        Some("2026-11-20T00:00:00Z")
+    );
+    assert_eq!(
+        catalog
+            .archive(
+                owner.clone(),
+                version.clone(),
+                "2026-11-20T00:00:01Z".to_owned()
+            )
+            .await,
+        Err(CatalogError::Archived)
+    );
+    let active = catalog.list(owner.clone()).await.expect("the active list");
+    assert!(
+        !active
+            .iter()
+            .any(|record| record.summary.data_version.to_string() == version),
+        "an archived dataset was listed by default"
+    );
+    assert_eq!(
+        catalog
+            .list_including_archived(owner.clone())
+            .await
+            .expect("the history list")
+            .len(),
+        2
+    );
+    assert_eq!(
+        catalog
+            .count(owner.clone())
+            .await
+            .expect("the active count"),
+        1
+    );
+
+    let reference = DatasetReference {
+        reference_id: "run:conformance-1".to_owned(),
+        kind: DatasetReferenceKind::Run,
+        created_at: "2026-11-20T00:00:00Z".to_owned(),
+    };
+    assert_eq!(
+        catalog
+            .add_reference(owner.clone(), version.clone(), reference.clone())
+            .await
+            .expect("the reference"),
+        1
+    );
+    assert_eq!(
+        catalog
+            .add_reference(owner.clone(), version.clone(), reference)
+            .await
+            .expect("the idempotent reference"),
+        1
+    );
+    let references = catalog
+        .references(owner.clone(), version.clone())
+        .await
+        .expect("the reference list");
+    assert_eq!(references.len(), 1);
+    assert_eq!(references[0].kind, DatasetReferenceKind::Run);
+    assert_eq!(
+        catalog.erase(owner.clone(), version.clone()).await,
+        Err(CatalogError::Referenced(1)),
+        "a referenced dataset was erased"
+    );
+    assert_eq!(
+        catalog
+            .release_reference(
+                owner.clone(),
+                version.clone(),
+                "run:conformance-1".to_owned()
+            )
+            .await
+            .expect("the release"),
+        0
+    );
+    let erased = catalog
+        .erase(owner.clone(), version.clone())
+        .await
+        .expect("the erase");
+    assert!(
+        erased.object_shared,
+        "the other profile still points at the same object"
+    );
+    assert_eq!(
+        catalog
+            .get(owner.clone(), version.clone())
+            .await
+            .expect("the erased read"),
+        None
+    );
+    assert!(
+        catalog
+            .get(other.clone(), version.clone())
+            .await
+            .expect("the shared read")
+            .is_some(),
+        "erasing one profile removed another profile's row"
+    );
+
+    // A unique dataset takes its object with it.
+    let unique = dataset(b"conformance-catalog-unique", "unique.csv", None);
+    let unique_version = unique.summary.data_version.to_string();
+    catalog
+        .insert(owner.clone(), unique)
+        .await
+        .expect("the unique insert");
+    catalog
+        .archive(
+            owner.clone(),
+            unique_version.clone(),
+            "2026-11-20T00:00:00Z".to_owned(),
+        )
+        .await
+        .expect("the unique archive");
+    let erased = catalog
+        .erase(owner.clone(), unique_version)
+        .await
+        .expect("the unique erase");
+    assert!(!erased.object_shared);
+
+    assert_eq!(
+        catalog
+            .archive(
+                owner,
+                Digest::sha256(b"conformance-catalog-missing").to_string(),
+                "2026-11-20T00:00:00Z".to_owned()
+            )
+            .await,
+        Err(CatalogError::NotFound)
     );
 }
 
