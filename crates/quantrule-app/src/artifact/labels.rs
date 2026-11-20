@@ -20,9 +20,9 @@ pub fn timeframe_label(seconds: u64) -> &'static str {
 pub fn stage_label(code: i8) -> &'static str {
     match code {
         0 => "against",
-        1 => "under_25",
-        2 => "25_to_50",
-        3 => "50_to_75",
+        1 => "0-25%",
+        2 => "25-50%",
+        3 => "50-75%",
         4 => "late",
         5 => "terminal",
         _ => "unknown",
@@ -43,9 +43,9 @@ pub fn context_label(code: u8) -> &'static str {
 /// Maps an event type code to its word.
 pub fn event_type_label(code: u8) -> &'static str {
     match code {
-        1 => "level",
-        2 => "divergence",
-        3 => "signal",
+        1 => "Level",
+        2 => "Divergence",
+        3 => "Signal",
         _ => "unknown",
     }
 }
@@ -53,38 +53,39 @@ pub fn event_type_label(code: u8) -> &'static str {
 /// Maps an event type and subtype pair to its word.
 pub fn event_subtype_label(type_code: u8, subtype_code: u8) -> &'static str {
     match (type_code, subtype_code) {
-        (1, 1) => "test",
+        (1, 1) => "test/retest",
         (1, 2) => "cross",
         (1, 3) => "break",
-        (1, 4) => "break_of_structure",
-        (1, 5) => "change_of_character",
-        (2, 1) => "regular_bullish",
-        (2, 2) => "regular_bearish",
-        (2, 3) => "hidden_bullish",
-        (2, 4) => "hidden_bearish",
-        (3, 1) => "threshold_crossing",
-        (3, 2) => "series_crossover",
-        (3, 3) => "compact_state_change",
-        (3, 4) => "histogram_slope_flip",
-        (3, 5) => "zero_cross",
-        (3, 6) => "trend_continuation",
-        (3, 7) => "compression_breakout",
-        (3, 8) => "compression_range",
-        (3, 9) => "compression_range_onset",
-        (3, 10) => "candle_pattern",
+        (1, 4) => "break of structure",
+        (1, 5) => "change of character",
+        (2, 1) => "regular bullish",
+        (2, 2) => "regular bearish",
+        (2, 3) => "hidden bullish",
+        (2, 4) => "hidden bearish",
+        (3, 1) => "threshold crossing",
+        (3, 2) => "series crossover",
+        (3, 3) => "compact state change",
+        (3, 4) => "histogram slope flip",
+        (3, 5) => "zero cross",
+        (3, 6) => "trend continuation",
+        (3, 7) => "compression breakout",
+        (3, 8) => "compression range",
+        (3, 9) => "compression range onset",
+        (3, 10) => "candle pattern",
         (3, 11) => "participation",
         (3, 12) => "absorption",
-        (3, 13) => "volume_profile",
-        (3, 14) => "vwap",
-        (3, 15) => "volume_flow",
+        (3, 13) => "volume profile",
+        (3, 14) => "VWAP",
+        (3, 15) => "volume flow",
         (3, 16) => "volatility",
         (3, 17) => "range",
         (3, 18) => "channel",
         (3, 19) => "structure",
         (3, 20) => "gap",
         (3, 21) => "path",
-        (3, 22) => "cross_asset",
+        (3, 22) => "cross-asset",
         (3, 23) => "session",
+        (3, 24) => "breakout retest hold",
         _ => "unknown",
     }
 }
@@ -92,57 +93,60 @@ pub fn event_subtype_label(type_code: u8, subtype_code: u8) -> &'static str {
 /// Maps a source code to its word.
 pub fn source_label(code: u16) -> &'static str {
     match code {
-        1 => "ema_fast",
-        2 => "ema_mid",
-        3 => "ema_slow",
-        4 => "rsi",
-        5 => "atr",
-        6 => "rvol",
-        7 => "minor_pivots",
-        8 => "major_pivots",
+        1 => "EMA fast",
+        2 => "EMA mid",
+        3 => "EMA slow",
+        4 => "RSI",
+        5 => "ATR",
+        6 => "RVOL",
+        7 => "minor pivots",
+        8 => "major pivots",
         12 => "progression",
-        13 => "macd_line",
-        14 => "macd_signal",
-        15 => "macd_histogram",
-        16 => "adx",
-        17 => "di_plus",
-        18 => "di_minus",
-        19 => "vwap",
-        20 => "volume_profile",
-        21 => "volume_climax",
+        13 => "MACD line",
+        14 => "MACD signal",
+        15 => "MACD histogram",
+        16 => "ADX",
+        17 => "+DI",
+        18 => "-DI",
+        19 => "VWAP",
+        20 => "volume profile",
+        21 => "volume climax",
         22 => "absorption",
-        23 => "volume_oscillator",
-        24 => "obv",
-        25 => "cmf",
-        26 => "mfi",
-        27 => "ad_line",
-        28 => "atr_term",
-        29 => "range_expansion",
-        30 => "mar",
-        31 => "keltner",
-        32 => "donchian",
-        33 => "swing_structure",
-        34 => "level_strength",
-        35 => "aroon",
-        36 => "bos_choch",
-        37 => "candle_anatomy",
-        38 => "candle_pattern",
+        23 => "volume oscillator",
+        24 => "OBV",
+        25 => "CMF",
+        26 => "MFI",
+        27 => "A/D line",
+        28 => "ATR term",
+        29 => "range expansion",
+        30 => "MAR",
+        31 => "Keltner",
+        32 => "Donchian",
+        33 => "swing structure",
+        34 => "level strength",
+        35 => "Aroon",
+        36 => "BOS/CHOCH",
+        37 => "candle anatomy",
+        38 => "candle pattern",
         39 => "gap",
-        40 => "path_efficiency",
-        41 => "direction_changes",
-        42 => "bars_since_extreme",
+        40 => "path efficiency",
+        41 => "direction changes",
+        42 => "bars since extreme",
         43 => "drawdown",
-        44 => "range_position",
-        45 => "relative_strength",
-        46 => "lead_lag",
+        44 => "range position",
+        45 => "relative strength",
+        46 => "lead-lag",
         47 => "breadth",
-        48 => "co_movement",
+        48 => "co-movement",
         49 => "dispersion",
         50 => "session",
-        51 => "opening_range",
-        52 => "overnight_intraday",
-        53 => "session_range",
-        54 => "calendar_bucket",
+        51 => "opening range",
+        52 => "overnight/intraday",
+        53 => "session range",
+        54 => "calendar bucket",
+        55 => "pivot sequence",
+        56 => "Fibonacci",
+        57 => "horizontal band",
         _ => "unknown",
     }
 }
@@ -180,8 +184,8 @@ pub fn leg_direction_label(code: i8) -> &'static str {
 /// Maps a progression target basis code to its word.
 pub fn target_basis_label(code: u8) -> &'static str {
     match code {
-        1 => "confirmed_level",
-        2 => "atr_fallback",
+        1 => "confirmed structural level",
+        2 => "ATR fallback",
         _ => "unknown",
     }
 }
@@ -197,14 +201,14 @@ mod tests {
 
     #[test]
     fn the_extended_sources_are_labelled() {
-        assert_eq!(source_label(19), "vwap");
-        assert_eq!(source_label(54), "calendar_bucket");
+        assert_eq!(source_label(19), "VWAP");
+        assert_eq!(source_label(54), "calendar bucket");
         assert_eq!(source_label(99), "unknown");
     }
 
     #[test]
     fn the_signal_subtypes_are_labelled() {
-        assert_eq!(event_subtype_label(3, 9), "compression_range_onset");
+        assert_eq!(event_subtype_label(3, 9), "compression range onset");
         assert_eq!(event_subtype_label(3, 23), "session");
     }
 }

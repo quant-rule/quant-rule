@@ -52,6 +52,8 @@ history is in Git and the pull requests.
 
 ### Changed
 
+- Server artifact event, source, and stage words now come from the same registry
+  values as the browser table; the label gate compares both.
 - The backtest worker opens a channel per consumer with its own prefetch slot
   and starts `QR_BACKTEST_CONCURRENCY` run consumers.
 - Stage retention sweeps at startup and hourly, so an expired stage no longer
