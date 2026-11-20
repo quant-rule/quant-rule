@@ -758,6 +758,8 @@ fn simulation_create_sends_the_contract_body() {
         "a higher low holds",
         "--bundle",
         &bundle,
+        "--inputs",
+        "EMA stack and RSI zone",
         "--seed",
         "7",
         "--criteria",
@@ -770,6 +772,7 @@ fn simulation_create_sends_the_contract_body() {
         json!({
             "premise": "a higher low holds",
             "bundle": bundle,
+            "inputs": "EMA stack and RSI zone",
             "seed": 7,
             "criteria": "good entry within five bars",
         })

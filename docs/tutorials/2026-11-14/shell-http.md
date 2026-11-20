@@ -82,10 +82,9 @@ quantrule stage delete <stage_run_id>
 ```
 
 A stage is diagnostic: `stage show` prints `evidence: false`, and the artifact
-is never a run, a baseline, or a canonical digest. `stage events` reads the
-published `events.csv` and `report.json`; it filters the event rows and prints
-the report coverage without computing a model value. `stage fetch` checks every
-artifact against the stage record before writing it.
+is never a run, a baseline, or a canonical digest. `stage events` filters the
+published `events.csv` and `report.json` without computing a model value;
+`stage fetch` checks every artifact against the stage record before writing it.
 
 ## 5. A strategy stage
 
@@ -137,10 +136,11 @@ baseline. A coupled backtest recomputes strategy, execution, and portfolio.
 ```bash
 quantrule simulation create \
   --premise "a higher low into a confirmed level holds" \
-  --bundle <data_version> --seed 7 --criteria "good entry within five bars"
+  --bundle <simulation_digest> --inputs "EMA stack and RSI zone" \
+  --seed 7 --criteria "good entry within five bars"
 quantrule simulation list --status marking
 quantrule simulation windows <sim_id>
-quantrule simulation mark <sim_id> --chart w1 --bar 12 \
+quantrule simulation mark <sim_id> --chart 0 --bar 80 \
   --action entry --quality good --side long --note "higher low"
 quantrule simulation marks <sim_id> --origin human
 quantrule simulation oracle <sim_id>
@@ -148,9 +148,9 @@ quantrule simulation check <sim_id>
 quantrule simulation decide <sim_id> test --note "the rule is testable"
 ```
 
-The server assigns `sim_id` and `marked_time_utc`. The client clock is not
-trusted. `check` refuses fewer than 30 events, and marking after a decision is
-refused with `simulation.locked`.
+The `--bundle` is the model stage's `simulation-1m.json` sha256; both clients
+send the same `inputs`, so the same premise, inputs, seed, and criteria produce
+the same `inputs_digest`; a decision closes marking with `simulation.locked`.
 
 ## 8. Research ledger
 

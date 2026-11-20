@@ -15,7 +15,7 @@ use serde_json::{Value, json};
 
 use super::error::ModelBundleError;
 use super::provenance::{config_files, spec_provenance, spec_v2_provenance};
-use super::{artifacts, period_label};
+use super::{artifacts, period_label, simulation};
 use crate::artifact::render_report::{self, Provenance};
 use crate::config::RunConfig;
 use crate::pipeline;
@@ -180,6 +180,24 @@ fn model_bundle_with(
         _ => None,
     };
     let legs_csv = artifacts::legs_csv(model_run, ladder);
+    let simulation_artifacts: Vec<(String, Vec<u8>)> = ladder
+        .iter()
+        .filter_map(|seconds| {
+            simulation::simulation_json(
+                model_run,
+                *seconds,
+                &config.data.data_version,
+                &config.model_input_hash,
+                config.model_id.as_deref(),
+            )
+            .map(|json| {
+                (
+                    format!("simulation-{}.json", timeframe_label(*seconds)),
+                    json.into_bytes(),
+                )
+            })
+        })
+        .collect();
 
     let mut name_list = vec![
         "summary.txt",
@@ -202,6 +220,9 @@ fn model_bundle_with(
     }
     if session_csv.is_some() {
         name_list.push("session.csv");
+    }
+    for (name, _) in &simulation_artifacts {
+        name_list.push(name.as_str());
     }
     let names = artifact_names(&name_list);
     let files = config_files(config);
@@ -264,6 +285,14 @@ fn model_bundle_with(
     }
     render_report::write_bundle(&bundle, &artifacts, &provenance)
         .map_err(ModelBundleError::Bundle)?;
+    for (name, bytes) in &simulation_artifacts {
+        std::fs::write(bundle.join(name), bytes).map_err(|error| {
+            ModelBundleError::Output(std::io::Error::new(
+                error.kind(),
+                format!("write {name}: {error}"),
+            ))
+        })?;
+    }
     Ok(BundleOutput {
         path: bundle,
         names,

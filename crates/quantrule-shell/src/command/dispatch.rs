@@ -215,9 +215,21 @@ fn run(
         Command::SimulationCreate {
             premise,
             bundle,
+            inputs,
             seed,
             criteria,
-        } => simulation_create(&client, globals, stdout, &premise, &bundle, seed, &criteria),
+        } => simulation_create(
+            &client,
+            globals,
+            stdout,
+            &SimulationInput {
+                premise: &premise,
+                bundle: &bundle,
+                inputs: &inputs,
+                seed,
+                criteria: &criteria,
+            },
+        ),
         Command::SimulationWindows { sim_id } => {
             simulation_windows(&client, globals, stdout, &sim_id)
         }
@@ -716,21 +728,26 @@ fn simulation_list(
     })
 }
 
+struct SimulationInput<'a> {
+    premise: &'a str,
+    bundle: &'a Digest,
+    inputs: &'a str,
+    seed: u64,
+    criteria: &'a str,
+}
+
 fn simulation_create(
     client: &Client,
     globals: &GlobalOptions,
     stdout: &mut impl Write,
-    premise: &str,
-    bundle: &Digest,
-    seed: u64,
-    criteria: &str,
+    input: &SimulationInput<'_>,
 ) -> Result<(), RunError> {
     let request = CreateSimulationRequest {
-        premise: premise.to_owned(),
-        bundle: bundle.clone(),
-        inputs: String::new(),
-        seed,
-        criteria: criteria.to_owned(),
+        premise: input.premise.to_owned(),
+        bundle: input.bundle.clone(),
+        inputs: input.inputs.to_owned(),
+        seed: input.seed,
+        criteria: input.criteria.to_owned(),
     };
     let body = serde_json::to_string(&request)
         .map_err(|error| RunError::decode("the simulation request", error))?;

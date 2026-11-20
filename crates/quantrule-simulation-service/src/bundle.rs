@@ -18,7 +18,7 @@ use quantrule_simulation::{Bar, Bundle, Catalog, Event, utc_from_seconds};
 use serde::{Deserialize, Serialize};
 
 /// The bundle schema the service accepts.
-pub const SIMULATION_BUNDLE_SCHEMA: &str = "quantrule.simulation-bundle/v1";
+pub const SIMULATION_BUNDLE_SCHEMA: &str = quantrule_api::simulation::BUNDLE_SCHEMA;
 
 /// Why a recorded bundle cannot be read.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -143,10 +143,7 @@ impl LoadedBundle {
 }
 
 /// The content-addressed key of one recorded bundle.
-#[must_use]
-pub fn bundle_key(digest: &Digest) -> String {
-    format!("simulation/bundles/{}.json", digest.as_hex())
-}
+pub use quantrule_api::simulation::bundle_key;
 
 /// Read and verify one recorded bundle.
 ///

@@ -356,12 +356,14 @@ const COMMANDS: &[CommandHelp] = &[
     },
     CommandHelp {
         name: "simulation create",
-        usage: "simulation create --premise <text> --bundle <digest> --seed <n> --criteria <text>",
+        usage: "simulation create --premise <text> --bundle <digest> [--inputs <text>] --seed <n> --criteria <text>",
         summary: "Create a simulation run over a recorded model bundle.",
         output: "the server-assigned sim_id",
         notes: &[
+            "The bundle is a simulation-<timeframe>.json digest from a model stage artifact.",
+            "The default window is 400 bars; a shorter bundle selects no windows.",
             "The premise and criteria are recorded before the first mark.",
-            "The seed fixes window selection; the same inputs digest yields the same windows.",
+            "Both clients send the context inputs; the same text produces the same inputs digest.",
         ],
     },
     CommandHelp {

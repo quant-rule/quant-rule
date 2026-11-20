@@ -85,13 +85,20 @@ usage drifts from the registry.
 | Command | Usage | Required | Optional | Output | Stable errors | Browser | Example |
 |---|---|---|---|---|---|---|---|
 | `simulation list` | `simulation list [--status <status>] [--limit <n>]` | — | `--status`, `--limit` | One line per simulation with status, windows, marks, premise | `simulation.not_found`, `profile.not_found` | Simulation → table | `quantrule simulation list --status marking` |
-| `simulation create` | `simulation create --premise <text> --bundle <digest> --seed <n> --criteria <text>` | premise, bundle, seed, criteria | — | Server-assigned `sim_id` | `simulation.mark_invalid`, `service.unavailable` | Simulation → create form | `quantrule simulation create --premise "a higher low holds" --bundle <data_version> --seed 7 --criteria "good entry within five bars"` |
+| `simulation create` | `simulation create --premise <text> --bundle <digest> [--inputs <text>] --seed <n> --criteria <text>` | premise, bundle, seed, criteria | `--inputs` | Server-assigned `sim_id` | `simulation.mark_invalid`, `service.unavailable` | Simulation → create form | `quantrule simulation create --premise "a higher low holds" --bundle <simulation-1m digest> --inputs "EMA stack and RSI zone" --seed 7 --criteria "good entry within five bars"` |
 | `simulation windows` | `simulation windows <sim_id>` | simulation id | — | Deterministic window selection | `simulation.not_found` | Simulation run → windows | `quantrule simulation windows <sim_id>` |
-| `simulation mark` | `simulation mark <sim_id> --chart <chart> --bar <n> --action entry\|exit --quality good\|bad\|neutral --side long\|short [--note <text>]` | simulation id, chart, bar, action, quality, side | `--note` | Server-assigned mark identity | `simulation.not_found`, `simulation.mark_invalid`, `simulation.locked` | Simulation run → mark form | `quantrule simulation mark <sim_id> --chart 1 --bar 12 --action entry --quality good --side long` |
+| `simulation mark` | `simulation mark <sim_id> --chart <chart> --bar <n> --action entry\|exit --quality good\|bad\|neutral --side long\|short [--note <text>]` | simulation id, chart, bar, action, quality, side | `--note` | Server-assigned mark identity | `simulation.not_found`, `simulation.mark_invalid`, `simulation.locked` | Simulation run → mark form | `quantrule simulation mark <sim_id> --chart 0 --bar 80 --action entry --quality good --side long` |
 | `simulation marks` | `simulation marks <sim_id> [--origin human\|oracle]` | simulation id | `--origin` | One JSON mark record per line | `simulation.not_found` | Simulation run → marks table | `quantrule simulation marks <sim_id> --origin human` |
 | `simulation oracle` | `simulation oracle <sim_id>` | simulation id | — | One JSON mark record per line | `simulation.not_found` | Simulation run → Run oracle | `quantrule simulation oracle <sim_id>` |
 | `simulation check` | `simulation check <sim_id>` | simulation id | — | Check table and verdict | `simulation.not_found`, `simulation.check_incomplete` | Simulation run → check | `quantrule simulation check <sim_id>` |
 | `simulation decide` | `simulation decide <sim_id> <test\|refine\|stop> [--note <text>]` | simulation id, decision | `--note` | Decision record | `simulation.not_found`, `simulation.locked` | Simulation run → decision | `quantrule simulation decide <sim_id> test --note "the rule is testable"` |
+
+A simulation bundle is a `simulation-<timeframe>.json` artifact from a model
+stage; `stage show` prints its `sha256`, and that digest is `--bundle`. Choose a
+timeframe with at least the default 400-bar window (the 1m bundle for the
+verify-mini data), or record a smaller `window_bars` in the criteria JSON. Both
+clients send the context `inputs`; the same text produces the same
+`inputs_digest`.
 
 ## Verify
 

@@ -32,7 +32,11 @@ async fn the_manifest_lists_every_artifact_with_its_hash() {
         .oneshot(bundle_request(seed.data_version.clone()))
         .await
         .expect("response");
-    assert_eq!(response.status(), StatusCode::OK);
+    let status = response.status();
+    if status != StatusCode::OK {
+        let body = body_bytes(response).await;
+        panic!("status {status}: {}", String::from_utf8_lossy(&body));
+    }
     let manifest: ModelBundleManifest =
         serde_json::from_slice(&body_bytes(response).await).expect("manifest");
 
@@ -68,6 +72,10 @@ async fn the_manifest_lists_every_artifact_with_its_hash() {
             "readings.csv",
             "report.json",
             "result.json",
+            "simulation-15m.json",
+            "simulation-1h.json",
+            "simulation-1m.json",
+            "simulation-5m.json",
             "summary.txt"
         ]
     );
@@ -82,6 +90,14 @@ async fn the_manifest_lists_every_artifact_with_its_hash() {
         let bytes = objects.get(&key).await.expect("artifact");
         assert_eq!(bytes.len() as u64, artifact.bytes, "{}", artifact.name);
         assert_eq!(Digest::sha256(&bytes), artifact.sha256, "{}", artifact.name);
+        if artifact.name.starts_with("simulation-") {
+            let simulation_key = quantrule_api::simulation::bundle_key(&artifact.sha256);
+            let stored = objects
+                .get(&simulation_key)
+                .await
+                .expect("simulation bundle");
+            assert_eq!(Digest::sha256(&stored), artifact.sha256);
+        }
     }
     assert!(
         !names.iter().any(|name| name.contains("strategy")

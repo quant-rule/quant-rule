@@ -200,6 +200,30 @@ pub(crate) async fn publish(
                 .await
                 .map_err(|error| BundleError::Store(error.to_string()))?;
         }
+        if name.starts_with("simulation-") && name.ends_with(".json") {
+            let simulation_digest = Digest::sha256(bytes);
+            let simulation_key = quantrule_api::simulation::bundle_key(&simulation_digest);
+            let present = objects
+                .exists(&simulation_key)
+                .await
+                .map_err(|error| BundleError::Store(error.to_string()))?;
+            if present {
+                let stored = objects
+                    .get(&simulation_key)
+                    .await
+                    .map_err(|error| BundleError::Store(error.to_string()))?;
+                if Digest::sha256(&stored) != simulation_digest || stored.len() != bytes.len() {
+                    return Err(BundleError::Store(format!(
+                        "the stored simulation bundle {simulation_key} does not match"
+                    )));
+                }
+            } else {
+                objects
+                    .put(&simulation_key, bytes.clone())
+                    .await
+                    .map_err(|error| BundleError::Store(error.to_string()))?;
+            }
+        }
         refs.push(ArtifactRef {
             name: name.clone(),
             bytes: bytes.len() as u64,

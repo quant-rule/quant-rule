@@ -9,6 +9,7 @@ mod artifacts;
 mod bundle;
 mod error;
 mod provenance;
+mod simulation;
 
 pub use bundle::{BundleOutput, SpecRunArtifacts, model_bundle_from, model_bundle_with_spec};
 pub use error::ModelBundleError;
