@@ -90,7 +90,8 @@ test is deleted without a replacement or human approval.
 | `model_condition.py` retained | Pending `model_cell` switch to the Rust command; no deletion yet |
 | `research::random` parity | PASS; seeds 0/1/42, `sample`, and `shuffle` match CPython `random.Random` |
 | `research::stats` parity | PASS; Wichura inverse-normal z-scores match CPython to 1e-15 |
-| `cargo test -p quantrule-governance research` | PASS; 4 tests |
+| `cargo test -p quantrule-governance research` | PASS; 7 tests |
+| `research::eval` cluster/control helpers | PASS; cluster, percentile, control-p, and z tests |
 
 ## Learning
 
