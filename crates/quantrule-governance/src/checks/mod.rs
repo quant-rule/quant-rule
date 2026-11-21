@@ -21,6 +21,9 @@ pub mod partitions;
 pub mod py_guard;
 pub mod release_audit;
 pub mod releases;
+pub mod rust_tests;
+pub mod validation;
+pub mod verification;
 pub mod verification_matrix;
 pub mod workflows;
 
@@ -101,6 +104,14 @@ pub const CHECKERS: &[Checker] = &[
     Checker {
         name: "releases",
         run: releases::check,
+    },
+    Checker {
+        name: "validation",
+        run: validation::check,
+    },
+    Checker {
+        name: "verification",
+        run: verification::check,
     },
     Checker {
         name: "verification-matrix",
