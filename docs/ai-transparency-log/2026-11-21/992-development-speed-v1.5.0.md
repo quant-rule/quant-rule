@@ -174,3 +174,10 @@ test is deleted without a replacement or human approval.
 - Added the `1.5.0` changelog section, release note, current-tag map entry, and release-index row.
 - Local verification: full gate twice (the second with failing `python3`/`python` shims on `PATH`), 2,322 workspace tests, 7 model-service oracle tests, 158 web unit tests, 57 Chromium e2e, 57 Firefox e2e, and a clean web build.
 - The release note's release-workflow row stays pending until the tag runs; the tag itself is a human-authorized operation.
+
+## Test audit
+
+- Measured with `cargo nextest run --workspace --no-fail-fast --status-level all`: 2,322 tests, 138.23s summed, 22.69s wall.
+- Classified every test; no live-contract duplicate and no retired behavior without a guard was found.
+- Slowest tests are simulation port parity, model long-history/causality hardening, and backtest-worker cancellation/scale/promotion contracts.
+- Result: no test deleted, no time claimed. The v2 spec tests still guard the current grammar, and the old-bundle test guards an accepted evidence shape.

@@ -103,6 +103,29 @@ A missing or mismatched artifact fails the release. There is no silent rebuild.
 - v1.5.0 is tagged from `main`, image-only, `/version` reports 1.5.0.
 - Historical releases and assets are untouched.
 
+## 8. Test audit
+
+Measured on 2026-11-21 with `cargo nextest run --workspace --no-fail-fast
+--status-level all`: 2,322 tests, 138.23s summed test time, 22.69s wall time.
+
+| Class | Count | Decision |
+|---|---:|---|
+| Live contract, unique | 2,322 | Keep |
+| Live contract, duplicate | 0 | None found |
+| Retired behavior, no compatibility promise | 0 | None found |
+| Retired behavior, old evidence readable | 5 | Keep as guards |
+| Ignored/composed | 15 | Keep |
+
+The slowest tests are contract tests: simulation port parity (23s), model
+long-history hardening (7.6s), model causality prefixes (3.2s each), and
+backtest-worker cancellation, scale, and promotion paths (1–3s each). The fast
+v2 spec tests total under one second and still guard the current config grammar.
+The old-bundle readability test guards an accepted evidence shape.
+
+Deleting tests is a valid result only when a batch removes retired or duplicated
+coverage. No candidate met that bar, so this phase deletes nothing and claims no
+saving. A future batch needs a named retired behavior and human approval.
+
 ## Verification table
 
 | ID | Plan item | Acceptance criterion | Evidence / command | Expected | Observed | Status | Reviewer | Date | Notes |
@@ -133,8 +156,8 @@ A missing or mismatched artifact fails the release. There is no silent rebuild.
 | V22 | P3F | Research tools match to 1e-9 | Golden fixtures | Pass |  | Pass |  | 2026-11-21 | batch/report JSON and Markdown match; historical stack retired |
 | V23 | P3G | 66 historical files deleted; no live reference | `find`; `rg`; `git log` | Pass |  | Pass |  | 2026-11-21 | checker, data, research, and improvement stacks deleted |
 | V24 | P3H | No `.py`; gate passes without Python | `find`; `PATH` test; image check | Pass |  | Pass |  | 2026-11-21 | zero `.py`; gate passes with a failing `python3` shim on `PATH` |
-| V25 | P4A | Per-test timing and classification recorded | nextest report; audit table | Pass |  | Pending |  |  |  |
-| V26 | P4C–P4D | Only retired/duplicated tests removed; time measured | Deletion batches; approval | Pass |  | Pending |  |  |  |
+| V25 | P4A | Per-test timing and classification recorded | nextest report; audit table | Pass |  | Pass |  | 2026-11-21 | 2,322 tests, 138.23s serial / 22.69s parallel; report below |
+| V26 | P4C–P4D | Only retired/duplicated tests removed; time measured | Deletion batches; approval | Pass |  | Pass |  | 2026-11-21 | no deletion: no candidate met the criteria; 0s claimed |
 | V27 | P5A | Final gate, web check/build/e2e, cross-browser | `gate.sh`; `bun`; cross-browser | Pass |  | Pass |  | 2026-11-21 | gate twice (once with failing Python shims), 158 unit, 57 Chromium, 57 Firefox |
 | V28 | P6E | Issues, board, worktrees, branches closed | `gh`; `git worktree list`; `git branch -a` | Pass |  | Pending |  |  |  |
 | V29 | P1E | CLI source-build path preserved and documented; no installer | `cargo build --release -p quantrule-shell`; docs | Pass | verified locally | Pass |  |  |  |
