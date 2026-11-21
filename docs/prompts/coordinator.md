@@ -33,7 +33,7 @@ cells, aggregate every result, and stop.
    ```
 4. Prepare worktrees (code-bearing cells) or note config mode:
    ```bash
-   python3 tools/research/batch.py \
+   qr-governance research batch \
      --program config/research/<PROGRAM-ID>/program.json \
      --phase dev --mode worktree \
      --worktree-root /home/zantgo/Proyectos/quant-rule--<PROGRAM-ID> \
@@ -45,7 +45,7 @@ cells, aggregate every result, and stop.
 6. Wait for every cell to write `cell-result.json` and report.
 7. Aggregate:
    ```bash
-   python3 tools/research/report.py \
+   qr-governance research report \
      --program config/research/<PROGRAM-ID>/program.json \
      --results data/research/<PROGRAM-ID>/dev \
      --out data/research/<PROGRAM-ID>/program-results

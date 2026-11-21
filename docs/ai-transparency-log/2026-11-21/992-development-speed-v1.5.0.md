@@ -106,6 +106,9 @@ test is deleted without a replacement or human approval.
 | `qr-governance research program/registry/cell` parity | PASS; program output, registry Markdown, and cell record equal |
 | `cargo test -p quantrule-governance research` | PASS; 12 tests |
 | Deleted `registry.py` and its test | PASS; `program.py`, `cell.py`, and `adapters.py` remain for `batch` |
+| `qr-governance research batch/report` parity | PASS; batch summary structure and report JSON/Markdown equal |
+| `cargo test -p quantrule-governance research` | PASS; 14 tests |
+| Deleted `batch.py`, `report.py`, `cell.py`, `adapters.py` and their tests | PASS; `program.py` remains for coverage |
 
 ## Learning
 

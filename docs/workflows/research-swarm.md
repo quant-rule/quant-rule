@@ -112,7 +112,7 @@ can change, and only before a run.
 5. The coordinator spawns one cell agent per worktree.
 6. Each cell agent runs the dev phase, writes `cell-result.json`, commits on its
    branch, and reports.
-7. The coordinator aggregates with `tools/research/report.py` and reports every
+7. The coordinator aggregates with `qr-governance research report` and reports every
    cell.
 8. The human reviews all cells and promotes at most the declared number of
    primary cells to validation.
@@ -135,14 +135,14 @@ can change, and only before a run.
 
 ```bash
 # Config-only dev batch.
-python3 tools/research/batch.py \
+qr-governance research batch \
   --program config/research/<PROGRAM-ID>/program.json \
   --phase dev \
   --mode config \
   --max-parallel 5
 
 # Prepare worktrees for code-bearing cells.
-python3 tools/research/batch.py \
+qr-governance research batch \
   --program config/research/<PROGRAM-ID>/program.json \
   --phase dev \
   --mode worktree \
@@ -154,7 +154,7 @@ python3 tools/research/coverage.py \
   --program config/research/<PROGRAM-ID>/program.json
 
 # Aggregate.
-python3 tools/research/report.py \
+qr-governance research report \
   --program config/research/<PROGRAM-ID>/program.json \
   --results data/research/<PROGRAM-ID>/dev \
   --out data/research/<PROGRAM-ID>/program-results

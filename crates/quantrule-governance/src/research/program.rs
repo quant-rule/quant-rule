@@ -36,6 +36,7 @@ pub(super) struct Cell {
 
 /// One validated research program.
 pub(super) struct Program {
+    pub path: PathBuf,
     pub repo_root: PathBuf,
     pub program_id: String,
     pub premise: String,
@@ -43,6 +44,9 @@ pub(super) struct Program {
     pub partition_dev: String,
     pub partition_validation: String,
     pub validation_access: String,
+    pub correction: Value,
+    pub green_criteria: Value,
+    pub max_parallel: usize,
     pub cells: Vec<Cell>,
 }
 
@@ -117,7 +121,8 @@ pub(super) fn load(path: &Path, repo_root: &Path) -> Result<Program, String> {
             return Err(format!("$.costs.{key} must be a non-negative number"));
         }
     }
-    let _ = mapping(document.get("green_criteria"), "$.green_criteria")?;
+    let green_criteria =
+        Value::Object(mapping(document.get("green_criteria"), "$.green_criteria")?.clone());
     let correction = mapping(document.get("correction"), "$.correction")?;
     let method = correction
         .get("method")
@@ -135,7 +140,7 @@ pub(super) fn load(path: &Path, repo_root: &Path) -> Result<Program, String> {
     if method == "none" && primary_cells != 1 {
         return Err("$.correction.method none requires one primary cell".to_owned());
     }
-    let _ = integer(document.get("max_parallel"), "$.max_parallel", 1, 64)?;
+    let max_parallel = integer(document.get("max_parallel"), "$.max_parallel", 1, 64)? as usize;
     let _ = integer(document.get("iteration_cap"), "$.iteration_cap", 1, 100)?;
     let validation_access = text(document.get("validation_access"), "$.validation_access")?;
     if validation_access != "none" && validation_access != "one_shot" {
@@ -204,6 +209,7 @@ pub(super) fn load(path: &Path, repo_root: &Path) -> Result<Program, String> {
         return Err("$.correction.primary_cells must equal the number of primary cells".to_owned());
     }
     Ok(Program {
+        path: path.to_path_buf(),
         repo_root: repo_root.to_path_buf(),
         program_id,
         premise,
@@ -211,6 +217,9 @@ pub(super) fn load(path: &Path, repo_root: &Path) -> Result<Program, String> {
         partition_dev,
         partition_validation,
         validation_access,
+        correction: Value::Object(correction.clone()),
+        green_criteria,
+        max_parallel,
         cells,
     })
 }
