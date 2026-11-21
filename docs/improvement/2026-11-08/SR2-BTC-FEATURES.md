@@ -4,7 +4,7 @@
 - Status: **Complete — hypothesis generated; no strategy run**
 - Parent audit: [`SR2-BTC-AUDIT.md`](SR2-BTC-AUDIT.md)
 - Plan: [`sr2-feature-programme.md`](../../execution-plans/2026-11-08/sr2-feature-programme.md)
-- Tool: [`sr2_feature_audit.py`](../../../tools/improvement/sr2_feature_audit.py)
+- Tool: `sr2_feature_audit.py` (retired; Git history)
 - Claim type: exploratory feature attribution; no edge or profitability claim
 
 ## 1. What was done

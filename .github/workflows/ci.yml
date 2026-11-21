@@ -69,12 +69,6 @@ jobs:
       - name: Tests
         run: cargo test
 
-      # Historical tooling retained for reproducibility; not part of the current shell surface.
-      - name: Historical improvement tooling
-        run: |
-          python3 -m py_compile tools/improvement/*.py tools/check_terms.py
-          python3 -m unittest discover -s tools/improvement -p 'test_*.py'
-
       - name: Documentation
         run: cargo doc --no-deps
         env:
