@@ -61,6 +61,11 @@ jobs:
     name: Gate
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      ci_run_id: ${{ steps.reuse.outputs.run_id }}
     steps:
       - name: Reject conflicting dispatch inputs
         if: github.event_name == 'workflow_dispatch' && inputs.publish_snapshot && inputs.release_tag != ''
@@ -107,11 +112,20 @@ jobs:
           fi
           echo "$tag is annotated, on main, and has $note"
 
-      - name: Install the pinned toolchain
-        run: rustup show
+      - name: Find the green main CI for this commit
+        id: reuse
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          run_id="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow CI --commit "$GITHUB_SHA" \
+            --json databaseId,conclusion --jq '.[] | select(.conclusion == "success") | .databaseId' | head -1)"
+          if [ -z "$run_id" ]; then
+            echo "::error::no successful CI run for $GITHUB_SHA; the release binaries are not available" >&2
+            exit 1
+          fi
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "reusing CI run $run_id for $GITHUB_SHA"
 
-      - name: Workspace gate
-        run: tools/gate.sh
 
   image:
     name: Image and digest
@@ -122,6 +136,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      actions: read
     outputs:
       digest: ${{ steps.digest.outputs.digest }}
       image: ${{ steps.reference.outputs.image }}
@@ -133,6 +148,20 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
         with:
           ref: ${{ inputs.release_tag || github.ref }}
+
+      - name: Download and verify the release binaries
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -z "${{ needs.gate.outputs.ci_run_id }}" ]; then
+            echo "::error::the gate did not resolve a CI run" >&2
+            exit 1
+          fi
+          gh run download "${{ needs.gate.outputs.ci_run_id }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name "release-binaries-$GITHUB_SHA" \
+            --dir release-binaries
+          (cd release-binaries && sha256sum -c manifest.sha256)
 
       - name: Resolve the image reference
         id: reference
@@ -220,11 +249,12 @@ jobs:
             sha_tag="sha-$(git rev-parse HEAD)"
             docker build \
               --platform linux/amd64 \
+              --file Dockerfile.release \
               --tag "$REF" \
               --tag "$IMAGE:$sha_tag" \
               .
           else
-            docker build --platform linux/amd64 --tag "$REF" .
+            docker build --platform linux/amd64 --file Dockerfile.release --tag "$REF" .
           fi
 
       - name: Assert the image carries no Python
@@ -379,6 +409,39 @@ jobs:
       - name: Firefox end-to-end tests
         run: bunx playwright test --project=firefox
 
+  cli:
+    name: CLI (${{ matrix.os }})
+    needs: gate
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
+
+      - name: Install the pinned toolchain
+        run: rustup show
+
+      - name: Test the CLI
+        run: cargo test -p quantrule-shell
+
+      - name: Build the CLI
+        run: cargo build --release -p quantrule-shell
+
+      - name: Read the CLI help on Linux
+        if: runner.os == 'Linux'
+        run: ./target/release/quantrule help
+
+      - name: Read the CLI help on Windows
+        if: runner.os == 'Windows'
+        run: .\target\release\quantrule.exe help
+
+
   publish:
     name: Publish the release
     if: (github.event_name == 'push' || inputs.release_tag != '') && needs.image.outputs.source == 'registry'
@@ -386,6 +449,7 @@ jobs:
       - gate
       - image
       - quality
+      - cli
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:

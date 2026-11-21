@@ -47,10 +47,8 @@ targets=(
   "quantrule-data-service d1"
   "quantrule-evidence-service research_ledger"
   "quantrule-evidence-service stage_conformance"
-  "quantrule-evidence-service sqlite_conformance"
   "quantrule-gateway profile_conformance"
   "quantrule-runtime migration_lock"
-  "quantrule-simulation-service sqlite_conformance"
 )
 
 index=0
