@@ -302,3 +302,34 @@ fn a_push_before_the_contract_check_is_reported() {
             .any(|problem| problem.contains("runs after the image is published"))
     );
 }
+
+#[test]
+fn the_release_workflow_reads_the_current_tag_map_as_json() {
+    let text = workflow();
+    assert!(
+        text.contains("jq -r --arg tag"),
+        "the release workflow must parse the fenced JSON map, not a comma-sensitive regex"
+    );
+}
+
+#[test]
+fn every_current_tag_map_entry_resolves_to_an_existing_note() {
+    let root = root();
+    let readme = fs::read_to_string(root.join("docs/releases/README.md")).expect("README");
+    let start = readme
+        .find("<!-- current-tags:start -->")
+        .expect("map start");
+    let end = readme.find("<!-- current-tags:end -->").expect("map end");
+    let block = &readme[start..end];
+    let json_start = block.find("```json").expect("json fence") + 7;
+    let json_end = block[json_start..].find("```").expect("json end") + json_start;
+    let map: std::collections::BTreeMap<String, String> =
+        serde_json::from_str(block[json_start..json_end].trim()).expect("map JSON");
+    assert!(!map.is_empty());
+    for (tag, path) in map {
+        assert!(
+            root.join("docs/releases").join(&path).is_file(),
+            "{tag} points to missing note {path}"
+        );
+    }
+}
