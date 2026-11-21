@@ -8,12 +8,15 @@ pub mod audit_backlog;
 pub mod board_permanence;
 pub mod changelog;
 pub mod claims;
+pub mod client_docs;
 pub mod doc_length;
 pub mod event_emitters;
 pub mod execution_plans;
 pub mod file_size;
 pub mod labels;
 pub mod links;
+pub mod manual;
+pub mod markdown;
 pub mod partitions;
 pub mod py_guard;
 pub mod release_audit;
@@ -51,6 +54,10 @@ pub const CHECKERS: &[Checker] = &[
         run: claims::check,
     },
     Checker {
+        name: "client-docs",
+        run: client_docs::check,
+    },
+    Checker {
         name: "doc-length",
         run: doc_length::check,
     },
@@ -73,6 +80,10 @@ pub const CHECKERS: &[Checker] = &[
     Checker {
         name: "links",
         run: links::check,
+    },
+    Checker {
+        name: "manual",
+        run: manual::check,
     },
     Checker {
         name: "partitions",
