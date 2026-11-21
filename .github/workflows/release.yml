@@ -105,7 +105,9 @@ jobs:
             echo "::error::$tag is not on main" >&2
             exit 1
           fi
-          relative="$(sed -n "s/^  \"$tag\": \"\(.*\)\",$/\1/p" docs/releases/README.md)"
+          relative="$(sed -n '/<!-- current-tags:start -->/,/<!-- current-tags:end -->/p' docs/releases/README.md \
+            | sed -n '/```json/,/```/p' | sed '1d;$d' \
+            | jq -r --arg tag "$tag" '.[$tag] // empty')"
           if [ -z "$relative" ]; then
             echo "::error::$tag is not in the current-tag map" >&2
             exit 1
@@ -473,7 +475,9 @@ jobs:
           DIGEST: ${{ needs.image.outputs.digest }}
           SOURCE: ${{ needs.image.outputs.source }}
         run: |
-          relative="$(sed -n "s/^  \"$RELEASE_TAG\": \"\(.*\)\",$/\1/p" docs/releases/README.md)"
+          relative="$(sed -n '/<!-- current-tags:start -->/,/<!-- current-tags:end -->/p' docs/releases/README.md \
+            | sed -n '/```json/,/```/p' | sed '1d;$d' \
+            | jq -r --arg tag "$RELEASE_TAG" '.[$tag] // empty')"
           if [ -z "$relative" ]; then
             echo "::error::$RELEASE_TAG is not in the current-tag map" >&2
             exit 1
