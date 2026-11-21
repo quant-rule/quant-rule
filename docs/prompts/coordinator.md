@@ -57,7 +57,7 @@ cells, aggregate every result, and stop.
     once each; aggregate again; report.
 11. Write the registry record:
     ```bash
-    python3 tools/research/registry.py \
+    qr-governance research registry \
       --program config/research/<PROGRAM-ID>/program.json \
       --report data/research/<PROGRAM-ID>/program-results/program-results.json
     ```

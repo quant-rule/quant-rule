@@ -75,7 +75,7 @@ python3 tools/research/model_cell.py \
   --out data/research/<PROGRAM-ID>/dev/<CELL-ID>
 
 # Run one cell.
-python3 tools/research/cell.py \
+qr-governance research cell \
   --program config/research/<PROGRAM-ID>/program.json \
   --cell CELL-01 \
   --phase dev \
@@ -95,7 +95,7 @@ python3 tools/research/report.py \
   --out data/research/<PROGRAM-ID>/program-results
 
 # Write the program registry record.
-python3 tools/research/registry.py \
+qr-governance research registry \
   --program config/research/<PROGRAM-ID>/program.json \
   --report data/research/<PROGRAM-ID>/program-results/program-results.json
 ```

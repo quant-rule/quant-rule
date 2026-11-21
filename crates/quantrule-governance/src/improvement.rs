@@ -15,7 +15,7 @@ mod model_prediction;
 mod path_validation;
 mod report;
 mod run_current;
-mod store;
+pub(crate) mod store;
 
 /// Run `qr-governance improvement`.
 ///

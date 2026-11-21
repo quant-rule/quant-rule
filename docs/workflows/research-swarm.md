@@ -160,7 +160,7 @@ python3 tools/research/report.py \
   --out data/research/<PROGRAM-ID>/program-results
 
 # Registry record.
-python3 tools/research/registry.py \
+qr-governance research registry \
   --program config/research/<PROGRAM-ID>/program.json \
   --report data/research/<PROGRAM-ID>/program-results/program-results.json
 ```
