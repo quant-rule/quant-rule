@@ -67,10 +67,14 @@ impl Client {
     /// [`RunError::Api`] when the gateway refuses the call.
     pub(crate) fn get(&self, path: &str) -> Result<Response, RunError> {
         let url = self.url(path);
+        debug(&format!("GET {url}"));
         let response = self
             .common_headers(self.agent.get(&url))
             .call()
-            .map_err(|error| RunError::Transport(error.to_string()))?;
+            .map_err(|error| {
+                debug(&format!("GET {url} failed: {error}"));
+                RunError::Transport(error.to_string())
+            })?;
         read(response, path)
     }
 
@@ -173,6 +177,12 @@ fn hex_digit(value: u8) -> char {
     match value {
         0..=9 => char::from(b'0' + value),
         _ => char::from(b'A' + (value - 10)),
+    }
+}
+
+fn debug(message: &str) {
+    if std::env::var_os("QR_FIXTURE_DEBUG").is_some() {
+        eprintln!("shell: {message}");
     }
 }
 

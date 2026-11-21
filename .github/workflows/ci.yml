@@ -76,6 +76,9 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
       - name: Install the pinned toolchain
         run: rustup show
+      - name: Print proxy environment
+        shell: pwsh
+        run: Get-ChildItem Env: | Where-Object { $_.Name -match 'PROXY' } | Format-Table -AutoSize
       - name: Test client parity with fixture logs
         env:
           QR_FIXTURE_DEBUG: "1"
