@@ -18,6 +18,7 @@ fn main() -> ExitCode {
     };
     match command.as_str() {
         "check" => quantrule_governance::check::run(&args[1..]),
+        "release" => quantrule_governance::release::run(&args[1..]),
         "history" => match quantrule_governance::history::run(&args) {
             Ok(()) => ExitCode::SUCCESS,
             Err(error) => {
