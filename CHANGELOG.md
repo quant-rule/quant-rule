@@ -13,10 +13,16 @@ history is in Git and the pull requests.
 > through `v1.0.0`. On 2026-11-16 the release-note filenames and the sections
 > below were normalized to those current tags, and the next two releases were
 > cut as `v1.1.0` and `v1.2.0`. Each release note keeps its historical heading
-> and records the version it was prepared as. The current tag is `v1.5.0`. See
+> and records the version it was prepared as. The current tag is `v1.5.1`. See
 > [`docs/releases/README.md`](docs/releases/README.md) for the mapping.
 
 ## [Unreleased]
+
+## [1.5.1] - 2026-11-21
+
+### Fixed
+
+- The release CLI gate keeps its in-process fixture server alive after a peer vanishes and closes each response stream cleanly, so the Windows job no longer aborts with `os error 10053`. v1.5.0 is withdrawn because that gate failed; v1.5.1 carries the same feature scope.
 
 ## [1.5.0] - 2026-11-21
 

@@ -181,3 +181,11 @@ test is deleted without a replacement or human approval.
 - Classified every test; no live-contract duplicate and no retired behavior without a guard was found.
 - Slowest tests are simulation port parity, model long-history/causality hardening, and backtest-worker cancellation/scale/promotion contracts.
 - Result: no test deleted, no time claimed. The v2 spec tests still guard the current grammar, and the old-bundle test guards an accepted evidence shape.
+
+## v1.5.0 release failure and v1.5.1 recovery
+
+- The v1.5.0 tag was pushed and the release workflow built and verified the image, but the Windows CLI job failed with `os error 10053`.
+- Diagnosis: the in-process fixture server exited on a transient Windows `accept` error, so later commands in the `client_parity` tests could not connect. Serializing the tests did not fix it.
+- Fix: keep listening after a vanished peer and close each response stream cleanly. The test set is unchanged.
+- v1.5.0 is withdrawn; v1.5.1 carries the same feature scope and the test-fixture fix.
+- Local verification: `cargo test -p quantrule-shell --test client_parity` 4 pass; `cargo test -p quantrule-model-service --test model` 7 pass; `qr-governance check --all` 26 checkers; full gate and web checks recorded in the v1.5.1 release note.
