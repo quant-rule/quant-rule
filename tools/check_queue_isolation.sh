@@ -6,11 +6,15 @@
 # audit found both consumers sharing one channel and QoS slot (AUD-41) and a
 # publish that never waited for the broker (AUD-40).
 #
-# The tier starts nothing: run it against the stack `make up` started.
+# The tier starts nothing: run it against the stack `make up` started. The
+# output is parsed with jq, which the composed/release host provides; the image
+# itself carries no interpreter.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
+
+command -v jq >/dev/null || { echo "queue isolation: jq is required on the host" >&2; exit 1; }
 
 consumers="$(docker compose exec -T rabbitmq rabbitmqctl list_consumers --formatter json 2>/dev/null)" \
   || { echo "queue isolation: the RabbitMQ service is not reachable; start the stack with 'make up'" >&2; exit 1; }
@@ -18,40 +22,27 @@ channels="$(docker compose exec -T rabbitmq rabbitmqctl list_channels pid user c
   || { echo "queue isolation: the RabbitMQ channels are not readable" >&2; exit 1; }
 expected="$(docker compose exec -T backtest printenv QR_BACKTEST_CONCURRENCY 2>/dev/null || true)"
 
-python3 - "$consumers" "$channels" "${expected:-1}" <<'PY'
-import json
-import sys
-
-consumers = json.loads(sys.argv[1])
-channels = json.loads(sys.argv[2])
-expected = int(sys.argv[3].strip() or "1")
-
-
-def rows(queue: str) -> list[dict]:
-    return [row for row in consumers if row.get("queue_name") == queue]
-
-
-runs = rows("runs.backtest")
-stages = rows("stages.worker")
-if len(runs) != expected:
-    raise SystemExit(f"queue isolation: expected {expected} run consumer(s), found {len(runs)}")
-if len(stages) != 1:
-    raise SystemExit(f"queue isolation: expected one stage consumer, found {len(stages)}")
-channels_used = {row["channel_pid"] for row in runs + stages}
-if len(channels_used) != expected + 1:
-    raise SystemExit(
-        "queue isolation: the run and stage consumers share a channel: "
-        f"{sorted(channels_used)}"
-    )
-if any(row["prefetch_count"] != 1 for row in runs + stages):
-    raise SystemExit("queue isolation: a consumer does not own one prefetch slot")
-confirmed = [row for row in channels if row.get("confirm") is True]
-if not confirmed:
-    raise SystemExit("queue isolation: no publisher channel is in confirm mode")
-
-print(
-    "queue isolation: "
-    f"{len(runs)} run consumer(s) and one stage consumer on {len(channels_used)} channels; "
-    f"{len(confirmed)} publisher channel(s) confirm"
-)
-PY
+jq -en --argjson consumers "$consumers" --argjson channels "$channels" \
+  --argjson expected "${expected:-1}" '
+  def rows($queue): [$consumers[] | select(.queue_name == $queue)];
+  (rows("runs.backtest")) as $runs |
+  (rows("stages.worker")) as $stages |
+  if ($runs | length) != $expected then
+    error("queue isolation: expected \($expected) run consumer(s), found \($runs | length)")
+  else . end |
+  if ($stages | length) != 1 then
+    error("queue isolation: expected one stage consumer, found \($stages | length)")
+  else . end |
+  ([$runs[], $stages[]] | map(.channel_pid) | unique) as $used |
+  if ($used | length) != ($expected + 1) then
+    error("queue isolation: the run and stage consumers share a channel: \($used)")
+  else . end |
+  if ([$runs[], $stages[]] | any(.prefetch_count != 1)) then
+    error("queue isolation: a consumer does not own one prefetch slot")
+  else . end |
+  ([$channels[] | select(.confirm == true)] | length) as $confirmed |
+  if $confirmed == 0 then
+    error("queue isolation: no publisher channel is in confirm mode")
+  else . end |
+  "queue isolation: \($runs | length) run consumer(s) and one stage consumer on \($used | length) channels; \($confirmed) publisher channel(s) confirm"
+'

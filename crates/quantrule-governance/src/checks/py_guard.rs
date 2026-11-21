@@ -18,7 +18,6 @@ const SKIP: [&str; 10] = [
     "blob-report",
     ".git",
 ];
-const ALLOWED: [&str; 3] = ["tools/", "docs/", "data/"];
 const REFERENCES: [&str; 3] = [
     "docker/README.md",
     "docker/check-no-python.sh",
@@ -30,19 +29,15 @@ const REFERENCES: [&str; 3] = [
 pub fn check(root: &Path) -> Vec<Diagnostic> {
     let mut diagnostics = Vec::new();
     let mut python_files = Vec::new();
-    collect_python(root, root, &mut python_files);
+    collect_python(root, &mut python_files);
     python_files.sort();
     for path in python_files {
-        let relative = path.strip_prefix(root).unwrap_or(&path);
-        let name = relative.to_string_lossy().replace('\\', "/");
-        if !ALLOWED.iter().any(|prefix| name.starts_with(prefix)) {
-            diagnostics.push(Diagnostic::path(
-                "py-guard",
-                &path,
-                root,
-                "Python file in the product tree",
-            ));
-        }
+        diagnostics.push(Diagnostic::path(
+            "py-guard",
+            &path,
+            root,
+            "Python file in the product tree",
+        ));
     }
     let mut product_files = Vec::new();
     for top in PRODUCT_ROOTS {
@@ -92,7 +87,7 @@ pub fn check(root: &Path) -> Vec<Diagnostic> {
     diagnostics
 }
 
-fn collect_python(root: &Path, directory: &Path, found: &mut Vec<PathBuf>) {
+fn collect_python(directory: &Path, found: &mut Vec<PathBuf>) {
     let Ok(entries) = fs::read_dir(directory) else {
         return;
     };
@@ -103,8 +98,8 @@ fn collect_python(root: &Path, directory: &Path, found: &mut Vec<PathBuf>) {
             .and_then(|name| name.to_str())
             .unwrap_or("");
         if path.is_dir() {
-            if !SKIP.contains(&name) && !(directory == root && name == "data") {
-                collect_python(root, &path, found);
+            if !SKIP.contains(&name) {
+                collect_python(&path, found);
             }
         } else if name.ends_with(".py") {
             found.push(path);
@@ -185,12 +180,16 @@ mod tests {
     }
 
     #[test]
-    fn a_python_file_under_tools_is_allowed() {
+    fn a_python_file_under_tools_is_reported() {
         let root = std::env::temp_dir().join(format!("qr-py-guard-ok-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(root.join("tools")).expect("tree");
         fs::write(root.join("tools/check.py"), "print('x')\n").expect("fixture");
-        assert!(check(&root).is_empty());
+        assert!(
+            check(&root)
+                .iter()
+                .any(|d| d.message.contains("Python file"))
+        );
         fs::remove_dir_all(&root).expect("cleanup");
     }
 }

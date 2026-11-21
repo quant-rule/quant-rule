@@ -130,7 +130,7 @@ covered by `the_coupled_pipeline_is_byte_deterministic` in
 ## 6. Verify the surface
 
 ```bash
-python3 tools/check_command_surface.py
+qr-governance check --checker command-surface
 cargo test --workspace
 ```
 

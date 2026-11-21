@@ -54,17 +54,12 @@ jobs:
         run: cargo clippy --all-targets -- -D warnings
 
       - name: Checker gate
-        run: bash tools/checkers.sh
+        run: cargo run --quiet -p quantrule-governance -- check --all
 
       - name: Project sync
         run: |
           bash -n .github/scripts/project-sync.sh
           bash tools/test_project_sync.sh
-
-      - name: Data tooling
-        run: |
-          python3 -m py_compile tools/data/*.py
-          python3 -m unittest discover -s tools/data -p 'test_*.py'
 
       - name: Tests
         run: cargo test

@@ -188,3 +188,27 @@ pub fn names() -> String {
     }
     text
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::BTreeSet;
+
+    #[test]
+    fn the_registry_has_one_unique_name_per_checker() {
+        assert_eq!(CHECKERS.len(), 26);
+        let names: BTreeSet<_> = CHECKERS.iter().map(|checker| checker.name).collect();
+        assert_eq!(names.len(), CHECKERS.len());
+    }
+
+    #[test]
+    fn every_checker_runs_on_an_empty_root() {
+        let root = std::env::temp_dir().join(format!("qr-checks-empty-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).expect("tree");
+        for checker in CHECKERS {
+            let _ = (checker.run)(&root);
+        }
+        std::fs::remove_dir_all(&root).expect("cleanup");
+    }
+}

@@ -218,7 +218,7 @@ High finding remains open.
 | Execution plan | `docs/execution-plans/<YYYY-MM-DD>/<issue>-<slug>.md` | Refactor Planner |
 | Refactor issues and sub-issues | Project board | Refactor Planner after approval |
 | Pull request and verification record | Repository and execution plan | Refactor Implementer |
-| Repo-wide checker | `tools/check_structure.py` | Engineering |
+| Repo-wide checker | `qr-governance check --checker structure` | Engineering |
 | AI transparency log | `docs/ai-transparency-log/<YYYY-MM-DD>/<issue>-<slug>.md` | Orchestrator |
 | Finding status and links | Refactor assessment | Planner, Implementer, Verifier |
 

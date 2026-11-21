@@ -202,3 +202,34 @@ fn load(path: &Path) -> Result<Value, ()> {
     let text = fs::read_to_string(path).map_err(|_| ())?;
     serde_json::from_str(&text).map_err(|_| ())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::path::PathBuf;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    fn fixture(name: &str) -> PathBuf {
+        static NEXT: AtomicUsize = AtomicUsize::new(0);
+        let root = std::env::temp_dir().join(format!(
+            "qr-verification-matrix-{name}-{}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, Ordering::Relaxed)
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).expect("tree");
+        root
+    }
+
+    #[test]
+    fn a_missing_registry_is_reported() {
+        let root = fixture("missing");
+        assert!(
+            check(&root)
+                .iter()
+                .any(|d| d.message.contains("cannot read the registry"))
+        );
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+}

@@ -432,7 +432,7 @@ fn release_notes(root: &Path) -> Vec<PathBuf> {
                 .file_name()
                 .and_then(|name| name.to_str())
                 .unwrap_or("");
-            if name.starts_with('v') && name.ends_with(".md") {
+            if name.ends_with(".md") && name != "README.md" {
                 found.push(path);
             }
         }
@@ -510,4 +510,181 @@ fn relative(path: &Path, root: &Path) -> String {
         .unwrap_or(path)
         .to_string_lossy()
         .replace('\\', "/")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::path::PathBuf;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    fn fixture(name: &str) -> PathBuf {
+        static NEXT: AtomicUsize = AtomicUsize::new(0);
+        let root = std::env::temp_dir().join(format!(
+            "qr-releases-{name}-{}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, Ordering::Relaxed)
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).expect("tree");
+        root
+    }
+
+    fn write(path: &Path, text: &str) {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("parent");
+        }
+        fs::write(path, text).expect("write");
+    }
+
+    fn note(path: &Path, tag: &str, date: &str) {
+        write(
+            path,
+            &format!(
+                "# {tag} - Test\n\n- Date: {date} (UTC)\n- Tag: `{tag}`\n- Commit: `209530b`\n- Status: Released\n"
+            ),
+        );
+    }
+
+    fn changelog(release: &str) -> String {
+        format!("# Changelog\n\n## [Unreleased]\n\n### Added\n\n- Pending change.\n\n{release}")
+    }
+
+    fn readme(mapping: &str, table: &[&str]) -> String {
+        let rows = table
+            .iter()
+            .map(|tag| format!("| `{tag}` | `abc1234` | `{tag}` |"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        format!(
+            "# Releases and Tags\n\n### Renumbering (2026-11-15)\n\n| Current tag | Commit | Was |\n|---|---|---|\n{rows}\n\n<!-- current-tags:start -->\n```json\n{mapping}\n```\n<!-- current-tags:end -->\n\n## 4. Historical tags\n"
+        )
+    }
+
+    #[test]
+    fn a_post_baseline_release_with_changelog_passes() {
+        let root = fixture("pass");
+        note(
+            &root.join("docs/releases/2026-11-07/v0.6.0.md"),
+            "v0.6.0",
+            "2026-11-07",
+        );
+        write(
+            &root.join("CHANGELOG.md"),
+            &changelog("## [0.6.0] - 2026-11-07\n\n### Added\n\n- Release.\n"),
+        );
+        assert!(check(&root).is_empty(), "{:?}", check(&root));
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn a_historical_release_is_exempt_from_the_changelog() {
+        let root = fixture("historical");
+        note(
+            &root.join("docs/releases/2026-10-28/v0.2.0.md"),
+            "v0.2.0",
+            "2026-10-28",
+        );
+        write(&root.join("CHANGELOG.md"), &changelog(""));
+        assert!(check(&root).is_empty(), "{:?}", check(&root));
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn a_missing_changelog_section_is_reported() {
+        let root = fixture("changelog");
+        note(
+            &root.join("docs/releases/2026-11-07/v0.6.0.md"),
+            "v0.6.0",
+            "2026-11-07",
+        );
+        write(&root.join("CHANGELOG.md"), &changelog(""));
+        assert!(
+            check(&root)
+                .iter()
+                .any(|d| d.message.contains("no changelog section"))
+        );
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn a_missing_release_note_is_reported() {
+        let root = fixture("note");
+        write(
+            &root.join("CHANGELOG.md"),
+            &changelog("## [0.6.0] - 2026-11-07\n\n### Added\n\n- Release.\n"),
+        );
+        assert!(
+            check(&root)
+                .iter()
+                .any(|d| d.message.contains("no release note"))
+        );
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn a_tag_mismatch_is_reported() {
+        let root = fixture("tag");
+        note(
+            &root.join("docs/releases/2026-11-07/v0.6.0.md"),
+            "v0.6.1",
+            "2026-11-07",
+        );
+        write(&root.join("CHANGELOG.md"), &changelog(""));
+        assert!(
+            check(&root)
+                .iter()
+                .any(|d| d.message.contains("expected v0.6.0"))
+        );
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn a_bad_release_file_name_is_reported() {
+        let root = fixture("name");
+        note(
+            &root.join("docs/releases/2026-11-07/release.md"),
+            "v0.6.0",
+            "2026-11-07",
+        );
+        write(&root.join("CHANGELOG.md"), &changelog(""));
+        assert!(
+            check(&root)
+                .iter()
+                .any(|d| d.message.contains("vMAJOR.MINOR.PATCH"))
+        );
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn a_current_tag_resolves_through_the_map() {
+        let root = fixture("resolve");
+        let note_path = root.join("docs/releases/2026-11-15/v1.1.0.md");
+        note(&note_path, "v1.1.0", "2026-11-15");
+        write(
+            &root.join("docs/releases/README.md"),
+            &readme(r#"{"v1.0.0": "2026-11-15/v1.1.0.md"}"#, &["v1.0.0"]),
+        );
+        assert_eq!(resolve(&root, "v1.0.0").expect("resolved"), note_path);
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn an_invalid_map_is_reported() {
+        let root = fixture("map");
+        write(
+            &root.join("docs/releases/README.md"),
+            &readme(r#"{"v1.0.0": }"#, &[]),
+        );
+        let mut diagnostics = Vec::new();
+        let tags = current_tags(&root, &mut diagnostics);
+        assert!(tags.is_empty());
+        assert!(
+            diagnostics
+                .iter()
+                .any(|d| d.message.contains("not valid JSON"))
+        );
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
 }

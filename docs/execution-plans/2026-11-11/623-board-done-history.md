@@ -176,4 +176,4 @@ Excluded:
 - [`docs/workflows/recordkeeping.md`](../../workflows/recordkeeping.md)
 - [`docs/workflows/README.md`](../../workflows/README.md)
 - [`docs/workflows/templates/execution-plan.md`](../../workflows/templates/execution-plan.md)
-- [`tools/check_execution_plans.py`](../../../tools/check_execution_plans.py)
+- `tools/check_execution_plans.py` (retired)

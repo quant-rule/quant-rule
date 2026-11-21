@@ -68,3 +68,82 @@ pub fn check(root: &Path) -> Vec<Diagnostic> {
     }
     diagnostics
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::path::PathBuf;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    fn fixture(name: &str, rule: bool, script: &str, workflow: &str) -> PathBuf {
+        static NEXT: AtomicUsize = AtomicUsize::new(0);
+        let root = std::env::temp_dir().join(format!(
+            "qr-board-permanence-{name}-{}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, Ordering::Relaxed)
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join(".github/scripts")).expect("scripts");
+        fs::create_dir_all(root.join(".github/workflows")).expect("workflows");
+        let agents = if rule {
+            format!("# Agents\n\n{RULE}\nNo deletion.\n")
+        } else {
+            "# Agents\n\nNo deletion.\n".to_owned()
+        };
+        fs::write(root.join("AGENTS.md"), agents).expect("agents");
+        fs::write(root.join(".github/scripts/project-sync.sh"), script).expect("script");
+        fs::write(root.join(".github/workflows/ci.yml"), workflow).expect("workflow");
+        root
+    }
+
+    #[test]
+    fn valid_board_automation_passes() {
+        let root = fixture("ok", true, "set -euo pipefail\n", "name: CI\n");
+        assert!(check(&root).is_empty());
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn a_missing_rule_is_reported() {
+        let root = fixture("rule", false, "set -euo pipefail\n", "name: CI\n");
+        assert!(
+            check(&root)
+                .iter()
+                .any(|d| d.message.contains("board permanence rule"))
+        );
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn a_delete_mutation_in_the_script_is_reported() {
+        let root = fixture(
+            "delete",
+            true,
+            "deleteProjectV2Item(input: {})\n",
+            "name: CI\n",
+        );
+        assert!(
+            check(&root)
+                .iter()
+                .any(|d| d.message.contains("deleteProjectV2Item"))
+        );
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn an_archive_command_in_a_workflow_is_reported() {
+        let root = fixture(
+            "archive",
+            true,
+            "set -euo pipefail\n",
+            "run: gh project item-archive 1 --owner quant-rule\n",
+        );
+        assert!(
+            check(&root)
+                .iter()
+                .any(|d| d.message.contains("item-archive"))
+        );
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+}

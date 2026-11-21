@@ -64,7 +64,7 @@ qualification "verdict" is evidence status, not acceptance.
 A command is **Implemented** only when it has a `CommandHelp` entry in
 [`crates/quantrule-shell/src/command/help.rs`](../../crates/quantrule-shell/src/command/help.rs),
 a row in the README command table, and a runnable example in a tutorial. The
-checker [`tools/check_command_surface.py`](../../tools/check_command_surface.py)
+checker [`tools/check_command_surface.py`](`qr-governance check --checker command-surface`)
 enforces the distinction.
 
 | Command | Status | Input | Output |

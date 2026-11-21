@@ -27,9 +27,6 @@ profile="default"
 timeout=300
 self_test=0
 evidence_dir=""
-# The interpreter is a host tool, not a product runtime. A Windows runner
-# exposes the unversioned name, so the caller may name it.
-python_bin="${QR_PYTHON:-python3}"
 
 # The canonical digest of the fixture artifact list used by --self-test.
 self_test_digest="773aea9ea27012c85ebaebe6661c5917ad8fe7c5bbc9d2e8ee22308c548f2ab2"
@@ -61,8 +58,8 @@ run name. The data defaults to candles.csv next to the first config.
 The strategy is part of the run config; the old --strategy flag is gone.
 Run "make up" first, or point --api-url at a healthy stack.
 
-QR_PYTHON names the host interpreter used to build the config bundle
-(default: python3), which a Windows Git Bash host may expose as python.
+The host needs jq to build the config bundle; the product image carries no
+interpreter.
 USAGE
 }
 
@@ -224,7 +221,7 @@ fi
 [ -x "$shell" ] || fail "the shell client is not executable at $shell"
 
 command -v curl >/dev/null || fail "curl is required to talk to the gateway"
-command -v "$python_bin" >/dev/null || fail "$python_bin is required to build the config bundle"
+command -v jq >/dev/null || fail "jq is required on the host to build the config bundle"
 [ -f "$config" ] || fail "the run config $config is missing"
 [ -f "$replica" ] || fail "the replica run config $replica is missing"
 [ -n "$data" ] || data="$(dirname "$config")/candles.csv"
@@ -253,40 +250,35 @@ require_stack() {
 }
 
 bundle_json() {
-  "$python_bin" - "$1" "$2" <<'PY'
-import json
-import pathlib
-import sys
-
-root = pathlib.Path(sys.argv[1])
-label = sys.argv[2]
-run_path = root / "run.json"
-if not run_path.is_file():
-    sys.exit(f"verify: {run_path} is missing")
-try:
-    run = json.loads(run_path.read_text(encoding="utf-8"))
-except (OSError, ValueError) as error:
-    sys.exit(f"verify: cannot read {run_path}: {error}")
-if not isinstance(run, dict):
-    sys.exit(f"verify: {run_path} is not a JSON object")
-names = ["run.json"]
-for key in ("data", "model", "execution", "portfolio", "strategy"):
-    name = run.get(key)
-    if name is None:
-        continue
-    if not isinstance(name, str) or not name:
-        sys.exit(f"verify: {run_path}: {key} must be a file name")
-    if name not in names:
-        names.append(name)
-files = {}
-for name in names:
-    path = root / name
-    try:
-        files[name] = path.read_text(encoding="utf-8")
-    except (OSError, ValueError) as error:
-        sys.exit(f"verify: cannot read {path}: {error}")
-print(json.dumps({"name": label, "files": files}))
-PY
+  local directory="$1"
+  local label="$2"
+  local run="$directory/run.json"
+  local names name bundle
+  [ -f "$run" ] || fail "verify: $run is missing"
+  jq -e 'type == "object"' "$run" >/dev/null 2>&1 \
+    || fail "verify: cannot read $run as a JSON object"
+  names="$(jq -er '
+    ["run.json"]
+    + ([.data, .model, .execution, .portfolio, .strategy]
+       | map(select(. != null)))
+    | unique
+    | .[]
+  ' "$run")" || fail "verify: $run names a config file that is not a string"
+  bundle="$(mktemp "$work/bundle.XXXXXX")"
+  jq -n --arg name "$label" '{name: $name, files: {}}' > "$bundle"
+  while IFS= read -r name; do
+    [ -n "$name" ] || continue
+    case "$name" in
+      /*|*\\*|..|../*|*/..|*/../*)
+        fail "verify: $run names the unsafe config file '$name'"
+        ;;
+    esac
+    [ -f "$directory/$name" ] || fail "verify: cannot read $directory/$name"
+    jq --arg name "$name" --rawfile content "$directory/$name" \
+      '.files[$name] = $content' "$bundle" > "$bundle.next"
+    mv "$bundle.next" "$bundle"
+  done <<< "$names"
+  cat "$bundle"
 }
 
 upload_config() {

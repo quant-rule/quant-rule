@@ -39,8 +39,8 @@ docs/registry/
 
 `indicators.json` is the source of truth. `indicators.md` is generated from it
 and is never edited by hand. `apps/web/src/lib/labels.generated.ts` is generated
-from the same file by `tools/generate_labels.py`; `tools/check_labels.py` fails
-the gate when the checked-in client table drifts.
+from the same file by `qr-governance labels generate`; `qr-governance check
+--checker labels` fails the gate when the checked-in client table drifts.
 
 ## 3. Entry types### 3.1 Indicator
 
@@ -193,9 +193,9 @@ process that justifies the indicator is
 3. Add the event definitions and their claims.
 4. Add golden, causality, determinism, and edge-case tests.
 5. Add the validation plan and the pre-registered outcome.
-6. Run `python3 tools/check_registry.py`.
+6. Run `qr-governance check --checker registry`.
 7. Add the construct tests and the validation claim in `validation.json`.
-8. Run `python3 tools/check_validation.py`.
+8. Run `qr-governance check --checker validation`.
 9. Update the generated Markdown.
 
 An indicator without a claim is `diagnostic` and cannot enter a strategy.

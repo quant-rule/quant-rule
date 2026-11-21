@@ -5,7 +5,7 @@
 - Owner: Quant Validator and Code Reviewer
 - Contract: [`AGENTS.md`](../../AGENTS.md) section 4
 - ADR: [`13-three-tier-testing.md`](../adr/2026-11-14/13-three-tier-testing.md)
-- Checker: [`tools/check_port_parity.py`](../../tools/check_port_parity.py)
+- Checker: `qr-governance check --checker port-parity`
 
 ## 1. Purpose
 

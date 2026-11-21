@@ -96,7 +96,7 @@ published release is `v1.3.0`, the stage execution surface, whose note is
 `v1.1.0` is the 1.1.0 alignment release, and `v1.0.0` is the desktop release.
 
 The map below is authoritative: a current tag resolves to exactly one note, and
-the release workflow and `tools/check_releases.py` both read it. Paths are
+the release workflow and `qr-governance release note --tag` both read it. Paths are
 relative to this directory. The map must name every tag in the renumbering table
 above; the checker fails when the two drift.
 
@@ -284,7 +284,7 @@ mutually exclusive.
 
 ## 8. Checker
 
-`python3 tools/check_releases.py` checks:
+`qr-governance check --checker releases` checks:
 
 - release note file names and dates;
 - the `- Tag:` line;

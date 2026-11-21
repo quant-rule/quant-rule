@@ -213,7 +213,7 @@ for spec in "gateway 172.31.238.10 18080" "data 172.31.238.11 18081" "model 172.
   set -- $spec
   name=$1; ip=$2; port=$3
   reported=$(docker exec "$prefix-$name" curl -fsS "http://$ip:$port/version" |
-    python3 -c 'import json,sys; print(json.load(sys.stdin).get("image_digest",""))')
+    sed -n 's/.*"image_digest"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
   [ "$reported" = "$digest" ] || fail "$name digest $reported != $digest"
 done
 
