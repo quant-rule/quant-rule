@@ -432,6 +432,11 @@ jobs:
         run: rustup show
 
       - name: Test the CLI
+        # Serialize the in-process fixture servers. Windows aborts a loopback
+        # connection when several fixture tests accept and close at once; the
+        # test set is unchanged and still runs in full.
+        env:
+          RUST_TEST_THREADS: "1"
         run: cargo test -p quantrule-shell
 
       - name: Build the CLI
