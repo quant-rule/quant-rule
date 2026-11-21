@@ -97,6 +97,13 @@ def problems(text: str) -> list[str]:
         if "tools/test_tiers.sh composed" not in order[COMPOSED]:
             found.append(f"{COMPOSED!r} does not run the composed tier")
 
+    if "Dockerfile.release" not in image:
+        found.append("the image job does not use Dockerfile.release")
+    if "gh run download" not in image or "release-binaries-$GITHUB_SHA" not in image:
+        found.append("the image job does not download the exact-SHA release binaries")
+    if "cargo build" in image:
+        found.append("the image job compiles Rust instead of promoting prebuilt binaries")
+
     if "\n  desktop:\n" in text:
         found.append("the desktop job must be removed")
     quality = job(text, "quality", "publish")
@@ -106,9 +113,16 @@ def problems(text: str) -> list[str]:
         for command in ("bun run check", "bun test", "bun run build", "bun run e2e"):
             if command not in quality:
                 found.append(f"the quality job does not run {command!r}")
+    cli = job(text, "cli", "publish")
+    if not cli:
+        found.append("the CLI release job is missing")
+    elif "cargo test -p quantrule-shell" not in cli:
+        found.append("the CLI release job does not test quantrule-shell")
     publish = text[text.find("\n  publish:\n") :]
     if "\n      - quality\n" not in publish:
         found.append("the publish job does not require the quality job")
+    if "\n      - cli\n" not in publish:
+        found.append("the publish job does not require the CLI job")
     if "if: steps.reference.outputs.publish == 'true'" not in order[PUSH]:
         found.append(f"{PUSH!r} is not limited to a publish run")
     if "docker push \"$IMAGE:$sha_tag\"" not in order[PUSH]:
@@ -135,8 +149,8 @@ class ReleaseWorkflowTests(unittest.TestCase):
 
     def test_a_push_during_the_build_is_reported(self) -> None:
         seeded = self.text.replace(
-            '              .\n          else\n            docker build --platform linux/amd64 --tag "$REF" .',
-            '              .\n            docker push "$REF"\n          else\n            docker build --platform linux/amd64 --tag "$REF" .',
+            '              .\n          else\n            docker build --platform linux/amd64 --file Dockerfile.release --tag "$REF" .',
+            '              .\n            docker push "$REF"\n          else\n            docker build --platform linux/amd64 --file Dockerfile.release --tag "$REF" .',
             1,
         )
         self.assertNotEqual(seeded, self.text)
@@ -160,6 +174,23 @@ class ReleaseWorkflowTests(unittest.TestCase):
         seeded = self.text.replace("\n  quality:\n", "\n  skipped-quality:\n", 1)
         self.assertTrue(
             any("quality job is missing" in problem for problem in problems(seeded))
+        )
+
+    def test_a_missing_release_binary_download_is_reported(self) -> None:
+        seeded = self.text.replace(
+            '          gh run download "${{ needs.gate.outputs.ci_run_id }}"',
+            '          echo skipped',
+            1,
+        )
+        self.assertNotEqual(seeded, self.text)
+        self.assertTrue(
+            any("exact-SHA release binaries" in problem for problem in problems(seeded))
+        )
+
+    def test_a_missing_cli_job_is_reported(self) -> None:
+        seeded = self.text.replace("\n  cli:\n", "\n  skipped-cli:\n", 1)
+        self.assertTrue(
+            any("CLI release job is missing" in problem for problem in problems(seeded))
         )
 
     def test_a_desktop_job_is_reported(self) -> None:
