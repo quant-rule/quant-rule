@@ -5,7 +5,7 @@
 - Plan: [`docs/execution-plans/2026-11-05/410-m2-model-programme.md`](../../execution-plans/2026-11-05/410-m2-model-programme.md)
 - Charter: [`docs/governance/2026-11-05/M2-CHARTER.md`](../../governance/2026-11-05/M2-CHARTER.md)
 - Program: [`config/research/PROGRAM-2026-11-05-03/program.json`](../../../config/research/PROGRAM-2026-11-05-03/program.json)
-- Coverage: [`tools/research/coverage.py`](../../../tools/research/coverage.py)
+- Coverage: `tools/research/coverage.py` (retired)
 - Claim type: pre-registered model programme result; no edge claim
 
 ## 1. Outcome

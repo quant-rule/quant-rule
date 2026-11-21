@@ -104,7 +104,7 @@ can change, and only before a run.
    cell configs.
 3. The coordinator validates the manifest:
    ```bash
-   python3 tools/research/program.py \
+   qr-governance research program \
      --program config/research/<PROGRAM-ID>/program.json --check
    ```
 4. The coordinator prepares one worktree per code-bearing cell, or uses config
@@ -149,9 +149,8 @@ qr-governance research batch \
   --worktree-root /home/zantgo/Proyectos/quant-rule--<PROGRAM-ID> \
   --prepare-only
 
-# Coverage check: every indicator and event is in a frozen cell.
-python3 tools/research/coverage.py \
-  --program config/research/<PROGRAM-ID>/program.json
+# The Python coverage checker was retired with the historical research stack.
+# The frozen cell specs and the program record remain the audit trail.
 
 # Aggregate.
 qr-governance research report \
@@ -173,14 +172,14 @@ per-instrument bundle, then runs one pooled prediction evaluation. A cell with
 `cell-result.json`; the evaluator never opens validation.
 
 ```bash
-python3 tools/research/model_cell.py \
+qr-governance improvement model-cell \
   --cell-dir config/research/<PROGRAM-ID>/cells/<CELL-ID> \
   --phase dev \
   --out data/research/<PROGRAM-ID>/dev/<CELL-ID>
 ```
 
 The runner uses `target/release/quantrule` by default; pass `--qr` to select the
-binary. A model program uses `batch.py --mode config`; it never needs a code
+binary. A model program uses `qr-governance research batch --mode config`; it never needs a code
 worktree unless a cell changes code.
 
 The worktree mode copies each cell result back to the coordinator's

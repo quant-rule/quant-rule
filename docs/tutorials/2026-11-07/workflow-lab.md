@@ -52,11 +52,11 @@ Program Charter -> cells on model_dev -> aggregate -> human promotes
 ```
 
 - The charter is [`program-charter-template.md`](../../governance/2026-11-04/program-charter-template.md).
-- The coordinator checks the program with `tools/research/program.py --check`.
+- The coordinator checks the program with `qr-governance research program --check`.
 - Config-only cells can use `qr-governance research batch --phase dev --mode config`;
   code-bearing cells get one worktree per cell.
-- `qr-governance research report` aggregates; `tools/research/coverage.py` checks
-  indicator/event coverage.
+- `qr-governance research report` aggregates; the historical coverage checker
+  was retired with the frozen research stack.
 - A cell runs `report model` (or the research cell runner); the promoted cell
   runs `model_validation` once.
 - `tools/research/README.md` records the current M4.x research path and the

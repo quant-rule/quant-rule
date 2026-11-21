@@ -28,7 +28,7 @@ cells, aggregate every result, and stop.
 2. Write `config/research/<PROGRAM-ID>/program.json` and the cell configs.
 3. Validate:
    ```bash
-   python3 tools/research/program.py \
+   qr-governance research program \
      --program config/research/<PROGRAM-ID>/program.json --check
    ```
 4. Prepare worktrees (code-bearing cells) or note config mode:

@@ -3,7 +3,7 @@
 - Date: 2026-11-10 (UTC)
 - Status: **Executed; development gate failed; premise rejected; 2024 closed**
 - Programme: [`SR13-CHARTER`](../../governance/2026-11-10/SR13-CHARTER.md)
-- Tool: [`breakout_edge.py`](../../../tools/research/breakout_edge.py)
+- Tool: `breakout_edge.py` (retired)
 - Claim type: strategy research protocol; no edge claim.
 
 ## 1. Question

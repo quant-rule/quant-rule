@@ -45,34 +45,16 @@ candle input cap. The runner merges the yearly bundles per instrument.
 
 ```bash
 # Validate the manifest and the declared phase.
-python3 tools/research/program.py --program config/research/<PROGRAM-ID>/program.json
-
-# Check the event and indicator coverage of the matrix.
-python3 tools/research/coverage.py \
-  --program config/research/<PROGRAM-ID>/program.json
-
-# Check an M4 programme that inherits the M2 exploratory surface.
-python3 tools/research/coverage.py \
-  --program config/research/<PROGRAM-ID>/program.json \
-  --family M4 \
-  --inherit config/research/PROGRAM-2026-11-05-03/program.json
-
-# Check an MR5 grid that inherits the M2 exploratory surface.
-python3 tools/research/coverage.py \
-  --program config/research/<PROGRAM-ID>/program.json \
-  --family MR5 \
-  --inherit config/research/PROGRAM-2026-11-05-03/program.json
-
-# Build an MR5 grid from its declarative grid.json.
-python3 tools/research/build_mr5_program.py \
-  --grid config/research/<PROGRAM-ID>/grid.json \
-  --out config/research/<PROGRAM-ID>
+qr-governance research program --program config/research/<PROGRAM-ID>/program.json
 
 # Run one model cell (four instruments + one pooled evaluation).
-python3 tools/research/model_cell.py \
+qr-governance improvement model-cell \
   --cell-dir config/research/<PROGRAM-ID>/cells/<CELL-ID> \
   --phase dev \
   --out data/research/<PROGRAM-ID>/dev/<CELL-ID>
+
+# The Python coverage, grid-builder, and model-cell tools were retired with the
+# historical research stack. The committed configs remain the audit record.
 
 # Run one cell.
 qr-governance research cell \

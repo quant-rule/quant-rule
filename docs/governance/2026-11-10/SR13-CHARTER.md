@@ -144,6 +144,6 @@ model event, strategy, execution, or portfolio work follows.
 | Plan | [`sr13-onset-breakout`](../../execution-plans/2026-11-10/sr13-onset-breakout.md) |
 | Run record | `data/improvement/2026-11-10/SR13/` |
 | Result record | [`SR13`](../../improvement/2026-11-10/SR13.md) |
-| Diagnostic | [`breakout_edge.py`](../../../tools/research/breakout_edge.py) |
-| Fixture test | [`test_breakout_edge.py`](../../../tools/research/test_breakout_edge.py) |
+| Diagnostic | `breakout_edge.py` (retired) |
+| Fixture test | `test_breakout_edge.py` (retired) |
 | AI log | [`sr13-onset-breakout`](../../ai-transparency-log/2026-11-10/sr13-onset-breakout.md) |

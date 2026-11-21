@@ -42,10 +42,10 @@ product image, and never reads a service.
 | `qr-governance labels generate [--write]` | Check or rewrite the generated client label table |
 | `qr-governance guard python` | Refuse Python in the product tree |
 
-The historical experiment matrix runner and research model-cell runner are
-retained for reproducibility and are not current tools. The improvement run store
-deleted the historical `run.py` adapter; the run-store commands are
-`qr-governance improvement`. Git history is the recovery path. The boundary is recorded in
+The historical Python research stack is retired; current research commands are
+`qr-governance research` and `qr-governance improvement model-cell`. The
+improvement run store deleted the historical `run.py` adapter. Git history is
+the recovery path. The boundary is recorded in
 [`tools/improvement/README.md`](../tools/improvement/README.md),
 [`tools/experiment/README.md`](../tools/experiment/README.md), and
 [`tools/research/README.md`](../tools/research/README.md).
