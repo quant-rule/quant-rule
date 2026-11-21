@@ -10,6 +10,7 @@ mod index;
 mod manifest;
 mod model_condition;
 mod model_path;
+mod model_prediction;
 mod path_validation;
 mod report;
 mod run_current;
@@ -36,6 +37,13 @@ pub fn run(args: &[String]) -> ExitCode {
         "run-current" => run_current_command(&args[1..]),
         "validate" => validate_command(&args[1..]),
         "model-condition" => match model_condition::run(&args[1..]) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(error) => {
+                eprintln!("error: {error}");
+                ExitCode::FAILURE
+            }
+        },
+        "model-prediction" => match model_prediction::run(&args[1..]) {
             Ok(()) => ExitCode::SUCCESS,
             Err(error) => {
                 eprintln!("error: {error}");
