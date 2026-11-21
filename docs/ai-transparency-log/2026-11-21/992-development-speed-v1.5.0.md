@@ -98,6 +98,8 @@ test is deleted without a replacement or human approval.
 | `qr-governance improvement model-prediction` parity | PASS; barrier, state-gated, and forward JSON structurally equal; Markdown byte-identical |
 | `cargo test -p quantrule-governance model_prediction` | PASS; 5 primitive tests |
 | `model_prediction.py` retained | Pending `model_cell` switch to the Rust command |
+| `research::adapters` parity | PASS; passing/failing model-prediction records parsed identically; 2 tests |
+| `adapters.py` retained | Pending `cell`/`program` ports |
 
 ## Learning
 
