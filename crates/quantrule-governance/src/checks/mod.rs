@@ -18,10 +18,12 @@ pub mod links;
 pub mod manual;
 pub mod markdown;
 pub mod partitions;
+pub mod port_parity;
 pub mod py_guard;
 pub mod release_audit;
 pub mod releases;
 pub mod rust_tests;
+pub mod terms;
 pub mod validation;
 pub mod verification;
 pub mod verification_matrix;
@@ -94,8 +96,16 @@ pub const CHECKERS: &[Checker] = &[
         run: partitions::check,
     },
     Checker {
+        name: "port-parity",
+        run: port_parity::check,
+    },
+    Checker {
         name: "py-guard",
         run: py_guard::check,
+    },
+    Checker {
+        name: "terms",
+        run: terms::check,
     },
     Checker {
         name: "release-audit",
