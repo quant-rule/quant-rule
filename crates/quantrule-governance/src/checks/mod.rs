@@ -6,9 +6,13 @@
 
 pub mod audit_backlog;
 pub mod board_permanence;
+pub mod changelog;
 pub mod claims;
 pub mod doc_length;
 pub mod file_size;
+pub mod links;
+pub mod release_audit;
+pub mod workflows;
 
 use std::path::Path;
 
@@ -33,6 +37,10 @@ pub const CHECKERS: &[Checker] = &[
         run: board_permanence::check,
     },
     Checker {
+        name: "changelog",
+        run: changelog::check,
+    },
+    Checker {
         name: "claims",
         run: claims::check,
     },
@@ -43,6 +51,18 @@ pub const CHECKERS: &[Checker] = &[
     Checker {
         name: "file-size",
         run: file_size::check,
+    },
+    Checker {
+        name: "links",
+        run: links::check,
+    },
+    Checker {
+        name: "release-audit",
+        run: release_audit::check,
+    },
+    Checker {
+        name: "workflows",
+        run: workflows::check,
     },
 ];
 
