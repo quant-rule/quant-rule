@@ -56,7 +56,12 @@ pub(crate) fn run(args: &[String]) -> Result<(), String> {
     Ok(())
 }
 
-fn run_cell(program: &Program, cell: &Cell, phase: &str, out: &Path) -> Result<Value, String> {
+pub(super) fn run_cell(
+    program: &Program,
+    cell: &Cell,
+    phase: &str,
+    out: &Path,
+) -> Result<Value, String> {
     program::require_phase(program, phase)?;
     fs::create_dir_all(out).map_err(|error| format!("cannot create {}: {error}", out.display()))?;
     let command: Vec<String> = cell
@@ -185,6 +190,7 @@ mod tests {
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(root.join("cell")).expect("tree");
         let program = Program {
+            path: root.join("program.json"),
             repo_root: root.clone(),
             program_id: "PROGRAM-2026-11-21-01".to_owned(),
             premise: "p".to_owned(),
@@ -192,6 +198,9 @@ mod tests {
             partition_dev: "model_dev".to_owned(),
             partition_validation: "model_validation".to_owned(),
             validation_access: "none".to_owned(),
+            correction: serde_json::json!({}),
+            green_criteria: serde_json::json!({}),
+            max_parallel: 1,
             cells: Vec::new(),
         };
         let cell = Cell {

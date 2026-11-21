@@ -19,8 +19,10 @@ pub fn run(args: &[String]) -> ExitCode {
     };
     let result = match command {
         "program" => crate::research::program::run(&args[1..]),
+        "batch" => crate::research::batch::run(&args[1..]),
         "cell" => crate::research::cell::run(&args[1..]),
         "registry" => crate::research::registry::run(&args[1..]),
+        "report" => crate::research::report::run(&args[1..]),
         other => {
             eprintln!("error: unknown research command {other}");
             return ExitCode::from(2);

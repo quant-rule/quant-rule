@@ -82,14 +82,14 @@ qr-governance research cell \
   --out data/research/<PROGRAM-ID>/dev/CELL-01
 
 # Run the cells concurrently in config mode.
-python3 tools/research/batch.py \
+qr-governance research batch \
   --program config/research/<PROGRAM-ID>/program.json \
   --phase dev \
   --mode config \
   --max-parallel 5
 
 # Aggregate every cell and apply the declared correction.
-python3 tools/research/report.py \
+qr-governance research report \
   --program config/research/<PROGRAM-ID>/program.json \
   --results data/research/<PROGRAM-ID>/dev \
   --out data/research/<PROGRAM-ID>/program-results
@@ -107,14 +107,14 @@ test, not a market hypothesis. It uses `validation_access: none`; no validation
 is opened. The expected report is `no_edge`.
 
 ```bash
-python3 tools/research/batch.py \
+qr-governance research batch \
   --program config/research/reference/program.json \
   --phase dev \
   --mode config \
   --max-parallel 3 \
   --out /tmp/opencode/research-reference
 
-python3 tools/research/report.py \
+qr-governance research report \
   --program config/research/reference/program.json \
   --results /tmp/opencode/research-reference \
   --out /tmp/opencode/research-reference/results
