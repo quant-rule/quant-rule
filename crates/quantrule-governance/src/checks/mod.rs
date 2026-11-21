@@ -9,6 +9,7 @@ pub mod board_permanence;
 pub mod changelog;
 pub mod claims;
 pub mod client_docs;
+pub mod command_surface;
 pub mod doc_length;
 pub mod event_emitters;
 pub mod execution_plans;
@@ -25,6 +26,7 @@ pub mod registry;
 pub mod release_audit;
 pub mod releases;
 pub mod rust_tests;
+pub mod structure;
 pub mod terms;
 pub mod validation;
 pub mod verification;
@@ -64,6 +66,10 @@ pub const CHECKERS: &[Checker] = &[
     Checker {
         name: "client-docs",
         run: client_docs::check,
+    },
+    Checker {
+        name: "command-surface",
+        run: command_surface::check,
     },
     Checker {
         name: "doc-length",
@@ -108,6 +114,10 @@ pub const CHECKERS: &[Checker] = &[
     Checker {
         name: "py-guard",
         run: py_guard::check,
+    },
+    Checker {
+        name: "structure",
+        run: structure::check,
     },
     Checker {
         name: "terms",
