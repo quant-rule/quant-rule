@@ -386,11 +386,25 @@ impl Drop for Fixture {
     }
 }
 
+fn debug(message: &str) {
+    if std::env::var_os("QR_FIXTURE_DEBUG").is_some() {
+        eprintln!("fixture {}: {message}", std::process::id());
+    }
+}
+
 fn serve(listener: TcpListener, state: Arc<Mutex<FixtureState>>, stop: Arc<AtomicBool>) {
     while !stop.load(Ordering::SeqCst) {
         match listener.accept() {
             Ok((mut stream, _)) => {
+                debug(&format!(
+                    "accepted {}",
+                    stream
+                        .peer_addr()
+                        .map(|a| a.to_string())
+                        .unwrap_or_else(|_| "?".to_owned())
+                ));
                 if let Some(request) = read_request(&mut stream) {
+                    debug(&format!("request {} {}", request.method, request.path));
                     let response = {
                         let mut state = state.lock().expect("the fixture lock");
                         state.requests.push(request.clone());
@@ -400,17 +414,27 @@ fn serve(listener: TcpListener, state: Arc<Mutex<FixtureState>>, stop: Arc<Atomi
                             Response::unauthorized()
                         }
                     };
-                    let _ = write_response(&mut stream, response);
+                    match write_response(&mut stream, response) {
+                        Ok(()) => debug("wrote response"),
+                        Err(error) => debug(&format!("write failed: {error}")),
+                    }
                     let _ = stream.shutdown(std::net::Shutdown::Write);
                 } else {
+                    debug("read returned none");
                     let _ = stream.shutdown(std::net::Shutdown::Both);
                 }
             }
             Err(error) if error.kind() == ErrorKind::WouldBlock => {
                 thread::sleep(Duration::from_millis(2));
             }
-            Err(error) if transient_accept(&error) => continue,
-            Err(_) => break,
+            Err(error) if transient_accept(&error) => {
+                debug(&format!("transient accept: {error}"));
+                continue;
+            }
+            Err(error) => {
+                debug(&format!("fatal accept: {error}"));
+                break;
+            }
         }
     }
 }
