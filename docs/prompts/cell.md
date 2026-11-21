@@ -29,7 +29,7 @@ open validation.
 1. Verify you are in the cell worktree and on the cell branch.
 2. Run only the cell command from the program manifest:
    ```bash
-   python3 tools/research/cell.py \
+   qr-governance research cell \
      --program config/research/<PROGRAM-ID>/program.json \
      --cell <CELL-NN> \
      --phase dev \

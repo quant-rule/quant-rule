@@ -103,6 +103,9 @@ test is deleted without a replacement or human approval.
 | `qr-governance improvement model-cell` parity | PASS; fake-shell fixture matches the Python JSON structurally, the Markdown byte-for-byte, and the prediction digest |
 | `cargo test -p quantrule-governance model_cell` | PASS; 2 tests |
 | Deleted the evaluator Python stack | `model_cell`, `model_prediction`, `model_condition`, `model_path`, `path_validation`, and the dependent historical validators/tests |
+| `qr-governance research program/registry/cell` parity | PASS; program output, registry Markdown, and cell record equal |
+| `cargo test -p quantrule-governance research` | PASS; 12 tests |
+| Deleted `registry.py` and its test | PASS; `program.py`, `cell.py`, and `adapters.py` remain for `batch` |
 
 ## Learning
 
