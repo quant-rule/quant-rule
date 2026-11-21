@@ -102,3 +102,51 @@ fn check_template(root: &Path, path: &Path, diagnostics: &mut Vec<Diagnostic>) {
         )),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::path::PathBuf;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    const CLAIM_LINE: &str = "Claim type: one of Problem Claim, Behaviour Claim, Outcome Claim, or ADR (Architecture Decision)\n";
+
+    fn fixture(name: &str, template: &str) -> PathBuf {
+        static NEXT: AtomicUsize = AtomicUsize::new(0);
+        let root = std::env::temp_dir().join(format!(
+            "qr-claims-{name}-{}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, Ordering::Relaxed)
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join(".github/ISSUE_TEMPLATE")).expect("templates");
+        fs::write(root.join(".github/ISSUE_TEMPLATE/task.md"), template).expect("issue template");
+        fs::write(root.join(".github/pull_request_template.md"), CLAIM_LINE)
+            .expect("pull request template");
+        fs::write(
+            root.join("AGENTS.md"),
+            "### Claim type\n\nProblem Claim\nBehaviour Claim\nOutcome Claim\nADR (Architecture Decision)\n",
+        )
+        .expect("agents");
+        root
+    }
+
+    #[test]
+    fn a_valid_tree_passes() {
+        let root = fixture("ok", CLAIM_LINE);
+        assert!(check(&root).is_empty());
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn a_missing_claim_line_is_reported() {
+        let root = fixture("missing", "# Task\n");
+        assert!(
+            check(&root)
+                .iter()
+                .any(|d| d.message.contains("missing 'Claim type:'"))
+        );
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+}

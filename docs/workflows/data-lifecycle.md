@@ -46,7 +46,7 @@ Onboard -> Validate -> Version -> Partition -> Admit -> Consume -> Refresh/Retir
 | 1. Onboard | What is the source, instrument, cadence, and coverage? | Data Steward | Source record | The source is legal and reproducible |
 | 2. Validate | Is the series complete, ordered, and well-formed? | Test Engineer | Quality report | No unexplained gap, duplicate, or malformed row |
 | 3. Version | What is the data version identity? | Data Steward | Data version | The version is explicit and immutable |
-| 4. Partition | Which partition and instruments does it serve? | Data Steward | Partition entry | `check_partitions.py` passes |
+| 4. Partition | Which partition and instruments does it serve? | Data Steward | Partition entry | `qr-governance check --checker partitions` passes |
 | 5. Admit | Is the series admissible for the family that will use it? | Quant Researcher + Data Steward | Admissibility record | The declared rule passes before any outcome |
 | 6. Consume | Does the run read only its declared window and version? | Quant Developer | Run record | The manifest and config agree |
 | 7. Refresh/Retire | Does the source change or retire? | Data Steward + Planner | Refresh or retirement record | Affected baselines are re-established |

@@ -126,13 +126,13 @@ A missing or mismatched artifact fails the release. There is no silent rebuild.
 | V15 | P2F | sccache improves or is reverted | Two runs; hit rate | Verified/reverted |  | Pending |  |  |  |
 | V16 | P2G | Split/shard beats one cached job or is reverted | A/B timing | Verified/reverted |  | Pending |  |  |  |
 | V17 | P2H | PR jobs timeout at 10; release jobs timeout at 15; no unexpected failure at 11–12 | Workflow diff; run | Verified |  | Pending |  |  |  |
-| V18 | P2 | Phase 2 full gate green | `./tools/gate.sh` | Pass |  | Pending |  |  |  |
+| V18 | P2 | Phase 2 full gate green | `./tools/gate.sh` | Pass |  | Pass |  | 2026-11-21 |  |
 | V19 | P3A | Post-retirement Python inventory approved | Inventory and deletion list | Approved |  | Pending |  |  |  |
 | V20 | P3B–P3D | 26 checkers match the Python oracle | `check --all` parity | Pass | verified locally; 26/26 | Pass |  | 2026-11-21 |  |
 | V21 | P3E | Operational tools match | Fixtures/tests | Pass | worktree, labels, guard, and verification builder match; builder output byte-identical | Pass |  | 2026-11-21 | stale Python builder repaired, then ported and deleted |
-| V22 | P3F | Research tools match to 1e-9 | Golden fixtures | Pass |  | Pending |  |  |  |
-| V23 | P3G | 66 historical files deleted; no live reference | `find`; `rg`; `git log` | Pass |  | Pending |  |  |  |
-| V24 | P3H | No `.py`; gate passes without Python | `find`; `PATH` test; image check | Pass |  | Pending |  |  |  |
+| V22 | P3F | Research tools match to 1e-9 | Golden fixtures | Pass |  | Pass |  | 2026-11-21 | batch/report JSON and Markdown match; historical stack retired |
+| V23 | P3G | 66 historical files deleted; no live reference | `find`; `rg`; `git log` | Pass |  | Pass |  | 2026-11-21 | checker, data, research, and improvement stacks deleted |
+| V24 | P3H | No `.py`; gate passes without Python | `find`; `PATH` test; image check | Pass |  | Pass |  | 2026-11-21 | zero `.py`; gate passes with a failing `python3` shim on `PATH` |
 | V25 | P4A | Per-test timing and classification recorded | nextest report; audit table | Pass |  | Pending |  |  |  |
 | V26 | P4C–P4D | Only retired/duplicated tests removed; time measured | Deletion batches; approval | Pass |  | Pending |  |  |  |
 | V27 | P5A | Final gate, web check/build/e2e, cross-browser | `gate.sh`; `bun`; cross-browser | Pass |  | Pending |  |  |  |

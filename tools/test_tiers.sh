@@ -18,7 +18,7 @@ case "$tier" in
     exec ./tools/gate.sh
     ;;
   parity)
-    exec python3 tools/check_port_parity.py
+    exec cargo run --quiet -p quantrule-governance -- check --checker port-parity
     ;;
   composed)
     exec ./tools/composed.sh

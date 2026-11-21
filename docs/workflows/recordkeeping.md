@@ -146,15 +146,15 @@ release or a dated addendum in the next release. The changelog starts at the
 
 ## 10. Verification
 
-- `python3 tools/check_workflows.py` checks the workflow index and status.
-- `python3 tools/check_execution_plans.py` checks the current plan structure and
+- `qr-governance check --checker workflows` checks the workflow index and status.
+- `qr-governance check --checker execution-plans` checks the current plan structure and
   the reviewer verification table.
-- `python3 tools/check_claims.py` checks the issue and pull-request templates and
+- `qr-governance check --checker claims` checks the issue and pull-request templates and
   the normative claim-type section.
-- `python3 tools/check_changelog.py` checks the grouped release structure, allowed
+- `qr-governance check --checker changelog` checks the grouped release structure, allowed
   types, and release order.
-- `python3 tools/check_links.py` checks every relative link.
-- `python3 tools/check_terms.py` and `python3 tools/check_legacy.py` reject
+- `qr-governance check --checker links` checks every relative link.
+- `qr-governance check --checker terms` and `qr-governance check --checker legacy` reject
   retired terms and labels.
 
 ## 11. Related documents

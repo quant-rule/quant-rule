@@ -157,3 +157,13 @@ test is deleted without a replacement or human approval.
 - Current path: `qr-governance improvement feasibility|evidence|index|run-current|validate|model-condition|model-path|path-validation|model-prediction|model-cell|cleanup`.
 - Records: `data/improvement/`, `docs/improvement/`, and Git history remain the audit trail. Historical records that linked deleted files now use plain path references.
 - Verification: `qr-governance check --all` (26 checkers), `bash tools/checkers.sh`, `cargo test -p quantrule-governance` (91 unit + 5 history), and `python3 -m py_compile tools/*.py` pass.
+
+## Gate cutover
+
+- Removed every Python checker, checker test, list, and the shared `checkers.sh`; `qr-governance check --all` is now the only gate authority in `tools/gate.sh` and CI.
+- Deleted `tools/generate_labels.py` (replaced by `qr-governance labels generate`) and the Python data tooling under `tools/data/` (historical source construction; Git history is recovery).
+- Ported the four meta-test areas to Rust integration tests: gate wiring, seeded failure propagation, release-workflow order, and the composed-tier preflight.
+- Added checker unit tests where the Rust port had none: audit backlog, board permanence, claims, event emitters, labels, releases, verification matrix, and the checker registry.
+- Fixed two checker defects exposed by the tests: the audit backlog now reads the Status column rather than the last cell, and the release checker reports a malformed note file name instead of skipping it.
+- Removed Python from `tools/composed.sh`, `tools/verify.sh`, `tools/check_queue_isolation.sh`, `tools/test_tiers.sh`, and `deploy/multi-host/test.sh`; JSON work now uses `sed` or `jq` on the host.
+- Verification: `bash tools/gate.sh` passes; a second run with failing `python3`/`python` shims on `PATH` also passes; `find . -name '*.py'` is empty.

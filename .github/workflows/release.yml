@@ -105,11 +105,13 @@ jobs:
             echo "::error::$tag is not on main" >&2
             exit 1
           fi
-          note="$(python3 tools/check_releases.py --note "$tag")"
-          if [ -z "$note" ]; then
+          relative="$(sed -n "s/^  \"$tag\": \"\(.*\)\",$/\1/p" docs/releases/README.md)"
+          if [ -z "$relative" ]; then
             echo "::error::$tag is not in the current-tag map" >&2
             exit 1
           fi
+          note="docs/releases/$relative"
+          [ -f "$note" ] || { echo "::error::$tag resolves to missing $note" >&2; exit 1; }
           echo "$tag is annotated, on main, and has $note"
 
       - name: Find the green main CI for this commit
@@ -471,11 +473,13 @@ jobs:
           DIGEST: ${{ needs.image.outputs.digest }}
           SOURCE: ${{ needs.image.outputs.source }}
         run: |
-          note="$(python3 tools/check_releases.py --note "$RELEASE_TAG")"
-          if [ -z "$note" ]; then
+          relative="$(sed -n "s/^  \"$RELEASE_TAG\": \"\(.*\)\",$/\1/p" docs/releases/README.md)"
+          if [ -z "$relative" ]; then
             echo "::error::$RELEASE_TAG is not in the current-tag map" >&2
             exit 1
           fi
+          note="docs/releases/$relative"
+          [ -f "$note" ] || { echo "::error::$RELEASE_TAG resolves to missing $note" >&2; exit 1; }
           {
             cat "$note"
             echo

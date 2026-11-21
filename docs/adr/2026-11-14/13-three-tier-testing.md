@@ -46,7 +46,7 @@ the prerequisite; it never reports a pass it did not run.
 numbers match the retired implementation. `docs/port-parity/registry.json` names
 each port, its Rust target, its comparison test, and its fixture; the fixture is
 `docs/port-parity/<id>.golden.json` with the source, capture date, tolerance, and
-cases. `tools/check_port_parity.py` runs in the gate and fails when the entry,
+cases. `qr-governance check --checker port-parity` runs in the gate and fails when the entry,
 target marker, test marker, fixture, or tolerance is missing or wrong. The
 registry is empty until #679 lands the first port; an empty registry passes
 because no port means no parity claim.
@@ -86,7 +86,7 @@ command, or when a non-Rust port needs a different fixture format.
 ## Verification
 
 - `tools/test_tiers.sh fast` runs the gate, and the gate runs
-  `tools/check_port_parity.py`.
+  `qr-governance check --checker port-parity`.
 - `tools/test_tiers.sh parity` prints `port parity ok` for the empty registry.
 - `tools/test_tiers.sh composed` exits `2` and names #643/#644 until the stack
   exists.

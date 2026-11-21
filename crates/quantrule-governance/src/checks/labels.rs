@@ -245,3 +245,40 @@ fn compare_pairs(
         ));
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::path::PathBuf;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    fn empty_root(name: &str) -> PathBuf {
+        static NEXT: AtomicUsize = AtomicUsize::new(0);
+        let root = std::env::temp_dir().join(format!(
+            "qr-labels-{name}-{}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, Ordering::Relaxed)
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).expect("tree");
+        root
+    }
+
+    #[test]
+    fn the_repository_table_matches_the_registry() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        assert!(check(&root).is_empty(), "{:?}", check(&root));
+    }
+
+    #[test]
+    fn a_missing_registry_is_reported() {
+        let root = empty_root("registry");
+        assert!(
+            check(&root)
+                .iter()
+                .any(|d| d.message.contains("cannot read the registry"))
+        );
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+}

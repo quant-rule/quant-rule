@@ -124,9 +124,9 @@ deletion by P0.1.
 ## 7. Verification
 
 ```bash
-python3 tools/check_links.py
-python3 tools/check_terms.py
-python3 tools/check_registry.py
+qr-governance check --checker links
+qr-governance check --checker terms
+qr-governance check --checker registry
 git status --short --branch
 ```
 

@@ -32,7 +32,10 @@ history is in Git and the pull requests.
 - The browser is the only GUI; the headless `quantrule` CLI remains the agent client.
 - Windows and Linux are the supported browser and CLI platforms; macOS is unsupported in the next release.
 - The gate has 26 checkers after the desktop-only checker is removed.
+- Remove every Python checker and checker test; `qr-governance check --all` is the gate and CI authority.
+- Retire the Python data tooling (`tools/data/`); data-service ingestion and the committed sources are the record.
 - CI no longer compiles or runs the historical research or improvement Python tests.
+- The gate, CI, release, composed tier, and multi-host harness no longer invoke Python.
 
 ## [1.4.2] - 2026-11-20
 

@@ -59,7 +59,7 @@ A release is ready when:
   `tools/test_tiers.sh composed`, which checks the gateway and submits two
   equivalent runs through the gateway and compares their canonical digest;
 - every registered port has a fixture and a comparison test, and
-  `tools/check_port_parity.py` passes;
+  `qr-governance check --checker port-parity` passes;
 - the changelog release entry is present;
 - the release note names the scope, the verification, and the risks;
 - no Critical audit finding is open on the changed path;
@@ -74,7 +74,7 @@ A green CI result is evidence, not approval. The human authorizes the release.
 
 - A release tag is `vMAJOR.MINOR.PATCH` and is annotated.
 - It is created from `main` after the release pull request merges.
-- The tag requires the full gate, the matching `CHANGELOG.md` section, the release note resolved through the current-tag map (`python3 tools/check_releases.py --note <tag>`), no open Critical finding on the changed path, and human authorization.
+- The tag requires the full gate, the matching `CHANGELOG.md` section, the release note resolved through the current-tag map (`qr-governance release note --tag <tag>`), no open Critical finding on the changed path, and human authorization.
 - A published tag is never moved, deleted, or reused. A bad release gets a new tag and a superseding release note.
 - A local tag that was never pushed may be deleted before publication.
 - Historical tags are retained. Do not create new tags in their format without a human decision.
@@ -140,7 +140,7 @@ An incident is green when:
 
 | Artifact | Path |
 |---|---|
-| Release note | Resolved by `python3 tools/check_releases.py --note <tag>`; normally `docs/releases/<date>/<tag>.md` |
+| Release note | Resolved by `qr-governance release note --tag <tag>`; normally `docs/releases/<date>/<tag>.md` |
 | Release index and tag rule | `docs/releases/README.md` |
 | Verification record | `docs/reports/<date>/<scope>-verification.md` |
 | Incident record | `docs/reports/<date>/<scope>-incident.md` or `docs/audits/<date>/` |
@@ -189,7 +189,7 @@ the only place an artifact is fetched; there is no download page.
 | 2. Image | Built from the release commit, pushed to the registry, digest recorded |
 | 3. Contract check | `/version` reports the product version; `/health` reports the digest |
 | 4. Verification | `make up` (nine containers) and `make verify` on a clean host |
-| 5. Note | `python3 tools/check_releases.py --note <tag>` names the digest and both artifacts |
+| 5. Note | `qr-governance release note --tag <tag>` names the digest and both artifacts |
 | 6. Tag | Annotated `vMAJOR.MINOR.PATCH` from `main` after the release PR merges; the first distributed release is `v0.9.0`, prepared as `v1.0.0` |
 
 A `workflow_dispatch` with `publish_snapshot` pushes a `snapshot-<sha>` image and

@@ -21,7 +21,7 @@
 | SHA-256 | `46af1a54a82a809cc4eb8e14ddda9dfbe04c0670ad143faaaad1c2bf7fb7c1b1` |
 | Rows | 4,199,615 |
 | Import manifest | `data/sources/BTCUSDT_M1_2018-01-01_2025-12-31.manifest.json` |
-| Importer | [`tools/data/binance_klines.py`](../../../tools/data/binance_klines.py) |
+| Importer | `tools/data/binance_klines.py` (retired; Git history) |
 
 Every monthly zip is verified against its published `.CHECKSUM` before parsing.
 

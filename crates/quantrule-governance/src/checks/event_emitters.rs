@@ -153,3 +153,30 @@ fn contains_word(text: &str, word: &str) -> bool {
     }
     false
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn production_sources_exclude_test_modules() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let mut found = Vec::new();
+        collect_production_sources(&root.join("crates/quantrule-model/src/events"), &mut found);
+        let names: Vec<String> = found
+            .iter()
+            .filter_map(|path| path.file_name().and_then(|name| name.to_str()))
+            .map(str::to_owned)
+            .collect();
+        assert!(
+            !names.is_empty(),
+            "the events tree has no production source"
+        );
+        assert!(names.iter().any(|name| name == "signals.rs"));
+        assert!(
+            !names
+                .iter()
+                .any(|name| name == "tests.rs" || name.ends_with("_tests.rs"))
+        );
+    }
+}

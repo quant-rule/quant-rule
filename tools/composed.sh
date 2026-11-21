@@ -24,7 +24,6 @@ cd "$root"
 api_url="${QUANTRULE_API_URL:-http://127.0.0.1:8080/api/v1}"
 timeout="${QUANTRULE_TIMEOUT:-300}"
 verify="${QUANTRULE_VERIFY:-$root/tools/verify.sh}"
-python_bin="${QR_PYTHON:-python3}"
 
 fail() {
   echo "composed: $*" >&2
@@ -34,20 +33,17 @@ fail() {
 health="$(curl -fsS --max-time 5 "$api_url/health" 2>/dev/null)" \
   || fail "the gateway is not reachable at $api_url; start the stack with 'make up'"
 
-state="$(printf '%s' "$health" | "$python_bin" -c \
-  'import json, sys; print(json.load(sys.stdin).get("state", ""))' 2>/dev/null)" \
-  || fail "the /health response is not the expected JSON"
+state="$(printf '%s' "$health" | sed -n 's/.*"state"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
+[ -n "$state" ] || fail "the /health response is not the expected JSON"
 [ "$state" = "healthy" ] || fail "the gateway reports state '$state', not 'healthy'"
 
 version="$(curl -fsS --max-time 5 "$api_url/version" 2>/dev/null)" \
   || fail "the gateway has no /version response"
-product="$(printf '%s' "$version" | "$python_bin" -c \
-  'import json, sys; document = json.load(sys.stdin); print(document.get("api", ""), document.get("product", ""))' 2>/dev/null)" \
-  || fail "the /version response is not the expected JSON"
-set -- $product
-[ "${1:-}" = "quantrule.api/v1" ] \
-  || fail "/version reports API '${1:-}', expected quantrule.api/v1"
-[ -n "${2:-}" ] || fail "/version reports no product version"
+api="$(printf '%s' "$version" | sed -n 's/.*"api"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
+product="$(printf '%s' "$version" | sed -n 's/.*"product"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
+[ "$api" = "quantrule.api/v1" ] \
+  || fail "/version reports API '${api:-}', expected quantrule.api/v1"
+[ -n "$product" ] || fail "/version reports no product version"
 
 # The preflight tests stub these checks because they do not start a stack or a
 # disposable database.
@@ -59,4 +55,4 @@ if [ "${QUANTRULE_POSTGRES_CHECK:-1}" = "1" ]; then
 fi
 
 "$verify" --api-url "$api_url" --timeout "$timeout"
-echo "composed: gateway healthy, product $2, queue isolation verified, run parity verified"
+echo "composed: gateway healthy, product $product, queue isolation verified, run parity verified"

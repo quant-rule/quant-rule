@@ -94,5 +94,5 @@ cargo test -p quantrule-model --lib events::signals::tests::atr_candle_pattern_a
 cargo test -p quantrule-model --lib events::session::tests::session_fade_and_range_events_are_exercised
 cargo test -p quantrule-model --lib events::panel::tests::panel_divergences_and_crosses_are_exercised
 cargo test -p quantrule-model
-python3 tools/check_validation.py
+qr-governance check --checker validation
 ```
