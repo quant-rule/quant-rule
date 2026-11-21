@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Run the repository term gate over the active documentation.
 
-This is a thin wrapper around ``tools/improvement/cleanup.py``. It scans docs,
-the root README, and AGENTS.md, while excluding the AI transparency log and the
+The scan runs in ``qr-governance improvement cleanup``. It covers docs, the
+root README, and AGENTS.md, while excluding the AI transparency log and the
 invalidation tombstone: both record retired terms on purpose.
 """
 
@@ -13,9 +13,19 @@ import subprocess
 import sys
 from pathlib import Path
 
-CLEANUP = Path(__file__).resolve().parent / "improvement" / "cleanup.py"
+ROOT = Path(__file__).resolve().parent.parent
 ARGS = [
+    "cargo",
+    "run",
+    "-q",
+    "-p",
+    "quantrule-governance",
+    "--",
+    "improvement",
+    "cleanup",
     "--check",
+    "--root",
+    str(ROOT),
     "--paths",
     "docs",
     "README.md",
@@ -41,7 +51,7 @@ def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     parse_arguments(argv)
-    return subprocess.call([sys.executable, str(CLEANUP), *ARGS])
+    return subprocess.call(ARGS, cwd=ROOT)
 
 
 if __name__ == "__main__":

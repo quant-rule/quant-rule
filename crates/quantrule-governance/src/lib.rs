@@ -9,6 +9,7 @@ pub mod check;
 pub mod checks;
 pub mod guard;
 pub mod history;
+pub mod improvement;
 pub mod labels;
 pub mod manifest;
 pub mod registry;

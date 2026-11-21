@@ -21,7 +21,7 @@ EXEMPT = {
     "check_doc_length": "the checker reports every current document and its cap",
     "check_links": "the checker reports every broken relative link in the tree",
     "check_registry": "the registry invariants are checked by check_validation and check_verification_matrix",
-    "check_terms": "the term gate is delegated to tools/improvement/cleanup.py",
+    "check_terms": "the term gate is delegated to qr-governance improvement cleanup",
     "check_validation": "the claims are data in the registry and the checker reports each missing claim",
     "check_verification_matrix": "the matrix is data and the checker reports every missing code",
 }

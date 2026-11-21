@@ -137,6 +137,6 @@ target, timeframe, or filter.
 - [Charter](../../governance/2026-11-08/SR2-CHARTER.md)
 - [Plan](../../execution-plans/2026-11-08/sr2-dual-design.md)
 - [AI transparency log](../../ai-transparency-log/2026-11-08/sr2-dual-design.md)
-- [Feasibility preflight](../../../tools/improvement/feasibility.py)
+- Feasibility preflight: `qr-governance improvement feasibility` (retired `tools/improvement/feasibility.py`)
 - [Baselines](../baselines.md)
 - [Run index](../index.md)
