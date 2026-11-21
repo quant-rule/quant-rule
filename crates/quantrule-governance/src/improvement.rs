@@ -8,6 +8,7 @@ mod evidence;
 mod feasibility;
 mod index;
 mod manifest;
+mod model_path;
 mod report;
 mod run_current;
 mod store;
@@ -32,6 +33,13 @@ pub fn run(args: &[String]) -> ExitCode {
         "index" => index_command(&args[1..]),
         "run-current" => run_current_command(&args[1..]),
         "validate" => validate_command(&args[1..]),
+        "model-path" => match model_path::run(&args[1..]) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(error) => {
+                eprintln!("error: {error}");
+                ExitCode::FAILURE
+            }
+        },
         "cleanup" => cleanup_command(&args[1..]),
         other => {
             eprintln!("error: unknown improvement command {other}");
