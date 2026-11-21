@@ -107,21 +107,21 @@ A missing or mismatched artifact fails the release. There is no silent rebuild.
 
 | ID | Plan item | Acceptance criterion | Evidence / command | Expected | Observed | Status | Reviewer | Date | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| V00 | P0A | Parent and all sub-issues exist on the board with claim types and dependencies | `gh issue list`; board fields; issue tree | Complete |  | Pending |  |  |  |
+| V00 | P0A | Parent and all sub-issues exist on the board with claim types and dependencies | `gh issue list`; board fields; issue tree | Complete | verified locally | Pass |  |  |  |
 | V01 | P0B | Baseline CI, release, desktop, cache, and test counts recorded | CI timings; test counts | Recorded |  | Pending |  |  |  |
-| V02 | P1A | No Tauri shell, supervisor, or packaging in current tree | `test ! -e apps/desktop-shell`; `rg` for Tauri/AppImage/NSIS | No current reference |  | Pending |  |  |  |
-| V03 | P1B | Release has no desktop job or artifacts | Workflow diff; `rg` in `release.yml` | No match |  | Pending |  |  |  |
-| V04 | P1C | Embedded desktop profile and SQLite are gone | `rg` for `QR_PROFILE=desktop`, `rusqlite`, SQLite; `cargo tree` | No match |  | Pending |  |  |  |
-| V05 | P1E | Only browser GUI and headless shell remain | Client docs; `cargo test -p quantrule-shell` | Browser + shell only |  | Pending |  |  |  |
+| V02 | P1A | No Tauri shell, supervisor, or packaging in current tree | `test ! -e apps/desktop-shell`; `rg` for Tauri/AppImage/NSIS | No current reference | verified locally | Pass |  |  |  |
+| V03 | P1B | Release has no desktop job or artifacts | Workflow diff; `rg` in `release.yml` | No match | verified locally | Pass |  |  |  |
+| V04 | P1C | Embedded desktop profile and SQLite are gone | `rg` for `QR_PROFILE=desktop`, `rusqlite`, SQLite; `cargo tree` | No match | verified locally | Pass |  |  |  |
+| V05 | P1E | Only browser GUI and headless shell remain | Client docs; `cargo test -p quantrule-shell` | Browser + shell only | verified locally | Pass |  |  |  |
 | V05A | P6C | CLI builds and tests on Linux and Windows at the release gate | CLI matrix; `cargo test -p quantrule-shell`; `quantrule help` | Pass |  | Pending |  |  |  |
-| V06 | P1E | Windows/Linux browser access documented; macOS unsupported | Platform matrix; workflow diff | Documented; no macOS job |  | Pending |  |  |  |
-| V07 | P1B | Historical releases untouched | Compare tags and assets | Unchanged |  | Pending |  |  |  |
-| V08 | P1 | Phase 1 full gate green | `./tools/gate.sh` | Pass |  | Pending |  |  |  |
+| V06 | P1E | Windows/Linux browser access documented; macOS unsupported | Platform matrix; workflow diff | Documented; no macOS job | verified locally | Pass |  |  |  |
+| V07 | P1B | Historical releases untouched | Compare tags and assets | Unchanged | verified locally | Pass |  |  |  |
+| V08 | P1 | Phase 1 full gate green | `./tools/gate.sh` | Pass | verified locally | Pass |  |  |  |
 | V09 | P2A | Cargo cache warm and under 10 GB | Two runs; `gh cache list` | Verified |  | Pending |  |  |  |
 | V10 | P2B | CI uses `tools/gate.sh` | CI run; gate diff | Verified |  | Pending |  |  |  |
 | V11 | P2C | Release does not duplicate a green CI on the same SHA | Release run; exact-SHA check | Verified |  | Pending |  |  |  |
 | V12 | P2D | Rustup, Playwright, Bun caches hit | CI timings | Verified |  | Pending |  |  |  |
-| V13 | P1F | Firefox smoke passes; Chromium full suite passes | Cross-browser job | Pass |  | Pending |  |  |  |
+| V13 | P1F | Firefox smoke passes; Chromium full suite passes | Cross-browser job | Pass | verified locally | Pass |  |  |  |
 | V14 | P2E | Thin image assembly; release critical path 6–8 min | Release timing | Verified |  | Pending |  |  |  |
 | V15 | P2F | sccache improves or is reverted | Two runs; hit rate | Verified/reverted |  | Pending |  |  |  |
 | V16 | P2G | Split/shard beats one cached job or is reverted | A/B timing | Verified/reverted |  | Pending |  |  |  |
@@ -137,8 +137,8 @@ A missing or mismatched artifact fails the release. There is no silent rebuild.
 | V26 | P4C–P4D | Only retired/duplicated tests removed; time measured | Deletion batches; approval | Pass |  | Pending |  |  |  |
 | V27 | P5A | Final gate, web check/build/e2e, cross-browser | `gate.sh`; `bun`; cross-browser | Pass |  | Pending |  |  |  |
 | V28 | P6E | Issues, board, worktrees, branches closed | `gh`; `git worktree list`; `git branch -a` | Pass |  | Pending |  |  |  |
-| V29 | P1E | CLI source-build path preserved and documented; no installer | `cargo build --release -p quantrule-shell`; docs | Pass |  | Pending |  |  |  |
-| V30 | P1E | Client surface is browser GUI + terminal CLI; no browser console, no desktop app | Architecture docs; command surface; workflow diff | Matches GitHub model |  | Pending |  |  |  |
+| V29 | P1E | CLI source-build path preserved and documented; no installer | `cargo build --release -p quantrule-shell`; docs | Pass | verified locally | Pass |  |  |  |
+| V30 | P1E | Client surface is browser GUI + terminal CLI; no browser console, no desktop app | Architecture docs; command surface; workflow diff | Matches GitHub model | verified locally | Pass |  |  |  |
 | V31 | P6A–P6B | Version 1.5.0, changelog, and release note present | `Cargo.toml`; `Cargo.lock`; `apps/web/package.json`; `CHANGELOG.md`; release note | Consistent |  | Pending |  |  |  |
 | V32 | P6C–P6D | Annotated v1.5.0 on main; Linux/Windows CLI matrix pass; image-only release; `/version` 1.5.0; `/health` digest; no desktop assets | `git cat-file`; `gh release view`; `/version`; `/health` | Pass |  | Pending |  |  |  |
 | V33 | P6E | Board Done, worktree and local/remote branches removed | `gh`; `git worktree list`; `git branch -a` | Pass |  | Pending |  |  |  |
