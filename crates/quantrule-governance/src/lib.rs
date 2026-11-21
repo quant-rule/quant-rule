@@ -15,6 +15,7 @@ pub mod manifest;
 pub mod registry;
 pub mod release;
 pub mod report;
+pub mod research;
 pub mod structure;
 pub mod verification;
 pub mod worktree;
