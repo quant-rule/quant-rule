@@ -138,3 +138,13 @@ test is deleted without a replacement or human approval.
 | Run Windows/macOS CLI jobs on every PR | Rejected; Linux every PR, Windows at release, macOS unsupported |
 | Rely on Docker layer cache for a sub-10 release | Rejected; build binaries once on main |
 | Use a 10-minute release timeout | Rejected; 15-minute release timeout, 6–8 target |
+
+
+## Research stack retirement
+
+- Decision: retire the historical Python research stack (human-approved option A).
+- Deleted: every Python file under `tools/research/`, including the M2.x–M4.x program/coverage/cell/batch/report runners, grid builders, edge diagnostics, fixtures, and tests.
+- CI: removed the research compile, unittest, `program.py --check`, and `coverage.py` steps.
+- Current path: `qr-governance research program|batch|cell|registry|report` and `qr-governance improvement model-cell`.
+- Records: `config/research/`, `docs/improvement/`, and Git history remain the audit trail. Broken links in historical records were converted to plain path references.
+- Verification: `qr-governance check --all`, `bash tools/checkers.sh`, `cargo test -p quantrule-governance`, and the remaining improvement Python tests pass.

@@ -3,7 +3,7 @@
 - Date: 2026-11-10 (UTC)
 - Status: **Complete — no positive raw edge; stop the EMA/Fibonacci line**
 - Scope: `strategy_dev` 2018-01-01..2022-12-31 only; 2024 closed
-- Tool: [`tools/research/raw_edge.py`](../../../tools/research/raw_edge.py)
+- Tool: `tools/research/raw_edge.py` (retired)
 - Output: `data/improvement/2026-11-10/SR11/raw-edge/`
 - Claim type: diagnostic; not a strategy result.
 
