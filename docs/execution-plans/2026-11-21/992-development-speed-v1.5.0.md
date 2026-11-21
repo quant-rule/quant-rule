@@ -159,7 +159,7 @@ saving. A future batch needs a named retired behavior and human approval.
 | V25 | P4A | Per-test timing and classification recorded | nextest report; audit table | Pass |  | Pass |  | 2026-11-21 | 2,322 tests, 138.23s serial / 22.69s parallel; report below |
 | V26 | P4C–P4D | Only retired/duplicated tests removed; time measured | Deletion batches; approval | Pass |  | Pass |  | 2026-11-21 | no deletion: no candidate met the criteria; 0s claimed |
 | V27 | P5A | Final gate, web check/build/e2e, cross-browser | `gate.sh`; `bun`; cross-browser | Pass |  | Pass |  | 2026-11-21 | gate twice (once with failing Python shims), 158 unit, 57 Chromium, 57 Firefox |
-| V28 | P6E | Issues, board, worktrees, branches closed | `gh`; `git worktree list`; `git branch -a` | Pass |  | Pending |  |  |  |
+| V28 | P6E | Issues, board, worktrees, branches closed | `gh`; `git worktree list`; `git branch -a` | Pass |  | Pass |  | 2026-11-22 | #992–#1031 Done and closed; only `main` remains |
 | V29 | P1E | CLI source-build path preserved and documented; no installer | `cargo build --release -p quantrule-shell`; docs | Pass | verified locally | Pass |  | 2026-11-21 | documented; built by the release CLI job |
 | V30 | P1E | Client surface is browser GUI + terminal CLI; no browser console, no desktop app | Architecture docs; command surface; workflow diff | Matches GitHub model | verified locally | Pass |  |  |  |
 | V31 | P6A–P6B | Version 1.5.1, changelog, and release note present | `Cargo.toml`; `Cargo.lock`; `apps/web/package.json`; `CHANGELOG.md`; release note | Consistent |  | Pass |  | 2026-11-21 | v1.5.0 withdrawn; v1.5.1 supersedes |

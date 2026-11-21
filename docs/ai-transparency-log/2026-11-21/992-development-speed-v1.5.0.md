@@ -202,3 +202,10 @@ test is deleted without a replacement or human approval.
 - The release workflow succeeded: [run 44959071714](https://github.com/quant-rule/quant-rule/actions/runs/44959071714), image digest `sha256:0100ac679b968111003206f2d7351424cf05a51411e0f491e4281042f680eb5c`.
 - The Windows CLI job passed with the blocking accepted-socket fix; the browser, CLI Linux, image, composed suite, and publish jobs passed.
 - Release: <https://github.com/quant-rule/quant-rule/releases/tag/v1.5.2>.
+
+## Final records and cleanup
+
+- Board: #992–#1031 are Done and closed; the Closed date is 2026-11-22 UTC.
+- Worktrees: only the project directory remains. Every task worktree was checked with `qr-governance worktree check` before removal.
+- Branches: every task branch was deleted locally and remotely.
+- Release: v1.5.2 is published; v1.5.0 and v1.5.1 are withdrawn tags with notes that record the supersession.
