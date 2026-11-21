@@ -15,4 +15,5 @@ pub mod registry;
 pub mod release;
 pub mod report;
 pub mod structure;
+pub mod verification;
 pub mod worktree;

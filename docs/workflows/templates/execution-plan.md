@@ -65,7 +65,7 @@ test binary can carry another worktree's absolute paths and fail a correct tree.
 | ID | Plan item | Acceptance criterion | Evidence / command | Expected | Observed | Status | Reviewer | Date | Notes |
 |---|---|---|---|---|---|---|---|---|---|
 | V1 | Phase 1 / <artifact> | <criterion> | `<command>` | <expected> |  |  |  |  |  |
-| V2 | Closure / worktree and branch cleanup | Worktree and branches removed; the `Done` board item remains | `python3 tools/worktree_cleanup.py check <worktree>` | check passes; board item present |  |  |  |  |  |
+| V2 | Closure / worktree and branch cleanup | Worktree and branches removed; the `Done` board item remains | `qr-governance worktree check <worktree>` | check passes; board item present |  |  |  |  |  |
 
 ## Related documents
 

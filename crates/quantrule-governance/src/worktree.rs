@@ -760,6 +760,35 @@ mod tests {
         assert_eq!(fs::read_to_string(archived).expect("read"), "keep me\n");
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn a_failed_archive_leaves_the_worktree_in_place() {
+        use std::os::unix::fs::symlink;
+        let root = TempRoot::new("failed-archive");
+        let repo = repo(&root.0);
+        let worktree = worktree(&repo, &root.0);
+        symlink(worktree.join("data/missing"), worktree.join("data/broken")).expect("symlink");
+        assert!(
+            remove(
+                &worktree,
+                "feat/task",
+                &root.0.join("archive"),
+                "main",
+                None,
+                true,
+            )
+            .is_err()
+        );
+        assert!(worktree.is_dir());
+        let branches = Command::new("git")
+            .arg("-C")
+            .arg(&repo)
+            .args(["branch", "--list", "feat/task"])
+            .output()
+            .expect("git");
+        assert!(!String::from_utf8_lossy(&branches.stdout).trim().is_empty());
+    }
+
     #[test]
     fn a_tampered_archive_is_refused() {
         let root = TempRoot::new("tampered");

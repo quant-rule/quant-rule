@@ -65,6 +65,10 @@ test is deleted without a replacement or human approval.
 | `qr-governance labels generate` | PASS; matches `generate_labels.py` |
 | `qr-governance labels generate --write` | PASS; only the command line in the generated header changed |
 | `qr-governance guard python` | PASS; matches `check_python.py` |
+| `python3 tools/build_verification.py --write` (repaired) | PASS; byte-identical to the committed manifest and both matrices |
+| `qr-governance verification build` | PASS; byte-identical to the committed manifest and both matrices |
+| `cargo test -p quantrule-governance verification` | PASS; golden reproduction test |
+| Deleted `tools/build_verification.py`, `tools/worktree_cleanup.py`, `tools/test_worktree_cleanup.py` | PASS; Rust ports and tests remain |
 
 ## Learning
 
@@ -78,9 +82,9 @@ test is deleted without a replacement or human approval.
 - Removing SQLite required deleting its conformance and migration tests; the
   memory/Postgres conformance suites remain. The post-retirement coverage map is
   still a P1D deliverable.
-- Zero Python is in progress: all 26 `qr-governance check` checkers are ported and match the Python oracles. Worktree cleanup, label generation, and the Python guard are now Rust; the verification builder is blocked because its Python source is stale. Research tools, historical deletion, and the policy cutover remain.
+- Zero Python is in progress: all 26 `qr-governance check` checkers, worktree cleanup, label generation, the Python guard, and the verification builder are Rust. Research tools, historical deletion, and the policy cutover remain.
 
-**Blocked: verification builder.** `python3 tools/build_verification.py --write` does not reproduce the committed `docs/registry/verification.json`. It rewrites 529 lines, regresses the manifest version from `2026-11-10.2` to `2026-11-06.2`, changes 30 of 49 indicator entries and all 150 event entries, and rewrites both matrices. The committed manifest carries newer evidence, for example four `edge_cases` proofs on `rvol` and per-row event contracts, while the builder still emits family tests. Commits after `7dadbef0` updated the manifest and `check_verification.py` without updating the builder (for example `685a52d2`). Porting the builder as written would regress the accepted evidence map, so the port is stopped and the committed manifest is untouched.
+**Verification builder repaired.** The committed manifest's newer evidence is now explicit in the builder as reviewed maps: the shared extended-edge suite, three availability anchors, two formula extensions, the retest golden, and the two sequence-availability rows. The repaired Python builder reproduced the committed manifest and both matrices exactly; the Rust port reproduces them byte for byte. The stale Python builder and the worktree cleanup tool and test are deleted. This closes the stop condition without changing the accepted evidence map.
 - The build-once release artifact is implemented; the v1.5.0 tag remains pending.
 
 ## Rejected or corrected suggestions
