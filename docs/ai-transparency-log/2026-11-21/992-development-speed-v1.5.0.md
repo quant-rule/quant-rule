@@ -92,6 +92,9 @@ test is deleted without a replacement or human approval.
 | `research::stats` parity | PASS; Wichura inverse-normal z-scores match CPython to 1e-15 |
 | `cargo test -p quantrule-governance research` | PASS; 7 tests |
 | `research::eval` cluster/control helpers | PASS; cluster, percentile, control-p, and z tests |
+| `qr-governance improvement path-validation` parity | PASS; JSON structurally equal, Markdown byte-identical, event signatures equal |
+| `cargo test -p quantrule-governance path_validation` | PASS; 4 primitive tests |
+| `path_validation.py` retained | Pending `model_prediction` switch to the Rust harness |
 
 ## Learning
 
