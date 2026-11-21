@@ -148,3 +148,12 @@ test is deleted without a replacement or human approval.
 - Current path: `qr-governance research program|batch|cell|registry|report` and `qr-governance improvement model-cell`.
 - Records: `config/research/`, `docs/improvement/`, and Git history remain the audit trail. Broken links in historical records were converted to plain path references.
 - Verification: `qr-governance check --all`, `bash tools/checkers.sh`, `cargo test -p quantrule-governance`, and the remaining improvement Python tests pass.
+
+## Improvement stack retirement
+
+- Decision: retire the historical Python improvement stack after every live caller moved to `qr-governance improvement`.
+- Deleted: 23 Python files under `tools/improvement/` (`common.py`, the confidence, claim-validation, count, matrix, archive, and SR2 audit scripts, and their tests).
+- CI: removed the improvement compile and unittest steps.
+- Current path: `qr-governance improvement feasibility|evidence|index|run-current|validate|model-condition|model-path|path-validation|model-prediction|model-cell|cleanup`.
+- Records: `data/improvement/`, `docs/improvement/`, and Git history remain the audit trail. Historical records that linked deleted files now use plain path references.
+- Verification: `qr-governance check --all` (26 checkers), `bash tools/checkers.sh`, `cargo test -p quantrule-governance` (91 unit + 5 history), and `python3 -m py_compile tools/*.py` pass.

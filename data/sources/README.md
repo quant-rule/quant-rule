@@ -7,7 +7,7 @@ repository.
   `BTCUSD_M1_2024-01-01_2024-12-31.csv`.
 - Produced by: `quantrule fetch <symbol> <start> <end>`.
 - The Dukascopy historical archive is rebuilt with
-  `tools/improvement/dukascopy_archive.py` when the chart endpoint is
+  the retired Dukascopy archive tool (Git history) when the chart endpoint is
   incomplete. The archive can emit flat zero-volume candles for minutes without
   ticks; check its `flat_zero` and coverage output before admitting a file. The
   2023 archive was rejected for this reason; see

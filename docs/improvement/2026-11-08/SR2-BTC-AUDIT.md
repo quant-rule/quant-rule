@@ -186,5 +186,5 @@ for accepting the next run.
 - [Parent SR2 record](STRATEGY-2026-11-08-02-sr2-dual.md)
 - [Plan](../../execution-plans/2026-11-08/sr2-btc-audit.md)
 - [AI transparency log](../../ai-transparency-log/2026-11-08/sr2-btc-audit.md)
-- [Audit tool](../../../tools/improvement/sr2_btc_audit.py)
+- Audit tool: `tools/improvement/sr2_btc_audit.py` (retired; Git history)
 - Local artifacts: `data/improvement/2026-11-08/SR2-BTC-AUDIT/`
