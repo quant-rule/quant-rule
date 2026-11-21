@@ -10,9 +10,11 @@ pub mod changelog;
 pub mod claims;
 pub mod doc_length;
 pub mod event_emitters;
+pub mod execution_plans;
 pub mod file_size;
 pub mod labels;
 pub mod links;
+pub mod partitions;
 pub mod py_guard;
 pub mod release_audit;
 pub mod verification_matrix;
@@ -61,12 +63,20 @@ pub const CHECKERS: &[Checker] = &[
         run: event_emitters::check,
     },
     Checker {
+        name: "execution-plans",
+        run: execution_plans::check,
+    },
+    Checker {
         name: "labels",
         run: labels::check,
     },
     Checker {
         name: "links",
         run: links::check,
+    },
+    Checker {
+        name: "partitions",
+        run: partitions::check,
     },
     Checker {
         name: "py-guard",
