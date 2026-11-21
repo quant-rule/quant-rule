@@ -140,7 +140,9 @@ fn problems(text: &str) -> Vec<String> {
     if !image.contains("Dockerfile.release") {
         found.push("the image job does not use Dockerfile.release".to_owned());
     }
-    if !image.contains("gh run download") || !image.contains("release-binaries-$GITHUB_SHA") {
+    if !image.contains("gh run download")
+        || !image.contains("release-binaries-${{ needs.gate.outputs.commit }}")
+    {
         found.push("the image job does not download the exact-SHA release binaries".to_owned());
     }
     if image.contains("cargo build") {
@@ -246,6 +248,19 @@ fn a_missing_quality_job_is_reported() {
         problems(&seeded)
             .iter()
             .any(|problem| problem.contains("quality job is missing"))
+    );
+}
+
+#[test]
+fn the_release_commit_is_resolved_after_checkout() {
+    let text = workflow();
+    assert!(
+        text.contains("- name: Resolve the release commit") && text.contains("git rev-parse HEAD"),
+        "the gate must resolve the checked-out tag commit, not the dispatch ref"
+    );
+    assert!(
+        text.contains("gh run list") && text.contains("steps.commit.outputs.sha"),
+        "the CI lookup must use the resolved release commit"
     );
 }
 
