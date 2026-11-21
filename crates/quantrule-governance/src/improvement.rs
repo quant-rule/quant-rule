@@ -6,7 +6,11 @@ use std::process::ExitCode;
 mod cleanup;
 mod evidence;
 mod feasibility;
+mod index;
+mod manifest;
 mod report;
+mod run_current;
+mod store;
 
 /// Run `qr-governance improvement`.
 ///
@@ -25,6 +29,9 @@ pub fn run(args: &[String]) -> ExitCode {
     match command {
         "feasibility" => feasibility_command(&args[1..]),
         "evidence" => evidence_command(&args[1..]),
+        "index" => index_command(&args[1..]),
+        "run-current" => run_current_command(&args[1..]),
+        "validate" => validate_command(&args[1..]),
         "cleanup" => cleanup_command(&args[1..]),
         other => {
             eprintln!("error: unknown improvement command {other}");
@@ -129,6 +136,143 @@ fn evidence_command(args: &[String]) -> ExitCode {
         return ExitCode::FAILURE;
     };
     match evidence::run(Path::new(run_dir)) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(error) => {
+            eprintln!("error: {error}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+fn index_command(args: &[String]) -> ExitCode {
+    let mut root = None;
+    let mut repo_root = Path::new(".").to_path_buf();
+    let mut index = 0;
+    while index < args.len() {
+        match args[index].as_str() {
+            "--root" => {
+                let Some(value) = value(args, &mut index, "--root") else {
+                    return ExitCode::from(2);
+                };
+                root = Some(Path::new(&value).to_path_buf());
+            }
+            "--repo-root" => {
+                let Some(value) = value(args, &mut index, "--repo-root") else {
+                    return ExitCode::from(2);
+                };
+                repo_root = Path::new(&value).to_path_buf();
+            }
+            other => {
+                eprintln!("error: unknown argument {other}");
+                return ExitCode::from(2);
+            }
+        }
+        index += 1;
+    }
+    let Some(root) = root else {
+        eprintln!("error: index needs --root");
+        return ExitCode::from(2);
+    };
+    match index::build(&root, &repo_root) {
+        Ok(count) => {
+            println!("indexed {count} run(s) from {}", root.display());
+            ExitCode::SUCCESS
+        }
+        Err(error) => {
+            eprintln!("error: {error}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+fn validate_command(args: &[String]) -> ExitCode {
+    let Some(manifest_path) = args.first() else {
+        eprintln!("error: validate needs a manifest path");
+        return ExitCode::from(2);
+    };
+    let mut repo_root = Path::new(".").to_path_buf();
+    let mut index = 1;
+    while index < args.len() {
+        match args[index].as_str() {
+            "--repo-root" => {
+                let Some(value) = value(args, &mut index, "--repo-root") else {
+                    return ExitCode::from(2);
+                };
+                repo_root = Path::new(&value).to_path_buf();
+            }
+            other => {
+                eprintln!("error: unknown argument {other}");
+                return ExitCode::from(2);
+            }
+        }
+        index += 1;
+    }
+    let path = Path::new(manifest_path);
+    if !path.is_file() {
+        eprintln!("error: manifest not found: {}", path.display());
+        return ExitCode::FAILURE;
+    }
+    let manifest = match store::read_json(path) {
+        Ok(value) => value,
+        Err(error) => {
+            eprintln!("error: {error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let errors = manifest::validate(&manifest, &repo_root);
+    if !errors.is_empty() {
+        for error in errors {
+            eprintln!("error: {error}");
+        }
+        return ExitCode::FAILURE;
+    }
+    let run_id = manifest
+        .get("run_id")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("");
+    println!("ok {run_id}");
+    ExitCode::SUCCESS
+}
+
+fn run_current_command(args: &[String]) -> ExitCode {
+    let Some(manifest_path) = args.first() else {
+        eprintln!("error: run-current needs a manifest path");
+        return ExitCode::from(2);
+    };
+    let mut qr = run_current::default_shell().display().to_string();
+    let mut repo_root = Path::new(".").to_path_buf();
+    let mut store_root = None;
+    let mut index = 1;
+    while index < args.len() {
+        match args[index].as_str() {
+            "--qr" => {
+                let Some(value) = value(args, &mut index, "--qr") else {
+                    return ExitCode::from(2);
+                };
+                qr = value;
+            }
+            "--repo-root" => {
+                let Some(value) = value(args, &mut index, "--repo-root") else {
+                    return ExitCode::from(2);
+                };
+                repo_root = Path::new(&value).to_path_buf();
+            }
+            "--store-root" => {
+                let Some(value) = value(args, &mut index, "--store-root") else {
+                    return ExitCode::from(2);
+                };
+                store_root = Some(Path::new(&value).to_path_buf());
+            }
+            other => {
+                eprintln!("error: unknown argument {other}");
+                return ExitCode::from(2);
+            }
+        }
+        index += 1;
+    }
+    let repo_root = repo_root.canonicalize().unwrap_or(repo_root);
+    let store_root = store_root.unwrap_or_else(|| repo_root.join("data/improvement"));
+    match run_current::run(Path::new(manifest_path), &qr, &repo_root, &store_root) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
             eprintln!("error: {error}");

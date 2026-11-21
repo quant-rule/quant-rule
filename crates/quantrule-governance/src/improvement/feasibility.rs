@@ -784,7 +784,7 @@ fn parse_date(value: &Value, path: &str) -> Result<i64, String> {
     parse_date_text(text).ok_or_else(|| format!("{path} is not a valid date: {text:?}"))
 }
 
-fn parse_date_text(text: &str) -> Option<i64> {
+pub(super) fn parse_date_text(text: &str) -> Option<i64> {
     if text.len() != 10 {
         return None;
     }
@@ -824,7 +824,7 @@ fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
     era * 146_097 + day_of_era - 719_468
 }
 
-fn parse_timestamp(text: &str) -> Result<i64, ()> {
+pub(super) fn parse_timestamp(text: &str) -> Result<i64, ()> {
     let (date, rest) = text
         .split_once('T')
         .or_else(|| text.split_once(' '))

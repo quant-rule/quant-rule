@@ -32,19 +32,19 @@ two-digit sequence within that date and tier. The partition names come from
 `data/partitions.json`.
 
 A manifest follows `quantrule.improvement-run/v1` and is validated by
-`tools/improvement/validate.py`. The changed tier must match the run tier and
+`qr-governance improvement validate`. The changed tier must match the run tier and
 must not appear in the frozen list. A development partition must record
 `holdout_access: none`; `portfolio_holdout` must record `final`.
 
 ## Lifecycle
 
-1. `validate.py` accepts the manifest.
+1. `qr-governance improvement validate` accepts the manifest.
 2. `run.py` refuses a non-empty run folder, copies provenance, runs the shell,
    and writes `results.json`.
 3. `qr-governance improvement evidence` extracts the published numbers into `artifacts/evidence.json`.
 4. The reviewer completes `review.md` and `decision.md`; the verdict starts as
    `pending` and is replaced deliberately.
-5. `index.py` rebuilds `index.json` and `index.md` from the manifests.
+5. `qr-governance improvement index` rebuilds `index.json` and `index.md` from the manifests.
 
 ## Index order
 
@@ -52,6 +52,6 @@ Rows sort by date directory, then tier (`model`, `strategy`, `portfolio`), then
 run id. Both index files are generated from the same rows, so a rerun over the
 same tree is byte-identical. The index never edits a manifest.
 
-`docs/improvement/index.md` is the committed snapshot. `index.py` writes the local
+`docs/improvement/index.md` is the committed snapshot. `qr-governance improvement index` writes the local
 `data/improvement/index.md`; copying the snapshot into `docs/` is a separate
 committed step.

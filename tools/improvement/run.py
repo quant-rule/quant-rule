@@ -486,7 +486,20 @@ def main(argv: list[str] | None = None) -> int:
     try:
         INDEX_ROOT.mkdir(parents=True, exist_ok=True)
         index = run_process(
-            [sys.executable, str(IMPROVEMENT_DIR / "index.py"), "--root", str(INDEX_ROOT)],
+            [
+                "cargo",
+                "run",
+                "-q",
+                "-p",
+                "quantrule-governance",
+                "--",
+                "improvement",
+                "index",
+                "--root",
+                str(INDEX_ROOT),
+                "--repo-root",
+                str(REPO_ROOT),
+            ],
             REPO_ROOT,
         )
     except ToolError as error:

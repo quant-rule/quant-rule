@@ -1,11 +1,11 @@
 # Improvement tooling
 
-> Status: the manifest schema is current. `run_current.py` and `run.py` are
-> historical adapters for the retired local stage commands and are retained for
-> reproducing pre-cutover runs. The current execution path is the gateway
-> `run submit` / `run status` / `run fetch`; a gateway-backed run-store adapter
-> is not yet specified. The manifest schema is `quantrule.improvement-run/v2`;
-> v1 is historical and is rejected for a new run.
+> Status: the manifest schema is current. `run.py` is a historical adapter for
+> the retired local stage commands and is retained for reproducing pre-cutover
+> runs. The current execution path is the gateway `run submit` / `run status` /
+> `run fetch`; `qr-governance improvement run-current` records the stage-command
+> path used before the gateway adapter is specified. The manifest schema is
+> `quantrule.improvement-run/v2`; v1 is historical and is rejected for a new run.
 
 Python 3 standard-library tooling for the improvement run store. The scripts are
 offline and deterministic: they never read the wall clock, never use randomness,
@@ -14,9 +14,9 @@ shell submits and fetches the gateway run.
 
 | Script | Purpose |
 |---|---|
-| `validate.py <manifest>` | Check a `quantrule.improvement-run/v2` manifest |
-| `index.py --root data/improvement` | Rebuild `index.json` and `index.md` from run manifests |
-| `run_current.py <manifest> [--qr PATH]` | Historical adapter for the retired local stage commands; retained for reproducing pre-cutover runs |
+| `qr-governance improvement validate <manifest>` | Check a `quantrule.improvement-run/v2` manifest |
+| `qr-governance improvement index --root data/improvement` | Rebuild `index.json` and `index.md` from run manifests |
+| `qr-governance improvement run-current <manifest> [--qr PATH]` | Execute the stage-command run path and record its results |
 | `run.py <manifest> [--qr PATH]` | Historical adapter for the retired `backtest` command; retained for reproducibility only |
 | `qr-governance improvement feasibility --strategy ... --data ... --cost-bps ...` | Deterministic preflight: reject a hypothesis whose target is below its round-trip cost or whose breakeven win rate exceeds 50%, and any timeframe above 1 hour |
 | `dukascopy_archive.py --symbol ... --year ... --out ...` | Rebuild a one-minute CSV from the Dukascopy historical archive; reports full hours and flat zero-volume placeholders so row coverage is not mistaken for market coverage |
