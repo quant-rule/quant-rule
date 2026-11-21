@@ -9,5 +9,6 @@ pub mod check;
 pub mod checks;
 pub mod history;
 pub mod manifest;
+pub mod registry;
 pub mod release;
 pub mod report;
