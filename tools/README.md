@@ -44,8 +44,8 @@ product image, and never reads a service.
 
 The historical experiment matrix runner and research model-cell runner are
 retained for reproducibility and are not current tools. The improvement run store
-retains its historical `run.py` adapter for reproducing pre-cutover runs; the
-current run-store commands are `qr-governance improvement`. The boundary is recorded in
+deleted the historical `run.py` adapter; the run-store commands are
+`qr-governance improvement`. Git history is the recovery path. The boundary is recorded in
 [`tools/improvement/README.md`](../tools/improvement/README.md),
 [`tools/experiment/README.md`](../tools/experiment/README.md), and
 [`tools/research/README.md`](../tools/research/README.md).

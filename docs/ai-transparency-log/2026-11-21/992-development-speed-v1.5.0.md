@@ -81,6 +81,8 @@ test is deleted without a replacement or human approval.
 | `qr-governance improvement run-current` parity | PASS; results, templates, sources, and normalized output equal (fake shell fixture) |
 | `cargo test -p quantrule-governance improvement` | PASS; 20 tests |
 | Deleted `run_current.py`, `test_run_current.py`, `index.py`, `validate.py` | PASS; Rust commands and tests remain; `run.py` refreshes through the Rust index |
+| Deleted the historical `run.py` adapter | PASS; it targets retired commands; Git history is the recovery path |
+| Full checker gate after the deletion | PASS; 26 checkers and their tests |
 
 ## Learning
 
@@ -94,7 +96,9 @@ test is deleted without a replacement or human approval.
 - Removing SQLite required deleting its conformance and migration tests; the
   memory/Postgres conformance suites remain. The post-retirement coverage map is
   still a P1D deliverable.
-- Zero Python is in progress: all 26 `qr-governance check` checkers, worktree cleanup, label generation, the Python guard, the verification builder, the feasibility preflight, and the improvement cleanup scan are Rust. The improvement run store (`validate`, `index`, `run-current`) is Rust. The historical `run.py` adapter and its shared `common.py`, research tools, historical deletion, and the policy cutover remain. `run.py` still has modes that invoke historical Python tools, so its final classification needs a decision before those tools are deleted.
+- Zero Python is in progress: all 26 `qr-governance check` checkers, worktree cleanup, label generation, the Python guard, the verification builder, the feasibility preflight, and the improvement cleanup scan are Rust. The improvement run store (`validate`, `index`, `run-current`) is Rust; the historical `run.py` adapter is deleted. Research tools, the remaining shared `common.py`, historical deletion, and the policy cutover remain.
+
+**Dependency found during the `run.py` deletion.** The live research tools still name historical improvement evaluators as defaults: `tools/research/model_cell.py` defaults to `tools/improvement/model_prediction.py`, `model_condition.py`, and `model_path.py`, and `tools/research/adapters.py` describes their output. Those evaluators cannot be deleted until the research `model_cell` path is ported or its evaluator modes are reclassified. This is recorded for the research batch.
 
 **Verification builder repaired.** The committed manifest's newer evidence is now explicit in the builder as reviewed maps: the shared extended-edge suite, three availability anchors, two formula extensions, the retest golden, and the two sequence-availability rows. The repaired Python builder reproduced the committed manifest and both matrices exactly; the Rust port reproduces them byte for byte. The stale Python builder and the worktree cleanup tool and test are deleted. This closes the stop condition without changing the accepted evidence map.
 - The build-once release artifact is implemented; the v1.5.0 tag remains pending.

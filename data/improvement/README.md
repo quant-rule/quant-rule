@@ -9,7 +9,7 @@ data/improvement/
   index.md
   <YYYY-MM-DD>/
     <RUN-ID>/
-      manifest.json       the run contract, copied unchanged by run.py
+      manifest.json       the run contract, copied unchanged by the run adapter
       config/             copied run config and sibling JSON files
         sources.json      source paths and copy status
       artifacts/          shell bundles, then evidence.json
@@ -39,7 +39,7 @@ must not appear in the frozen list. A development partition must record
 ## Lifecycle
 
 1. `qr-governance improvement validate` accepts the manifest.
-2. `run.py` refuses a non-empty run folder, copies provenance, runs the shell,
+2. `qr-governance improvement run-current` refuses a non-empty run folder, copies provenance, runs the shell,
    and writes `results.json`.
 3. `qr-governance improvement evidence` extracts the published numbers into `artifacts/evidence.json`.
 4. The reviewer completes `review.md` and `decision.md`; the verdict starts as
