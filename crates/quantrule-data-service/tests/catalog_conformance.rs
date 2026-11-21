@@ -1,9 +1,8 @@
 //! The shared `DatasetCatalog` and `ConfigCatalog` conformance suite.
 //!
-//! The same body runs against the in-memory stores, the SQLite stores, and —
-//! when `QR_TEST_DATABASE_URL` names a disposable Postgres — the Postgres
-//! stores. The fast tier runs the first two; the Postgres case is opt-in
-//! because it needs a live server. The suite asserts the store contract, not a
+//! The same body runs against the in-memory stores and, when
+//! `QR_TEST_DATABASE_URL` names a disposable Postgres, the Postgres stores. The
+//! Postgres case is opt-in because it needs a live server. The suite asserts the store contract, not a
 //! SQL dialect: round-trip, duplicate, profile scope, shared content, ordering,
 //! and the stored quality/files documents.
 
@@ -15,14 +14,12 @@ use quantrule_api::{
 };
 use quantrule_data_service::migrations;
 use quantrule_data_service::postgres::{PgConfigStore, PgDatasetCatalog};
-use quantrule_data_service::sqlite::{SqliteConfigStore, SqliteDatasetCatalog};
 use quantrule_data_service::{
     CatalogError, ConfigCatalog, ConfigRecord, DatasetCatalog, MemoryCatalog, MemoryConfigs,
 };
 use quantrule_runtime::adapters::postgres::{
     PgDatabase, apply_migrations_in as apply_postgres_migrations,
 };
-use quantrule_runtime::adapters::sqlite::{SqliteDatabase, apply_migrations_in};
 
 fn profile(name: &str) -> ProfileId {
     ProfileId::parse(name).expect("the profile id")
@@ -443,21 +440,6 @@ async fn config_conformance(store: &dyn ConfigCatalog) {
 async fn the_memory_stores_conform() {
     dataset_conformance(&MemoryCatalog::default()).await;
     config_conformance(&MemoryConfigs::default()).await;
-}
-
-async fn sqlite_database() -> SqliteDatabase {
-    let database = SqliteDatabase::open_in_memory().expect("the database opens");
-    apply_migrations_in(&database, "catalog", &migrations::sqlite())
-        .await
-        .expect("the catalog baseline");
-    database
-}
-
-#[tokio::test]
-async fn the_sqlite_stores_conform() {
-    let database = sqlite_database().await;
-    dataset_conformance(&SqliteDatasetCatalog::new(database.clone())).await;
-    config_conformance(&SqliteConfigStore::new(database)).await;
 }
 
 #[tokio::test]

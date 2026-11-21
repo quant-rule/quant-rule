@@ -16,7 +16,6 @@ pub mod migrations;
 pub mod postgres;
 pub mod routes;
 mod rows;
-pub mod sqlite;
 pub mod state;
 pub mod tolerant;
 pub mod upload;

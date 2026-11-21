@@ -378,12 +378,6 @@ produced by submitting a pipeline run:
 | `image_digest` | reported by `/health` and recorded in provenance |
 | `canonical_digest` | returned by `GET /runs/{id}/digest` |
 
-A desktop package has no container image. Its supervisor exports the SHA-256 of
-the six installed sidecars as `QR_IMAGE_DIGEST`, because a different package is a
-different execution even when its canonical artifacts match. An explicit
-`QR_IMAGE_DIGEST` wins, so the desktop/server parity harness can hold run identity
-constant.
-
 The v3 manifest keeps the hypothesis, tier, partition, changed/frozen split,
 green criteria, references, seed, and stop rule. It carries no local artifact
 path and no model measurement.

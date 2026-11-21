@@ -1,6 +1,6 @@
 //! The stored-row shapes the catalog repositories decode.
 //!
-//! Postgres and SQLite select the same columns in the same order, so the tuple
+//! Postgres selects the columns in this order, so the tuple
 //! and its decoder live here once. The position rule is the whole point: a
 //! swap makes a catalog read parse a timestamp as a quality report, and the
 //! regression test in `tests/d1.rs` fails loudly rather than silently. A

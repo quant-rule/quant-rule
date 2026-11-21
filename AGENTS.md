@@ -31,7 +31,7 @@ The deployment splits the system into two planes. The **data plane** is synchron
 
 - **THE RESEARCH PLANE.** `simulation` is a third plane: synchronous, interactive, and hindsight by design. It reads a recorded bundle and never computes a model; it never writes a run artifact; no strategy, execution, or portfolio code may read it; it has no `run_id`, no canonical digest, and no queue message. A simulation run records an inputs digest and no output digest, because human marks are judgment, not computation.
 
-- **BROWSER, SHELL, and DESKTOP — the clients.** The browser client is a Svelte single-page application served by the gateway. The command shell is an HTTP client with no engine dependency. The desktop shell is a Tauri window over the gateway URL that owns no IPC domain, reads no local file, and embeds no engine. All three own presentation only. The command set remains the stable agent interface. A capability that one client cannot reach is a parity gap, not a completed feature.
+- **BROWSER and SHELL — the clients.** The browser client is a Svelte single-page application served by the gateway. The command shell is an HTTP client with no engine dependency. Both own presentation only. The command set remains the stable agent interface. Windows and Linux are the supported browser and CLI platforms; macOS is unsupported in the next release. A capability that one client cannot reach is a parity gap, not a completed feature.
 
 Invariants that the pipeline depends on:
 

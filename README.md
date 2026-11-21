@@ -5,24 +5,17 @@ evidence — and keeps that evidence auditable after the client that submitted i
 has closed. It is candles-only, rule-based, and deterministic. There is no
 account, no cloud provider, and no live trading.
 
-> **Status.** The current release tag is **v1.4.2** (2026-11-20), the second
-> release recovery for the multi-host deployment: one `quantrule.deploy/v2` descriptor,
-> per-role Compose, `qr-deploy`, a private overlay with one public gateway, the
-> `QR_INTERNAL_ONLY` bind guard, backup/restore, and a local multi-host test
-> tier. The diagnostic stage surface, the v3 research ledger, the Operations
-> screen, the desktop installer, and the 14-chapter user manual remain current.
-> One image and six services serve the server profile; one installer starts the
-> same six sidecars on embedded SQLite, a filesystem CAS, and a durable
-> in-process queue for the desktop profile. The browser client, command shell,
-> and desktop shell share one `quantrule.api/v1` contract. **v1.4.1** and
-> **v1.4.0** are withdrawn because their release workflows failed; **v1.3.0**
-> is the last published release before them, the stage execution surface;
-> **v1.2.0** is the version-alignment release; **v1.1.0** is the 1.1.0
-> alignment release; **v1.0.0** is the desktop release. Current note:
+> **Status.** The current release tag is **v1.4.2** (2026-11-20). The next
+> next release retires the desktop distribution, removes Python
+> from the repository, and makes the browser and headless CLI the only clients.
+> One image and six services serve the server profile. Windows and Linux are the
+> supported browser and CLI platforms; macOS is unsupported in the next release. The
+> browser client and command shell share one `quantrule.api/v1` contract.
+> **v1.4.1** and **v1.4.0** are withdrawn because their release workflows failed;
+> **v1.3.0** is the stage execution surface; **v1.2.0** is the version-alignment
+> release; **v1.1.0** is the 1.1.0 alignment release; **v1.0.0** is the historical
+> desktop release. Current note:
 > [`docs/releases/2026-11-20/v1.4.2.md`](docs/releases/2026-11-20/v1.4.2.md);
-> withdrawn notes:
-> [`docs/releases/2026-11-20/v1.4.1.md`](docs/releases/2026-11-20/v1.4.1.md)
-> and [`docs/releases/2026-11-20/v1.4.0.md`](docs/releases/2026-11-20/v1.4.0.md);
 > mapping: [`docs/releases/README.md`](docs/releases/README.md). The
 > architecture is specified in
 > [`docs/architecture/`](docs/architecture/README.md).
@@ -56,7 +49,7 @@ make up
 QuantRule v1.4.2 ready → http://localhost:8080
 ```
 
-`make` is the Linux and macOS path. Windows runs the same Compose file directly,
+`make` is the Linux path. Windows runs the same Compose file directly,
 and make is optional there:
 
 ```powershell
@@ -125,26 +118,28 @@ Full deployment contract: [`docs/architecture/deployment.md`](docs/architecture/
 
 Full journey: [`docs/architecture/user-journey.md`](docs/architecture/user-journey.md).
 
-## Desktop
+## Clients and platforms
 
-A Tauri package is published from GitHub Releases. The desktop release is
-tagged `v1.0.0` (prepared as v1.1.0; the tag was renumbered on 2026-11-15) and
-adds a supervisor that starts the six bundled services on loopback with the
-embedded SQLite, filesystem CAS, and durable in-process queue. There is no
-Docker requirement, no engine in the shell, and no local data read by the shell;
-the server remains the same stack and the same HTTP contract. The packaged
-desktop profile and the server profile both reproduce canonical digest
-`sha256:a0372f02db7bc65460906eba3242943da8c56f26c46fde470726cee856bc4cea` for
-the verification fixture. The current release is `v1.4.2`; `v1.4.1` and `v1.4.0`
-are withdrawn, `v1.3.0` is the stage execution surface, `v1.2.0` is the version-alignment
-release, `v1.0.0` is the desktop release, and `v0.9.0` the distributed platform
-release.
-Linux installs the AppImage and a user-level `.desktop` entry so the app appears
-in Activities search; Windows installs the NSIS package. The step-by-step
-procedure is [user manual chapter 13](docs/manual/13-desktop.md), and the
-agent-assisted version is [`docs/manual/agent-runbook.md`](docs/manual/agent-runbook.md).
-Details: [`apps/desktop-shell/README.md`](apps/desktop-shell/README.md) and
-[ADR-12](docs/adr/2026-11-12/12-desktop-distribution.md).
+QuantRule has two clients and no desktop application:
+
+| Client | Windows | Linux | macOS |
+|---|---|---|---|
+| Browser GUI | Yes | Yes | **No** |
+| `quantrule` CLI | Yes | Yes | **No** |
+
+The browser is the human workstation. The CLI is the agent and automation
+client. Both reach the same gateway and hold no engine, database, or queue. There
+is no Tauri shell, AppImage, NSIS, EXE, MSI, deb, rpm, or dmg.
+
+Build the CLI from source:
+
+```bash
+cargo build --release -p quantrule-shell
+```
+
+A local server uses Docker or Podman Compose on Linux, or Docker Desktop on
+Windows. macOS is unsupported in the next release. The step-by-step procedure is
+[user manual chapter 13](docs/manual/13-client-access.md).
 
 ## The research loop
 

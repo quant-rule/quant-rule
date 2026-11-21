@@ -1,21 +1,18 @@
 //! The shared `ProfileStore` conformance suite.
 //!
-//! The same body runs against the in-memory store, the SQLite store, and — when
-//! `QR_TEST_DATABASE_URL` names a disposable Postgres — the Postgres store. The
-//! fast tier runs the first two; the Postgres case is opt-in because it needs a
-//! live server. The suite asserts the store contract, not a SQL dialect: create,
+//! The same body runs against the in-memory store and, when
+//! `QR_TEST_DATABASE_URL` names a disposable Postgres, the Postgres store. The
+//! Postgres case is opt-in because it needs a live server. The suite asserts the store contract, not a SQL dialect: create,
 //! duplicate, get, missing, and one ordered list.
 
 use std::collections::BTreeMap;
 
 use quantrule_api::ProfileId;
 use quantrule_gateway::adapters::postgres::PgProfileStore;
-use quantrule_gateway::adapters::sqlite::SqliteProfileStore;
 use quantrule_gateway::profile::{MemoryProfiles, ProfileError, ProfileRecord, ProfileStore};
 use quantrule_runtime::adapters::postgres::{
     PgDatabase, apply_migrations_in as apply_postgres_migrations,
 };
-use quantrule_runtime::adapters::sqlite::{SqliteDatabase, apply_migrations_in};
 
 fn record(id: &str) -> ProfileRecord {
     ProfileRecord {
@@ -72,20 +69,6 @@ async fn conformance(store: &dyn ProfileStore) {
 #[tokio::test]
 async fn the_memory_store_conforms() {
     conformance(&MemoryProfiles::default()).await;
-}
-
-#[tokio::test]
-async fn the_sqlite_store_conforms() {
-    let database = SqliteDatabase::open_in_memory().expect("the database opens");
-    apply_migrations_in(
-        &database,
-        "gateway",
-        &quantrule_gateway::migrations::sqlite(),
-    )
-    .await
-    .expect("the gateway baseline");
-    let store = SqliteProfileStore::new(database);
-    conformance(&store).await;
 }
 
 #[tokio::test]

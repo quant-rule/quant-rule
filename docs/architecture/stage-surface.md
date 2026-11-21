@@ -109,7 +109,7 @@ is covered by the worker's rejected-entry test.
 | Client | Target surface |
 |---|---|
 | Browser | **Workbench** with Data, Model, Strategy, Portfolio tabs; **Backtests** inbox and detail; **Research** records and decisions; **Operations** health, profiles, verification, retention |
-| Desktop | The same browser screens over the gateway URL; no engine and no local data |
+| CLI | The headless command client; no engine and no local data |
 | Shell | The command table above, one gateway call per command, `--profile`, `--token`, and `--json` |
 
 Every target screen and command must land in both clients in the same change. A

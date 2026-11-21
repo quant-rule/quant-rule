@@ -1,7 +1,7 @@
 //! The diagnostic stage store and its shared vocabulary.
 //!
 //! The trait is the boundary the evidence routes (#851) call. The memory
-//! implementation is the test double; the Postgres and SQLite implementations
+//! implementation is the test double; the Postgres implementation
 //! own the two production backends. Every implementation enforces the same
 //! rules: the id is content-derived, the input belongs to the kind, a stage is
 //! profile-scoped through a submission row, and only a running stage can finish.

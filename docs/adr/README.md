@@ -19,3 +19,7 @@ record keeps its path and gains a superseded status.
 | Trustworthy backtest kata and architecture characteristics | Accepted 2026-10-31 | `docs/adr/2026-10-31/adopt-architecture-baseline.md` |
 | One program, two first-class surfaces | Accepted 2026-11-11 | `docs/adr/2026-11-11/one-program-first-class-desktop.md` |
 | Stage execution and evidence boundary | Accepted 2026-11-16 | `docs/adr/2026-11-16/01-stage-execution-and-evidence-boundary.md` |
+| Retire the desktop distribution and embedded profile | Accepted 2026-11-21 | `docs/adr/2026-11-21/992-retire-desktop-distribution.md` |
+| Browser GUI and terminal CLI boundary | Accepted 2026-11-21 | `docs/adr/2026-11-21/992-browser-cli-boundary.md` |
+| Zero Python in the repository | Accepted 2026-11-21 | `docs/adr/2026-11-21/992-zero-python-governance.md` |
+| Build once, release fast, and time out safely | Accepted 2026-11-21 | `docs/adr/2026-11-21/992-ci-build-once-release.md` |

@@ -37,7 +37,7 @@ server profile.
 | Schema owners | `gateway`, `data` (catalog), `evidence` (runs and research), `simulation`; `model` and `backtest` own no schema | [services](../../architecture/services.md) section 1 |
 | SQLite precedent | The application memory was SQLite through bundled `rusqlite`, with `STRICT` tables, `PRAGMA user_version`, triggers, and deterministic ordering; the module was removed on 2026-11-16 (`AUD-2026-11-16-13`) | `crates/quantrule-app/src/memory/mod.rs` (historical) |
 | Backend selection | No profile selector; every service unconditionally connects Postgres, S3, and RabbitMQ | `crates/quantrule-runtime/src/config.rs`, service `main.rs` files |
-| Desktop shell | Tauri 2 window over the gateway; no IPC command, no plugin, no local file read, no engine; AppImage and NSIS matrix exists; artifacts unsigned | [desktop shell](../../../apps/desktop-shell/README.md) |
+| Desktop shell | Tauri 2 window over the gateway; no IPC command, no plugin, no local file read, no engine; AppImage and NSIS matrix exists; artifacts unsigned | [retired](../../adr/2026-11-21/992-retire-desktop-distribution.md) |
 | Test tiers | Fast gate wired; `tools/test_tiers.sh composed` exits 2 because the composed suite is not wired (#643/#644) | `tools/test_tiers.sh` |
 | Interpreter boundary | The image has no Python and no Bun runtime; source and image checks exist | `tools/check_python.py`, `docker/check-no-python.sh` |
 

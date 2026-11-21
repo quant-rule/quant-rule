@@ -3,7 +3,7 @@
 - Date: 2026-11-20 (UTC)
 - Status: Current; 14 chapters
 - Audience: operator, quant researcher, reviewer
-- Scope: the end-to-end use of the product through the CLI, the browser, and the desktop window
+- Scope: the end-to-end use of the product through the CLI and the browser
 - Claim type: Behaviour Claim
 - Related: [Workflow index](../workflows/README.md), [User journey](../architecture/user-journey.md), [Command surface](../architecture/command-surface.md)
 
@@ -30,7 +30,7 @@ authoritative.
 | 10 | GUI reference | [10-gui-reference.md](10-gui-reference.md) | Every screen, tab, control, test id, and evidence badge | Current |
 | 11 | Glossary | [11-glossary.md](11-glossary.md) | One term per concept | Current |
 | 12 | Troubleshooting | [12-troubleshooting.md](12-troubleshooting.md) | Stable error codes, causes, and the next action | Current |
-| 13 | Desktop install | [13-desktop.md](13-desktop.md) | AppImage and menu entry, Windows NSIS, ports, and uninstall | Current |
+| 13 | Client access | [13-client-access.md](13-client-access.md) | Browser and CLI on Windows/Linux; macOS unsupported; local server paths | Current |
 | 14 | Multi-host | [14-multi-host.md](14-multi-host.md) | How to place the six services on several hosts | Current |
 
 ## 3. How the chapters are written

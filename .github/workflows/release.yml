@@ -1,8 +1,8 @@
-# The release pipeline: one image digest, two desktop artifacts, one record.
+# The release pipeline: one image digest and one record.
 #
 # A pushed v* tag builds and verifies the image, pushes it to the registry,
-# records its digest, builds the Linux AppImage and the Windows NSIS installer,
-# and attaches all three to the GitHub release.
+# records its digest, and attaches the image digest to the GitHub release.
+# Desktop artifacts are retired.
 #
 # The default registry is GHCR and the default image is
 # ghcr.io/<owner>/quantrule-platform, authenticated with the workflow's
@@ -60,6 +60,7 @@ jobs:
   gate:
     name: Gate
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Reject conflicting dispatch inputs
         if: github.event_name == 'workflow_dispatch' && inputs.publish_snapshot && inputs.release_tag != ''
@@ -116,6 +117,7 @@ jobs:
     name: Image and digest
     needs: gate
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # Pushing to GHCR with GITHUB_TOKEN needs packages: write on this job only.
     permissions:
       contents: read
@@ -335,6 +337,7 @@ jobs:
     name: Browser and tooling
     needs: gate
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: apps/web
@@ -347,6 +350,20 @@ jobs:
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: "1.4.2"
+      - name: Cache Bun
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('apps/web/bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+
+      - name: Cache Playwright
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('apps/web/bun.lock') }}
+          restore-keys: playwright-${{ runner.os }}-
+
       - name: Install the client dependencies
         run: bun install --frozen-lockfile
       - name: Type check
@@ -355,218 +372,12 @@ jobs:
         run: bun test
       - name: Build
         run: bun run build
-      - name: Install the browser
-        run: bunx playwright install --with-deps chromium
+      - name: Install the browsers
+        run: bunx playwright install --with-deps chromium firefox
       - name: End-to-end tests
         run: bun run e2e
-
-  desktop:
-    name: Desktop (${{ matrix.os }})
-    needs: [gate, quality]
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            bundle: appimage
-            name: quantrule-desktop-linux
-            path: apps/desktop-shell/target/release/bundle/appimage/*.AppImage
-          - os: windows-latest
-            bundle: nsis
-            name: quantrule-desktop-windows
-            path: apps/desktop-shell/target/release/bundle/nsis/*-setup.exe
-    runs-on: ${{ matrix.os }}
-    permissions:
-      contents: read
-    steps:
-      - name: Check out the repository
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
-        with:
-          ref: ${{ inputs.release_tag || github.ref }}
-
-      - name: Install the pinned toolchain
-        run: rustup show
-
-      - name: Install Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: "1.4.2"
-
-      - name: Install the Linux desktop libraries
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential curl wget file patchelf \
-            libwebkit2gtk-4.1-dev librsvg2-dev libssl-dev xvfb dbus-x11
-
-      - name: Test the shell helpers
-        working-directory: apps/desktop-shell
-        run: bun test
-
-      - name: Check the shell boundary
-        working-directory: apps/desktop-shell
-        run: bash tests/boundary.sh
-
-      - name: Test the desktop supervisor
-        working-directory: apps/desktop-shell/supervisor
-        run: cargo test
-
-      - name: Build the six service sidecars
-        # The sidecars are built from the same commit as the image and the
-        # shell. They are not rebuilt from a different tree, and no service is
-        # sourced from a previous release. Git Bash on the Windows runner: the
-        # command uses bash line continuations.
-        shell: bash
-        run: |
-          cargo build --release --locked \
-            --bin qr-gateway --bin qr-data --bin qr-model \
-            --bin qr-backtest --bin qr-evidence --bin qr-simulation
-
-      - name: Build the shell client
-        # The packaged-profile smoke drives the HTTP contract through
-        # tools/verify.sh, which needs the thin `quantrule` client. It is not
-        # part of the desktop package.
-        run: cargo build --release --locked --bin quantrule
-
-      - name: Run the desktop/server parity harness
-        if: runner.os == 'Linux'
-        # The release note records the fixture digest. The desktop side starts
-        # six local sidecars; the server oracle is the composed-tier digest.
-        run: |
-          bash tools/parity_desktop.sh --desktop-only \
-            --expected sha256:a0372f02db7bc65460906eba3242943da8c56f26c46fde470726cee856bc4cea \
-            --services-dir target/release --no-build
-
-      - name: Build the desktop supervisor
-        working-directory: apps/desktop-shell/supervisor
-        # The embedded profile makes a packaged supervisor start the sidecars.
-        # A plain development build stays external and starts nothing.
-        run: cargo build --release --features embedded-profile
-
-      - name: Stage the packaged resources
-        working-directory: apps/desktop-shell
-        # Fails when any of the seven executables or the example configs is
-        # missing, so an installer can never silently ship a partial package.
-        # Git Bash on the Windows runner: the command uses bash line
-        # continuations and expands GITHUB_WORKSPACE.
-        shell: bash
-        run: |
-          bun scripts/stage-package.mjs \
-            --services-dir "$GITHUB_WORKSPACE/target/release" \
-            --supervisor-bin "$GITHUB_WORKSPACE/apps/desktop-shell/supervisor/target/release"
-
-      - name: Build the installer
-        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          projectPath: apps/desktop-shell
-          tauriScript: bunx @tauri-apps/cli@2
-          includeUpdaterJson: false
-          args: --bundles ${{ matrix.bundle }}
-
-      - name: Check the installer contents
-        shell: bash
-        run: |
-          if [ "${{ matrix.bundle }}" = "appimage" ]; then
-            artifact="$(find apps/desktop-shell/target/release/bundle/appimage -maxdepth 1 -type f -name "*.AppImage" -print -quit)"
-            bash apps/desktop-shell/tests/check-package.sh "$artifact"
-          else
-            artifact="$(find apps/desktop-shell/target/release/bundle/nsis -maxdepth 1 -type f -name "*-setup.exe" -print -quit)"
-            powershell -NoProfile -ExecutionPolicy Bypass \
-              -File apps/desktop-shell/tests/check-package.ps1 -Artifact "$artifact"
-          fi
-
-      - name: Smoke the packaged supervisor with stub sidecars
-        if: runner.os == 'Linux'
-        # The six real services need the embedded backends (#693/#694). This
-        # replaces them with the test stub in a throwaway extraction and proves
-        # the packaged supervisor, resource layout, health, and stop path. It
-        # claims no run and no digest.
-        run: |
-          artifact="$(find apps/desktop-shell/target/release/bundle/appimage -maxdepth 1 -type f -name "*.AppImage" -print -quit)"
-          bash apps/desktop-shell/tests/smoke-package-linux.sh "$artifact"
-
-      - name: Smoke the packaged Linux profile through the fixture
-        if: runner.os == 'Linux'
-        # Package parity, not just package layout: the extracted AppImage's own
-        # supervisor starts its own six sidecars, the fixture runs from the
-        # staged config, and the canonical digest must match the server oracle.
-        run: |
-          artifact="$(find apps/desktop-shell/target/release/bundle/appimage -maxdepth 1 -type f -name "*.AppImage" -print -quit)"
-          bash apps/desktop-shell/tests/smoke-package-parity-linux.sh \
-            --shell-bin target/release/quantrule "$artifact"
-
-      - name: Smoke the packaged Windows profile through the fixture
-        if: runner.os == 'Windows'
-        # Silent NSIS install, the installed supervisor's six sidecars, the
-        # fixture from the installed config, and the same canonical digest.
-        # QR_PYTHON names the host interpreter; the stock image does not expose
-        # the versioned alias that tools/verify.sh defaults to.
-        shell: pwsh
-        env:
-          QR_PYTHON: python
-        run: |
-          $artifact = Get-ChildItem apps/desktop-shell/target/release/bundle/nsis -Filter "*-setup.exe" -File |
-            Select-Object -First 1
-          if (-not $artifact) { throw "the NSIS bundle produced no installer" }
-          & pwsh -NoProfile -ExecutionPolicy Bypass `
-            -File apps/desktop-shell/tests/smoke-package-parity.ps1 `
-            -Artifact $artifact.FullName `
-            -Shell target/release/quantrule.exe
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-      - name: Assert the artifact carries the product version
-        env:
-          BUNDLE: ${{ matrix.bundle }}
-        # Git Bash on the Windows runner: the check is the same POSIX script.
-        shell: bash
-        run: |
-          version="$(awk -F'"' '/^version = /{print $2; exit}' Cargo.toml)"
-          if [ "$BUNDLE" = "appimage" ]; then
-            artifact="$(find apps/desktop-shell/target/release/bundle/appimage -maxdepth 1 -type f -name "*.AppImage" -print -quit)"
-          else
-            artifact="$(find apps/desktop-shell/target/release/bundle/nsis -maxdepth 1 -type f -name "*-setup.exe" -print -quit)"
-          fi
-          if [ -z "$artifact" ]; then
-            echo "::error::the $BUNDLE bundle produced no artifact" >&2
-            exit 1
-          fi
-          case "$(basename "$artifact")" in
-            *_"$version"_*) ;;
-            *)
-              echo "::error::$(basename "$artifact") does not name version $version" >&2
-              exit 1
-              ;;
-          esac
-          echo "$(basename "$artifact") names version $version"
-
-      - name: Smoke test the Linux shell
-        if: runner.os == 'Linux'
-        working-directory: apps/desktop-shell
-        run: |
-          bin="$(find target/release -maxdepth 1 -type f -name quantrule-desktop-shell -print -quit)"
-          bash tests/smoke-linux.sh "$bin"
-
-      - name: Smoke test the Windows shell
-        if: runner.os == 'Windows'
-        working-directory: apps/desktop-shell
-        shell: pwsh
-        run: |
-          $exe = "target\release\quantrule-desktop-shell.exe"
-          if (-not (Test-Path $exe)) { throw "missing $exe" }
-          $proc = Start-Process -FilePath (Resolve-Path $exe) -PassThru
-          Start-Sleep -Seconds 8
-          if ($proc.HasExited) { throw "the shell exited with code $($proc.ExitCode)" }
-          Stop-Process -Id $proc.Id -Force
-
-      - name: Upload the installer
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: ${{ matrix.name }}
-          path: ${{ matrix.path }}
-          if-no-files-found: error
+      - name: Firefox end-to-end tests
+        run: bunx playwright test --project=firefox
 
   publish:
     name: Publish the release
@@ -574,9 +385,9 @@ jobs:
     needs:
       - gate
       - image
-      - desktop
       - quality
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       actions: read
       contents: write
@@ -590,13 +401,6 @@ jobs:
         with:
           ref: ${{ inputs.release_tag || github.ref }}
 
-      - name: Download the desktop assets
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          pattern: quantrule-desktop-*
-          path: desktop
-          merge-multiple: true
-
       - name: Build the release body
         env:
           IMAGE: ${{ needs.image.outputs.image }}
@@ -608,25 +412,13 @@ jobs:
             echo "::error::$RELEASE_TAG is not in the current-tag map" >&2
             exit 1
           fi
-          appimage="$(find desktop -maxdepth 1 -type f -name '*.AppImage' -print -quit)"
-          installer="$(find desktop -maxdepth 1 -type f -name '*-setup.exe' -print -quit)"
-          if [ -z "$appimage" ] || [ -z "$installer" ]; then
-            echo "::error::both desktop artifacts must be present" >&2
-            exit 1
-          fi
           {
             cat "$note"
             echo
-            echo "## Image and desktop artifacts"
+            echo "## Image"
             echo
             echo "- Image: \`$IMAGE\`"
             echo "- Image digest: \`$DIGEST\` ($SOURCE)"
-            echo "- Linux AppImage: \`$(basename "$appimage")\`"
-            echo "- Windows NSIS installer: \`$(basename "$installer")\`"
-            echo
-            echo "The desktop artifacts are unsigned. On Windows, SmartScreen"
-            echo "shows \"Windows protected your PC\"; choose **More info**, then"
-            echo "**Run anyway**. On Linux, mark the AppImage executable and run it."
           } > release-body.md
           cp release-body.md "$RUNNER_TEMP/release-body.md"
 
@@ -639,7 +431,7 @@ jobs:
           # existing release for the same tag is updated, which makes a retry
           # idempotent instead of creating a second release.
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            echo "release $RELEASE_TAG exists; updating its body and assets"
+            echo "release $RELEASE_TAG exists; updating its body"
             gh release edit "$RELEASE_TAG" --notes-file "$RUNNER_TEMP/release-body.md"
           else
             gh release create "$RELEASE_TAG" \
@@ -647,8 +439,6 @@ jobs:
               --title "$RELEASE_TAG" \
               --notes-file "$RUNNER_TEMP/release-body.md"
           fi
-          gh release upload "$RELEASE_TAG" \
-            desktop/*.AppImage desktop/*-setup.exe --clobber
 
       - name: Verify the released record
         env:
@@ -656,30 +446,21 @@ jobs:
           DIGEST: ${{ needs.image.outputs.digest }}
         run: |
           gh release view "$RELEASE_TAG" --json body,assets,url > release.json
-          names="$(jq -r '.assets[].name' release.json)"
           if ! jq -e --arg digest "$DIGEST" '.body | contains($digest)' release.json >/dev/null; then
             echo "::error::the release body does not name the digest $DIGEST" >&2
             exit 1
           fi
-          if ! printf '%s\n' "$names" | grep -q '\.AppImage$'; then
-            echo "::error::the release has no AppImage asset: $names" >&2
-            exit 1
-          fi
-          if ! printf '%s\n' "$names" | grep -q -- '-setup\.exe$'; then
-            echo "::error::the release has no NSIS installer asset: $names" >&2
+          names="$(jq -r '.assets[].name' release.json)"
+          if printf '%s\n' "$names" | grep -Eq '\.AppImage$|-setup\.exe$'; then
+            echo "::error::desktop assets are not allowed in a current release: $names" >&2
             exit 1
           fi
           jq -r '.url' release.json
           printf '%s\n' "$names"
-          appimage="$(find desktop -maxdepth 1 -type f -name '*.AppImage' -print -quit)"
-          installer="$(find desktop -maxdepth 1 -type f -name '*-setup.exe' -print -quit)"
           {
             echo "## Published"
             echo
             jq -r '.url' release.json
             echo
-            echo "Copy these two lines into the release note:"
-            echo
             echo "- Image digest: \`$DIGEST\`"
-            echo "- Desktop artifacts: \`$(basename "$appimage")\`, \`$(basename "$installer")\`"
           } >> "$GITHUB_STEP_SUMMARY"

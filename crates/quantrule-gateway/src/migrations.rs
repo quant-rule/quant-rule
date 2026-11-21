@@ -7,10 +7,7 @@
 //! migration belong to `quantrule-simulation-service`; this list never applies
 //! them.
 //!
-//! The Postgres and SQLite histories are separate on purpose. The Postgres list
-//! replays the released history (`0007`); the SQLite baseline is the final
-//! logical shape at version 1, because a desktop database has no earlier rows to
-//! migrate. Both write the same `gateway.profiles` relation.
+//! The Postgres list replays the released history (`0007`).
 
 use quantrule_runtime::migrations::Migration;
 
@@ -21,19 +18,6 @@ pub fn gateway() -> Vec<Migration> {
         version: 7,
         name: "profiles",
         sql: include_str!("../migrations/0007_profiles.sql"),
-    }]
-}
-
-/// The gateway's SQLite baseline, in version order.
-///
-/// The SQLite ledger starts at 1 and lives in the shared `schema_migrations`
-/// table under the `gateway` ledger name.
-#[must_use]
-pub fn sqlite() -> Vec<Migration> {
-    vec![Migration {
-        version: 1,
-        name: "profiles",
-        sql: include_str!("../migrations/sqlite/0001_profiles.sql"),
     }]
 }
 
@@ -48,15 +32,6 @@ mod tests {
             name: migration.name.to_owned(),
             checksum: checksum(migration.sql),
         }
-    }
-
-    /// The executable statements, without the explanatory comments. A comment
-    /// may name the Postgres spelling it is explaining.
-    fn statements(sql: &str) -> String {
-        sql.lines()
-            .filter(|line| !line.trim_start().starts_with("--"))
-            .collect::<Vec<_>>()
-            .join("\n")
     }
 
     #[test]
@@ -108,57 +83,5 @@ mod tests {
     fn the_run_attempts_migration_is_not_registered_here() {
         // Evidence owns migration 13; the gateway must not apply a run schema.
         assert!(gateway().iter().all(|migration| migration.version != 13));
-    }
-
-    #[test]
-    fn the_sqlite_baseline_starts_at_one_and_is_complete() {
-        let available = sqlite();
-        assert_eq!(available.len(), 1);
-        assert_eq!(available[0].version, 1);
-        assert!(plan(&[], &available).expect("plan").len() == 1);
-    }
-
-    #[test]
-    fn the_sqlite_baseline_uses_the_double_prefix_and_the_sqlite_types() {
-        let sql = statements(sqlite()[0].sql);
-        assert!(
-            sql.contains("gateway__profiles"),
-            "the double prefix is missing"
-        );
-        assert!(
-            !sql.contains("gateway_profiles"),
-            "the single-underscore prefix is not a SQLite name"
-        );
-        assert!(
-            !sql.contains("gateway.profiles"),
-            "a dotted Postgres name is not a SQLite name"
-        );
-        for forbidden in ["CREATE SCHEMA", "jsonb", "timestamptz", "boolean"] {
-            assert!(
-                !sql.to_ascii_lowercase()
-                    .contains(&forbidden.to_ascii_lowercase()),
-                "the SQLite baseline names the Postgres type or statement {forbidden}"
-            );
-        }
-    }
-
-    #[test]
-    fn the_sqlite_baseline_never_names_another_service_prefix() {
-        for migration in sqlite() {
-            let sql = statements(migration.sql);
-            for forbidden in [
-                "catalog__",
-                "runs__",
-                "research__",
-                "simulation__",
-                "queue__",
-            ] {
-                assert!(
-                    !sql.contains(forbidden),
-                    "{} names {forbidden}",
-                    migration.name
-                );
-            }
-        }
     }
 }

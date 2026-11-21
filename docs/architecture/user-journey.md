@@ -42,16 +42,18 @@ document links here instead of restating it.
 Four commands, one line of output. The reviewer does not need an account, a
 credential, or access to the operator's machine.
 
-## 4. Desktop, when you want a window
+## 4. Browser or CLI, when you want a client
 
 | # | Does | Value |
 |---|---|---|
-| 1 | Installs the desktop bundle from GitHub Releases | no Docker, no terminal |
-| 2 | Enters the gateway URL once | the same server, the same data |
-| 3 | Uses the same screens and the same profiles | nothing to relearn |
+| 1 | Opens the gateway URL | no install, no desktop package |
+| 2 | Enters the token once | the same server, the same data |
+| 3 | Uses the same screens and profiles | nothing to relearn |
+| 4 | Or builds the CLI from source | deterministic agent access |
 
-The shell contains no compute and no local data. It is the browser in a window,
-with the URL remembered.
+The browser is the only GUI. The CLI is the headless agent client. Neither holds
+an engine or local data. Windows and Linux are supported; macOS is unsupported
+in the next release.
 
 ## 5. The research loop
 
@@ -85,6 +87,5 @@ can never read it.
 
 - Type a filesystem path.
 - Create an account.
-- Install a desktop application.
 - Compare a bundle by hand.
 - Wait with a terminal open.

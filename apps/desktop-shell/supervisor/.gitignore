@@ -1,2 +1,0 @@
-# The supervisor is outside the Cargo workspace and keeps its own target.
-/target

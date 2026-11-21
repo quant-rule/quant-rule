@@ -4,7 +4,7 @@
 //! ledger holds the v3 pre-registration, its one-time pipeline link, and its
 //! one-time human decision, with append-only baseline and invalidation
 //! registries. Both are traits so the routes are testable without a database and
-//! so the embedded desktop profile can supply their own implementations.
+//! so the routes are testable without a database.
 
 pub mod ledger;
 pub mod store;
@@ -12,6 +12,6 @@ pub mod store;
 pub use ledger::{
     CreateOutcome, DecisionWrite, ImprovementStore, ImprovementStoreError, MemoryImprovementStore,
     PgImprovementStore, ResearchArchiveOutcome, ResearchDatasetReference, ResearchEraseOutcome,
-    ResearchEraseReceipt, SqliteImprovementStore, seeded_baselines,
+    ResearchEraseReceipt, seeded_baselines,
 };
 pub use store::{HypothesisStore, MemoryStore, StoreError};

@@ -14,10 +14,8 @@
 //! strategy, and portfolio executors are wired here; a stage never writes a run
 //! row, a canonical digest, or an evidence record.
 //!
-//! The worker selects the same backend set as every other service. On the
-//! desktop profile it opens the shared SQLite file only for the durable queue,
-//! and reads and writes artifact bytes in the filesystem CAS under
-//! `<QR_DATA_DIR>/objects`; the server profile keeps RabbitMQ and S3.
+//! The worker uses RabbitMQ for the control-plane queue and S3 for artifact
+//! bytes.
 
 #![forbid(unsafe_code)]
 
@@ -32,7 +30,7 @@ use quantrule_backtest_service::stage::{
 use quantrule_runtime::adapters::{
     Message, MessageHandler, ObjectStore, Queue, QueueConsumer, QueueError,
 };
-use quantrule_runtime::backends::{self, ControlQueue, Objects};
+use quantrule_runtime::backends::{ControlQueue, Objects};
 use quantrule_runtime::client::{
     ClientError, DataClient, EvidenceClient, HttpServiceClient, ModelClient, Service, StageClient,
 };
@@ -49,9 +47,8 @@ async fn main() -> Result<(), RuntimeError> {
     let config = Config::from_env()?;
     logging::init("info")?;
 
-    let database = backends::open_database(&config)?;
     let objects: Arc<dyn ObjectStore> = Arc::new(Objects::open(&config).await?);
-    let queue = Arc::new(ControlQueue::open(&config, database.as_ref()).await?);
+    let queue = Arc::new(ControlQueue::open(&config).await?);
 
     let data: Arc<dyn DataClient> = Arc::new(
         HttpServiceClient::from_env(Service::Data)
