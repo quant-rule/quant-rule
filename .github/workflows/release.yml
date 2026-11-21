@@ -66,6 +66,7 @@ jobs:
       actions: read
     outputs:
       ci_run_id: ${{ steps.reuse.outputs.run_id }}
+      commit: ${{ steps.commit.outputs.sha }}
     steps:
       - name: Reject conflicting dispatch inputs
         if: github.event_name == 'workflow_dispatch' && inputs.publish_snapshot && inputs.release_tag != ''
@@ -116,19 +117,24 @@ jobs:
           [ -f "$note" ] || { echo "::error::$tag resolves to missing $note" >&2; exit 1; }
           echo "$tag is annotated, on main, and has $note"
 
+      - name: Resolve the release commit
+        id: commit
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
       - name: Find the green main CI for this commit
         id: reuse
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          run_id="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow CI --commit "$GITHUB_SHA" \
+          sha="${{ steps.commit.outputs.sha }}"
+          run_id="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow CI --commit "$sha" \
             --json databaseId,conclusion --jq '.[] | select(.conclusion == "success") | .databaseId' | head -1)"
           if [ -z "$run_id" ]; then
-            echo "::error::no successful CI run for $GITHUB_SHA; the release binaries are not available" >&2
+            echo "::error::no successful CI run for $sha; the release binaries are not available" >&2
             exit 1
           fi
           echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
-          echo "reusing CI run $run_id for $GITHUB_SHA"
+          echo "reusing CI run $run_id for $sha"
 
 
   image:
@@ -163,7 +169,7 @@ jobs:
           fi
           gh run download "${{ needs.gate.outputs.ci_run_id }}" \
             --repo "$GITHUB_REPOSITORY" \
-            --name "release-binaries-$GITHUB_SHA" \
+            --name "release-binaries-${{ needs.gate.outputs.commit }}" \
             --dir release-binaries
           (cd release-binaries && sha256sum -c manifest.sha256)
 
