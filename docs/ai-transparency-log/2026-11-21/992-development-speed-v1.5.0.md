@@ -29,6 +29,12 @@ test is deleted without a replacement or human approval.
 | Chromium e2e | 57 passed |
 | Firefox e2e | 57 passed |
 | `cargo build --release -p quantrule-shell` | PASS; `quantrule help` exits 0 |
+| `cargo test -p quantrule-governance` | PASS; 6 unit tests and 5 history tests |
+| `qr-governance check --checker file-size` | PASS; matches `check_file_size.py` |
+| `qr-governance check --checker doc-length` | PASS; matches `check_doc_length.py` |
+| `qr-governance check --checker claims` | PASS; matches `check_claims.py` |
+| `qr-governance check --checker board-permanence` | PASS; matches `check_board_permanence.py` |
+| `qr-governance check --checker audit-backlog` | PASS; matches `check_audit_backlog.py` |
 
 ## Learning
 
@@ -42,7 +48,8 @@ test is deleted without a replacement or human approval.
 - Removing SQLite required deleting its conformance and migration tests; the
   memory/Postgres conformance suites remain. The post-retirement coverage map is
   still a P1D deliverable.
-- Zero Python, the build-once release artifact, and v1.5.0 remain pending.
+- Zero Python is in progress: the `qr-governance check` harness and five Rust checkers exist; 21 checkers, the operational tools, research tools, historical deletion, and the policy cutover remain.
+- The build-once release artifact is implemented; the v1.5.0 tag remains pending.
 
 ## Rejected or corrected suggestions
 

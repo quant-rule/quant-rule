@@ -3,9 +3,8 @@
 //! Usage:
 //!
 //! ```text
-//! qr-governance history list --kind <config|docs|records> [--before <date>] [--include-undated] [--root <path>]
-//! qr-governance history archive --kind <kind> --out <dir> (--before <date> | --all) [--include-undated] [--dry-run] [--root <path>]
-//! qr-governance history erase --manifest <file> --confirm <archive_id> [--dry-run] [--root <path>]
+//! qr-governance check --all | --checker <name> | --list [--root <path>]
+//! qr-governance history list|archive|erase ...
 //! ```
 
 #![forbid(unsafe_code)]
@@ -13,11 +12,22 @@ use std::process::ExitCode;
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    match quantrule_governance::history::run(&args) {
-        Ok(()) => ExitCode::SUCCESS,
-        Err(error) => {
-            eprintln!("error: {error}");
-            ExitCode::FAILURE
+    let Some(command) = args.first() else {
+        eprintln!("usage: qr-governance <check|history> ...");
+        return ExitCode::from(2);
+    };
+    match command.as_str() {
+        "check" => quantrule_governance::check::run(&args[1..]),
+        "history" => match quantrule_governance::history::run(&args) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(error) => {
+                eprintln!("error: {error}");
+                ExitCode::FAILURE
+            }
+        },
+        other => {
+            eprintln!("error: unknown command {other}");
+            ExitCode::from(2)
         }
     }
 }

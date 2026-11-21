@@ -5,5 +5,8 @@
 //! It never reads the product services and never touches a runtime record.
 
 #![forbid(unsafe_code)]
+pub mod check;
+pub mod checks;
 pub mod history;
 pub mod manifest;
+pub mod report;
