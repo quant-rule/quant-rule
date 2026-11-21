@@ -10,8 +10,8 @@ workspace gate and in CI.
 
 | Tool | Purpose | Path |
 |---|---|---|
-| Worktree cleanup guard | Classifies, archives, and removes a merged task worktree; required before `git worktree remove`. | `tools/worktree_cleanup.py` |
-| Verification manifest builder | Regenerates `verification.json` and both verification matrices from the registry and claims. | `tools/build_verification.py` |
+| Worktree cleanup guard | Classifies, archives, and removes a merged task worktree; required before `git worktree remove`. | `qr-governance worktree` |
+| Verification manifest builder | Regenerates `verification.json` and both verification matrices from the registry and claims. | `qr-governance verification build` |
 | Legacy label scan | Rejects retired model, strategy, and architecture labels, and the retired DIST-105 tool paths, in the current surface. | `tools/check_legacy.py` |
 | Registry, validation, matrix, evidence, emitter, link, and term checks | CI gates for the current contracts. | `tools/check_registry.py`, `tools/check_validation.py`, `tools/check_verification_matrix.py`, `tools/check_verification.py`, `tools/check_event_emitters.py`, `tools/check_links.py`, `tools/check_terms.py` |
 | Workflow checker | Checks the workflow index, status, required sections, and links. | `tools/check_workflows.py` |
@@ -38,6 +38,9 @@ product image, and never reads a service.
 | `qr-governance history list --kind config|docs|records` | List historical files with bytes and date |
 | `qr-governance history archive --kind ... --out ... (--before ... | --all)` | Copy a selected set and write a verified manifest |
 | `qr-governance history erase --manifest ... --confirm ...` | Erase only a manifest that still matches the source bytes |
+| `qr-governance verification build` | Regenerate the evidence manifest and both matrices |
+| `qr-governance labels generate [--write]` | Check or rewrite the generated client label table |
+| `qr-governance guard python` | Refuse Python in the product tree |
 
 The historical experiment matrix runner and research model-cell runner are
 retained for reproducibility and are not current tools. The improvement run store

@@ -8,6 +8,7 @@
 //! qr-governance structure [--report] [--root <path>]
 //! qr-governance worktree check|archive|remove ...
 //! qr-governance labels generate [--write] [--root <path>]
+//! qr-governance verification build [--root <path>]
 //! qr-governance guard <runtime> [--root <path>]
 //! qr-governance history list|archive|erase ...
 //! ```
@@ -19,7 +20,7 @@ fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let Some(command) = args.first() else {
         eprintln!(
-            "usage: qr-governance <check|registry|structure|worktree|labels|guard|release|history> ..."
+            "usage: qr-governance <check|registry|structure|worktree|labels|verification|guard|release|history> ..."
         );
         return ExitCode::from(2);
     };
@@ -30,6 +31,7 @@ fn main() -> ExitCode {
         "worktree" => quantrule_governance::worktree::run(&args[1..]),
         "labels" => quantrule_governance::labels::run(&args[1..]),
         "guard" => quantrule_governance::guard::run(&args[1..]),
+        "verification" => quantrule_governance::verification::run(&args[1..]),
         "release" => quantrule_governance::release::run(&args[1..]),
         "history" => match quantrule_governance::history::run(&args) {
             Ok(()) => ExitCode::SUCCESS,
