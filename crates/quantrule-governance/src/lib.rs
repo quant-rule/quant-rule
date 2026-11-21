@@ -12,3 +12,4 @@ pub mod manifest;
 pub mod registry;
 pub mod release;
 pub mod report;
+pub mod structure;

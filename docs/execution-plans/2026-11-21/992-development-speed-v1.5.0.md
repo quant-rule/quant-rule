@@ -128,7 +128,7 @@ A missing or mismatched artifact fails the release. There is no silent rebuild.
 | V17 | P2H | PR jobs timeout at 10; release jobs timeout at 15; no unexpected failure at 11–12 | Workflow diff; run | Verified |  | Pending |  |  |  |
 | V18 | P2 | Phase 2 full gate green | `./tools/gate.sh` | Pass |  | Pending |  |  |  |
 | V19 | P3A | Post-retirement Python inventory approved | Inventory and deletion list | Approved |  | Pending |  |  |  |
-| V20 | P3B–P3D | 26 checkers match the Python oracle | `check --all` parity | Pass |  | Pending |  |  |  |
+| V20 | P3B–P3D | 26 checkers match the Python oracle | `check --all` parity | Pass | verified locally; 26/26 | Pass |  | 2026-11-21 |  |
 | V21 | P3E | Operational tools match | Fixtures/tests | Pass |  | Pending |  |  |  |
 | V22 | P3F | Research tools match to 1e-9 | Golden fixtures | Pass |  | Pending |  |  |  |
 | V23 | P3G | 66 historical files deleted; no live reference | `find`; `rg`; `git log` | Pass |  | Pending |  |  |  |
