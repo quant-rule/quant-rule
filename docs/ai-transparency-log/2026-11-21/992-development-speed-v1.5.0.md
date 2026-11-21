@@ -196,3 +196,9 @@ test is deleted without a replacement or human approval.
 - Root cause: an accepted socket could inherit the listener's non-blocking flag. The server returned no response and the client reported `os error 10053`.
 - Fix: set each accepted socket to blocking before the first read. The Windows debug job then passed all four client-parity tests.
 - v1.5.0 and v1.5.1 are withdrawn; v1.5.2 carries the same feature scope and the fixture fix.
+
+## v1.5.2 release
+
+- The release workflow succeeded: [run 44959071714](https://github.com/quant-rule/quant-rule/actions/runs/44959071714), image digest `sha256:0100ac679b968111003206f2d7351424cf05a51411e0f491e4281042f680eb5c`.
+- The Windows CLI job passed with the blocking accepted-socket fix; the browser, CLI Linux, image, composed suite, and publish jobs passed.
+- Release: <https://github.com/quant-rule/quant-rule/releases/tag/v1.5.2>.
