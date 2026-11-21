@@ -14,12 +14,14 @@ pub mod event_emitters;
 pub mod execution_plans;
 pub mod file_size;
 pub mod labels;
+pub mod legacy;
 pub mod links;
 pub mod manual;
 pub mod markdown;
 pub mod partitions;
 pub mod port_parity;
 pub mod py_guard;
+pub mod registry;
 pub mod release_audit;
 pub mod releases;
 pub mod rust_tests;
@@ -84,6 +86,10 @@ pub const CHECKERS: &[Checker] = &[
         run: labels::check,
     },
     Checker {
+        name: "legacy",
+        run: legacy::check,
+    },
+    Checker {
         name: "links",
         run: links::check,
     },
@@ -106,6 +112,10 @@ pub const CHECKERS: &[Checker] = &[
     Checker {
         name: "terms",
         run: terms::check,
+    },
+    Checker {
+        name: "registry",
+        run: registry::check,
     },
     Checker {
         name: "release-audit",

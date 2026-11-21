@@ -60,6 +60,7 @@ ALLOWLIST = {
     "crates/quantrule-evidence-service/migrations/sqlite/0004_research_ledger.sql",
     "docs/workflows/deprecation-retirement.md",
     "docs/workflows/release-operations.md",
+    "crates/quantrule-governance/src/checks/legacy.rs",
 }
 
 # M2.x research evidence predates the cutover and references retired files.
@@ -154,6 +155,7 @@ RETIRED_PATH_ALLOWLIST = {
     "docs/registry/history.md",
     "tools/check_legacy.py",
     "tools/test_check_legacy.py",
+    "crates/quantrule-governance/src/checks/legacy.rs",
 }
 
 # Current documents and source, minus the history kinds and the local data root.

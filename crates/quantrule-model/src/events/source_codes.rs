@@ -6,7 +6,7 @@
 //! A code is stable once published and is never reused. The event modules
 //! re-export the constants they own so existing paths keep working.
 //!
-//! The registry is the source of truth for the mapping; `tools/check_registry.py`
+//! The registry is the source of truth for the mapping; `qr-governance check`
 //! compares this module's numeric set with `docs/registry/indicators.json`.
 
 /// EMA 20, the fast EMA.
