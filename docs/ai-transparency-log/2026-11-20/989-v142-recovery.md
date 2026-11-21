@@ -8,7 +8,8 @@
 - Intent: publish a patch release after the `v1.4.1` desktop package smoke failed
   on a stale canonical digest, without moving the published `v1.4.1` tag.
 - Boundary: branch `fix/989-v142-recovery`, based on `main` `51c95392`; no HA
-  work and no command or screen contract change.
+  work and no command or screen contract change. The release tag was created
+  after the merge and is recorded in the release note.
 
 ## What changed
 
@@ -29,6 +30,7 @@
 | Packaged Linux smoke | pass; `QuantRule_1.4.2_amd64.AppImage` reproduced `sha256:a0372f02…`; seeded mismatch failed as required |
 | `tools/test_tiers.sh composed` | 8 targets passed; product 1.4.2; digest `sha256:a0372f02…` |
 | `tools/gate.sh` | `workspace gate passed` |
+| Release workflow | Passed; image `sha256:366a78b8…`; AppImage and NSIS attached |
 | `make up` | `QuantRule v1.4.2 ready → http://localhost:8080` |
 | Live archive smoke on 1.4.2 | `archived_at` RFC3339; active list hides; `include_archived` shows; erase removes |
 
