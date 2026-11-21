@@ -9,9 +9,13 @@ pub mod board_permanence;
 pub mod changelog;
 pub mod claims;
 pub mod doc_length;
+pub mod event_emitters;
 pub mod file_size;
+pub mod labels;
 pub mod links;
+pub mod py_guard;
 pub mod release_audit;
+pub mod verification_matrix;
 pub mod workflows;
 
 use std::path::Path;
@@ -53,12 +57,28 @@ pub const CHECKERS: &[Checker] = &[
         run: file_size::check,
     },
     Checker {
+        name: "event-emitters",
+        run: event_emitters::check,
+    },
+    Checker {
+        name: "labels",
+        run: labels::check,
+    },
+    Checker {
         name: "links",
         run: links::check,
     },
     Checker {
+        name: "py-guard",
+        run: py_guard::check,
+    },
+    Checker {
         name: "release-audit",
         run: release_audit::check,
+    },
+    Checker {
+        name: "verification-matrix",
+        run: verification_matrix::check,
     },
     Checker {
         name: "workflows",
