@@ -200,7 +200,7 @@ def review_text(manifest: dict[str, Any]) -> str:
         "- `results.json` records the command, exit code, captured streams, and "
         "artifact digests.\n"
         "- `artifacts/evidence.json` records the published numbers extracted from "
-        "the report; run `python3 tools/improvement/evidence.py <run-dir>`.\n"
+        "the report; run `qr-governance improvement evidence <run-dir>`.\n"
         f"- Baseline: {baseline_label(manifest)}\n"
         "- Rerun check:\n"
         "- Data coverage and gaps:\n"

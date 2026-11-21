@@ -41,7 +41,7 @@ must not appear in the frozen list. A development partition must record
 1. `validate.py` accepts the manifest.
 2. `run.py` refuses a non-empty run folder, copies provenance, runs the shell,
    and writes `results.json`.
-3. `evidence.py` extracts the published numbers into `artifacts/evidence.json`.
+3. `qr-governance improvement evidence` extracts the published numbers into `artifacts/evidence.json`.
 4. The reviewer completes `review.md` and `decision.md`; the verdict starts as
    `pending` and is replaced deliberately.
 5. `index.py` rebuilds `index.json` and `index.md` from the manifests.
