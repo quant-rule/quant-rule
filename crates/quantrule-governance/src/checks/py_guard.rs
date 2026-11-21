@@ -29,7 +29,7 @@ const REFERENCES: [&str; 3] = [
 pub fn check(root: &Path) -> Vec<Diagnostic> {
     let mut diagnostics = Vec::new();
     let mut python_files = Vec::new();
-    collect_python(root, &mut python_files);
+    collect_python(root, root, &mut python_files);
     python_files.sort();
     for path in python_files {
         diagnostics.push(Diagnostic::path(
@@ -87,7 +87,7 @@ pub fn check(root: &Path) -> Vec<Diagnostic> {
     diagnostics
 }
 
-fn collect_python(directory: &Path, found: &mut Vec<PathBuf>) {
+fn collect_python(root: &Path, directory: &Path, found: &mut Vec<PathBuf>) {
     let Ok(entries) = fs::read_dir(directory) else {
         return;
     };
@@ -98,8 +98,10 @@ fn collect_python(directory: &Path, found: &mut Vec<PathBuf>) {
             .and_then(|name| name.to_str())
             .unwrap_or("");
         if path.is_dir() {
-            if !SKIP.contains(&name) {
-                collect_python(&path, found);
+            // `data/` holds large local run artifacts that are not repository
+            // content; a tracked Python file there is caught by `git ls-files`.
+            if !SKIP.contains(&name) && !(directory == root && name == "data") {
+                collect_python(root, &path, found);
             }
         } else if name.ends_with(".py") {
             found.push(path);
