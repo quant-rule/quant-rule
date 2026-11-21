@@ -20,7 +20,7 @@ the same canonical digest as the single-host stack.
 | Secrets | A `secrets.env` file with non-default database, object-store, queue, and token values |
 | Network | Private overlay addresses for every host; no public port except the gateway |
 
-Do not start this profile while the single-host stack or the desktop app owns
+Do not start this profile while the single-host stack owns
 `8080`. Stop them first.
 
 ## Steps

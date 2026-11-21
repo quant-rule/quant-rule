@@ -136,17 +136,15 @@ to start.
 
 A config bundle is capped at 4 MiB by the config route, independently of `QR_UPLOAD_LIMIT_BYTES`; a larger config returns `413 upload.too_large`. Secrets come from the environment; no secret is committed.
 
-## 5. Two distribution profiles
+## 5. Distribution profile
 
-| Profile | Backends | Contains | Installs with |
-|---|---|---|---|
-| Server | Postgres, S3, RabbitMQ | The image and nine containers | Docker, `make up` |
-| Desktop | SQLite, filesystem CAS, in-process queue | Six bundled sidecars, one supervisor, one SQLite file | A release asset from GitHub Releases |
+QuantRule ships one deployment profile: the Linux image with Postgres, S3, and
+RabbitMQ. The embedded desktop profile, SQLite, filesystem CAS, and in-process
+queue are retired.
 
-The server profile is the default; `QR_PROFILE=desktop` with `QR_DATA_DIR`
-selects the embedded backends in [`desktop.md`](desktop.md) from a fresh data
-directory. v0.9.0 shipped the server image; v1.0.0 adds the desktop installer.
-`tools/parity_desktop.sh` proves both profiles match on one fixture.
+Clients are the browser and the `quantrule` CLI on Windows and Linux. macOS is
+unsupported in the next release. A local server uses Docker or Podman Compose on Linux, or
+Docker Desktop on Windows.
 
 ## 6. Split host
 

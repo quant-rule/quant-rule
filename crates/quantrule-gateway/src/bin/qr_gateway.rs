@@ -4,16 +4,14 @@
 //! It reads no catalog, run, research, or model schema: data, model,
 //! evidence, and simulation calls go through the internal client, and the
 //! public routes are proxied to `qr-data`, `qr-model`, `qr-evidence`, and
-//! `qr-simulation`. The profile store is Postgres on the server profile and the
-//! shared SQLite file on the desktop profile.
+//! `qr-simulation`. The profile store is Postgres.
 
 use std::sync::Arc;
 
 use quantrule_gateway::adapters::postgres::PgProfileStore;
-use quantrule_gateway::adapters::sqlite::SqliteProfileStore;
 use quantrule_gateway::profile::ProfileStore;
 use quantrule_gateway::server::{self, AppState, Services};
-use quantrule_runtime::backends::{ServiceDatabase, open_service_database};
+use quantrule_runtime::backends::open_service_database;
 use quantrule_runtime::client::{ClientError, DataClient, HttpServiceClient, Service};
 use quantrule_runtime::config::ConfigError;
 use quantrule_runtime::{Config, HealthRegistry, RuntimeError, logging};
@@ -22,27 +20,20 @@ use quantrule_runtime::{Config, HealthRegistry, RuntimeError, logging};
 async fn main() -> Result<(), RuntimeError> {
     let config = Config::from_env()?;
     logging::init("info")?;
-    tracing::info!(profile = config.profile.as_str(), "starting gateway");
+    tracing::info!("starting gateway");
 
     let mut health = HealthRegistry::named("gateway");
-    let opened = open_service_database(
+    let profiles: Option<Arc<dyn ProfileStore>> = open_service_database(
         &config,
         "gateway",
         "gateway",
-        &quantrule_gateway::migrations::sqlite(),
         &quantrule_gateway::migrations::gateway(),
         &mut health,
     )
-    .await?;
-    let profiles: Option<Arc<dyn ProfileStore>> = match opened {
-        Some(ServiceDatabase::Sqlite(database)) => {
-            Some(Arc::new(SqliteProfileStore::new(database)))
-        }
-        Some(ServiceDatabase::Postgres(database)) => {
-            Some(Arc::new(PgProfileStore::new(database.pool().clone())))
-        }
-        None => None,
-    };
+    .await?
+    .map(|database| {
+        Arc::new(PgProfileStore::new(database.pool().clone())) as Arc<dyn ProfileStore>
+    });
 
     let data_upstream = HttpServiceClient::from_env(Service::Data)
         .map_err(|error| service_config_error(Service::Data, error))?;

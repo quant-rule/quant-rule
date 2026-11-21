@@ -1,24 +1,18 @@
 //! The data service binary.
 //!
-//! The server profile connects to Postgres and the object store, applies only
-//! the catalog migrations, and serves the routes the gateway proxies. The
-//! desktop profile opens the embedded SQLite file under `QR_DATA_DIR`, applies
-//! the catalog SQLite baseline to the shared ledger, and serves the same routes
-//! from the same traits. The object store is selected by the same profile: S3
-//! on the server, the filesystem CAS under `<QR_DATA_DIR>/objects` on the
-//! desktop. The profile header is trusted because the gateway validates and
-//! injects it.
+//! It connects to Postgres and the object store, applies only the catalog
+//! migrations, and serves the routes the gateway proxies. The profile header is
+//! trusted because the gateway validates and injects it.
 
 #![forbid(unsafe_code)]
 
 use std::sync::Arc;
 
 use quantrule_runtime::adapters::ObjectStore;
-use quantrule_runtime::backends::{Objects, ServiceDatabase, open_service_database};
+use quantrule_runtime::backends::{Objects, open_service_database};
 use quantrule_runtime::{Config, HealthRegistry, RuntimeError, logging, serve_config};
 
 use quantrule_data_service::postgres::{PgConfigStore, PgDatasetCatalog};
-use quantrule_data_service::sqlite::{SqliteConfigStore, SqliteDatasetCatalog};
 use quantrule_data_service::{DataServices, DataState};
 
 /// The catalog a route handler reads.
@@ -36,17 +30,12 @@ async fn main() -> Result<(), RuntimeError> {
         &config,
         "catalog",
         "catalog",
-        &quantrule_data_service::migrations::sqlite(),
         &quantrule_data_service::migrations::available(),
         &mut health,
     )
     .await?;
     let (catalog, configs): (Option<CatalogHandle>, Option<ConfigHandle>) = match opened {
-        Some(ServiceDatabase::Sqlite(database)) => (
-            Some(Arc::new(SqliteDatasetCatalog::new(database.clone()))),
-            Some(Arc::new(SqliteConfigStore::new(database))),
-        ),
-        Some(ServiceDatabase::Postgres(database)) => (
+        Some(database) => (
             Some(Arc::new(PgDatasetCatalog::new(database.pool().clone()))),
             Some(Arc::new(PgConfigStore::new(database.pool().clone()))),
         ),

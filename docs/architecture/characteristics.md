@@ -25,7 +25,7 @@ the previous architecture could not express "the run continues without me".
 
 | Characteristic | Good means | Fitness function | Current evidence |
 |---|---|---|---|
-| **Reproducibility** | Same inputs plus the same image digest produce byte-identical data artifacts | Determinism tests; canonical digest equality; golden fixtures | Strong for the engines; v1.0.0 server↔desktop parity reproduced `sha256:453c90b4…`; cross-machine confirmation is reviewer-executed |
+| **Reproducibility** | Same inputs plus the same image digest produce byte-identical data artifacts | Determinism tests; canonical digest equality; golden fixtures | Strong for the engines; server-profile determinism; cross-machine confirmation is reviewer-executed |
 | **Temporal integrity** | No value at bar *t* depends on a later bar; events appear only at or after their availability bar | Causality and prefix tests; availability tests | Strong for the engines |
 | **Auditability** | Every result names data version, config hash, model version, image digest, and canonical digest | Provenance fields; bundle-completeness test; `make verify`; run records | Implemented in v1.0.0 |
 

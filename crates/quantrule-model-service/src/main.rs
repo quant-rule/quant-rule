@@ -2,9 +2,7 @@
 //!
 //! It connects to the object store, reads the catalog references through the data
 //! service, and serves the public model compute and the internal model bundle.
-//! It applies no migration and owns no database schema. The object store is
-//! selected by the deployment profile: S3 on the server, the filesystem CAS
-//! under `<QR_DATA_DIR>/objects` on the desktop.
+//! It applies no migration and owns no database schema.
 
 #![forbid(unsafe_code)]
 

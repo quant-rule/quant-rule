@@ -121,30 +121,16 @@ A "Skip bad rows" control uses `POST /catalog/datasets/tolerant` and shows the
 quality report. The server owns the limit, the hash, and the catalog row. The
 client never constructs a `data_version`.
 
-## 9. Desktop shell
+## 9. Platforms
 
-`apps/desktop-shell/` is a Tauri 2 window over the gateway URL. The package also
-carries a dependency-free `qr-desktop` supervisor: the shell starts it once from
-the resource directory, the supervisor starts the six services on loopback,
-waits for health, restarts a crashed child, and stops them when its control
-socket closes. The shell still has no IPC domain.
+| Client | Windows | Linux | macOS |
+|---|---|---|---|
+| Browser GUI | Yes | Yes | **No** |
+| `quantrule` CLI | Yes | Yes | **No** |
 
-| It does | It does not |
-|---|---|
-| Load the gateway URL | Embed an engine |
-| Remember the active profile | Read a local data file |
-| Check for a new release | Own an IPC command |
-| Start one packaged supervisor | Manage a service or a port |
-
-It is a window onto the Svelte client, not a second client. When the gateway is
-unreachable it shows the disconnected state, exactly like the browser, after
-probing the supervisor's 8080–8089 range.
-
-The shell persists one setting, the gateway URL. The active profile remains the
-web client's `quantrule.profile` setting and its `X-QuantRule-Profile` header.
-The embedded backends are #693/#694; build, supervisor tests, the package check,
-and the unsigned-artifact warning are in
-[`apps/desktop-shell/README.md`](../../apps/desktop-shell/README.md).
+The browser is the only GUI. The CLI is the agent and automation client. There
+is no Tauri shell, desktop app, installer, or browser console. macOS is
+unsupported in the next release.
 
 ## 10. Accessibility and determinism
 

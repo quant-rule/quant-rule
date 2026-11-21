@@ -12,9 +12,8 @@ is a deployment shape, not a second architecture: the binaries, the
 `quantrule.api/v1` contract, the schemas, the engines, and the canonical digest
 are unchanged.
 
-The single-host Compose stack remains the default. The desktop profile remains
-the embedded, single-machine install. This profile exists for capacity and
-network placement.
+The single-host Compose stack remains the default. The desktop profile is
+retired; this profile exists for capacity and network placement.
 
 ## 2. Reference topology
 

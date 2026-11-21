@@ -20,7 +20,6 @@ hyper-util = { version = "0.1.21", features = ["client-legacy", "tokio"] }
 lapin = "4.12.3"
 quantrule-api = { path = "../quantrule-api" }
 quantrule-service-api = { path = "../quantrule-service-api" }
-rusqlite = { version = "0.42", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 sqlx = { version = "0.9.0", default-features = false, features = ["runtime-tokio", "postgres"] }

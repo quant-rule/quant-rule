@@ -1,14 +1,9 @@
 //! The shared `StageStore` conformance suite.
 //!
-//! The same body runs against the memory store and the SQLite store, and —
-//! when `QR_TEST_DATABASE_URL` names a disposable Postgres — the Postgres
-//! store. The suite asserts the store contract, not a SQL dialect: content
+//! The same body runs against the memory store and, when
+//! `QR_TEST_DATABASE_URL` names a disposable Postgres, the Postgres store. The suite asserts the store contract, not a SQL dialect: content
 //! addressing, idempotent creation, profile scoping, listing order, claim and
 //! attempt semantics, complete/fail/cancel transitions, and artifact ordering.
-//!
-//! A separate SQLite case proves the evidence boundary: a stage row created in
-//! the `stage` schema is invisible to the `runs` store, so a client cannot read
-//! a diagnostic stage as evidence.
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -17,13 +12,10 @@ use quantrule_api::{
     StageState,
 };
 use quantrule_evidence_service::migrations;
-use quantrule_evidence_service::runs::RunStore;
-use quantrule_evidence_service::sqlite::SqliteRunStore;
 use quantrule_evidence_service::stage::{
-    MemoryStages, NewStageRun, PgStageStore, SqliteStageStore, StageCancelOutcome,
-    StageClaimOutcome, StageCreateOutcome, StageStore,
+    MemoryStages, NewStageRun, PgStageStore, StageCancelOutcome, StageClaimOutcome,
+    StageCreateOutcome, StageStore,
 };
-use quantrule_runtime::adapters::sqlite::{SqliteDatabase, apply_migrations_in};
 
 /// A value unique to one invocation within this process.
 fn token() -> String {
@@ -545,69 +537,9 @@ async fn run_conformance(store: &dyn StageStore, token: &str) {
     );
 }
 
-async fn baseline(database: &SqliteDatabase) -> SqliteStageStore {
-    apply_migrations_in(database, "runs", &migrations::sqlite())
-        .await
-        .expect("the evidence migrations");
-    SqliteStageStore::new(database.clone())
-}
-
 #[tokio::test]
 async fn the_memory_stage_store_conforms() {
     run_conformance(&MemoryStages::default(), &token()).await;
-}
-
-#[tokio::test]
-async fn the_sqlite_stage_store_conforms() {
-    let database = SqliteDatabase::open_in_memory().expect("the database opens");
-    let store = baseline(&database).await;
-    run_conformance(&store, &token()).await;
-}
-
-#[tokio::test]
-async fn a_stage_row_is_not_readable_as_a_run() {
-    let database = SqliteDatabase::open_in_memory().expect("the database opens");
-    let stage_store = baseline(&database).await;
-    let run_store = SqliteRunStore::new(database);
-    let token = token();
-    let profile = profile("alpha", &token);
-    let created = stage_store
-        .create(
-            profile.clone(),
-            new_run(&token, "boundary", StageKind::Model, "2026-11-17T00:00:00Z"),
-        )
-        .await
-        .expect("the stage");
-    let id = created.record().stage_run_id.to_string();
-    assert!(
-        stage_store
-            .get_any(id.clone())
-            .await
-            .expect("the stage read")
-            .is_some(),
-        "the stage row is missing"
-    );
-    assert_eq!(
-        run_store
-            .get(profile.clone(), id.clone())
-            .await
-            .expect("run get"),
-        None,
-        "the run store read a stage row"
-    );
-    assert_eq!(
-        run_store.get_any(id).await.expect("run get_any"),
-        None,
-        "the run store read a stage row without a profile"
-    );
-    assert!(
-        run_store
-            .list(profile, None, 50)
-            .await
-            .expect("run list")
-            .is_empty(),
-        "the run list contained a stage row"
-    );
 }
 
 #[tokio::test]

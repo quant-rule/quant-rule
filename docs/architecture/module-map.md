@@ -1,6 +1,6 @@
 # Code Module Map
 
-- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); unchanged in the v1.0.0 desktop release; approved 2026-11-12
+- Status: Current; released as v1.5.0; desktop distribution retired
 - Part of: [`docs/architecture/README.md`](README.md)
 - Normative rules: [`AGENTS.md`](../../AGENTS.md) section 2
 - Claim type: Behaviour Claim
@@ -46,7 +46,6 @@ quantrule-simulation-service ──> quantrule-simulation
 | `quantrule-simulation-service` | `simulation` schema, research objects, eleven endpoints | A model, run artifact, strategy, or queue message |
 | `quantrule-shell` | Parsing, terminal rendering, HTTP calls | Domain logic, engine dependency |
 | `apps/web` | Svelte screens, stores, SVG chart, rendering | Domain logic, computation |
-| `apps/desktop-shell` | A Tauri window over the gateway URL | Domain logic, local data, IPC commands |
 
 The compile/source guard in `crates/quantrule-gateway/tests/service_boundary.rs`
 enforces the graph: the gateway links no app, engine, or domain service crate; a

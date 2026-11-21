@@ -67,7 +67,6 @@ gateway token, and let a client depend on another service's schema.
 | Topology | Status | Shape |
 |---|---|---|
 | Single host, Compose | Supported; default | Six services and three infrastructure containers on one host |
-| Desktop, embedded | Supported | Six sidecars on loopback with SQLite, filesystem CAS, in-process queue |
 | Split host, client/server | Supported | Full stack on one server; browser and shell on another machine |
 | Multi-host services | Supported; implemented, release pending | Six services across hosts, private overlay, one image digest |
 | Cloud, HA, Kubernetes, mTLS | Not supported | A later decision with its own ADR |
@@ -121,19 +120,16 @@ a fold over time. Claiming otherwise would be false.
 
 ## 7. Backend adapters
 
-Database, object store, and queue sit behind traits. v0.9.0 ships one
-implementation of each: Postgres, S3, RabbitMQ. The v1.0.0 desktop profile adds a
-second implementation of each and selects the set once from `QR_PROFILE`; the
-server profile stays the default.
+Database, object store, and queue sit behind traits. The server ships one
+implementation of each: Postgres, S3, and RabbitMQ.
 
-| Trait | v0.9.0 server profile | v1.0.0 desktop profile |
-|---|---|---|
-| Database | Postgres | SQLite |
-| Object store | S3 API | filesystem CAS |
-| Queue | RabbitMQ | in-process |
+| Trait | Server implementation |
+|---|---|
+| Database | Postgres |
+| Object store | S3 API |
+| Queue | RabbitMQ |
 
-A service calls the trait, never a client library directly. A second
-implementation must not require a use-case change; that is the test.
+A service calls the trait, never a client library directly.
 
 ## 8. Stage diagnostics
 

@@ -38,7 +38,7 @@ def job(text: str, name: str, next_name: str) -> str:
 
 def image_job(text: str) -> str:
     block = job(text, "image", "quality")
-    return block if block else job(text, "image", "desktop")
+    return block if block else job(text, "image", "publish")
 
 
 def steps(text: str) -> dict[str, str]:
@@ -97,16 +97,15 @@ def problems(text: str) -> list[str]:
         if "tools/test_tiers.sh composed" not in order[COMPOSED]:
             found.append(f"{COMPOSED!r} does not run the composed tier")
 
-    quality = job(text, "quality", "desktop")
+    if "\n  desktop:\n" in text:
+        found.append("the desktop job must be removed")
+    quality = job(text, "quality", "publish")
     if not quality:
         found.append("the quality job is missing")
     else:
         for command in ("bun run check", "bun test", "bun run build", "bun run e2e"):
             if command not in quality:
                 found.append(f"the quality job does not run {command!r}")
-    desktop = job(text, "desktop", "publish")
-    if "needs: [gate, quality]" not in desktop:
-        found.append("the desktop job does not require the quality job")
     publish = text[text.find("\n  publish:\n") :]
     if "\n      - quality\n" not in publish:
         found.append("the publish job does not require the quality job")
@@ -162,6 +161,15 @@ class ReleaseWorkflowTests(unittest.TestCase):
         self.assertTrue(
             any("quality job is missing" in problem for problem in problems(seeded))
         )
+
+    def test_a_desktop_job_is_reported(self) -> None:
+        seeded = self.text.replace(
+            "\n  publish:\n",
+            "\n  desktop:\n    runs-on: ubuntu-latest\n\n  publish:\n",
+            1,
+        )
+        self.assertNotEqual(seeded, self.text)
+        self.assertTrue(any("desktop job must be removed" in problem for problem in problems(seeded)))
 
     def test_a_push_before_the_contract_check_is_reported(self) -> None:
         seeded = self.text.replace(

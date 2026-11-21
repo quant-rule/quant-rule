@@ -18,6 +18,19 @@ history is in Git and the pull requests.
 
 ## [Unreleased]
 
+### Removed
+
+- Retire the Tauri desktop shell, supervisor, AppImage, NSIS, and every installer.
+- Retire the embedded desktop profile: SQLite, `rusqlite`, the filesystem CAS, and the in-process queue.
+- Remove the desktop release job, artifacts, and publish dependency; releases publish the image and note only.
+- Remove `apps/desktop-shell`, `tools/check_schema_prefixes.py`, and `tools/parity_desktop.sh`.
+
+### Changed
+
+- The browser is the only GUI; the headless `quantrule` CLI remains the agent client.
+- Windows and Linux are the supported browser and CLI platforms; macOS is unsupported in the next release.
+- The gate has 26 checkers after the desktop-only checker is removed.
+
 ## [1.4.2] - 2026-11-20
 
 ### Fixed

@@ -3,12 +3,8 @@
 //! It connects to Postgres, the object store, the broker, and the data service.
 //! It applies only the `runs`/`research` migrations, serves the public run,
 //! hypothesis, research, and operations surface plus the internal lifecycle,
-//! and consumes `run.computed` to verify the hash chain and finalize the run. With `QR_PROFILE=desktop` the
-//! run and hypothesis stores sit on the embedded SQLite file under
-//! `QR_DATA_DIR`, artifact bytes live in the filesystem CAS under
-//! `<QR_DATA_DIR>/objects`, and the control-plane queue is the durable queue on
-//! that same SQLite file, so `qr-backtest` sees the `run.computed` publish.
-//! Postgres, S3, and RabbitMQ remain the default.
+//! and consumes `run.computed` to verify the hash chain and finalize the run.
+//! Artifact bytes live in S3 and the control-plane queue is RabbitMQ.
 
 #![forbid(unsafe_code)]
 
@@ -18,7 +14,7 @@ use std::time::Duration;
 use quantrule_runtime::adapters::{
     Message, MessageHandler, ObjectStore, Queue, QueueConsumer, QueueError,
 };
-use quantrule_runtime::backends::{ControlQueue, Objects, ServiceDatabase, open_service_database};
+use quantrule_runtime::backends::{ControlQueue, Objects, open_service_database};
 use quantrule_runtime::client::{ClientError, DataClient, HttpServiceClient, Service};
 use quantrule_runtime::config::ConfigError;
 use quantrule_runtime::queue::{QUEUE_EVIDENCE, ROUTING_COMPUTED};
@@ -29,8 +25,7 @@ use quantrule_evidence_service::evidence::{EvidenceServices, finalize};
 use quantrule_evidence_service::postgres::{PgHypothesisStore, PgRunStore};
 use quantrule_evidence_service::research::ImprovementStore;
 use quantrule_evidence_service::runs::RunStore;
-use quantrule_evidence_service::sqlite::{SqliteHypothesisStore, SqliteRunStore};
-use quantrule_evidence_service::stage::{PgStageStore, SqliteStageStore, StageStore, retention};
+use quantrule_evidence_service::stage::{PgStageStore, StageStore, retention};
 use quantrule_evidence_service::{EvidenceState, router};
 
 /// The run store a route handler reads.
@@ -52,32 +47,17 @@ async fn main() -> Result<(), RuntimeError> {
         &config,
         "runs",
         "run and research",
-        &quantrule_evidence_service::migrations::sqlite(),
         &quantrule_evidence_service::migrations::available(),
         &mut health,
     )
     .await?;
-    // The queue shares the handle the desktop branch opens, so the queue and the
-    // run store use one connection on one file in this process.
-    let sqlite = match &opened {
-        Some(ServiceDatabase::Sqlite(database)) => Some(database.clone()),
-        Some(ServiceDatabase::Postgres(_)) | None => None,
-    };
     let (runs, stages, hypotheses, improvements): (
         Option<RunHandle>,
         Option<StageHandle>,
         Option<HypothesisHandle>,
         Option<ImprovementHandle>,
     ) = match opened {
-        Some(ServiceDatabase::Sqlite(database)) => (
-            Some(Arc::new(SqliteRunStore::new(database.clone()))),
-            Some(Arc::new(SqliteStageStore::new(database.clone()))),
-            Some(Arc::new(SqliteHypothesisStore::new(database.clone()))),
-            Some(Arc::new(
-                quantrule_evidence_service::research::SqliteImprovementStore::new(database),
-            )),
-        ),
-        Some(ServiceDatabase::Postgres(database)) => (
+        Some(database) => (
             Some(Arc::new(PgRunStore::new(database.pool().clone()))),
             Some(Arc::new(PgStageStore::new(database.pool().clone()))),
             Some(Arc::new(PgHypothesisStore::new(database.pool().clone()))),
@@ -97,7 +77,7 @@ async fn main() -> Result<(), RuntimeError> {
         async move { backend.check().await.map_err(|error| error.to_string()) }
     });
 
-    let queue = Arc::new(ControlQueue::open(&config, sqlite.as_ref()).await?);
+    let queue = Arc::new(ControlQueue::open(&config).await?);
     health.register("queue", {
         let queue = Arc::clone(&queue);
         move || {

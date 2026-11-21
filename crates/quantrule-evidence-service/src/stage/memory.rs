@@ -1,7 +1,7 @@
 //! The in-memory stage store.
 //!
 //! The memory store is the test double and the local-development backend. It
-//! implements the same state machine as the Postgres and SQLite stores so a
+//! implements the same state machine as the Postgres store so a
 //! test cannot accept a transition production rejects: a queued stage starts on
 //! a claim, a redelivered uncomputed stage is reclaimed up to
 //! [`MAX_ATTEMPTS`], and only a running stage can succeed or fail.

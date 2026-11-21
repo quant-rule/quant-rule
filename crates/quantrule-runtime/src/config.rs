@@ -28,31 +28,6 @@ pub const DEFAULT_UPLOAD_LIMIT: u64 = 512 * 1024 * 1024;
 /// The default diagnostic stage retention, in days.
 pub const DEFAULT_STAGE_RETENTION_DAYS: u64 = 30;
 
-/// The deployment profile.
-///
-/// The server profile is the released stack: Postgres, S3, and RabbitMQ. The
-/// desktop profile is the embedded stack: SQLite, a filesystem store, and an
-/// in-process queue under `QR_DATA_DIR`. A service branches once in `main.rs`;
-/// no route, use case, or engine reads the profile.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum DeploymentProfile {
-    /// Postgres, S3, and RabbitMQ.
-    Server,
-    /// SQLite, a filesystem store, and an in-process queue.
-    Desktop,
-}
-
-impl DeploymentProfile {
-    /// The wire name, used in logs.
-    #[must_use]
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Server => "server",
-            Self::Desktop => "desktop",
-        }
-    }
-}
-
 /// Why a configuration value was rejected.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConfigError {
@@ -92,10 +67,6 @@ impl std::error::Error for ConfigError {}
 pub struct Config {
     /// Where the HTTP server listens.
     pub bind: String,
-    /// Which deployment profile this process runs.
-    pub profile: DeploymentProfile,
-    /// The desktop data directory; required when the profile is desktop.
-    pub data_dir: Option<PathBuf>,
     /// Postgres connection string.
     pub database_url: String,
     /// S3-compatible endpoint.
@@ -133,8 +104,6 @@ impl fmt::Debug for Config {
         formatter
             .debug_struct("Config")
             .field("bind", &self.bind)
-            .field("profile", &self.profile)
-            .field("data_dir", &self.data_dir)
             .field("database_url", &"<redacted>")
             .field("object_store_url", &"<redacted>")
             .field("object_store_bucket", &self.object_store_bucket)
@@ -159,8 +128,6 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             bind: DEFAULT_BIND.to_owned(),
-            profile: DeploymentProfile::Server,
-            data_dir: None,
             database_url: DEFAULT_DATABASE_URL.to_owned(),
             object_store_url: DEFAULT_OBJECT_STORE_URL.to_owned(),
             object_store_bucket: DEFAULT_OBJECT_BUCKET.to_owned(),
@@ -224,25 +191,6 @@ impl Config {
                 });
             }
             config.bind.clone_from(value);
-        }
-        if let Some(value) = values.get("QR_PROFILE") {
-            config.profile = match value.as_str() {
-                "server" => DeploymentProfile::Server,
-                "desktop" => DeploymentProfile::Desktop,
-                _ => {
-                    return Err(ConfigError::Invalid {
-                        name: "QR_PROFILE",
-                        value: value.clone(),
-                        reason: "must be server or desktop",
-                    });
-                }
-            };
-        }
-        if let Some(value) = values
-            .get("QR_DATA_DIR")
-            .filter(|value| !value.trim().is_empty())
-        {
-            config.data_dir = Some(PathBuf::from(value));
         }
         if let Some(value) = values.get("QR_DATABASE_URL") {
             config.database_url.clone_from(value);
@@ -344,11 +292,6 @@ impl Config {
         if config.internal_only {
             validate_internal_bind(&config.bind)?;
         }
-        if config.profile == DeploymentProfile::Desktop && config.data_dir.is_none() {
-            return Err(ConfigError::Missing {
-                name: "QR_DATA_DIR",
-            });
-        }
         Ok(config)
     }
 }
@@ -396,230 +339,4 @@ fn is_private_v4(address: Ipv4Addr) -> bool {
         || address.is_loopback()
         || address.is_link_local()
         || (octets[0] == 100 && (64..=127).contains(&octets[1]))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn map(pairs: &[(&str, &str)]) -> BTreeMap<String, String> {
-        pairs
-            .iter()
-            .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))
-            .collect()
-    }
-
-    #[test]
-    fn defaults_carry_no_store_password() {
-        let config = Config::from_map(&BTreeMap::new()).expect("defaults");
-        assert!(!config.database_url.contains("quantrule:quantrule"));
-        assert!(!config.queue_url.contains("quantrule:quantrule"));
-        assert_eq!(config.bind, DEFAULT_BIND);
-        assert_eq!(config.profile, DeploymentProfile::Server);
-        assert!(config.data_dir.is_none());
-        assert_eq!(config.upload_limit_bytes, DEFAULT_UPLOAD_LIMIT);
-        assert_eq!(config.backtest_concurrency, 1);
-        assert_eq!(config.stage_retention_days, DEFAULT_STAGE_RETENTION_DAYS);
-        assert!(config.bearer_token.is_none());
-        assert!(config.static_dir.is_none());
-        assert_eq!(config.config_root, PathBuf::from("config"));
-    }
-
-    #[test]
-    fn the_desktop_profile_needs_a_data_directory() {
-        let error = Config::from_map(&map(&[("QR_PROFILE", "desktop")])).expect_err("reject");
-        assert_eq!(
-            error,
-            ConfigError::Missing {
-                name: "QR_DATA_DIR"
-            }
-        );
-    }
-
-    #[test]
-    fn the_desktop_profile_reads_the_data_directory() {
-        let config = Config::from_map(&map(&[
-            ("QR_PROFILE", "desktop"),
-            ("QR_DATA_DIR", "/srv/quantrule"),
-        ]))
-        .expect("desktop");
-        assert_eq!(config.profile, DeploymentProfile::Desktop);
-        assert_eq!(config.data_dir, Some(PathBuf::from("/srv/quantrule")));
-        assert_eq!(config.profile.as_str(), "desktop");
-    }
-
-    #[test]
-    fn an_unknown_profile_is_rejected() {
-        let error = Config::from_map(&map(&[("QR_PROFILE", "tablet")])).expect_err("reject");
-        assert_eq!(
-            error,
-            ConfigError::Invalid {
-                name: "QR_PROFILE",
-                value: "tablet".to_owned(),
-                reason: "must be server or desktop",
-            }
-        );
-    }
-
-    #[test]
-    fn an_empty_data_directory_is_absent() {
-        let error = Config::from_map(&map(&[("QR_PROFILE", "desktop"), ("QR_DATA_DIR", "  ")]))
-            .expect_err("empty");
-        assert_eq!(
-            error,
-            ConfigError::Missing {
-                name: "QR_DATA_DIR"
-            }
-        );
-    }
-
-    #[test]
-    fn a_config_root_is_read() {
-        let config =
-            Config::from_map(&map(&[("QR_CONFIG_ROOT", "/srv/config")])).expect("config root");
-        assert_eq!(config.config_root, PathBuf::from("/srv/config"));
-    }
-
-    #[test]
-    fn a_static_dir_is_read() {
-        let config =
-            Config::from_map(&map(&[("QR_STATIC_DIR", "/srv/static")])).expect("static dir");
-        assert_eq!(config.static_dir, Some(PathBuf::from("/srv/static")));
-    }
-
-    #[test]
-    fn a_present_value_overrides_the_default() {
-        let config = Config::from_map(&map(&[("QR_BIND", "127.0.0.1:9000")])).expect("override");
-        assert_eq!(config.bind, "127.0.0.1:9000");
-    }
-
-    #[test]
-    fn debug_redacts_connection_strings_and_the_token() {
-        let config = Config::from_map(&map(&[
-            ("QR_DATABASE_URL", "postgres://user:db-secret@host/db"),
-            ("QR_OBJECT_STORE_URL", "http://object-secret@host:9000"),
-            ("QR_QUEUE_URL", "amqp://user:queue-secret@host/%2f"),
-            ("QR_BEARER_TOKEN", "bearer-secret"),
-        ]))
-        .expect("config");
-        let text = format!("{config:?}");
-        for secret in [
-            "db-secret",
-            "object-secret",
-            "queue-secret",
-            "bearer-secret",
-        ] {
-            assert!(!text.contains(secret), "{secret} leaked in {text}");
-        }
-    }
-
-    #[test]
-    fn check_internal_bind_refuses_a_public_bind() {
-        let config = Config {
-            internal_only: true,
-            ..Config::default()
-        };
-        assert!(config.check_internal_bind().is_err());
-        let config = Config {
-            bind: "10.0.0.1:8080".to_owned(),
-            internal_only: true,
-            ..Config::default()
-        };
-        assert!(config.check_internal_bind().is_ok());
-    }
-
-    #[test]
-    fn internal_only_accepts_private_overlay_binds() {
-        for bind in [
-            "10.0.0.11:8080",
-            "172.16.0.1:8080",
-            "192.168.1.10:8080",
-            "127.0.0.1:8080",
-            "100.64.0.10:8080",
-            "169.254.1.1:8080",
-            "[::1]:8080",
-            "[fd00::1]:8080",
-            "[fe80::1]:8080",
-        ] {
-            let config = Config::from_map(&map(&[("QR_BIND", bind), ("QR_INTERNAL_ONLY", "1")]))
-                .unwrap_or_else(|error| panic!("{bind} was rejected: {error}"));
-            assert!(config.internal_only, "{bind}");
-        }
-    }
-
-    #[test]
-    fn internal_only_rejects_public_unspecified_and_hostname_binds() {
-        for bind in [
-            "0.0.0.0:8080",
-            "8.8.8.8:8080",
-            "1.1.1.1:8080",
-            "example.com:8080",
-            "[2001:4860:4860::8888]:8080",
-        ] {
-            let error = Config::from_map(&map(&[("QR_BIND", bind), ("QR_INTERNAL_ONLY", "1")]))
-                .expect_err("public bind accepted");
-            assert!(
-                matches!(
-                    error,
-                    ConfigError::Invalid {
-                        name: "QR_BIND",
-                        ..
-                    }
-                ),
-                "{bind}: {error}"
-            );
-        }
-    }
-
-    #[test]
-    fn internal_only_is_strict_and_off_by_default() {
-        let config = Config::from_map(&BTreeMap::new()).expect("defaults");
-        assert!(!config.internal_only);
-        let config = Config::from_map(&map(&[("QR_INTERNAL_ONLY", "0")])).expect("off");
-        assert!(!config.internal_only);
-        assert!(Config::from_map(&map(&[("QR_INTERNAL_ONLY", "maybe")])).is_err());
-    }
-
-    #[test]
-    fn a_bad_number_is_an_error_not_a_default() {
-        let error =
-            Config::from_map(&map(&[("QR_UPLOAD_LIMIT_BYTES", "big")])).expect_err("reject");
-        assert_eq!(
-            error,
-            ConfigError::Invalid {
-                name: "QR_UPLOAD_LIMIT_BYTES",
-                value: "big".to_owned(),
-                reason: "must be a non-negative integer",
-            }
-        );
-    }
-
-    #[test]
-    fn concurrency_zero_is_rejected() {
-        assert!(Config::from_map(&map(&[("QR_BACKTEST_CONCURRENCY", "0")])).is_err());
-    }
-
-    #[test]
-    fn a_stage_retention_is_read_and_zero_is_rejected() {
-        let config =
-            Config::from_map(&map(&[("QR_STAGE_RETENTION_DAYS", "7")])).expect("retention");
-        assert_eq!(config.stage_retention_days, 7);
-        for value in ["0", "-1", "week"] {
-            assert!(
-                Config::from_map(&map(&[("QR_STAGE_RETENTION_DAYS", value)])).is_err(),
-                "{value} was accepted"
-            );
-        }
-    }
-
-    #[test]
-    fn a_bad_image_digest_is_rejected() {
-        assert!(Config::from_map(&map(&[("QR_IMAGE_DIGEST", "nope")])).is_err());
-    }
-
-    #[test]
-    fn an_empty_token_means_no_token() {
-        let config = Config::from_map(&map(&[("QR_BEARER_TOKEN", "")])).expect("empty");
-        assert!(config.bearer_token.is_none());
-    }
 }

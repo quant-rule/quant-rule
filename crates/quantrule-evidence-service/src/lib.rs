@@ -19,7 +19,6 @@ pub mod reconcile;
 pub mod research;
 pub mod routes;
 pub mod runs;
-pub mod sqlite;
 pub mod stage;
 pub mod state;
 
