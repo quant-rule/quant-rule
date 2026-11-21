@@ -20,6 +20,7 @@ pub mod markdown;
 pub mod partitions;
 pub mod py_guard;
 pub mod release_audit;
+pub mod releases;
 pub mod verification_matrix;
 pub mod workflows;
 
@@ -96,6 +97,10 @@ pub const CHECKERS: &[Checker] = &[
     Checker {
         name: "release-audit",
         run: release_audit::check,
+    },
+    Checker {
+        name: "releases",
+        run: releases::check,
     },
     Checker {
         name: "verification-matrix",
