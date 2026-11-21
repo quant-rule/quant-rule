@@ -5,5 +5,6 @@
 
 pub mod adapters;
 pub mod eval;
+pub mod merge;
 pub mod random;
 pub mod stats;

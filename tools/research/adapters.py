@@ -6,9 +6,9 @@ artifact into a small metrics record and a pass/fail verdict. The adapter does
 not re-run the gate and does not decide validation.
 
 Registered parsers:
-- path_validation: tools/improvement/path_validation.py output
+- path_validation: qr-governance improvement path-validation output
 - strategy_evaluation: legacy strategy-matrix output (no current producer)
-- model_prediction: tools/improvement/model_prediction.py output
+- model_prediction: qr-governance improvement model-prediction output
 - summary_json: a generic summary.json with metrics and verdict
 - none: no parser; the exit code is the verdict
 """
