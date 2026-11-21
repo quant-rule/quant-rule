@@ -35,6 +35,10 @@ test is deleted without a replacement or human approval.
 | `qr-governance check --checker claims` | PASS; matches `check_claims.py` |
 | `qr-governance check --checker board-permanence` | PASS; matches `check_board_permanence.py` |
 | `qr-governance check --checker audit-backlog` | PASS; matches `check_audit_backlog.py` |
+| `qr-governance check --checker release-audit` | PASS; matches `check_release_audit.py` |
+| `qr-governance check --checker links` | PASS; matches `check_links.py` |
+| `qr-governance check --checker changelog` | PASS; matches `check_changelog.py` |
+| `qr-governance check --checker workflows` | PASS; matches `check_workflows.py` |
 
 ## Learning
 
@@ -48,7 +52,7 @@ test is deleted without a replacement or human approval.
 - Removing SQLite required deleting its conformance and migration tests; the
   memory/Postgres conformance suites remain. The post-retirement coverage map is
   still a P1D deliverable.
-- Zero Python is in progress: the `qr-governance check` harness and five Rust checkers exist; 21 checkers, the operational tools, research tools, historical deletion, and the policy cutover remain.
+- Zero Python is in progress: the `qr-governance check` harness and nine Rust checkers exist; 17 checkers, the operational tools, research tools, historical deletion, and the policy cutover remain.
 - The build-once release artifact is implemented; the v1.5.0 tag remains pending.
 
 ## Rejected or corrected suggestions
