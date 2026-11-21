@@ -135,7 +135,7 @@ A missing or mismatched artifact fails the release. There is no silent rebuild.
 | V24 | P3H | No `.py`; gate passes without Python | `find`; `PATH` test; image check | Pass |  | Pass |  | 2026-11-21 | zero `.py`; gate passes with a failing `python3` shim on `PATH` |
 | V25 | P4A | Per-test timing and classification recorded | nextest report; audit table | Pass |  | Pending |  |  |  |
 | V26 | P4C–P4D | Only retired/duplicated tests removed; time measured | Deletion batches; approval | Pass |  | Pending |  |  |  |
-| V27 | P5A | Final gate, web check/build/e2e, cross-browser | `gate.sh`; `bun`; cross-browser | Pass |  | Pending |  |  |  |
+| V27 | P5A | Final gate, web check/build/e2e, cross-browser | `gate.sh`; `bun`; cross-browser | Pass |  | Pass |  | 2026-11-21 | gate twice (once with failing Python shims), 158 unit, 57 Chromium, 57 Firefox |
 | V28 | P6E | Issues, board, worktrees, branches closed | `gh`; `git worktree list`; `git branch -a` | Pass |  | Pending |  |  |  |
 | V29 | P1E | CLI source-build path preserved and documented; no installer | `cargo build --release -p quantrule-shell`; docs | Pass | verified locally | Pass |  |  |  |
 | V30 | P1E | Client surface is browser GUI + terminal CLI; no browser console, no desktop app | Architecture docs; command surface; workflow diff | Matches GitHub model | verified locally | Pass |  |  |  |

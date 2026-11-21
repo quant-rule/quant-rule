@@ -81,19 +81,20 @@ historical heading and records the prepared version in a tag note.
 | `v1.4.0` | `2b1f8abf` | new 2026-11-20 (withdrawn; workflow failed) |
 | `v1.4.1` | `51c95392` | new 2026-11-20 (withdrawn; desktop package smoke failed) |
 | `v1.4.2` | release merge | new 2026-11-20 (second release recovery) |
+| `v1.5.0` | release merge | new 2026-11-21 (Python-free governance and faster delivery) |
 
 The GitHub release pages follow the current tag names; published asset and image
 names keep their original build versions. The `v1.0.0` desktop release was built
 as `1.1.0`, so its installers keep that name; its `v1.1.0` registry tag was
 reassigned to the 2026-11-16 release, and its digest is the stable reference.
 
-The current release tag is `v1.4.2` (2026-11-20), the second release recovery for
-the multi-host deployment; its note is [`v1.4.2`](2026-11-20/v1.4.2.md).
-`v1.4.1` and `v1.4.0` are withdrawn because their release workflows failed;
-their tags are retained and their notes record the supersession. The previous
-published release is `v1.3.0`, the stage execution surface, whose note is
-[`v1.3.0`](2026-11-17/v1.3.0.md); `v1.2.0` is the version-alignment release,
-`v1.1.0` is the 1.1.0 alignment release, and `v1.0.0` is the desktop release.
+The current release tag is `v1.5.0` (2026-11-21), the Python-free governance and
+faster-delivery release; its note is [`v1.5.0`](2026-11-21/v1.5.0.md). The
+previous published release is `v1.4.2`, the second release recovery, whose note
+is [`v1.4.2`](2026-11-20/v1.4.2.md); `v1.4.1` and `v1.4.0` are withdrawn and
+their notes record the supersession. `v1.3.0` is the stage execution surface,
+`v1.2.0` is the version-alignment release, `v1.1.0` is the 1.1.0 alignment
+release, and `v1.0.0` is the desktop release.
 
 The map below is authoritative: a current tag resolves to exactly one note, and
 the release workflow and `qr-governance release note --tag` both read it. Paths are
@@ -118,7 +119,8 @@ above; the checker fails when the two drift.
   "v1.3.0": "2026-11-17/v1.3.0.md",
   "v1.4.0": "2026-11-20/v1.4.0.md",
   "v1.4.1": "2026-11-20/v1.4.1.md",
-  "v1.4.2": "2026-11-20/v1.4.2.md"
+  "v1.4.2": "2026-11-20/v1.4.2.md",
+  "v1.5.0": "2026-11-21/v1.5.0.md"
 }
 ```
 <!-- current-tags:end -->
@@ -173,7 +175,8 @@ keeps its historical heading and states the prepared version in a tag note.
   backfilled.
 - A correction to a released section is a new release or a dated addendum in the
   next release.
-- The current release section is `1.4.1`; `1.4.0` is withdrawn, `1.3.0` is the stage execution surface,
+- The current release section is `1.5.0`; `1.4.2` is the second release recovery,
+  `1.4.0` and `1.4.1` are withdrawn, `1.3.0` is the stage execution surface,
   `1.1.0` is the 1.1.0 alignment, `1.0.0` is the desktop release, and `0.9.0`
   is the distributed platform.
 
@@ -187,8 +190,8 @@ keeps its historical heading and states the prepared version in a tag note.
 - Commit: `<commit>`
 - Status: Released
 - Previous release: [`<previous tag>`](<relative path>)
-- Image digest: `sha256:<64 hex characters>` (a local image ID on a dry run)
-- Desktop artifacts: `<AppImage name>`, `<NSIS installer name>` (unsigned)
+- Image: `<registry>/<image>:<tag>`, assembled from `release-binaries-<sha>`
+- Image digest: `sha256:<64 hex characters>`
 - Changelog: [`CHANGELOG.md`](../../CHANGELOG.md#<version>)
 - Claim type: release record; no model, strategy, or edge claim.
 
