@@ -52,7 +52,7 @@ It must contain the hypothesis, partition, config path and hash, data version,
 the metric table, verdict, limitations, and the local artifact path.
 
 The local `data/improvement/<date>/<run-id>/review.md` and `decision.md` are
-working copies produced by `run.py`. They are not a second source of truth. The
+working copies produced by the run adapter. They are not a second source of truth. The
 heavy artifacts, full event batches, and model CSVs stay local. When a run is
 invalidated, its local folder is removed and a row is appended to
 [`INVALIDATIONS.md`](INVALIDATIONS.md); the committed summary and the tombstone
@@ -98,7 +98,7 @@ data/improvement/<YYYY-MM-DD>/<run-id>/
   decision.md
 ```
 
-`manifest.json` is staged before the run and never rewritten. `run.py` creates
+`manifest.json` is staged before the run and never rewritten. The run adapter creates
 the canonical run folder, copies the manifest and config, runs the shell, and
 writes `results.json`. `qr-governance improvement evidence` writes `artifacts/evidence.json`.
 `review.md` and `decision.md` use the templates below. The index is regenerated

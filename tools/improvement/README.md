@@ -1,10 +1,10 @@
 # Improvement tooling
 
-> Status: the manifest schema is current. `run.py` is a historical adapter for
-> the retired local stage commands and is retained for reproducing pre-cutover
-> runs. The current execution path is the gateway `run submit` / `run status` /
-> `run fetch`; `qr-governance improvement run-current` records the stage-command
-> path used before the gateway adapter is specified. The manifest schema is
+> Status: the manifest schema is current. The current execution path is the
+> gateway `run submit` / `run status` / `run fetch`;
+> `qr-governance improvement run-current` records the stage-command path used
+> before the gateway adapter is specified. The historical `run.py` adapter is
+> deleted; Git history is the recovery path. The manifest schema is
 > `quantrule.improvement-run/v2`; v1 is historical and is rejected for a new run.
 
 Python 3 standard-library tooling for the improvement run store. The scripts are
@@ -17,7 +17,6 @@ shell submits and fetches the gateway run.
 | `qr-governance improvement validate <manifest>` | Check a `quantrule.improvement-run/v2` manifest |
 | `qr-governance improvement index --root data/improvement` | Rebuild `index.json` and `index.md` from run manifests |
 | `qr-governance improvement run-current <manifest> [--qr PATH]` | Execute the stage-command run path and record its results |
-| `run.py <manifest> [--qr PATH]` | Historical adapter for the retired `backtest` command; retained for reproducibility only |
 | `qr-governance improvement feasibility --strategy ... --data ... --cost-bps ...` | Deterministic preflight: reject a hypothesis whose target is below its round-trip cost or whose breakeven win rate exceeds 50%, and any timeframe above 1 hour |
 | `dukascopy_archive.py --symbol ... --year ... --out ...` | Rebuild a one-minute CSV from the Dukascopy historical archive; reports full hours and flat zero-volume placeholders so row coverage is not mistaken for market coverage |
 | `qr-governance improvement evidence <run-dir>` | Write `artifacts/evidence.json` from the current model, portfolio, qualification, and analytics bundles |
@@ -63,11 +62,12 @@ verdict `failed`; otherwise the verdict comes from `results.json`, then the
 
 ## Run folder
 
-The default root is `data/improvement/<date>/<run_id>/`. `run.py` refuses a root
-that already has any entry, copies `manifest.json` unchanged, copies the run
-config and every sibling `*.json` into `config/`, records outside config paths in
-`config/sources.json`, creates `artifacts/`, and starts `review.md` and
-`decision.md` with `Verdict: pending`.
+The default root is `data/improvement/<date>/<run_id>/`.
+`qr-governance improvement run-current` refuses a root that already has any
+entry, copies `manifest.json` unchanged, copies the run config and every sibling
+`*.json` into `config/`, records outside config paths in `config/sources.json`,
+creates `artifacts/`, and starts `review.md` and `decision.md` with
+`Verdict: pending`.
 
 The current gateway invocations are:
 
@@ -130,9 +130,10 @@ retired terms on purpose.
 
 ## Limitations
 
-- `run.py` refreshes only the local `data/improvement/index.json` and `index.md`.
-  Copying the committed snapshot to `docs/improvement/index.md` remains a
-  separate committed step; this workstream does not modify `docs/`.
+- `qr-governance improvement index` refreshes only the local
+  `data/improvement/index.json` and `index.md`. Copying the committed snapshot
+  to `docs/improvement/index.md` remains a separate committed step; this
+  workstream does not modify `docs/`.
 - A custom `output_root` outside `data/improvement` is recorded in its run folder
   but, by contract, is not part of the canonical index.
 - The store is local data. `data/partitions.json` is ignored by the current
