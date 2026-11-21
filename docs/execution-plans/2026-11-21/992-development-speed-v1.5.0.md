@@ -1,7 +1,7 @@
 # Development Speed and v1.5.0
 
 - Date: 2026-11-21 (UTC)
-- Status: Approved
+- Status: In Progress
 - Workflow: [Execution Plan](../../workflows/execution-plan.md)
 - Epic: #992
 - Issues: #993–#1031

@@ -22,8 +22,13 @@ test is deleted without a replacement or human approval.
 |---|---|
 | `gh issue list` | Epic #992 and sub-issues #993–#1031 created |
 | Board fields | Item type, phase, claim type, and Todo status set |
-| `bash tools/checkers.sh` | Pending after the plan/ADR commit |
-| `./tools/gate.sh` | Pending after implementation |
+| `bash tools/checkers.sh` | PASS; 26 checkers |
+| `./tools/gate.sh` | PASS; workspace gate with `CARGO_TARGET_DIR=target/gate` |
+| `cargo test --workspace --no-fail-fast` | PASS; no failures |
+| `bun run check` / `bun test` / `bun run build` | PASS; 0 diagnostics, 158 tests, build |
+| Chromium e2e | 57 passed |
+| Firefox e2e | 57 passed |
+| `cargo build --release -p quantrule-shell` | PASS; `quantrule help` exits 0 |
 
 ## Learning
 
@@ -34,6 +39,10 @@ test is deleted without a replacement or human approval.
 - The release must be a promote-and-verify pipeline, not a build pipeline.
 - macOS is a separate client decision; v1.5.0 supports Windows and Linux only.
 - A browser console is a separate capability, not part of desktop removal.
+- Removing SQLite required deleting its conformance and migration tests; the
+  memory/Postgres conformance suites remain. The post-retirement coverage map is
+  still a P1D deliverable.
+- Zero Python, the build-once release artifact, and v1.5.0 remain pending.
 
 ## Rejected or corrected suggestions
 
