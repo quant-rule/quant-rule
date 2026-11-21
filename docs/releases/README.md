@@ -81,15 +81,17 @@ historical heading and records the prepared version in a tag note.
 | `v1.4.0` | `2b1f8abf` | new 2026-11-20 (withdrawn; workflow failed) |
 | `v1.4.1` | `51c95392` | new 2026-11-20 (withdrawn; desktop package smoke failed) |
 | `v1.4.2` | release merge | new 2026-11-20 (second release recovery) |
-| `v1.5.0` | release merge | new 2026-11-21 (Python-free governance and faster delivery) |
+| `v1.5.0` | release merge | new 2026-11-21 (withdrawn; Windows CLI gate failed) |
+| `v1.5.1` | release merge | new 2026-11-21 (Windows release-gate recovery) |
 
 The GitHub release pages follow the current tag names; published asset and image
 names keep their original build versions. The `v1.0.0` desktop release was built
 as `1.1.0`, so its installers keep that name; its `v1.1.0` registry tag was
 reassigned to the 2026-11-16 release, and its digest is the stable reference.
 
-The current release tag is `v1.5.0` (2026-11-21), the Python-free governance and
-faster-delivery release; its note is [`v1.5.0`](2026-11-21/v1.5.0.md). The
+The current release tag is `v1.5.1` (2026-11-21), the Windows release-gate
+recovery; its note is [`v1.5.1`](2026-11-21/v1.5.1.md). `v1.5.0` is withdrawn
+because its Windows CLI gate failed, and its note records the supersession. The
 previous published release is `v1.4.2`, the second release recovery, whose note
 is [`v1.4.2`](2026-11-20/v1.4.2.md); `v1.4.1` and `v1.4.0` are withdrawn and
 their notes record the supersession. `v1.3.0` is the stage execution surface,
@@ -120,7 +122,8 @@ above; the checker fails when the two drift.
   "v1.4.0": "2026-11-20/v1.4.0.md",
   "v1.4.1": "2026-11-20/v1.4.1.md",
   "v1.4.2": "2026-11-20/v1.4.2.md",
-  "v1.5.0": "2026-11-21/v1.5.0.md"
+  "v1.5.0": "2026-11-21/v1.5.0.md",
+  "v1.5.1": "2026-11-21/v1.5.1.md"
 }
 ```
 <!-- current-tags:end -->
@@ -175,10 +178,10 @@ keeps its historical heading and states the prepared version in a tag note.
   backfilled.
 - A correction to a released section is a new release or a dated addendum in the
   next release.
-- The current release section is `1.5.0`; `1.4.2` is the second release recovery,
-  `1.4.0` and `1.4.1` are withdrawn, `1.3.0` is the stage execution surface,
-  `1.1.0` is the 1.1.0 alignment, `1.0.0` is the desktop release, and `0.9.0`
-  is the distributed platform.
+- The current release section is `1.5.1`; `1.5.0` is withdrawn, `1.4.2` is the
+  second release recovery, `1.4.0` and `1.4.1` are withdrawn, `1.3.0` is the
+  stage execution surface, `1.1.0` is the 1.1.0 alignment, `1.0.0` is the
+  desktop release, and `0.9.0` is the distributed platform.
 
 ## 6. Release note template
 

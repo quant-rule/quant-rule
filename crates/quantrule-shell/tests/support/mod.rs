@@ -8,7 +8,7 @@
 #![allow(dead_code)]
 
 use std::collections::BTreeMap;
-use std::io::{Read, Write};
+use std::io::{ErrorKind, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
@@ -401,11 +401,15 @@ fn serve(listener: TcpListener, state: Arc<Mutex<FixtureState>>, stop: Arc<Atomi
                         }
                     };
                     let _ = write_response(&mut stream, response);
+                    let _ = stream.shutdown(std::net::Shutdown::Write);
+                } else {
+                    let _ = stream.shutdown(std::net::Shutdown::Both);
                 }
             }
-            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+            Err(error) if error.kind() == ErrorKind::WouldBlock => {
                 thread::sleep(Duration::from_millis(2));
             }
+            Err(error) if transient_accept(&error) => continue,
             Err(_) => break,
         }
     }
@@ -459,6 +463,20 @@ fn read_request(stream: &mut TcpStream) -> Option<Request> {
         headers,
         body,
     })
+}
+
+/// Whether `accept` failed because the peer vanished before the handshake.
+///
+/// Windows reports a queued connection reset as `ConnectionAborted`; the server
+/// must keep listening instead of treating one vanished peer as fatal.
+fn transient_accept(error: &std::io::Error) -> bool {
+    matches!(
+        error.kind(),
+        ErrorKind::ConnectionAborted
+            | ErrorKind::ConnectionReset
+            | ErrorKind::TimedOut
+            | ErrorKind::Interrupted
+    )
 }
 
 /// Whether one request may reach the handler under the fixture's token.
@@ -927,4 +945,24 @@ fn run_detail(artifact_digest: &str, artifact_bytes: u64) -> Value {
         "digest": canonical_digest(),
         "error": null,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_vanished_peer_is_transient() {
+        for kind in [
+            ErrorKind::ConnectionAborted,
+            ErrorKind::ConnectionReset,
+            ErrorKind::TimedOut,
+            ErrorKind::Interrupted,
+        ] {
+            assert!(transient_accept(&std::io::Error::from(kind)));
+        }
+        assert!(!transient_accept(&std::io::Error::from(
+            ErrorKind::PermissionDenied
+        )));
+    }
 }

@@ -160,9 +160,9 @@ saving. A future batch needs a named retired behavior and human approval.
 | V26 | P4C–P4D | Only retired/duplicated tests removed; time measured | Deletion batches; approval | Pass |  | Pass |  | 2026-11-21 | no deletion: no candidate met the criteria; 0s claimed |
 | V27 | P5A | Final gate, web check/build/e2e, cross-browser | `gate.sh`; `bun`; cross-browser | Pass |  | Pass |  | 2026-11-21 | gate twice (once with failing Python shims), 158 unit, 57 Chromium, 57 Firefox |
 | V28 | P6E | Issues, board, worktrees, branches closed | `gh`; `git worktree list`; `git branch -a` | Pass |  | Pending |  |  |  |
-| V29 | P1E | CLI source-build path preserved and documented; no installer | `cargo build --release -p quantrule-shell`; docs | Pass | verified locally | Pass |  |  |  |
+| V29 | P1E | CLI source-build path preserved and documented; no installer | `cargo build --release -p quantrule-shell`; docs | Pass | verified locally | Pass |  | 2026-11-21 | documented; built by the release CLI job |
 | V30 | P1E | Client surface is browser GUI + terminal CLI; no browser console, no desktop app | Architecture docs; command surface; workflow diff | Matches GitHub model | verified locally | Pass |  |  |  |
-| V31 | P6A–P6B | Version 1.5.0, changelog, and release note present | `Cargo.toml`; `Cargo.lock`; `apps/web/package.json`; `CHANGELOG.md`; release note | Consistent |  | Pending |  |  |  |
+| V31 | P6A–P6B | Version 1.5.1, changelog, and release note present | `Cargo.toml`; `Cargo.lock`; `apps/web/package.json`; `CHANGELOG.md`; release note | Consistent |  | Pass |  | 2026-11-21 | v1.5.0 withdrawn; v1.5.1 supersedes |
 | V32 | P6C–P6D | Annotated v1.5.0 on main; Linux/Windows CLI matrix pass; image-only release; `/version` 1.5.0; `/health` digest; no desktop assets | `git cat-file`; `gh release view`; `/version`; `/health` | Pass |  | Pending |  |  |  |
 | V33 | P6E | Board Done, worktree and local/remote branches removed | `gh`; `git worktree list`; `git branch -a` | Pass |  | Pending |  |  |  |
 | V34 | P2I | Release binaries come from the exact tag SHA; manifest and SHA-256 checks pass; image assembly compiles no Rust | Artifact manifest; `sha256sum`; workflow log | Pass |  | Pending |  |  |  |
