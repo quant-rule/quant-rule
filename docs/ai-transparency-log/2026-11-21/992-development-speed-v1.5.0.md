@@ -100,6 +100,9 @@ test is deleted without a replacement or human approval.
 | `model_prediction.py` retained | Pending `model_cell` switch to the Rust command |
 | `research::adapters` parity | PASS; passing/failing model-prediction records parsed identically; 2 tests |
 | `adapters.py` retained | Pending `cell`/`program` ports |
+| `qr-governance improvement model-cell` parity | PASS; fake-shell fixture matches the Python JSON structurally, the Markdown byte-for-byte, and the prediction digest |
+| `cargo test -p quantrule-governance model_cell` | PASS; 2 tests |
+| Deleted the evaluator Python stack | `model_cell`, `model_prediction`, `model_condition`, `model_path`, `path_validation`, and the dependent historical validators/tests |
 
 ## Learning
 
@@ -115,7 +118,7 @@ test is deleted without a replacement or human approval.
   still a P1D deliverable.
 - Zero Python is in progress: all 26 `qr-governance check` checkers, worktree cleanup, label generation, the Python guard, the verification builder, the feasibility preflight, and the improvement cleanup scan are Rust. The improvement run store (`validate`, `index`, `run-current`) is Rust; the historical `run.py` adapter is deleted. Research tools, the remaining shared `common.py`, historical deletion, and the policy cutover remain.
 
-**Dependency found during the `run.py` deletion.** The live research tools still name historical improvement evaluators as defaults: `tools/research/model_cell.py` defaults to `tools/improvement/model_prediction.py`, `model_condition.py`, and `model_path.py`, and `tools/research/adapters.py` describes their output. The `model-path` evaluator is now ported and parity-verified; its Python file stays until `model_cell` can invoke the Rust command. `model_condition` and `model_prediction` remain. The CPython-compatible random generator and inverse-normal quantiles are now ported and parity-tested, which unblocks `path_validation` and the seeded controls in `model_prediction`.
+**Dependency found during the `run.py` deletion.** The live research tools still name historical improvement evaluators as defaults: `tools/research/model_cell.py` defaults to `tools/improvement/model_prediction.py`, `model_condition.py`, and `model_path.py`, and `tools/research/adapters.py` describes their output. The `model-path` evaluator is now ported and parity-verified; its Python file stays until `model_cell` can invoke the Rust command. The evaluator stack is Rust: `path_validation`, `model_prediction`, `model_condition`, `model_path`, and `model_cell` are ported and parity-tested, and their Python sources are deleted. `adapters.py` and `common.py` remain until the research `cell`/`program` and historical improvement tooling are ported or deleted.
 
 **Verification builder repaired.** The committed manifest's newer evidence is now explicit in the builder as reviewed maps: the shared extended-edge suite, three availability anchors, two formula extensions, the retest golden, and the two sequence-availability rows. The repaired Python builder reproduced the committed manifest and both matrices exactly; the Rust port reproduces them byte for byte. The stale Python builder and the worktree cleanup tool and test are deleted. This closes the stop condition without changing the accepted evidence map.
 - The build-once release artifact is implemented; the v1.5.0 tag remains pending.

@@ -8,7 +8,7 @@ fn parse_split(value: Option<&str>, end: bool) -> Option<i64> {
     Some(days * 86_400 + if end { 86_399 } else { 0 })
 }
 
-fn load_state_gate(path: &str) -> Result<StateGate, String> {
+pub(super) fn load_state_gate(path: &str) -> Result<StateGate, String> {
     let document = store::read_json(Path::new(path))?;
     if document.get("schema").and_then(Value::as_str) != Some(STATE_SCHEMA) {
         return Err(format!("state gate schema must be {STATE_SCHEMA}"));
@@ -418,4 +418,16 @@ fn read_csv(path: &Path) -> Result<(Vec<String>, Vec<Vec<String>>), String> {
     let mut lines = text.lines();
     let header = lines.next().unwrap_or("").split(',').map(|value| value.trim().trim_matches('"').to_owned()).collect();
     Ok((header, lines.map(|line| line.split(',').map(|value| value.trim().trim_matches('"').to_owned()).collect()).collect()))
+}
+
+/// Whether a CSV row matches every state clause.
+pub(super) fn state_matches_csv(fields: &BTreeMap<String, String>, gate: &StateGate) -> bool {
+    gate.clauses.iter().all(|clause| {
+        let Some(value) = fields.get(&clause.column).and_then(|value| optional_int(value)) else {
+            return false;
+        };
+        clause.values.as_ref().is_none_or(|values| values.contains(&value))
+            && clause.min_value.is_none_or(|minimum| value >= minimum)
+            && clause.max_value.is_none_or(|maximum| value <= maximum)
+    })
 }

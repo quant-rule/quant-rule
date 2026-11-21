@@ -162,7 +162,7 @@ event is not a signal, or a panel/session source is wrong.
 | Replication | at least 2 instruments with `n >= 30` and positive lift |
 
 The evaluator is
-[`tools/improvement/model_prediction.py`](../../../tools/improvement/model_prediction.py)
+`qr-governance improvement model-prediction`
 and its contract is
 [`docs/analytics/2026-11-05/model-prediction.md`](../../analytics/2026-11-05/model-prediction.md).
 It applies the split bounds and purges a prediction whose outcome crosses
@@ -227,5 +227,5 @@ pre-registration and is not runnable. The shell command in a cell is:
 quantrule report model --config <run.json> --spec <spec-<instrument>.json>
 ```
 
-followed by `tools/improvement/model_prediction.py` over the four instrument
+followed by `qr-governance improvement model-prediction` over the four instrument
 bundles. P4 implements that orchestration; P5 runs it on `model_dev`.

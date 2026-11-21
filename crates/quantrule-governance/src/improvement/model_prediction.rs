@@ -66,7 +66,7 @@ pub(super) struct Args {
 }
 
 #[derive(Clone)]
-struct StateClause {
+pub(super) struct StateClause {
     column: String,
     values: Option<Vec<i64>>,
     min_value: Option<i64>,
@@ -74,7 +74,7 @@ struct StateClause {
 }
 
 #[derive(Clone)]
-struct StateGate {
+pub(super) struct StateGate {
     clauses: Vec<StateClause>,
     raw: Value,
 }

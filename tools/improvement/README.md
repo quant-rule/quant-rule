@@ -21,7 +21,7 @@ shell submits and fetches the gateway run.
 | `dukascopy_archive.py --symbol ... --year ... --out ...` | Rebuild a one-minute CSV from the Dukascopy historical archive; reports full hours and flat zero-volume placeholders so row coverage is not mistaken for market coverage |
 | `qr-governance improvement evidence <run-dir>` | Write `artifacts/evidence.json` from the current model, portfolio, qualification, and analytics bundles |
 | `model_confidence.py --source CSV --timeframe TF` | Axis hit rates and ordered buckets from `model-series` |
-| `model_prediction.py --bundle NAME=DIR ...` | Forward/barrier model-prediction evaluation with base rate, controls, and grade |
+| `qr-governance improvement model-prediction --bundle NAME=DIR ...` | Forward/barrier model-prediction evaluation with base rate, controls, and grade |
 | `qr-governance improvement cleanup --check` | Report retired terms and legacy run paths |
 | `common.py` | Shared schema, JSON, UTC, path, and process helpers |
 
