@@ -8,6 +8,7 @@ mod evidence;
 mod feasibility;
 mod index;
 mod manifest;
+mod model_condition;
 mod model_path;
 mod report;
 mod run_current;
@@ -33,6 +34,13 @@ pub fn run(args: &[String]) -> ExitCode {
         "index" => index_command(&args[1..]),
         "run-current" => run_current_command(&args[1..]),
         "validate" => validate_command(&args[1..]),
+        "model-condition" => match model_condition::run(&args[1..]) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(error) => {
+                eprintln!("error: {error}");
+                ExitCode::FAILURE
+            }
+        },
         "model-path" => match model_path::run(&args[1..]) {
             Ok(()) => ExitCode::SUCCESS,
             Err(error) => {
