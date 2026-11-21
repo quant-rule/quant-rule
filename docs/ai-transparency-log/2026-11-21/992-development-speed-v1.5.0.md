@@ -85,6 +85,9 @@ test is deleted without a replacement or human approval.
 | Full checker gate after the deletion | PASS; 26 checkers and their tests |
 | `qr-governance improvement model-path` parity | PASS; `path.json` equal, `path.md` byte-identical, 2 Rust tests |
 | `model_path.py` retained | Pending `model_cell` switch to the Rust command; no deletion yet |
+| `qr-governance improvement model-condition` parity | PASS; conditioned `readings.csv` byte-identical for sequence/confluence/column; `state.json` and `condition.json` structurally equal |
+| `cargo test -p quantrule-governance model_condition` | PASS; 4 tests |
+| `model_condition.py` retained | Pending `model_cell` switch to the Rust command; no deletion yet |
 
 ## Learning
 
