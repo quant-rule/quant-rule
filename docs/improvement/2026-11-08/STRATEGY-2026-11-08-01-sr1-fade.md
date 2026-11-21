@@ -148,7 +148,7 @@ evaluated for a stopped run.
 - [Charter](../../governance/2026-11-08/SR1-CHARTER.md)
 - [Plan](../../execution-plans/2026-11-08/sr1-programme.md)
 - [AI transparency log](../../ai-transparency-log/2026-11-08/sr1-programme.md)
-- [Feasibility preflight](../../../tools/improvement/feasibility.py)
+- Feasibility preflight: `qr-governance improvement feasibility` (retired `tools/improvement/feasibility.py`)
 - [Strategy Research workflow](../../workflows/strategy-research.md)
 - [Baselines](../baselines.md)
 - [Run index](../index.md)

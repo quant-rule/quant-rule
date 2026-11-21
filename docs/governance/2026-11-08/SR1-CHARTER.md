@@ -136,4 +136,5 @@ variant.
 - Validation: `strategy_validation` 2024 was not opened.
 - Gate: a future strategy hypothesis must pass the feasibility preflight
   before any backtest cell; see
-  [`tools/improvement/feasibility.py`](../../../tools/improvement/feasibility.py).
+  `qr-governance improvement feasibility` (ported 2026-11-21 from the retired
+  `tools/improvement/feasibility.py`).

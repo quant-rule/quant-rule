@@ -69,6 +69,10 @@ test is deleted without a replacement or human approval.
 | `qr-governance verification build` | PASS; byte-identical to the committed manifest and both matrices |
 | `cargo test -p quantrule-governance verification` | PASS; golden reproduction test |
 | Deleted `tools/build_verification.py`, `tools/worktree_cleanup.py`, `tools/test_worktree_cleanup.py` | PASS; Rust ports and tests remain |
+| `qr-governance improvement feasibility` parity | PASS; 0 numeric differences at 1e-9 against the Python preflight, identical text apart from the output path |
+| `qr-governance improvement cleanup --check` parity | PASS; 101 findings and 1122 files, byte-identical output |
+| `cargo test -p quantrule-governance improvement` | PASS; 10 tests, including the recorded SR1 4:1 fade rejection |
+| Deleted `tools/improvement/feasibility.py`, `tools/improvement/test_feasibility.py`, `tools/improvement/cleanup.py` | PASS; Rust ports remain; `check_terms.py` delegates to the Rust command |
 
 ## Learning
 
@@ -82,7 +86,7 @@ test is deleted without a replacement or human approval.
 - Removing SQLite required deleting its conformance and migration tests; the
   memory/Postgres conformance suites remain. The post-retirement coverage map is
   still a P1D deliverable.
-- Zero Python is in progress: all 26 `qr-governance check` checkers, worktree cleanup, label generation, the Python guard, and the verification builder are Rust. Research tools, historical deletion, and the policy cutover remain.
+- Zero Python is in progress: all 26 `qr-governance check` checkers, worktree cleanup, label generation, the Python guard, the verification builder, the feasibility preflight, and the improvement cleanup scan are Rust. The improvement evidence/run adapters, research tools, historical deletion, and the policy cutover remain.
 
 **Verification builder repaired.** The committed manifest's newer evidence is now explicit in the builder as reviewed maps: the shared extended-edge suite, three availability anchors, two formula extensions, the retest golden, and the two sequence-availability rows. The repaired Python builder reproduced the committed manifest and both matrices exactly; the Rust port reproduces them byte for byte. The stale Python builder and the worktree cleanup tool and test are deleted. This closes the stop condition without changing the accepted evidence map.
 - The build-once release artifact is implemented; the v1.5.0 tag remains pending.

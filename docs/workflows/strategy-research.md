@@ -99,7 +99,7 @@ Before the first backtest cell, the Quant Validator runs the deterministic
 feasibility preflight on the declared rule and data:
 
 ```bash
-python3 tools/improvement/feasibility.py \
+qr-governance improvement feasibility \
   --strategy config/strategy/<name>.json \
   --data config/<run>/<cell>/data.json \
   --cost-bps 6 \
@@ -145,7 +145,7 @@ quantrule config list
 quantrule run submit <data_version> <config_id>
 quantrule run status <run_id>
 quantrule run fetch <run_id> <dir>
-python3 tools/improvement/feasibility.py --strategy <strategy.json> --data <data.json> --cost-bps <bps> --out <dir>
+qr-governance improvement feasibility --strategy <strategy.json> --data <data.json> --cost-bps <bps> --out <dir>
 quantrule inspect events <data_version> --timeframe <timeframe>
 quantrule verify <run_id>
 ```

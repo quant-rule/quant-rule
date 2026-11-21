@@ -18,12 +18,12 @@ shell submits and fetches the gateway run.
 | `index.py --root data/improvement` | Rebuild `index.json` and `index.md` from run manifests |
 | `run_current.py <manifest> [--qr PATH]` | Historical adapter for the retired local stage commands; retained for reproducing pre-cutover runs |
 | `run.py <manifest> [--qr PATH]` | Historical adapter for the retired `backtest` command; retained for reproducibility only |
-| `feasibility.py --strategy ... --data ... --cost-bps ...` | Deterministic preflight: reject a hypothesis whose target is below its round-trip cost or whose breakeven win rate exceeds 50%, and any timeframe above 1 hour |
+| `qr-governance improvement feasibility --strategy ... --data ... --cost-bps ...` | Deterministic preflight: reject a hypothesis whose target is below its round-trip cost or whose breakeven win rate exceeds 50%, and any timeframe above 1 hour |
 | `dukascopy_archive.py --symbol ... --year ... --out ...` | Rebuild a one-minute CSV from the Dukascopy historical archive; reports full hours and flat zero-volume placeholders so row coverage is not mistaken for market coverage |
 | `evidence.py <run-dir>` | Write `artifacts/evidence.json` from the current model, portfolio, qualification, and analytics bundles |
 | `model_confidence.py --source CSV --timeframe TF` | Axis hit rates and ordered buckets from `model-series` |
 | `model_prediction.py --bundle NAME=DIR ...` | Forward/barrier model-prediction evaluation with base rate, controls, and grade |
-| `cleanup.py --check` | Report retired terms and legacy run paths |
+| `qr-governance improvement cleanup --check` | Report retired terms and legacy run paths |
 | `common.py` | Shared schema, JSON, UTC, path, and process helpers |
 
 ## Manifest
@@ -117,7 +117,7 @@ forward return. `--format csv` emits one tidy row per statistic.
 
 ## Term check
 
-`cleanup.py --check` scans `docs/`, `README.md`, and `data/` for
+`qr-governance improvement cleanup --check` scans `docs/`, `README.md`, and `data/` for
 `Continuous Improvement`, `continuous improvement`,
 `Governing / Experiment Control Swarm`, `data/labs`, `data/reports`, and
 `data/research`. It prints each match and exits 1. It never deletes or rewrites.
@@ -144,7 +144,7 @@ retired terms on purpose.
 A strategy hypothesis is screened before the first backtest cell:
 
 ```text
-python3 tools/improvement/feasibility.py \
+qr-governance improvement feasibility \
   --strategy config/strategy/<name>.json \
   --data config/<run>/<cell>/data.json \
   --cost-bps 6 \
@@ -158,8 +158,8 @@ backtest result. A hypothesis passes only when the net target is positive and
 the breakeven win rate is at most 50%; every execution and context timeframe
 must be at or below 1 hour. A fail stops the hypothesis before compute is spent.
 
-The tests run from this directory:
+The Rust tests run from the workspace root:
 
 ```text
-python3 -m unittest test_feasibility -v
+cargo test -p quantrule-governance improvement
 ```
