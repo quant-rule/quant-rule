@@ -390,6 +390,9 @@ fn serve(listener: TcpListener, state: Arc<Mutex<FixtureState>>, stop: Arc<Atomi
     while !stop.load(Ordering::SeqCst) {
         match listener.accept() {
             Ok((mut stream, _)) => {
+                // Windows can let an accepted socket inherit the listener's
+                // non-blocking flag; a first read would then see no data yet.
+                let _ = stream.set_nonblocking(false);
                 if let Some(request) = read_request(&mut stream) {
                     let response = {
                         let mut state = state.lock().expect("the fixture lock");

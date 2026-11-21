@@ -189,3 +189,10 @@ test is deleted without a replacement or human approval.
 - Fix: keep listening after a vanished peer and close each response stream cleanly. The test set is unchanged.
 - v1.5.0 is withdrawn; v1.5.1 carries the same feature scope and the test-fixture fix.
 - Local verification: `cargo test -p quantrule-shell --test client_parity` 4 pass; `cargo test -p quantrule-model-service --test model` 7 pass; `qr-governance check --all` 26 checkers; full gate and web checks recorded in the v1.5.1 release note.
+
+## v1.5.2 fixture recovery
+
+- v1.5.1 still failed the Windows CLI gate. A Windows debug job showed the fixture accepted a connection and the first read returned no data.
+- Root cause: an accepted socket could inherit the listener's non-blocking flag. The server returned no response and the client reported `os error 10053`.
+- Fix: set each accepted socket to blocking before the first read. The Windows debug job then passed all four client-parity tests.
+- v1.5.0 and v1.5.1 are withdrawn; v1.5.2 carries the same feature scope and the fixture fix.
