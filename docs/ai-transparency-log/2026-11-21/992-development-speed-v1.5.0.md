@@ -167,3 +167,10 @@ test is deleted without a replacement or human approval.
 - Fixed two checker defects exposed by the tests: the audit backlog now reads the Status column rather than the last cell, and the release checker reports a malformed note file name instead of skipping it.
 - Removed Python from `tools/composed.sh`, `tools/verify.sh`, `tools/check_queue_isolation.sh`, `tools/test_tiers.sh`, and `deploy/multi-host/test.sh`; JSON work now uses `sed` or `jq` on the host.
 - Verification: `bash tools/gate.sh` passes; a second run with failing `python3`/`python` shims on `PATH` also passes; `find . -name '*.py'` is empty.
+
+## v1.5.0 preparation
+
+- Bumped the workspace, web package, and model-object oracle to 1.5.0.
+- Added the `1.5.0` changelog section, release note, current-tag map entry, and release-index row.
+- Local verification: full gate twice (the second with failing `python3`/`python` shims on `PATH`), 2,322 workspace tests, 7 model-service oracle tests, 158 web unit tests, 57 Chromium e2e, 57 Firefox e2e, and a clean web build.
+- The release note's release-workflow row stays pending until the tag runs; the tag itself is a human-authorized operation.
