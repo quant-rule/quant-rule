@@ -7,9 +7,12 @@
 #![forbid(unsafe_code)]
 pub mod check;
 pub mod checks;
+pub mod guard;
 pub mod history;
+pub mod labels;
 pub mod manifest;
 pub mod registry;
 pub mod release;
 pub mod report;
 pub mod structure;
+pub mod worktree;
