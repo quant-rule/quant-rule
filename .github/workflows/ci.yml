@@ -78,7 +78,8 @@ jobs:
         run: rustup show
       - name: Print proxy environment
         shell: pwsh
-        run: Get-ChildItem Env: | Where-Object { $_.Name -match 'PROXY' } | Format-Table -AutoSize
+        run: |
+          Get-ChildItem Env: | Where-Object { $_.Name -match 'PROXY' } | Format-Table -AutoSize
       - name: Test client parity with fixture logs
         env:
           QR_FIXTURE_DEBUG: "1"
