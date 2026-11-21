@@ -4,6 +4,7 @@ use std::path::Path;
 use std::process::ExitCode;
 
 mod cleanup;
+mod evidence;
 mod feasibility;
 mod report;
 
@@ -23,6 +24,7 @@ pub fn run(args: &[String]) -> ExitCode {
     };
     match command {
         "feasibility" => feasibility_command(&args[1..]),
+        "evidence" => evidence_command(&args[1..]),
         "cleanup" => cleanup_command(&args[1..]),
         other => {
             eprintln!("error: unknown improvement command {other}");
@@ -118,6 +120,20 @@ fn feasibility_command(args: &[String]) -> ExitCode {
         ExitCode::SUCCESS
     } else {
         ExitCode::FAILURE
+    }
+}
+
+fn evidence_command(args: &[String]) -> ExitCode {
+    let Some(run_dir) = args.first() else {
+        eprintln!("error: evidence needs a run directory");
+        return ExitCode::FAILURE;
+    };
+    match evidence::run(Path::new(run_dir)) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(error) => {
+            eprintln!("error: {error}");
+            ExitCode::FAILURE
+        }
     }
 }
 

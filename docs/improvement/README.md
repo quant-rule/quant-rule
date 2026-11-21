@@ -100,7 +100,7 @@ data/improvement/<YYYY-MM-DD>/<run-id>/
 
 `manifest.json` is staged before the run and never rewritten. `run.py` creates
 the canonical run folder, copies the manifest and config, runs the shell, and
-writes `results.json`. `evidence.py` writes `artifacts/evidence.json`.
+writes `results.json`. `qr-governance improvement evidence` writes `artifacts/evidence.json`.
 `review.md` and `decision.md` use the templates below. The index is regenerated
 after the decision, not hand-edited.
 

@@ -170,10 +170,10 @@ decision.md
 ```
 
 `results.json` records every command, its exit code, the captured streams, and
-the artifact inventory. `evidence.py` writes the summary:
+the artifact inventory. `qr-governance improvement evidence` writes the summary:
 
 ```bash
-python3 tools/improvement/evidence.py /tmp/opencode/workflow-run-test
+qr-governance improvement evidence /tmp/opencode/workflow-run-test
 ```
 
 ## 4. Read the evidence
