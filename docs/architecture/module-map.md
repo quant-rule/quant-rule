@@ -78,7 +78,7 @@ cannot read a strategy, write a run, publish to the queue, or compute a model.
 | Client screen | `apps/web/src/lib/<Name>Panel.svelte` | store, `client.md`, Playwright test |
 | Command | `shell/src/command/parse/<family>.rs`, `dispatch/<family>.rs`, `src/output/<family>.rs` | `command-surface.md`, help, tutorial, `tests/cases/`, checker |
 | Config field | `app/src/config/<file>.rs` | input type, provenance, docs, registry |
-| Pack field | `app/src/pack/<kind>.rs` | config contract, canonical hash, lifecycle test |
+| Pack field | `app/src/pack/<kind>.rs`; shared identity in `pack/core.rs` | config contract, canonical hash, lifecycle test |
 | Artifact field | `evidence-service/src/` | artifact contract, golden bundle |
 
 ## 4. Repository tooling
@@ -96,7 +96,7 @@ runtime store.
 4. `crates/quantrule-data/src/lib.rs`.
 5. `crates/quantrule-model/src/lib.rs`, `timeframe.rs`, `run.rs`.
 6. `crates/quantrule-backtest/src/lib.rs`, `strategy/mod.rs`.
-7. `crates/quantrule-app/src/lib.rs`, `pipeline.rs`, `service.rs`.
+7. `crates/quantrule-app/src/lib.rs`, `pipeline.rs`, `service.rs`, `pack/`.
 8. `crates/quantrule-gateway/src/server.rs`.
 9. `crates/quantrule-shell/src/command.rs`.
 10. `apps/web/README.md`.

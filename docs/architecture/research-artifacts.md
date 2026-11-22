@@ -1,6 +1,6 @@
 # Research Artifacts
 
-- Status: Strategy pack and envelope current (RA-002); remaining artifacts target the next release; accepted by [ADR-RA](../adr/2026-11-22/1082-research-artifact-layer.md)
+- Status: Strategy and portfolio policy packs current (RA-002, RA-003); remaining artifacts target the next release; accepted by [ADR-RA](../adr/2026-11-22/1082-research-artifact-layer.md)
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 
@@ -66,9 +66,10 @@ feature unless candles become an explicit signal-service input.
 ## 4. Portfolio policy pack
 
 The portfolio policy pack owns reusable sizing, risk, exposure, maximum positions,
-drawdown action, rebalance and constraint rules. It does not own initial cash or
-currency; those are account-specific run inputs. It contains no correlation,
-covariance, fitted or optimised field.
+drawdown action, rebalance and constraint rules. Constraints are a strictly
+ascending, duplicate-free list of closed rule kinds. It does not own initial cash
+or currency; those are account-specific run inputs. Its closed schema contains no
+correlation, covariance, optimisation, fitted or statistical field.
 
 ## 5. Execution-simulation pack
 

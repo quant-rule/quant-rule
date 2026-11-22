@@ -1,16 +1,58 @@
 //! Pack identity and duplicate-label rejection.
 //!
 //! A pack is named by the SHA-256 of its canonical bytes, but the human label
-//! `(name, version)` is also unique. The same bytes may be registered again;
-//! the same label pointing at different bytes is refused, because silently
-//! replacing a pack would break a run that cites the old hash.
+//! `(name, version)` is also unique across pack kinds. The same bytes may be
+//! registered again; the same label pointing at different bytes is refused,
+//! because silently replacing a pack would break a run that cites the old hash.
 
 use std::collections::BTreeMap;
 use std::fmt;
 
 use quantrule_api::Digest;
 
+use super::envelope::PackMetadata;
+use super::portfolio::PortfolioPack;
 use super::strategy::StrategyPack;
+
+mod sealed {
+    pub trait Sealed {}
+}
+
+impl sealed::Sealed for StrategyPack {}
+impl sealed::Sealed for PortfolioPack {}
+
+/// A pack that carries an envelope label and a content identity.
+///
+/// The index registers any pack kind through this one seam. The trait is
+/// sealed so a type outside this module cannot claim a label without an actual
+/// pack envelope and content hash.
+pub trait PackIdentity: sealed::Sealed {
+    /// The immutable envelope metadata.
+    fn metadata(&self) -> &PackMetadata;
+
+    /// The content hash of the canonical bytes.
+    fn id(&self) -> &Digest;
+}
+
+impl PackIdentity for StrategyPack {
+    fn metadata(&self) -> &PackMetadata {
+        StrategyPack::metadata(self)
+    }
+
+    fn id(&self) -> &Digest {
+        StrategyPack::id(self)
+    }
+}
+
+impl PackIdentity for PortfolioPack {
+    fn metadata(&self) -> &PackMetadata {
+        PortfolioPack::metadata(self)
+    }
+
+    fn id(&self) -> &Digest {
+        PortfolioPack::id(self)
+    }
+}
 
 /// The `(name, version)` label already identifies different bytes.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -59,7 +101,7 @@ impl fmt::Display for PackIdentityConflict {
 
 impl std::error::Error for PackIdentityConflict {}
 
-/// The in-memory identity index for packs.
+/// The in-memory identity index for packs of every kind.
 ///
 /// This is the validation seam a persistent catalog will reuse: registration is
 /// idempotent for the same ID and refuses a label that already names another
@@ -83,11 +125,12 @@ impl PackIndex {
     /// Returns [`PackIdentityConflict`] when `(name, version)` is already
     /// registered under a different content hash. Registering the same pack
     /// again is allowed.
-    pub fn register(&mut self, pack: &StrategyPack) -> Result<(), PackIdentityConflict> {
-        let label = (
-            pack.metadata().name().to_owned(),
-            pack.metadata().version().to_owned(),
-        );
+    pub fn register<P: PackIdentity + ?Sized>(
+        &mut self,
+        pack: &P,
+    ) -> Result<(), PackIdentityConflict> {
+        let metadata = pack.metadata();
+        let label = (metadata.name().to_owned(), metadata.version().to_owned());
         match self.by_label.get(&label) {
             Some(existing) if existing != pack.id() => Err(PackIdentityConflict {
                 name: label.0,
@@ -125,7 +168,33 @@ impl PackIndex {
 #[cfg(test)]
 mod tests {
     use super::PackIndex;
-    use crate::pack::StrategyPack;
+    use crate::pack::{PortfolioPack, StrategyPack};
+
+    fn portfolio(version: &str, exposure: f64) -> PortfolioPack {
+        let document = serde_json::json!({
+            "schema": "quantrule.pack/v1",
+            "kind": "portfolio",
+            "version": version,
+            "name": "single-position-conservative",
+            "owner": "operator",
+            "payload": {
+                "sizing": {
+                    "mode": "equity_fraction",
+                    "fraction": 0.05,
+                    "quantity_step": 0.0001
+                },
+                "risk": {
+                    "per_trade_risk": 0.01,
+                    "max_exposure": exposure,
+                    "max_open_positions": 1
+                },
+                "drawdown": {"limit": 0.15, "action": "halt"},
+                "rebalance": "none",
+                "constraints": []
+            }
+        });
+        PortfolioPack::parse(&document, "pack.json").expect("the test pack is valid")
+    }
 
     fn pack(version: &str, reward: f64) -> StrategyPack {
         let document = serde_json::json!({
@@ -183,6 +252,61 @@ mod tests {
         assert_eq!(conflict.version(), "1.0.0");
         assert_eq!(conflict.existing(), first.id());
         assert_eq!(conflict.incoming(), second.id());
+    }
+
+    #[test]
+    fn one_index_registers_both_pack_kinds() {
+        let strategy = pack("1.0.0", 1.5);
+        let policy = portfolio("1.0.0", 0.5);
+        let mut index = PackIndex::new();
+        index.register(&strategy).expect("the strategy pack");
+        index.register(&policy).expect("the portfolio pack");
+        assert_eq!(index.len(), 2);
+        assert_eq!(
+            index.resolve("compression-fade-5m", "1.0.0"),
+            Some(strategy.id())
+        );
+        assert_eq!(
+            index.resolve("single-position-conservative", "1.0.0"),
+            Some(policy.id())
+        );
+    }
+
+    #[test]
+    fn a_label_is_shared_across_pack_kinds() {
+        let strategy = pack("1.0.0", 1.5);
+        let document = serde_json::json!({
+            "schema": "quantrule.pack/v1",
+            "kind": "portfolio",
+            "version": "1.0.0",
+            "name": "compression-fade-5m",
+            "owner": "operator",
+            "payload": {
+                "sizing": {
+                    "mode": "equity_fraction",
+                    "fraction": 0.05,
+                    "quantity_step": 0.0001
+                },
+                "risk": {
+                    "per_trade_risk": 0.01,
+                    "max_exposure": 0.5,
+                    "max_open_positions": 1
+                },
+                "drawdown": {"limit": 0.15, "action": "halt"},
+                "rebalance": "none",
+                "constraints": []
+            }
+        });
+        let collision =
+            PortfolioPack::parse(&document, "pack.json").expect("the test pack is valid");
+        let mut index = PackIndex::new();
+        index.register(&strategy).expect("the strategy pack");
+        let conflict = index
+            .register(&collision)
+            .expect_err("the label already names another pack");
+        assert_eq!(conflict.name(), "compression-fade-5m");
+        assert_eq!(conflict.existing(), strategy.id());
+        assert_eq!(conflict.incoming(), collision.id());
     }
 
     #[test]
