@@ -74,10 +74,11 @@ Fast tests:
 
 Composed tier:
 
-- `tools/postgres_composed.sh` ran the artifact, catalog, d1, pack, evidence,
-  gateway, runtime, and simulation targets: all 11 passed, including the new
-  concurrent reference and registration cases, the migration checksum, the
-  four-database bootstrap, and the cross-database refusal checks.
+- `tools/postgres_composed.sh` ran 12 targets on the merged tree: the artifact,
+  catalog, d1, pack, evidence leader, lineage, outbox, research ledger, stage,
+  gateway/profile, migration lock, and simulation targets. All 12 passed,
+  including the new concurrent reference and registration cases, migration 9,
+  the four-database bootstrap, and the cross-database refusal checks.
 
 Limitations: the concurrent route cases use the memory stores, and the
 Postgres cases exercise the stores' concurrency rather than two live container
@@ -94,7 +95,7 @@ two-host run remains HA verification, not a claim in this log.
 | `cargo test -p quantrule-data-service` | pass, including 9 `active_active` cases |
 | `cargo test -p quantrule-deploy` | 29 passed, including the data-replica refusal |
 | `cargo test -p quantrule-runtime --test migration_contract` | 5 passed |
-| `tools/postgres_composed.sh` | 11 targets passed; bootstrap and role boundary passed |
+| `tools/postgres_composed.sh` | 12 targets passed on the merged tree; bootstrap and role boundary passed |
 | `cargo run --quiet -p quantrule-governance -- check --all` | `governance check ok` |
 | `tools/gate.sh` | `gate passed: full` with `CARGO_TARGET_DIR=…/target/gate`; fmt, workspace clippy, workspace tests, workspace docs, and governance check all passed |
 
