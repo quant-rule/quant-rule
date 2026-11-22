@@ -62,6 +62,7 @@ The remaining workflows keep their stages and gates.
 | [`data-lifecycle.md`](data-lifecycle.md) | Is the input valid, versioned, and admissible? | Data | Current | Yes |
 | [`requirements-design.md`](requirements-design.md) | What should the new capability be? | Engineering upstream | Current | Yes |
 | [`execution-plan.md`](execution-plan.md) | How is a substantial change ordered, delivered, reviewed, and cleaned up? | Engineering delivery | Current | Yes |
+| [`change-scope.md`](change-scope.md) | How does a change select the gate work it needs, and when is the full gate mandatory? | Engineering delivery | Current | Yes |
 | [`release-operations.md`](release-operations.md) | Is this safe to release and recover? | Engineering downstream | Current | Yes |
 | [`deprecation-retirement.md`](deprecation-retirement.md) | How is a surface removed without losing history? | Engineering lifecycle | Current | Yes |
 | [`recordkeeping.md`](recordkeeping.md) | Where is the evidence and what is its status? | Cross-cutting | Current | Yes |
@@ -83,6 +84,7 @@ The remaining workflows keep their stages and gates.
 | A data source, version, or partition change | [Data Lifecycle](data-lifecycle.md) |
 | A new command, report, or capability | [Requirements & Design](requirements-design.md) |
 | A substantial multi-step change, delivery sequence, or reviewer checklist | [Execution Plan](execution-plan.md) |
+| A docs, governance, or web-only change that should not compile the workspace | [Change-Scope Gate](change-scope.md) |
 | A release, tag, rollback, or incident | [Release & Operations](release-operations.md) |
 | Retiring a model, event, command, or data source | [Deprecation & Retirement](deprecation-retirement.md) |
 | A record, ID, status, or changelog issue | [Recordkeeping](recordkeeping.md) |

@@ -54,6 +54,7 @@ pub(crate) fn run(args: &[String]) -> Result<(), String> {
     let program_path =
         PathBuf::from(program_path.ok_or_else(|| "--program is required".to_owned())?);
     let program = program::load(&program_path, &repo_root)?;
+    program::require_live(&program)?;
     program::require_phase(&program, &phase)?;
     if phase == "validation" && cells_raw.is_none() {
         return Err("validation requires --cells promotion".to_owned());
@@ -280,6 +281,8 @@ mod tests {
             correction: json!({}),
             green_criteria: json!({}),
             max_parallel: 1,
+            retired: false,
+            retirement_note: None,
             cells: vec![Cell {
                 cell_id: "C1".to_owned(),
                 hypothesis: "h".to_owned(),

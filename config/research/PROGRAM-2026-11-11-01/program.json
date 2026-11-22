@@ -1,6 +1,8 @@
 {
   "schema": "quantrule.research-program/v1",
   "program_id": "PROGRAM-2026-11-11-01",
+  "retired": true,
+  "retirement_note": "Historical research program; its Python command array is retained as audit evidence, not as a current runner.",
   "premise": "A 15m test of the 200 EMA that agrees with the last closed 1h trend state reaches +2 ATR before -1 ATR more often than the same 15m EMA200 test without the 1h filter, and adds beyond the 1h state base.",
   "economic_rationale": "A 1h trend is a slow, observable regime; a 15m pullback into the 200 EMA is a timing trigger at a known level inside that regime. The pullback entry is a different mechanism from the continuation and breakout events tested by PROGRAM-2026-11-04-02; if the 1h state is the missing condition, the filtered pullback should beat both the unfiltered pullback and the 1h state base.",
   "tier": "model",

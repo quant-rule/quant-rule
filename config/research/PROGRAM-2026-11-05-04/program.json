@@ -1,6 +1,8 @@
 {
   "schema": "quantrule.research-program/v1",
   "program_id": "PROGRAM-2026-11-05-04",
+  "retired": true,
+  "retirement_note": "Historical research program; its Python command array is retained as audit evidence, not as a current runner.",
   "premise": "Directional event information is conditional on the published market state; a state-matched base and a state gate produce lift where the unconditional vote does not.",
   "economic_rationale": "Trend, coiling, expanding, high-range/low-participation, and settling states are governed by different market mechanisms. An unconditional vote averages them into zero. The state is a published causal reading, not a fitted classifier.",
   "tier": "model",

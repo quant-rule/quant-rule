@@ -1,6 +1,8 @@
 {
   "schema": "quantrule.research-program/v1",
   "program_id": "PROGRAM-2026-11-08-99",
+  "retired": true,
+  "retirement_note": "Historical research program; its Python command array is retained as audit evidence, not as a current runner.",
   "premise": "Reference MR5 dry run: two fixture cells prove the model-config, condition, coverage, and report path without a market claim.",
   "economic_rationale": "This is a platform dry run, not a market hypothesis. The fixture cells deliberately fail.",
   "tier": "model",

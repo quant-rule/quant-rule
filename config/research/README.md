@@ -1,6 +1,7 @@
 # Research Programs
 
 - Status: M2.x–M4.x historical evidence; MR5.x current research platform
+  Historical programs carry `"retired": true`; `research batch` and `research cell` refuse them, while `research program --check`, `research report`, and `research registry` still work. Their Python command arrays are audit evidence, not current runners.
 
 The M2.x configs predate the flat-model cutover. Their `runs/**/run.json` files
 reference retired sibling files, so they are kept for reproducibility of the

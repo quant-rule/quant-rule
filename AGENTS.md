@@ -141,6 +141,7 @@ When principles appear to conflict, follow the project's explicit architectural 
 
 - **Command.** `cargo test` must pass before a pull request is proposed. Do not weaken, remove, or skip a test to obtain a passing result.
 - **Gate isolation.** Run the workspace gate with `tools/gate.sh`; it uses a target directory inside the worktree. Do not share a Cargo target directory across worktrees: a cached test binary can carry another worktree's absolute paths and fail a correct tree.
+- **Change scope.** `tools/gate.sh --changed <range>` and `qr-governance gate plan` classify a change as `docs`, `governance`, `web`, or `full`. Docs, governance, and web scopes skip work that cannot observe the change; engine/shared paths, lockfiles, toolchains, CI, config, `docs/port-parity`, unknown paths, `main`, and releases run the full gate. A wrong skip is a defect. The CI `gate` aggregator fails when a needed job failed or was skipped. The contract is [`docs/workflows/change-scope.md`](docs/workflows/change-scope.md).
 - **Unit tests** live next to the code they cover, in the same module. Integration tests live in the `tests/` directory of the crate that owns the code they cover, because a virtual workspace root holds no package and a root `tests/` directory is never compiled.
 - **Causality tests.** An indicator or rule that consumes a series must have a test proving that its output for a given bar does not change when later bars are appended, changed, or removed. This is the direct test for the causality rule in section 3.
 - **Determinism tests.** Any computation that participates in signal generation must have a test asserting that the same input yields the same output across repeated runs, across a reordered collection, across a change in the iteration order of any unordered map or set it traverses, and across a different split or scheduling of the work. This is the direct test for section 12.
@@ -186,7 +187,7 @@ When principles appear to conflict, follow the project's explicit architectural 
   - `docs/audits/<YYYY-MM-DD>/<scope>-audit.md` — read-only findings, evidence, and remediation options. `docs/audits/README.md` is the index/template.
   - `docs/refactors/<YYYY-MM-DD>/<scope>-refactor.md` — read-only structural findings, evidence, and refactor options. `docs/refactors/README.md` is the index/template.
   - `docs/governance/<YYYY-MM-DD>/<file>.md` — the improvement charter, green criteria, autonomy, and stop conditions.
-  - `docs/workflows/<file>.md` — the living workflow contracts, indexed in [`docs/workflows/README.md`](docs/workflows/README.md): Audit, Refactor, Engine Execution, Backtest, End-to-End Verification, Improvement, Run Contract, Research Swarm, Model Research, Model Change, Strategy Research, Portfolio Research, Data Lifecycle, Requirements & Design, Release & Operations, Deprecation & Retirement, and Recordkeeping.
+  - `docs/workflows/<file>.md` — the living workflow contracts, indexed in [`docs/workflows/README.md`](docs/workflows/README.md): Audit, Refactor, Engine Execution, Backtest, End-to-End Verification, Improvement, Run Contract, Research Swarm, Model Research, Model Change, Strategy Research, Portfolio Research, Data Lifecycle, Requirements & Design, Change Scope, Release & Operations, Deprecation & Retirement, and Recordkeeping.
   - `docs/workflows/templates/<file>.md` — the workflow and record templates. The workflow template is the skeleton for a new workflow document; the record templates are data, release, deprecation, and requirements records.
   - `docs/manual/<file>.md` — the living user manual: one chapter per journey, command and GUI reference, glossary, and troubleshooting.
   - `docs/releases/README.md` — the release index and tag rule; `docs/releases/<YYYY-MM-DD>/<tag>.md` is the release note for one tagged release.
@@ -1203,6 +1204,7 @@ Within-scope corrections can proceed under the approved plan. Material changes r
 Before reporting completion:
 
 - Review the full diff.
+- Run the scoped gate for the change; use the full gate for engine/shared changes, `main`, and releases.
 - Run relevant validations and record their actual results.
 - Confirm acceptance criteria and identify gaps.
 - Update the execution plan with evidence and outstanding risks.

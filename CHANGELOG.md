@@ -18,6 +18,11 @@ history is in Git and the pull requests.
 
 ## [Unreleased]
 
+### Added
+
+- `qr-governance gate plan` and `tools/gate.sh --changed` classify a change as docs, governance, web, or full; engine/shared changes, `main`, and releases keep the full gate.
+- Historical research programs carry `retired` and are refused by `research batch` and `research cell`.
+
 ### Changed
 
 - The policy is now “No Python” repository-wide; current docs, the manual, the registry, and the verification evidence name `qr-governance` checkers instead of the deleted Python scripts.

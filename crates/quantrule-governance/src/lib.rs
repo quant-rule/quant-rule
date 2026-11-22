@@ -7,6 +7,7 @@
 #![forbid(unsafe_code)]
 pub mod check;
 pub mod checks;
+pub mod gate;
 pub mod guard;
 pub mod history;
 pub mod improvement;
