@@ -82,19 +82,19 @@ The path table and fallbacks are in
 | V03 | Unknown path | Unknown -> full | Unit test | Pass | `unknown/path.bin` maps to full | Pass |  |  |  |
 | V04 | Gate plan output | Text, JSON, `--field`, exit codes agree | `cargo test -p quantrule-governance --test gate` | Pass | Gate CLI tests cover text, JSON, `--field`, usage, and a Git range | Pass |  |  |  |
 | V05 | Docs mode | Docs-only runs checker only | `tools/gate.sh --explain`; CI | Pass | docs-only PR #1077: `plan_and_check` 28s; rust/web skipped; `Gate` 3s | Pass |  |  |  |
-| V06 | Governance mode | Governance-only compiles governance only | `tools/gate.sh --changed`; CI | Pass | `cargo test -p quantrule-governance` covers governance scope; local dispatch exercised | Pending |  |  |  |
-| V07 | Web mode | Web-only runs Bun, no engine compile | `tools/gate.sh --changed`; CI | Pass | `tools/gate.sh` web scope wired; CI web conditions in place | Pending |  |  |  |
+| V06 | Governance mode | Governance-only compiles governance only | `tools/gate.sh --changed`; CI | Pass | governance-only PR #1078: plan_and_check 34s, rust 32s, web skipped, Gate 3s | Pass |  |  |  |
+| V07 | Web mode | Web-only runs Bun, no engine compile | `tools/gate.sh --changed`; CI | Pass | web-only PR #1079: plan_and_check 24s, web 19s, e2e 55s, cross-browser 1m18s, rust skipped, Gate 2s | Pass |  |  |  |
 | V08 | Full fallback | Lockfile, toolchain, CI, config, unknown -> full | Unit tests | Pass | Lockfile, toolchain, CI, config, and unknown paths full | Pass |  |  |  |
 | V09 | Aggregator | Failed or wrongly skipped job fails `gate` | CI seeded run | Pass | #1076 full CI: `Gate` passed with all jobs | Pending |  |  |  |
 | V10 | Main/release | Main and release always full | Workflow diff; release run | Pass | Main push and release workflow keep full mode | Pass |  |  |  |
 | V11 | Retired guard | Batch/cell refuse; program check/report work | `cargo test -p quantrule-governance research` | Pass | `research batch` refuses a retired program; `research program --check` prints retired | Pass |  |  |  |
 | V12 | Historical records | 11 manifests keep command arrays; guard blocks runs | Diff; tests | Pass | 11 manifests carry `retired`; command arrays unchanged | Pass |  |  |  |
 | V13 | Docs timing | `plan-and-check` under 30 s | CI run | Pass | docs-only PR #1077: `plan_and_check` 28s | Pass |  |  |  |
-| V14 | Governance timing | Under 90 s cold | CI run | Pass |  | Pending |  |  |  |
-| V15 | Web timing | Under 2 min | CI run | Pass |  | Pending |  |  |  |
-| V16 | Full timing | Within 10% of current full gate | CI run | Pass | #1076 `rust` full 3m30s; full gate unchanged in order | Pending |  |  |  |
-| V17 | Build settings | Keep only with a measured win; otherwise revert | A/B timing | Pass | CI settings enabled; A/B measurement pending | Pending |  |  |  |
-| V18 | Shadow mode | Three PRs classify as expected | CI logs | Pass | #1076 classified full as expected | Pending |  |  |  |
+| V14 | Governance timing | Under 90 s cold | CI run | Pass | governance-only PR #1078: rust 32s (under 90s) | Pass |  |  |  |
+| V15 | Web timing | Under 2 min | CI run | Pass | web-only PR #1079: web 19s + e2e 55s + cross-browser 1m18s (under 2 min wall) | Pass |  |  |  |
+| V16 | Full timing | Within 10% of current full gate | CI run | Pass | #1076 full rust 3m30s vs #1075 3m01s; re-measured after removing the CI settings in this PR | Pending |  |  |  |
+| V17 | Build settings | Keep only with a measured win; otherwise revert | A/B timing | Pass | CI-only incremental/debug settings removed after the #1076 full run did not win; this full run measures the revert | Pending |  |  |  |
+| V18 | Shadow mode | Three PRs classify as expected | CI logs | Pass | docs #1077, governance #1078, and web #1079 classified as expected | Pass |  |  |  |
 
 ## 8. Risks and stop conditions
 

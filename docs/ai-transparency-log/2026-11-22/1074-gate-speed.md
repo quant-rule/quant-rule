@@ -27,9 +27,14 @@ change.
 - `tools/gate.sh --explain` on docs/governance/web/full ranges.
 - CI shadow run before conditional jobs.
 - Full gate on `main` and release unchanged.
-- Docs-only PR #1077: `plan_and_check` 28s; `rust`, `web`, `web-e2e`, and
-  `web-cross-browser` skipped; `Gate` 3s. The full #1076 path was 30s planning +
-  3m30s rust, so the CI build-setting A/B is still open.
+- Docs-only PR #1077: `plan_and_check` 24-28s; `rust`, `web`, `web-e2e`, and
+  `web-cross-browser` skipped; `Gate` 2-3s.
+- Governance-only PR #1078: `plan_and_check` 34s; `rust` 32s; web skipped.
+- Web-only PR #1079: `plan_and_check` 24s; web 19s; e2e 55s; cross-browser
+  1m18s; `rust` skipped.
+- `CARGO_INCREMENTAL=0` and `CARGO_PROFILE_DEV_DEBUG=0` did not show a win on
+  the #1076 full run (rust 3m30s vs 3m01s before), so they are removed and the
+  revert is measured on this full PR.
 
 ## Learning
 
