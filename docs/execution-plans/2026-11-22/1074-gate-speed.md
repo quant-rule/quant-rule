@@ -81,7 +81,7 @@ The path table and fallbacks are in
 | V02 | Mixed scopes | Docs+governance -> governance; docs+web -> web; governance+web -> full | Unit tests | Pass | Unit tests cover all three mixed cases | Pass |  |  |  |
 | V03 | Unknown path | Unknown -> full | Unit test | Pass | `unknown/path.bin` maps to full | Pass |  |  |  |
 | V04 | Gate plan output | Text, JSON, `--field`, exit codes agree | `cargo test -p quantrule-governance --test gate` | Pass | Gate CLI tests cover text, JSON, `--field`, usage, and a Git range | Pass |  |  |  |
-| V05 | Docs mode | Docs-only runs checker only | `tools/gate.sh --explain`; CI | Pass | `tools/gate.sh --explain HEAD...HEAD` -> `mode: docs` | Pending |  |  |  |
+| V05 | Docs mode | Docs-only runs checker only | `tools/gate.sh --explain`; CI | Pass | docs-only PR #1077: `plan_and_check` 28s; rust/web skipped; `Gate` 3s | Pass |  |  |  |
 | V06 | Governance mode | Governance-only compiles governance only | `tools/gate.sh --changed`; CI | Pass | `cargo test -p quantrule-governance` covers governance scope; local dispatch exercised | Pending |  |  |  |
 | V07 | Web mode | Web-only runs Bun, no engine compile | `tools/gate.sh --changed`; CI | Pass | `tools/gate.sh` web scope wired; CI web conditions in place | Pending |  |  |  |
 | V08 | Full fallback | Lockfile, toolchain, CI, config, unknown -> full | Unit tests | Pass | Lockfile, toolchain, CI, config, and unknown paths full | Pass |  |  |  |
@@ -89,7 +89,7 @@ The path table and fallbacks are in
 | V10 | Main/release | Main and release always full | Workflow diff; release run | Pass | Main push and release workflow keep full mode | Pass |  |  |  |
 | V11 | Retired guard | Batch/cell refuse; program check/report work | `cargo test -p quantrule-governance research` | Pass | `research batch` refuses a retired program; `research program --check` prints retired | Pass |  |  |  |
 | V12 | Historical records | 11 manifests keep command arrays; guard blocks runs | Diff; tests | Pass | 11 manifests carry `retired`; command arrays unchanged | Pass |  |  |  |
-| V13 | Docs timing | `plan-and-check` under 30 s | CI run | Pass |  | Pending |  |  |  |
+| V13 | Docs timing | `plan-and-check` under 30 s | CI run | Pass | docs-only PR #1077: `plan_and_check` 28s | Pass |  |  |  |
 | V14 | Governance timing | Under 90 s cold | CI run | Pass |  | Pending |  |  |  |
 | V15 | Web timing | Under 2 min | CI run | Pass |  | Pending |  |  |  |
 | V16 | Full timing | Within 10% of current full gate | CI run | Pass | #1076 `rust` full 3m30s; full gate unchanged in order | Pending |  |  |  |
