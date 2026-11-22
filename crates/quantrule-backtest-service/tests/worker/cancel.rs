@@ -18,7 +18,7 @@ async fn a_cancel_at_each_boundary_leaves_no_artifact() {
             Arc::clone(&fixture.services.model),
         );
         assert_eq!(
-            process(fixture.run_id.clone(), false, &services)
+            process(fixture.run_id.clone(), None, &services)
                 .await
                 .expect("process"),
             ProcessOutcome::Skipped,

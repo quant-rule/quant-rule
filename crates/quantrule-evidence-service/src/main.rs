@@ -4,7 +4,10 @@
 //! It applies only the `runs`/`research` migrations, serves the public run,
 //! hypothesis, research, and operations surface plus the internal lifecycle,
 //! and consumes `run.computed` to verify the hash chain and finalize the run.
-//! Artifact bytes live in S3 and the control-plane queue is RabbitMQ.
+//! It also publishes the run-notification outbox and retries the
+//! dataset-reference sweeps, so a crash after a commit cannot lose a run or
+//! leave a reference that blocks a dataset. Artifact bytes live in S3 and the
+//! control-plane queue is RabbitMQ.
 
 #![forbid(unsafe_code)]
 
@@ -24,8 +27,10 @@ use quantrule_runtime::{Config, HealthRegistry, RuntimeError, logging};
 use quantrule_service_api::INTERNAL_API_VERSION;
 
 use quantrule_evidence_service::evidence::{EvidenceServices, finalize};
+use quantrule_evidence_service::outbox::RunOutbox;
 use quantrule_evidence_service::postgres::{PgHypothesisStore, PgRunStore};
-use quantrule_evidence_service::research::ImprovementStore;
+use quantrule_evidence_service::releases::ReferenceReleaseLog;
+use quantrule_evidence_service::research::{HypothesisStore, ImprovementStore};
 use quantrule_evidence_service::runs::RunStore;
 use quantrule_evidence_service::stage::{PgStageStore, StageStore, retention};
 use quantrule_evidence_service::{EvidenceState, router};
@@ -56,24 +61,32 @@ async fn main() -> Result<(), RuntimeError> {
 
     let mut health = HealthRegistry::named("evidence");
     let opened = open_service_database(&config, &mut health).await?;
-    let (runs, stages, hypotheses, improvements): (
-        Option<RunHandle>,
-        Option<StageHandle>,
-        Option<HypothesisHandle>,
-        Option<ImprovementHandle>,
-    ) = match opened {
-        Some(database) => (
-            Some(Arc::new(PgRunStore::new(database.pool().clone()))),
-            Some(Arc::new(PgStageStore::new(database.pool().clone()))),
-            Some(Arc::new(PgHypothesisStore::new(database.pool().clone()))),
-            Some(Arc::new(
-                quantrule_evidence_service::research::PgImprovementStore::new(
-                    database.pool().clone(),
-                ),
-            )),
-        ),
-        None => (None, None, None, None),
-    };
+    let pool = opened.as_ref().map(|database| database.pool().clone());
+    // One store serves the run lifecycle, the notification outbox, and the
+    // release tombstones. They are three traits over one database, so a run
+    // write and its intent cannot diverge.
+    let run_store: Option<Arc<PgRunStore>> = pool
+        .as_ref()
+        .map(|pool| Arc::new(PgRunStore::new(pool.clone())));
+    let runs: Option<RunHandle> = run_store
+        .as_ref()
+        .map(|store| Arc::clone(store) as Arc<dyn RunStore>);
+    let outbox: Option<Arc<dyn RunOutbox>> = run_store
+        .as_ref()
+        .map(|store| Arc::clone(store) as Arc<dyn RunOutbox>);
+    let releases: Option<Arc<dyn ReferenceReleaseLog>> = run_store
+        .as_ref()
+        .map(|store| Arc::clone(store) as Arc<dyn ReferenceReleaseLog>);
+    let stages: Option<StageHandle> = pool
+        .as_ref()
+        .map(|pool| Arc::new(PgStageStore::new(pool.clone())) as Arc<dyn StageStore>);
+    let hypotheses: Option<HypothesisHandle> = pool
+        .as_ref()
+        .map(|pool| Arc::new(PgHypothesisStore::new(pool.clone())) as Arc<dyn HypothesisStore>);
+    let improvements: Option<ImprovementHandle> = pool.as_ref().map(|pool| {
+        Arc::new(quantrule_evidence_service::research::PgImprovementStore::new(pool.clone()))
+            as Arc<dyn ImprovementStore>
+    });
 
     let backend = Objects::open(&config).await?;
     let objects: Arc<dyn ObjectStore> = Arc::new(backend.clone());
@@ -103,6 +116,8 @@ async fn main() -> Result<(), RuntimeError> {
         health,
         quantrule_evidence_service::EvidenceServices {
             runs: runs.as_ref().map(Arc::clone),
+            outbox,
+            releases,
             stages: stages.as_ref().map(Arc::clone),
             hypotheses,
             improvements,
@@ -111,6 +126,20 @@ async fn main() -> Result<(), RuntimeError> {
             data: Some(data),
         },
     ));
+
+    // The publisher reconciles the live runs with the outbox, then drains it.
+    // Its first pass is a startup pass, so a restarted process republishes
+    // every unfinished run into an empty or rebuilt queue.
+    if let (Some(outbox), Some(queue)) = (
+        state.outbox.as_ref().map(Arc::clone),
+        state.queue.as_ref().map(Arc::clone),
+    ) {
+        quantrule_evidence_service::outbox::spawn_publisher(
+            outbox,
+            queue,
+            quantrule_evidence_service::outbox::PUBLISH_INTERVAL,
+        );
+    }
 
     // Rows written before the dataset-reference registry existed are registered
     // once. The sweep is idempotent and retries until the data service answers;
@@ -138,6 +167,32 @@ async fn main() -> Result<(), RuntimeError> {
                         tokio::time::sleep(Duration::from_secs(30)).await;
                     }
                 }
+            }
+        });
+    }
+
+    // The release sweep retries every tombstone the erase paths wrote. A
+    // release is idempotent on the data side; a `404` means the dataset is
+    // already gone, so the tombstone is confirmed rather than retried forever.
+    if let (Some(releases), Some(data)) = (
+        state.releases.as_ref().map(Arc::clone),
+        state.data.as_ref().map(Arc::clone),
+    ) {
+        tokio::spawn(async move {
+            loop {
+                match quantrule_evidence_service::reconcile::release_all(
+                    releases.as_ref(),
+                    data.as_ref(),
+                )
+                .await
+                {
+                    Ok(0) => {}
+                    Ok(count) => tracing::info!(count, "dataset references released"),
+                    Err(error) => {
+                        tracing::warn!(%error, "dataset-reference release will retry");
+                    }
+                }
+                tokio::time::sleep(Duration::from_secs(30)).await;
             }
         });
     }

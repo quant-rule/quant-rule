@@ -77,6 +77,8 @@ async fn main() -> Result<(), RuntimeError> {
     let stage_portfolio_evidence: Arc<dyn StageClient> = Arc::clone(&stage_evidence);
     let stage_portfolio_data: Arc<dyn DataClient> = Arc::clone(&data);
     let stage_portfolio_objects: Arc<dyn ObjectStore> = Arc::clone(&stage_objects);
+    let holder = worker_holder();
+    tracing::info!(%holder, "backtest worker identity");
     let services = Arc::new(WorkerServices {
         evidence,
         data,
@@ -84,6 +86,7 @@ async fn main() -> Result<(), RuntimeError> {
         stages: Arc::clone(&stage_evidence),
         objects,
         queue: publish,
+        holder,
     });
     let stage_services = Arc::new(StageWorkerServices {
         evidence: stage_evidence,
@@ -171,13 +174,13 @@ fn make_run_handler(services: Arc<WorkerServices>) -> MessageHandler {
                 );
                 return Ok(());
             }
-            let mut redelivered = message.redelivered;
+            let mut continuation = None;
             loop {
-                match process(run_id.clone(), redelivered, &services).await {
-                    Ok(ProcessOutcome::Retry { delay }) => {
-                        tracing::warn!(run_id = %run_id, ?delay, "retrying the run");
+                match process(run_id.clone(), continuation, &services).await {
+                    Ok(ProcessOutcome::Retry { delay, term }) => {
+                        tracing::warn!(run_id = %run_id, ?delay, term, "retrying the run");
                         tokio::time::sleep(delay).await;
-                        redelivered = true;
+                        continuation = Some(term);
                     }
                     Ok(outcome) => {
                         tracing::info!(run_id = %run_id, outcome = ?outcome, "run processed");
@@ -251,6 +254,18 @@ fn id(payload: &[u8], field: &str) -> Option<String> {
     serde_json::from_slice::<Value>(payload)
         .ok()
         .and_then(|value| value.get(field).and_then(Value::as_str).map(str::to_owned))
+}
+
+/// The worker identity recorded in a run lease.
+///
+/// `QR_WORKER_ID` names the process explicitly. The fallback keeps the field
+/// populated for a single-host stack; the term, not the holder, is the fence.
+fn worker_holder() -> String {
+    std::env::var("QR_WORKER_ID")
+        .ok()
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| format!("backtest-{}", std::process::id()))
 }
 
 /// Name the missing or invalid `QR_*_URL` at startup.

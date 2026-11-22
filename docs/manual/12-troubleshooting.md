@@ -30,7 +30,7 @@ stale data. The token code is `auth.unauthorized`; there is no `token.invalid`.
 | `research.invalid` | Bad manifest, partition, config, dataset, criteria, or note | Create or decision is refused | Fix the pre-registration; the note is required |
 | `research.conflict` | Duplicate submit/decision, or accepted without a succeeded digest | The action is refused | Read the record; wait for the run or choose a non-accepted decision |
 | `upload.too_large` | Body exceeds the configured limit | Upload is refused | Split the source or raise the limit with the human |
-| `queue.unavailable` | Broker unreachable | Submission or cancellation is refused | Read `health`; stop until the broker returns |
+| `queue.unavailable` | Broker unreachable | A stage submission is refused; a run submission is accepted and retried from its outbox row | Read `health`; start the broker |
 | `service.unavailable` | Downstream service unreachable or refused the proxied call | The call is refused; rows are not presented as fresh | Read `health` and `make logs`; stop |
 | `simulation.not_found` | Unknown simulation id | The run is unavailable | Re-read `simulation list` |
 | `simulation.mark_invalid` | Bar outside the window, or a schema violation | The mark is refused; the note is kept | Select a bar in the window; fix the mark fields |

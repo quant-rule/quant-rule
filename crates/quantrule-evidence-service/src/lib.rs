@@ -7,15 +7,24 @@
 //! reading and no trade; the gateway validates the profile and injects the
 //! header. A stage row is never evidence, never a baseline, and never part of a
 //! canonical digest.
+//!
+//! The service also owns the two records that make a cross-database step safe:
+//! the run-notification outbox and the dataset-reference release tombstone.
+//! Both commit with the evidence row they describe and are retried by a
+//! reconciler, so no message is lost after a commit and no reference is left
+//! behind after an erase.
 
 #![forbid(unsafe_code)]
 
 pub mod evidence;
 pub mod migrations;
 pub mod operations;
+pub mod outbox;
 pub mod postgres;
+pub mod postgres_outbox;
 pub mod postgres_runs;
 pub mod reconcile;
+pub mod releases;
 pub mod research;
 pub mod routes;
 pub mod runs;

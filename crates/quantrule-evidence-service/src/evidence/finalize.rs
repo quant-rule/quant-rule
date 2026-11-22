@@ -87,7 +87,7 @@ pub async fn finalize(
     }
     let finished = services
         .runs
-        .complete(run_id, digest, record.artifacts, stages)
+        .complete(run_id, record.lease_term, digest, record.artifacts, stages)
         .await
         .map_err(|error| EvidenceError::Store(error.to_string()))?;
     if finished.status == RunState::Succeeded {
@@ -111,7 +111,12 @@ async fn fail(
     }
     services
         .runs
-        .fail(run_id.to_owned(), message.to_owned(), stages)
+        .fail(
+            run_id.to_owned(),
+            record.lease_term,
+            message.to_owned(),
+            stages,
+        )
         .await
         .map_err(|error| EvidenceError::Store(error.to_string()))?;
     Ok(FinalizeOutcome::Failed)

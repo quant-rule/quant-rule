@@ -17,23 +17,25 @@ async fn a_data_outage_retries_then_dead_letters() {
         Arc::clone(&fixture.services.model),
     );
     assert_eq!(
-        process(fixture.run_id.clone(), false, &services)
+        process(fixture.run_id.clone(), None, &services)
             .await
             .expect("first"),
         ProcessOutcome::Retry {
-            delay: Duration::from_secs(5)
+            delay: Duration::from_secs(5),
+            term: 1
         }
     );
     assert_eq!(
-        process(fixture.run_id.clone(), true, &services)
+        process(fixture.run_id.clone(), Some(1), &services)
             .await
             .expect("second"),
         ProcessOutcome::Retry {
-            delay: Duration::from_secs(25)
+            delay: Duration::from_secs(25),
+            term: 2
         }
     );
     assert_eq!(
-        process(fixture.run_id.clone(), true, &services)
+        process(fixture.run_id.clone(), Some(2), &services)
             .await
             .expect("third"),
         ProcessOutcome::Exhausted
@@ -70,23 +72,25 @@ async fn a_model_outage_retries_then_dead_letters() {
         model,
     );
     assert_eq!(
-        process(fixture.run_id.clone(), false, &services)
+        process(fixture.run_id.clone(), None, &services)
             .await
             .expect("first"),
         ProcessOutcome::Retry {
-            delay: Duration::from_secs(5)
+            delay: Duration::from_secs(5),
+            term: 1
         }
     );
     assert_eq!(
-        process(fixture.run_id.clone(), true, &services)
+        process(fixture.run_id.clone(), Some(1), &services)
             .await
             .expect("second"),
         ProcessOutcome::Retry {
-            delay: Duration::from_secs(25)
+            delay: Duration::from_secs(25),
+            term: 2
         }
     );
     assert_eq!(
-        process(fixture.run_id.clone(), true, &services)
+        process(fixture.run_id.clone(), Some(2), &services)
             .await
             .expect("third"),
         ProcessOutcome::Exhausted
@@ -125,7 +129,7 @@ async fn a_model_rejection_fails_the_run_immediately() {
         model,
     );
     assert_eq!(
-        process(fixture.run_id.clone(), false, &services)
+        process(fixture.run_id.clone(), None, &services)
             .await
             .expect("process"),
         ProcessOutcome::Failed
@@ -160,7 +164,7 @@ async fn a_model_bundle_for_another_dataset_fails_the_run() {
         Arc::new(FixedModel { manifest }),
     );
     assert_eq!(
-        process(fixture.run_id.clone(), false, &services)
+        process(fixture.run_id.clone(), None, &services)
             .await
             .expect("process"),
         ProcessOutcome::Failed
@@ -191,7 +195,7 @@ async fn a_missing_model_bundle_fails_the_run() {
         Arc::new(MemoryModel::new()),
     );
     assert_eq!(
-        process(fixture.run_id.clone(), false, &services)
+        process(fixture.run_id.clone(), None, &services)
             .await
             .expect("process"),
         ProcessOutcome::Failed
@@ -264,23 +268,25 @@ async fn a_staged_backtest_failure_retries_then_dead_letters() {
         Arc::new(model),
     );
     assert_eq!(
-        process(fixture.run_id.clone(), false, &services)
+        process(fixture.run_id.clone(), None, &services)
             .await
             .expect("first"),
         ProcessOutcome::Retry {
-            delay: Duration::from_secs(5)
+            delay: Duration::from_secs(5),
+            term: 1
         }
     );
     assert_eq!(
-        process(fixture.run_id.clone(), true, &services)
+        process(fixture.run_id.clone(), Some(1), &services)
             .await
             .expect("second"),
         ProcessOutcome::Retry {
-            delay: Duration::from_secs(25)
+            delay: Duration::from_secs(25),
+            term: 2
         }
     );
     assert_eq!(
-        process(fixture.run_id.clone(), true, &services)
+        process(fixture.run_id.clone(), Some(2), &services)
             .await
             .expect("third"),
         ProcessOutcome::Exhausted
@@ -317,7 +323,7 @@ async fn an_evidence_outage_holds_the_delivery() {
         Arc::clone(&fixture.services.model),
     );
     assert!(
-        process(fixture.run_id.clone(), false, &services)
+        process(fixture.run_id.clone(), None, &services)
             .await
             .is_err()
     );
@@ -346,7 +352,7 @@ async fn an_evidence_finalize_outage_leaves_the_run_running() {
         Arc::clone(&fixture.services.model),
     );
     assert!(
-        process(fixture.run_id.clone(), false, &services)
+        process(fixture.run_id.clone(), None, &services)
             .await
             .is_err()
     );

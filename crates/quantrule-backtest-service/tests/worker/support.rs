@@ -339,6 +339,7 @@ pub async fn fixture() -> Fixture {
         stages: Arc::new(stages.clone()),
         objects: Arc::new(objects.clone()),
         queue: Arc::new(queue.clone()),
+        holder: "test-worker".to_owned(),
     };
     Fixture {
         services,
@@ -431,6 +432,7 @@ pub fn services_with_manifest_failure(fixture: &Fixture) -> WorkerServices {
             inner: fixture.objects.clone(),
         }),
         queue: Arc::clone(&fixture.services.queue),
+        holder: "test-worker".to_owned(),
     }
 }
 
@@ -444,6 +446,7 @@ pub fn services_with_put_failure(fixture: &Fixture) -> WorkerServices {
             inner: fixture.objects.clone(),
         }),
         queue: Arc::clone(&fixture.services.queue),
+        holder: "test-worker".to_owned(),
     }
 }
 
@@ -538,6 +541,7 @@ pub fn services_with_stop_after(fixture: &Fixture, allowed: usize) -> WorkerServ
             puts: Arc::new(Mutex::new(0)),
         }),
         queue: Arc::clone(&fixture.services.queue),
+        holder: "test-worker".to_owned(),
     }
 }
 
@@ -655,7 +659,8 @@ impl EvidenceClient for EvidenceDown {
     fn claim(
         &self,
         run_id: String,
-        redelivered: bool,
+        holder: String,
+        continuation: Option<u64>,
     ) -> BoxFuture<Result<quantrule_service_api::RunClaimOutcome, ClientError>> {
         if self.fail_claim {
             return Box::pin(async {
@@ -665,7 +670,16 @@ impl EvidenceClient for EvidenceDown {
                 })
             });
         }
-        self.inner.claim(run_id, redelivered)
+        self.inner.claim(run_id, holder, continuation)
+    }
+
+    fn heartbeat(
+        &self,
+        run_id: String,
+        holder: String,
+        term: u64,
+    ) -> BoxFuture<Result<RunRecord, ClientError>> {
+        self.inner.heartbeat(run_id, holder, term)
     }
 
     fn get_run(&self, run_id: String) -> BoxFuture<Result<Option<RunRecord>, ClientError>> {
@@ -675,6 +689,7 @@ impl EvidenceClient for EvidenceDown {
     fn computed(
         &self,
         run_id: String,
+        term: u64,
         digest: Digest,
         artifacts: Vec<ArtifactRef>,
         stages: Vec<quantrule_api::StageProgress>,
@@ -687,16 +702,17 @@ impl EvidenceClient for EvidenceDown {
                 })
             });
         }
-        self.inner.computed(run_id, digest, artifacts, stages)
+        self.inner.computed(run_id, term, digest, artifacts, stages)
     }
 
     fn failed(
         &self,
         run_id: String,
+        term: u64,
         error: String,
         stages: Vec<quantrule_api::StageProgress>,
     ) -> BoxFuture<Result<RunRecord, ClientError>> {
-        self.inner.failed(run_id, error, stages)
+        self.inner.failed(run_id, term, error, stages)
     }
 }
 
@@ -712,9 +728,19 @@ impl EvidenceClient for BoundaryEvidence {
     fn claim(
         &self,
         run_id: String,
-        redelivered: bool,
+        holder: String,
+        continuation: Option<u64>,
     ) -> BoxFuture<Result<quantrule_service_api::RunClaimOutcome, ClientError>> {
-        self.inner.claim(run_id, redelivered)
+        self.inner.claim(run_id, holder, continuation)
+    }
+
+    fn heartbeat(
+        &self,
+        run_id: String,
+        holder: String,
+        term: u64,
+    ) -> BoxFuture<Result<RunRecord, ClientError>> {
+        self.inner.heartbeat(run_id, holder, term)
     }
 
     fn get_run(&self, run_id: String) -> BoxFuture<Result<Option<RunRecord>, ClientError>> {
@@ -740,20 +766,22 @@ impl EvidenceClient for BoundaryEvidence {
     fn computed(
         &self,
         run_id: String,
+        term: u64,
         digest: Digest,
         artifacts: Vec<ArtifactRef>,
         stages: Vec<quantrule_api::StageProgress>,
     ) -> BoxFuture<Result<RunRecord, ClientError>> {
-        self.inner.computed(run_id, digest, artifacts, stages)
+        self.inner.computed(run_id, term, digest, artifacts, stages)
     }
 
     fn failed(
         &self,
         run_id: String,
+        term: u64,
         error: String,
         stages: Vec<quantrule_api::StageProgress>,
     ) -> BoxFuture<Result<RunRecord, ClientError>> {
-        self.inner.failed(run_id, error, stages)
+        self.inner.failed(run_id, term, error, stages)
     }
 }
 
@@ -770,5 +798,6 @@ pub fn services_with(
         stages: Arc::clone(&fixture.services.stages),
         objects: Arc::clone(&fixture.services.objects),
         queue: Arc::clone(&fixture.services.queue),
+        holder: "test-worker".to_owned(),
     }
 }

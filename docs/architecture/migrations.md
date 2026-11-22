@@ -81,6 +81,12 @@ the listing, is the contract.
 | Rename or drop of a shape the previous image reads | Broken | Not allowed until the rollback window closes |
 | Destructive contract migration | Broken | Closed window; restore PITR if the change must be undone |
 
+The run-lease migration (19) is additive: `lease_holder` is nullable,
+`lease_term` defaults to 0, and `lease_expires_at` is nullable. The previous
+image reads and writes the row without them. A mixed worker/evidence control
+plane is a protocol boundary, not a schema one; drain in-flight runs or let the
+lease expire before a rollback.
+
 The old image may not run its own migration job after a newer ledger is applied:
 the runner refuses a database ahead of the binary. Rollback therefore starts the
 previous long-running service without the job. The service opens the expanded

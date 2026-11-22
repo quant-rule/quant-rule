@@ -193,7 +193,7 @@ None of this is research evidence or an edge claim.
 | `profile.invalid` | The profile name failed validation | Use lowercase letters, digits, and hyphens |
 | `run.not_found` | The digest form names an unknown run | Re-read the run list |
 | `service.unavailable` | A service is unreachable | Read `health`; stop |
-| `queue.unavailable` | The broker is unreachable | Read `health`; stop |
+| `queue.unavailable` | The broker or the service queue is unavailable | Read `health`; run submissions are retried from the outbox, so do not resubmit a run |
 | Retention error | The last cleanup failed | Read the error; do not delete evidence by hand |
 | Backup archive exists | The timestamped name already exists | Re-run later; never overwrite the archive |
 | Restore refused | Sidecar, payload, or stack state failed verification | Stop; do not force without a human decision |
