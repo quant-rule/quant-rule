@@ -56,9 +56,8 @@ Rules:
 - The run row is the source of truth for status; messages are notifications of
   intent.
 - Consumers are idempotent: the same message twice produces the same state.
-- `run.requested` and `run.computed` are published from the evidence outbox.
-  The intent commits with the run write; a delivery may repeat, and a broker
-  that is down delays the message instead of losing the run. See
+- `run.requested` and `run.computed` are published from the evidence outbox;
+  the intent commits with the run write. See
   [cross-database consistency](cross-database-consistency.md).
 
 ## 3. Topology
@@ -98,8 +97,11 @@ run consumer and declares RabbitMQ consumer priority `x-priority = -1`; the run
 consumer keeps the default `0`.
 
 The evidence outbox is the durable producer; a repeated delivery is a lookup.
-Retry budget: three attempts. The handler holds the unacked delivery for 5 s
-after the first failure and 25 s after the second; the third failure marks the
+Only the leader consumes `runs.evidence.g<n>` and finalises; a standby serves
+reads and acquires the lease after expiry. The finalisation write carries the
+run-attempt term and the leader term, and the lease-row lock refuses a stale
+leader. Retry budget: three attempts. The handler holds the unacked delivery for
+5 s after the first failure and 25 s after the second; the third failure marks the
 run `failed` and publishes `run.dead`. A dead-lettered run is never silently
 lost; the run row records the attempt count. A claim records a monotonic term
 and a 60 s lease, and the worker renews it every 20 s. A queued run is
@@ -127,7 +129,7 @@ canonical digest.
 - The run row, the submission, and the `run.requested` intent commit in one
   transaction, so a retry after a commit finds the same run and does not create
   a second run record.
-- A restart re-arms every unfinished run: a running run without a digest wants
+- A restart or a leader acquisition re-arms every unfinished run: a running run without a digest wants
   `run.requested`, and a running run with a digest wants `run.computed`.
 - The same promoted submission returns the same promoted run; a full and a
   promoted submission never collide.

@@ -509,6 +509,7 @@ async fn finished_run_named(
     body: &[u8],
 ) -> (String, Digest, Vec<u8>) {
     use quantrule_api::ArtifactRef;
+    use quantrule_evidence_service::leader::LeaderLease;
     use quantrule_evidence_service::runs::RunStore;
     use quantrule_service_api::RunManifest;
 
@@ -536,6 +537,12 @@ async fn finished_run_named(
         .await
         .expect("store the artifact");
     let digest = Digest::sha256(b"canonical");
+    let leader_term = runs
+        .leader_lease()
+        .acquire("artifact-leader".to_owned())
+        .await
+        .expect("leader lease")
+        .expect("this process is the leader");
     runs.computed(
         id.clone(),
         term,
@@ -545,9 +552,16 @@ async fn finished_run_named(
     )
     .await
     .expect("computed");
-    runs.complete(id.clone(), term, digest.clone(), vec![artifact], Vec::new())
-        .await
-        .expect("complete");
+    runs.complete(
+        id.clone(),
+        term,
+        leader_term,
+        digest.clone(),
+        vec![artifact],
+        Vec::new(),
+    )
+    .await
+    .expect("complete");
     (id, digest, bytes)
 }
 

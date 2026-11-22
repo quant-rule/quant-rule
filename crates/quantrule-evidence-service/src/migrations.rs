@@ -80,6 +80,11 @@ pub fn available() -> Vec<Migration> {
             name: "run-lineage",
             sql: include_str!("../migrations/0020_run_lineage.sql"),
         },
+        Migration {
+            version: 21,
+            name: "leader-lease",
+            sql: include_str!("../migrations/0021_leader_lease.sql"),
+        },
     ];
     migrations.sort_by_key(|migration| migration.version);
     migrations
@@ -122,7 +127,7 @@ mod tests {
         let pending = plan(&applied, &available).expect("plan");
         assert_eq!(
             pending.iter().map(|m| m.version).collect::<Vec<_>>(),
-            vec![4, 5, 8, 9, 13, 14, 15, 16, 17, 18, 19, 20]
+            vec![4, 5, 8, 9, 13, 14, 15, 16, 17, 18, 19, 20, 21]
         );
     }
 
@@ -145,7 +150,7 @@ mod tests {
             .collect();
         assert_eq!(
             versions,
-            vec![2, 4, 5, 8, 9, 13, 14, 15, 16, 17, 18, 19, 20]
+            vec![2, 4, 5, 8, 9, 13, 14, 15, 16, 17, 18, 19, 20, 21]
         );
     }
 
@@ -245,6 +250,31 @@ mod tests {
         assert!(
             migration.sql.contains("ON DELETE CASCADE"),
             "migration 20 must remove lineage with its run"
+        );
+    }
+
+    #[test]
+
+    fn the_leader_lease_migration_is_registered() {
+        let available = available();
+        let migration = available
+            .iter()
+            .find(|migration| migration.version == 21)
+            .expect("migration 21");
+        assert_eq!(migration.name, "leader-lease");
+        for column in ["holder", "term", "expires_at", "updated_at"] {
+            assert!(
+                migration.sql.contains(column),
+                "migration 21 must add {column}"
+            );
+        }
+        assert!(
+            migration.sql.contains("runs.leader_lease"),
+            "migration 21 must create the leader lease"
+        );
+        assert!(
+            migration.sql.contains("ON CONFLICT (singleton) DO NOTHING"),
+            "migration 21 must seed the singleton idempotently"
         );
     }
 

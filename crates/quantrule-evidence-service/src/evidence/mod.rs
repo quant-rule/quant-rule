@@ -28,6 +28,8 @@ pub enum EvidenceError {
     Changed(String),
     /// The stored digest does not match the recomputed one.
     DigestMismatch,
+    /// The evidence leader term is no longer live.
+    LeaderFenced,
     /// A store failed.
     Store(String),
 }
@@ -46,6 +48,7 @@ impl std::fmt::Display for EvidenceError {
             Self::DigestMismatch => {
                 formatter.write_str("the stored digest does not match the artifacts")
             }
+            Self::LeaderFenced => formatter.write_str("the evidence leader term is stale"),
             Self::Store(message) => formatter.write_str(message),
         }
     }

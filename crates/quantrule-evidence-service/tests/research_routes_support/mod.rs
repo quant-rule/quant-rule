@@ -10,6 +10,7 @@ use quantrule_api::{
     ArtifactRef, Digest, ImprovementPartition, ImprovementRunDetail, ImprovementTier,
     PROFILE_HEADER,
 };
+use quantrule_evidence_service::leader::LeaderLease;
 use quantrule_evidence_service::research::{ImprovementStore, MemoryImprovementStore};
 use quantrule_evidence_service::runs::{MemoryRuns, NewRun, RunStore, derive};
 use quantrule_evidence_service::{EvidenceServices, EvidenceState, router};
@@ -287,12 +288,34 @@ pub async fn succeed_run(
         .expect("submit");
     let run_id = outcome.record().run_id.clone();
     let term = claim_term(harness, &run_id.to_string()).await;
+    let leader_term = finalizer_term(harness).await;
     harness
         .runs
-        .complete(run_id.to_string(), term, digest, artifacts, Vec::new())
+        .complete(
+            run_id.to_string(),
+            term,
+            leader_term,
+            digest,
+            artifacts,
+            Vec::new(),
+        )
         .await
         .expect("complete");
     run_id
+}
+
+async fn finalizer_term(harness: &Harness) -> u64 {
+    let lease = harness.runs.leader_lease();
+    if let Some(status) = lease.current().await.expect("leader status")
+        && status.live
+    {
+        return status.term;
+    }
+    lease
+        .acquire("research-leader".to_owned())
+        .await
+        .expect("leader lease")
+        .expect("this process is the leader")
 }
 
 async fn claim_term(harness: &Harness, run_id: &str) -> u64 {
@@ -340,9 +363,17 @@ pub async fn succeed_seeded(
         .expect("submit");
     let run_id = outcome.record().run_id.clone();
     let term = claim_term(harness, &run_id.to_string()).await;
+    let leader_term = finalizer_term(harness).await;
     harness
         .runs
-        .complete(run_id.to_string(), term, digest, artifacts, Vec::new())
+        .complete(
+            run_id.to_string(),
+            term,
+            leader_term,
+            digest,
+            artifacts,
+            Vec::new(),
+        )
         .await
         .expect("complete");
     run_id
