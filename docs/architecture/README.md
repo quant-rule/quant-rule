@@ -68,6 +68,7 @@ repeating a status.
 | [`control-plane.md`](control-plane.md) | Current; released as v0.9.0 (prepared as v1.0.0); current in v1.5.2 | How a run is submitted, retried, and cancelled |
 | [`http-api.md`](http-api.md) | Current; released as v0.9.0 (prepared as v1.0.0); current in v1.5.2 | The client contract |
 | [`deployment.md`](deployment.md) | Current; released as v1.0.0 (prepared as v1.1.0); current in v1.5.2 | How to run it with one command |
+| [`migrations.md`](migrations.md) | Current; accepted 2026-11-22 as HA-003 | Forward-only ledgers, expand/contract, job order, rollback |
 | [`multi-host.md`](multi-host.md) | Current in v1.5.2; released as v1.4.2; hardening #980 | How the six services run across hosts |
 | [`client.md`](client.md) | Current; product 1.5.2, current tag v1.5.2 | The browser client |
 | [`user-journey.md`](user-journey.md) | Current; released as v1.0.0 (prepared as v1.1.0); current in v1.5.2 | How it is used and what it returns |

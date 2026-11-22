@@ -72,6 +72,7 @@ cannot read a strategy, write a run, publish to the queue, or compute a model.
 | Event | `model/src/events/<family>.rs` | codes, registry, dispatch, writer, test |
 | Endpoint | `gateway/src/server.rs` | owner service, `quantrule-api`, `http-api.md`, client store, test |
 | Service responsibility | the owning `*-service` crate | `services.md`, `service_boundary.rs` |
+| Migration | the owning service's `src/migrations.rs` and `migrations/*.sql` | `deploy/postgres/migration-ledger.json`, [`migrations.md`](migrations.md) |
 | Worker behaviour | `backtest-service/src/backtest/worker.rs` | `control-plane.md`, retry test |
 | Stage endpoint | `evidence-service/src/stage/` | `gateway/src/server.rs`, `quantrule-api`, `stage-surface.md`, test |
 | Stage execution | `backtest-service/src/stage/` | `quantrule-service-api`, retention, no-partial-publish test |

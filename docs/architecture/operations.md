@@ -106,11 +106,21 @@ archive digest in the run note for a long campaign.
 
 ## 5. Upgrade
 
-1. Record the current image digest.
+1. Record the current image digest and the canonical digest from `make verify`.
+   Keep the previous image loaded and the previous volumes.
 2. `make down`
-3. `docker compose pull` or rebuild.
-4. `make up`
-5. `make verify` and compare with the recorded digest.
+3. Load or pull the new image digest.
+4. `make up`: `db-bootstrap` runs, then the four one-shot migration jobs, then
+   each service waits for its own job.
+5. `make verify` and compare with the recorded canonical digest. Do not retire
+   the previous image until the fixture and digest pass.
+6. A failed migration job leaves its service down; do not bypass it with
+   `QR_MIGRATE=1`. Correct forward with a new migration version.
+7. Rollback starts the previous digest without the job. The schema is
+   forward-only, so the previous image must tolerate it.
+
+The full migration contract and runbook are in
+[migrations.md](migrations.md).
 
 ## 6. Incident notes
 
@@ -118,6 +128,8 @@ archive digest in the run note for a long campaign.
 |---|---|
 | Disk full | Stop workers, free object storage, restart |
 | Database corruption | Restore from the last backup; record the data loss window |
+| Migration job failed | Keep the old stack serving; read the job log and the ledger; correct forward, never edit an applied migration |
+| Migration job stopped | Re-run the job; it resumes from the ledger; never start the service by hand to bypass it |
 | Object store loss | Restore from backup; any missing artifact makes its runs unverifiable |
 | Queue loss | Rebuild from run rows in `queued`; resubmit those runs |
 | Image regression | Roll back to the previous digest; record the failure |

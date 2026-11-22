@@ -60,7 +60,8 @@ All six binaries and nine long-running containers start; only `backtest` is
 HTTP-less. `db-bootstrap` creates the four databases and roles, then four
 `*-migrate` jobs apply each ledger. Long-running services hold only the
 application URL with `QR_MIGRATE=0`. The MinIO image is pinned; the database
-contract is [`docs/config/2026-11-22/four-databases.md`](../config/2026-11-22/four-databases.md).
+contract is [`docs/config/2026-11-22/four-databases.md`](../config/2026-11-22/four-databases.md)
+and the migration contract is [migrations.md](migrations.md).
 
 ## 3. Make targets
 
@@ -83,9 +84,6 @@ contract is [`docs/config/2026-11-22/four-databases.md`](../config/2026-11-22/fo
 | `make backup` | Dump Postgres (one database until the four-database archive lands) and mirror objects |
 | `make restore FILE=…` | Restore into a clean stack |
 | `make dev-web` | Bun dev server for the web client, proxying `localhost:8080` |
-
-`make scale` scales `model` and `backtest`; `make backup` and `make restore`
-call the tools scripts; `make test-composed` runs against a stack from `make up`.
 
 ## 3.1 Remote profile
 
@@ -153,12 +151,15 @@ runs none and points at `http://<server>:8080`. Scaling is configuration.
 
 ## 7. Upgrade and rollback
 
-1. Pull the new image digest.
-2. `make down && make up`.
-3. The bootstrap creates or converges the databases; the migration jobs apply
-   the ledgers before their services start.
-4. Rollback starts the previous digest. Migrations are forward-only, so a
-   rollback never reverts the schema; the previous version must tolerate it.
+1. Record the current image and canonical digest; keep the previous image and
+   volumes.
+2. `make down`, load the new digest, `make up`: bootstrap, then each
+   `<service>-migrate` job, then its service. A failed job stops its service.
+3. Run `make verify`; the fixture must print the recorded canonical digest
+   before the previous image is retired.
+4. Rollback starts the previous digest without its job; the schema stays
+   expanded and the previous image must tolerate it. See [migrations.md](migrations.md)
+   §5. A destructive contract migration closes the window; recovery is PITR.
 
 The split does not copy rows from the old `quantrule` database: use `make reset`
 for disposable data, or the migration runbook for kept evidence.

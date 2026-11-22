@@ -141,8 +141,9 @@ The gateway `/ready` reports the upstream states.
 - The queue is not archived; messages are rebuilt from run rows.
 - Distribute the new image to every host, stop the gateway and workers, update
   core and compute, then start workers and gateway.
-- Migrations are forward-only. Rollback starts the previous image digest; the
-  previous version must tolerate the newer schema.
+- Migrations are forward-only. Rollback starts the previous image digest
+  without its migration job; the previous version must tolerate the newer
+  schema. Runbook: [migrations.md](migrations.md) §5.
 
 ## 10. What it does not provide
 

@@ -29,10 +29,14 @@ history is in Git and the pull requests.
 - The `v1.6.0` execution plan, issue tree, research-artifacts architecture and HA architecture are recorded as the plan of record.
 - The local and multi-host stacks use four logical PostgreSQL databases (`qr_gateway`, `qr_catalog`, `qr_evidence`, `qr_simulation`), each with a per-service owner role that migrates and an application role with DML only.
 - `deploy/postgres/bootstrap.sh` and the one-shot `db-bootstrap` service create the four databases and eight roles idempotently; four one-shot `<service>-migrate` jobs run the service binary with `--migrate-only` and hold the owner URL.
+- The schema-migration contract is recorded in `docs/architecture/migrations.md`: forward-only ledgers, one owner per database, expand/contract release order, checksum pinning, rollback compatibility, and the four-job order.
+- `deploy/postgres/migration-ledger.json` pins every ledger version and SQL checksum; a fast test refuses a reordered ledger, an edited migration body, or a database-owning service without its `--migrate-only` entry point.
+- The operator runbook covers a failed migration, a stopped migration job, and a rollback to the previous image digest while the old stack stays available.
 
 ### Changed
 
 - Each database-owning service receives only its own `QR_DATABASE_URL` and `QR_MIGRATE=0`; model and backtest receive no database URL. The long-running process never receives `QR_DATABASE_OWNER_URL`, so a compromised service cannot reconnect with DDL rights.
+- A rollback starts the previous image without its migration job: the runner refuses a database ahead of the binary, and the previous image must tolerate the expanded schema.
 - No role is granted connect on another service's database.
 - The multi-host `qr-deploy render` derives the four application URLs, the four migration owner URLs, and the eight role names from the v2 Postgres endpoint, so v2 remains readable.
 

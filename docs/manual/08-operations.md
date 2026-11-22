@@ -98,6 +98,23 @@ cover all four; treat a backup as incomplete until the four-database archive
 change lands. The database and role contract is
 [`docs/config/2026-11-22/four-databases.md`](../config/2026-11-22/four-databases.md).
 
+## Migrations
+
+`db-bootstrap` creates the four databases and roles. Then `gateway-migrate`,
+`data-migrate`, `evidence-migrate`, and `simulation-migrate` each apply one
+ledger with the owner role and exit. A service starts only after its job
+completes. The ledger is forward-only; a rollback changes the image, not the
+schema.
+
+| Situation | Operator action |
+|---|---|
+| A migration job fails | Keep the old stack serving, read `docker compose logs <service>-migrate`, query the ledger, and correct forward with a new version. Never edit an applied migration. |
+| A migration job stops | Re-run the job; it resumes from the ledger. Do not start the service by hand and do not set `QR_MIGRATE=1`. |
+| The new digest fails the fixture | Keep the previous image and volumes, restore the previous descriptor, start the previous services without the migration job, and compare the canonical digest before retiring anything. |
+
+The exact commands and the rollback conditions are in
+[`migrations.md`](../architecture/migrations.md) section 5.
+
 ## What you see
 
 The Operations screen shows connection, product, API, image digest, health,

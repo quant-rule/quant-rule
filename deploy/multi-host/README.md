@@ -216,13 +216,25 @@ forward `5672`, `5432`, or `9000` beyond the overlay.
    the queue hold or redeliver their messages.
 3. Update the descriptor's image tag and digest, then repeat the `validate` and
    `render` commands in §4.
-4. Start core, then compute, then the gateway (§6). Migrations run forward at
-   startup and are idempotent.
+4. Start core, then compute, then the gateway (§6). Each role's one-shot
+   migration job runs before its service; the jobs are idempotent and
+   forward-only.
 
-Rollback is the same sequence with the previous tag and the previous rendered
-files; keep the previous image loaded on every host. Migrations are
-forward-only, so a rollback never reverts the schema and the previous version
-must tolerate it. If it cannot, restore from backup.
+If a migration job fails, its service does not start. Keep the old gateway
+serving, read the job log and the ledger, and correct forward with a new
+migration version; never edit an applied migration. A stopped job is re-run and
+resumes from the ledger. The full runbook is
+[`docs/architecture/migrations.md`](../../docs/architecture/migrations.md)
+section 5.
+
+Rollback is the same sequence with the previous tag, the previous descriptor,
+and the previous rendered files; keep the previous image loaded on every host
+and do not remove the volumes. The previous image must not run its migration
+job: its ledger is behind, and the runner refuses a database ahead. Start the
+previous services with `--no-deps`, then run the fixture and compare the
+canonical digest. Only after both pass may the new image and stack be retired.
+If a destructive contract migration already ran, rollback requires a PITR
+restore.
 
 ## 10. Logs and stop
 
