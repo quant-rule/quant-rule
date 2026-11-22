@@ -64,7 +64,7 @@ fn quality() -> QualityReport {
     }
 }
 
-async fn dataset_conformance(catalog: &dyn DatasetCatalog) {
+async fn dataset_conformance(catalog: &dyn DatasetCatalog, replica: &dyn DatasetCatalog) {
     let owner = profile("conformance-catalog");
     let other = profile("conformance-catalog-other");
     let empty = profile("conformance-catalog-empty");
@@ -285,6 +285,135 @@ async fn dataset_conformance(catalog: &dyn DatasetCatalog) {
         .expect("the unique erase");
     assert!(!erased.object_shared);
 
+    // Two replicas over one database: the same content is one row, different
+    // content is two, and repeated references count once.
+    let race = dataset(b"conformance-catalog-race", "race.csv", None);
+    let (left, right) = tokio::join!(
+        catalog.insert_or_get(owner.clone(), race.clone()),
+        replica.insert_or_get(owner.clone(), race.clone()),
+    );
+    let left = left.expect("the first replica");
+    let right = right.expect("the second replica");
+    assert_eq!(left.record, right.record);
+    assert_ne!(
+        left.created, right.created,
+        "exactly one replica must create the duplicate row"
+    );
+    assert_eq!(
+        catalog
+            .get(owner.clone(), race.summary.data_version.to_string())
+            .await
+            .expect("the race read"),
+        Some(left.record.clone())
+    );
+
+    let other_left = dataset(b"conformance-catalog-race-left", "race-left.csv", None);
+    let other_right = dataset(b"conformance-catalog-race-right", "race-right.csv", None);
+    let (left, right) = tokio::join!(
+        catalog.insert_or_get(owner.clone(), other_left),
+        replica.insert_or_get(owner.clone(), other_right),
+    );
+    assert!(left.expect("the left insert").created);
+    assert!(right.expect("the right insert").created);
+
+    let version = race.summary.data_version.to_string();
+    assert!(
+        catalog
+            .object_referenced(race.object_key.clone())
+            .await
+            .expect("the object reference")
+    );
+    let reference = DatasetReference {
+        reference_id: "run:conformance-race".to_owned(),
+        kind: DatasetReferenceKind::Run,
+        created_at: "2026-11-20T00:00:00Z".to_owned(),
+    };
+    let (left, right) = tokio::join!(
+        catalog.add_reference(owner.clone(), version.clone(), reference.clone()),
+        replica.add_reference(owner.clone(), version.clone(), reference.clone()),
+    );
+    assert_eq!(left.expect("the first reference"), 1);
+    assert_eq!(right.expect("the idempotent reference"), 1);
+    let (left, right) = tokio::join!(
+        catalog.add_reference(
+            owner.clone(),
+            version.clone(),
+            DatasetReference {
+                reference_id: "run:conformance-race-two".to_owned(),
+                ..reference.clone()
+            },
+        ),
+        replica.add_reference(
+            owner.clone(),
+            version.clone(),
+            DatasetReference {
+                reference_id: "run:conformance-race-three".to_owned(),
+                ..reference
+            },
+        ),
+    );
+    let mut counts = [
+        left.expect("the second reference"),
+        right.expect("the third reference"),
+    ];
+    counts.sort_unstable();
+    assert_eq!(counts, [2, 3]);
+    assert_eq!(
+        catalog
+            .references(owner.clone(), version.clone())
+            .await
+            .expect("the race references")
+            .len(),
+        3
+    );
+
+    let guard = catalog
+        .object_guard(race.object_key.clone())
+        .await
+        .expect("the object guard");
+    guard.release().await.expect("the guard release");
+    catalog
+        .archive(
+            owner.clone(),
+            version.clone(),
+            "2026-11-20T00:00:00Z".to_owned(),
+        )
+        .await
+        .expect("the race archive");
+    assert_eq!(
+        catalog.erase(owner.clone(), version.clone()).await,
+        Err(CatalogError::Referenced(3))
+    );
+    for reference_id in [
+        "run:conformance-race",
+        "run:conformance-race-two",
+        "run:conformance-race-three",
+    ] {
+        assert_eq!(
+            catalog
+                .release_reference(owner.clone(), version.clone(), reference_id.to_owned())
+                .await
+                .expect("the race release"),
+            if reference_id == "run:conformance-race" {
+                2
+            } else if reference_id == "run:conformance-race-two" {
+                1
+            } else {
+                0
+            }
+        );
+    }
+    catalog
+        .erase(owner.clone(), version)
+        .await
+        .expect("the race erase");
+    assert!(
+        !catalog
+            .object_referenced(race.object_key.clone())
+            .await
+            .expect("the erased object reference")
+    );
+
     assert_eq!(
         catalog
             .archive(
@@ -438,7 +567,8 @@ async fn config_conformance(store: &dyn ConfigCatalog) {
 
 #[tokio::test]
 async fn the_memory_stores_conform() {
-    dataset_conformance(&MemoryCatalog::default()).await;
+    let catalog = MemoryCatalog::default();
+    dataset_conformance(&catalog, &catalog).await;
     config_conformance(&MemoryConfigs::default()).await;
 }
 
@@ -455,8 +585,13 @@ async fn the_postgres_stores_conform() {
         .expect("the catalog migrations");
 
     for statement in [
+        "DELETE FROM catalog.dataset_references
+          WHERE profile_id IN ('conformance-catalog', 'conformance-catalog-other')",
         "DELETE FROM catalog.datasets
           WHERE profile_id IN ('conformance-catalog', 'conformance-catalog-other')",
+        "DELETE FROM catalog.retention_events
+          WHERE kind = 'dataset'
+            AND profile_id IN ('conformance-catalog', 'conformance-catalog-other')",
         "DELETE FROM catalog.configs
           WHERE profile_id IN ('conformance-config', 'conformance-config-other')",
         "DELETE FROM catalog.config_bundles
@@ -469,6 +604,8 @@ async fn the_postgres_stores_conform() {
     }
 
     let pool = database.pool().clone();
-    dataset_conformance(&PgDatasetCatalog::new(pool.clone())).await;
+    let first = PgDatasetCatalog::new(pool.clone());
+    let second = PgDatasetCatalog::new(pool.clone());
+    dataset_conformance(&first, &second).await;
     config_conformance(&PgConfigStore::new(pool)).await;
 }

@@ -53,6 +53,11 @@ pub fn available() -> Vec<Migration> {
             name: "artifacts",
             sql: include_str!("../migrations/0008_artifacts.sql"),
         },
+        Migration {
+            version: 9,
+            name: "object-indexes",
+            sql: include_str!("../migrations/0009_object_indexes.sql"),
+        },
     ];
     migrations.sort_by_key(|migration| migration.version);
     migrations
@@ -95,7 +100,7 @@ mod tests {
         let pending = plan(&applied, &available).expect("plan");
         assert_eq!(
             pending.iter().map(|m| m.version).collect::<Vec<_>>(),
-            vec![2, 3, 4, 5, 6, 7, 8]
+            vec![2, 3, 4, 5, 6, 7, 8, 9]
         );
     }
 
@@ -114,7 +119,7 @@ mod tests {
             .iter()
             .map(|migration| migration.version)
             .collect();
-        assert_eq!(versions, vec![1, 2, 3, 4, 5, 6, 7, 8]);
+        assert_eq!(versions, vec![1, 2, 3, 4, 5, 6, 7, 8, 9]);
     }
 
     #[test]

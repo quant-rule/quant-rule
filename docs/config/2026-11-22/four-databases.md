@@ -143,5 +143,9 @@ another service. The contract is
 - `tools/postgres_composed.sh` runs the bootstrap against a disposable
   PostgreSQL and checks own-database access, cross-database refusal, app DDL
   refusal, owner DDL, and app DML.
+- `cargo test -p quantrule-data-service --test active_active` runs two data
+  service instances over one catalog; the shared store bodies and the
+  object guard are specified in
+  [`data-active-active.md`](../../architecture/data-active-active.md).
 - `docker compose config` validates the local topology; `qr-deploy render`
   writes the v2 env files and the four migration envs.

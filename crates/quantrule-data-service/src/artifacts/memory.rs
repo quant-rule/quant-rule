@@ -13,7 +13,7 @@ use quantrule_api::{
 };
 use quantrule_runtime::adapters::BoxFuture;
 
-use super::store::{ArtifactCatalog, ArtifactError, NewArtifact};
+use super::store::{ArtifactCatalog, ArtifactError, ArtifactRegisterOutcome, NewArtifact};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct RetentionEvent {
@@ -74,7 +74,7 @@ impl ArtifactCatalog for MemoryArtifacts {
         &self,
         profile: ProfileId,
         artifact: NewArtifact,
-    ) -> BoxFuture<Result<ArtifactRecord, ArtifactError>> {
+    ) -> BoxFuture<Result<ArtifactRegisterOutcome, ArtifactError>> {
         let inner = Arc::clone(&self.inner);
         Box::pin(async move {
             let mut state = inner
@@ -82,7 +82,10 @@ impl ArtifactCatalog for MemoryArtifacts {
                 .map_err(|_| ArtifactError::Store("the artifact lock is poisoned".to_owned()))?;
             let key = key(&profile, artifact.kind, &artifact.artifact_id.to_string());
             if let Some(existing) = state.rows.get(&key) {
-                return Ok(existing.clone());
+                return Ok(ArtifactRegisterOutcome {
+                    record: existing.clone(),
+                    created: false,
+                });
             }
             let record = ArtifactRecord {
                 summary: ArtifactSummary {
@@ -95,7 +98,10 @@ impl ArtifactCatalog for MemoryArtifacts {
                 sha256: artifact.artifact_id,
             };
             state.rows.insert(key, record.clone());
-            Ok(record)
+            Ok(ArtifactRegisterOutcome {
+                record,
+                created: true,
+            })
         })
     }
 

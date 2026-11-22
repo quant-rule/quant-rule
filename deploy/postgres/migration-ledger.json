@@ -70,6 +70,12 @@
           "name": "artifacts",
           "file": "crates/quantrule-data-service/migrations/0008_artifacts.sql",
           "checksum": "29d8b1c99105a8ea"
+        },
+        {
+          "version": 9,
+          "name": "object-indexes",
+          "file": "crates/quantrule-data-service/migrations/0009_object_indexes.sql",
+          "checksum": "ef04f69c064a8e52"
         }
       ]
     },

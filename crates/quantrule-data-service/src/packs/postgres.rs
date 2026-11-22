@@ -212,6 +212,10 @@ impl PackRegistry for PgPacks {
             if let Some((existing,)) = &label
                 && existing != &pack_id
             {
+                transaction
+                    .rollback()
+                    .await
+                    .map_err(|error| PackRegistryError::Store(error.to_string()))?;
                 return Err(PackRegistryError::LabelConflict {
                     existing: Digest::parse(existing).map_err(|error| {
                         PackRegistryError::Store(format!("a stored pack id is malformed: {error}"))

@@ -78,7 +78,7 @@ fn the_data_migrations_create_the_catalog_schema_only() {
             sql.push(path);
         }
     }
-    assert_eq!(sql.len(), 8, "the catalog list has eight migrations");
+    assert_eq!(sql.len(), 9, "the catalog list has nine migrations");
     for file in sql {
         let text = std::fs::read_to_string(&file).expect("migration");
         let name = file.file_name().expect("name").to_string_lossy();

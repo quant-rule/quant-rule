@@ -20,6 +20,15 @@ pub struct NewArtifact {
     pub created_at: String,
 }
 
+/// The outcome of an idempotent artifact registration.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ArtifactRegisterOutcome {
+    /// The stored record.
+    pub record: ArtifactRecord,
+    /// Whether this call created the row.
+    pub created: bool,
+}
+
 /// Why an artifact operation failed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ArtifactError {
@@ -47,12 +56,16 @@ impl std::error::Error for ArtifactError {}
 
 /// Where computed research artifacts live.
 pub trait ArtifactCatalog: Send + Sync {
-    /// Register one artifact. The same content is idempotent.
+    /// Register one artifact, or return the stored row for the same content.
+    ///
+    /// The unique `(profile_id, artifact_kind, artifact_id)` key is the
+    /// authority. A concurrent duplicate returns the winner's row with
+    /// `created == false`; it is never an error.
     fn register(
         &self,
         profile: ProfileId,
         artifact: NewArtifact,
-    ) -> BoxFuture<Result<ArtifactRecord, ArtifactError>>;
+    ) -> BoxFuture<Result<ArtifactRegisterOutcome, ArtifactError>>;
 
     /// Read one artifact by content id within a profile.
     fn get(

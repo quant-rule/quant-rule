@@ -34,6 +34,7 @@ use crate::inspect::{Inspection, inspect, ladder};
 use crate::state::DataState;
 use crate::tolerant::{TolerantIngested, ingest_tolerant};
 use crate::upload::{Spool, SpoolError, spool};
+use quantrule_runtime::adapters::put_if_absent;
 use quantrule_runtime::clock;
 
 /// A failed request: a status and the shared envelope.
@@ -219,16 +220,6 @@ async fn store_dataset(
         .ok_or_else(|| failure(ErrorCode::Internal, "no object store is configured"))?;
     let hex = ingested.data_version.as_hex();
     let key = format!("datasets/{hex}");
-    let present = objects
-        .exists(&key)
-        .await
-        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
-    if !present {
-        objects
-            .put(&key, ingested.content)
-            .await
-            .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
-    }
     let record = DatasetRecord {
         summary: DatasetSummary {
             data_version: ingested.data_version.clone(),
@@ -239,29 +230,41 @@ async fn store_dataset(
             bytes: ingested.bytes,
             archived_at: None,
         },
-        object_key: key,
+        object_key: key.clone(),
         sha256: ingested.data_version.clone(),
         quality,
         created_at: clock::now_utc()
             .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?,
     };
 
-    match catalog.insert(profile.clone(), record.clone()).await {
-        Ok(()) => Ok((StatusCode::CREATED, Json(record))),
-        Err(CatalogError::AlreadyExists) => {
-            let version = record.summary.data_version.to_string();
-            match catalog.get(profile, version).await {
-                Ok(Some(existing)) => Ok((StatusCode::OK, Json(existing))),
-                Ok(None) => Err(failure(
-                    ErrorCode::Internal,
-                    "the catalog refused a duplicate but holds no record",
-                )),
-                Err(error) => Err(failure(ErrorCode::Internal, error.to_string())),
-            }
-        }
-        Err(CatalogError::Store(error)) => Err(failure(ErrorCode::Internal, error)),
-        Err(other) => Err(failure(ErrorCode::Internal, other.to_string())),
+    // The object is written before the row. The database guard makes the
+    // put-and-insert pair serial across replicas, so an erase cannot remove the
+    // bytes between them. A failed put leaves no row; a failed insert leaves an
+    // orphan object, which is the safe direction and is reused by a retry.
+    let guard = catalog
+        .object_guard(key.clone())
+        .await
+        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
+    let stored = async {
+        put_if_absent(objects.as_ref(), &key, ingested.content)
+            .await
+            .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
+        catalog
+            .insert_or_get(profile, record)
+            .await
+            .map_err(|error| failure(ErrorCode::Internal, error.to_string()))
     }
+    .await;
+    if let Err(error) = guard.release().await {
+        tracing::warn!(%error, "the dataset object guard did not release");
+    }
+    let inserted = stored?;
+    let status = if inserted.created {
+        StatusCode::CREATED
+    } else {
+        StatusCode::OK
+    };
+    Ok((status, Json(inserted.record)))
 }
 
 /// Upload a run-config bundle, validate it, and catalogue it.
@@ -762,14 +765,61 @@ async fn erase_dataset(
     let bytes = if outcome.object_shared {
         0
     } else {
-        match objects.delete(&outcome.record.object_key).await {
-            Ok(()) => outcome.record.summary.bytes,
+        erase_object(
+            catalog,
+            objects.as_ref(),
+            &outcome.record.object_key,
+            outcome.record.summary.bytes,
+        )
+        .await
+    };
+    Ok(Json(EraseDatasetResponse {
+        data_version: outcome.record.summary.data_version,
+        bytes,
+    }))
+}
+
+/// Delete an unshared dataset object under the database object guard.
+///
+/// The row and its tombstone are already committed. The guard is taken after
+/// that commit, so an upload that is between its object write and its row insert
+/// either finishes first (the recheck sees the row and keeps the bytes) or waits
+/// (it writes the bytes after this deletion). A failed guard or delete leaves an
+/// orphan object, which is safe; a missing object is never published.
+async fn erase_object(
+    catalog: &Arc<dyn crate::catalog::DatasetCatalog>,
+    objects: &dyn quantrule_runtime::adapters::ObjectStore,
+    key: &str,
+    bytes: u64,
+) -> u64 {
+    let guard = match catalog.object_guard(key.to_owned()).await {
+        Ok(guard) => guard,
+        Err(error) => {
+            tracing::warn!(object_key = key, %error, "erased dataset kept an orphan object");
+            return 0;
+        }
+    };
+    let referenced = match catalog.object_referenced(key.to_owned()).await {
+        Ok(referenced) => referenced,
+        Err(error) => {
+            tracing::warn!(object_key = key, %error, "erased dataset kept an orphan object");
+            let _ = guard.release().await;
+            return 0;
+        }
+    };
+    let bytes = if referenced {
+        // A concurrent upload inserted its row after the erase transaction's
+        // shared-object check. The object is now referenced again.
+        0
+    } else {
+        match objects.delete(key).await {
+            Ok(()) => bytes,
             Err(error) => {
                 // The row and its tombstone are already committed. An orphan
                 // object is a storage leak, never a missing shared artifact, so
                 // the erase stands and the cleanup failure is reported here.
                 tracing::warn!(
-                    object_key = %outcome.record.object_key,
+                    object_key = key,
                     %error,
                     "erased dataset left an orphan object"
                 );
@@ -777,10 +827,10 @@ async fn erase_dataset(
             }
         }
     };
-    Ok(Json(EraseDatasetResponse {
-        data_version: outcome.record.summary.data_version,
-        bytes,
-    }))
+    if let Err(error) = guard.release().await {
+        tracing::warn!(object_key = key, %error, "the dataset object guard did not release");
+    }
+    bytes
 }
 
 async fn register_dataset_reference(

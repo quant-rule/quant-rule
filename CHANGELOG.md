@@ -47,12 +47,16 @@ history is in Git and the pull requests.
 - The evidence database records a run's model, strategy, signal, portfolio and execution references with pack provenance (migration 20) through the internal lineage route; a repeated set is idempotent, a different set is refused, and the route is the run-v5 integration seam.
 - The data service owns the generic computed-artifact retention seam (migration 8): content-addressed artifact rows, consumer references that protect them, and an internal retention pass that collects only unreferenced signal artifacts older than 30 days, writes a tombstone in the same transaction, and deletes only an unshared object.
 - The signal artifact (`quantrule.signal-artifact/v1`) is the content-addressed output of a frozen model artifact and a signal-mode strategy pack: one row per execution bar with bar identity, availability, action, side, intent, reason and event/state evidence. A deterministic reference position handles event/state entries, the time stop, the ATR stop/target and a two-sided bracket whose side execution chooses; fold mode and giveback are refused, and execution and portfolio policy are not inputs.
-- `deploy/postgres/migration-ledger.json` pins catalog migrations 7 and 8 and evidence migration 20; the composed Postgres tier now runs the pack, artifact and lineage conformance suites.
+- `deploy/postgres/migration-ledger.json` pins catalog migrations 7, 8 and 9 and evidence migrations 20 and 21; the composed Postgres tier runs the pack, artifact, lineage, leader and outbox conformance suites.
 - The simulation database adds migration 16: a decision-completeness constraint and a trigger that refuse a changed or cleared decision. The repository locks the run row for mark, check, decision, and erase transactions, so two simulation replicas cannot corrupt the mark set or overwrite a decision.
 - The simulation service supports two replicas only through the HA-008 row-lock concurrency contract; the v2 multi-host profile remains single-instance.
 - The evidence database adds `runs.leader_lease` (migration 21): one row carries the finalizer holder, a monotonic term and a database-time expiry. Acquisition swaps an expired row for a new term, renewal keeps the term, and a standby takes over after expiry.
 - Only the evidence leader consumes `run.computed`; both replicas serve reads. A leader loss drops the consumer, the standby acquires a higher term, and the outbox re-arms the unfinished run.
 - `complete` and `fail_finalization` lock `runs.leader_lease` and require the live leader term as well as the run-attempt term, so a stale leader cannot write a terminal state, a duplicate delivery is a lookup, and one run record and one canonical digest remain.
+- The data service supports two replicas through the HA-007 active/active contract: content-addressed upload uses a database-backed object guard and `put_if_absent`, the `(profile_id, data_version)` row is inserted with `ON CONFLICT DO NOTHING`, and a retry returns the stored row and the same `data_version`.
+- Pack and artifact registration return whether the row was created, so two replicas answer one duplicate with `201` and the other with `200` instead of racing a separate existence check.
+- Catalog migration 9 indexes `datasets.object_key` and `artifacts.object_key` for the erase guard and artifact-sharing checks; the migration is pinned in `deploy/postgres/migration-ledger.json`.
+- `docs/architecture/data-active-active.md` records the files the data service owns, the upload/erase interleavings, and the v2 placement boundary.
 
 ### Changed
 
@@ -74,6 +78,9 @@ history is in Git and the pull requests.
 
 ### Fixed
 
+- Two concurrent identical dataset uploads now produce one catalog row and one content-addressed object; the loser of the unique-key race returns the winner's row instead of failing. A failed object write still publishes no row.
+- Dataset reference register, release, and erase now lock the dataset row in Postgres, so two replicas cannot lose a reference, double-count one, or erase a dataset whose reference committed first.
+- A concurrent erase and upload of the same content are serialised by the database object guard and a post-commit reference recheck, so a published row cannot point at deleted bytes.
 - Concurrent simulation marks and the terminal decision no longer race: a mark that loses to a decision is refused instead of inserted, an erase takes the same run lock as a decision, and a failed mark transaction leaves no mark and no status change.
 - The run outbox now re-arms a `running` run without a digest as `run.requested`; a startup reconciliation names every unfinished run even after its worker or delivery was lost, while a terminal run still deletes its intents and a retry cannot create a second run record.
 - A running run whose worker died is reclaimed after its lease expires and a stale term is refused, so a rebuilt queue recovers the run without a partial artifact set or a duplicate run record.

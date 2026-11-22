@@ -67,6 +67,7 @@ The validator refuses:
 - an external database, queue, or object-store endpoint;
 - IPv6 (deploy/v2 is IPv4-only), port zero, or a duplicate host port;
 - a fixed role group split across hosts (data/evidence/simulation, model/backtest);
+- a data, evidence, or simulation replica count other than one in v2;
 - a `config_root` other than `/srv/config`;
 - a descriptor with an unknown field.
 
@@ -122,7 +123,7 @@ The gateway `/ready` reports the upstream states.
 - Backtest workers scale by count across compute hosts through the queue.
 - One model endpoint is supported in v1. Multiple model hosts need a load
   balancer and are a follow-up.
-- `data` and `evidence` are single instances; `simulation` is single in v2 and two only in the HA profile after the [concurrency contract](simulation-concurrency.md).
+- `data`, `evidence`, and `simulation` are single in v2; two are HA-profile placements, with data requiring the [active/active contract](data-active-active.md) and simulation the [concurrency contract](simulation-concurrency.md).
 - The gateway is stateless; a second gateway needs a load balancer and is a
   follow-up.
 - A service failure affects that service. A host failure affects every service

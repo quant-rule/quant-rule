@@ -9,9 +9,33 @@ use quantrule_api::{ConfigOrigin, DatasetReference, DatasetReferenceKind, Profil
 use quantrule_runtime::adapters::BoxFuture;
 use sqlx::PgPool;
 
-use crate::catalog::CatalogError;
+use crate::catalog::{CatalogError, DatasetInsert, ObjectGuard};
 use crate::configs::{ConfigCatalog, ConfigRecord, ConfigStoreError};
 use crate::rows::{ConfigRow, DatasetRow, config_record, dataset_count, dataset_record};
+
+const INSERT_DATASET_SQL: &str = "INSERT INTO catalog.datasets
+         (profile_id, data_version, name, candles, first_bar, last_bar, bytes,
+          object_key, sha256, quality, created_at, archived_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11::timestamptz,
+             $12::timestamptz)
+     ON CONFLICT (profile_id, data_version) DO NOTHING
+     RETURNING data_version, name, candles, first_bar, last_bar, bytes, object_key,
+               sha256,
+               to_char(created_at AT TIME ZONE 'UTC',
+                       'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'),
+               quality::text,
+               to_char(archived_at AT TIME ZONE 'UTC',
+                       'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')";
+
+const SELECT_DATASET_SQL: &str = "SELECT data_version, name, candles, first_bar, last_bar, bytes,
+            object_key, sha256,
+            to_char(created_at AT TIME ZONE 'UTC',
+                    'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'),
+            quality::text,
+            to_char(archived_at AT TIME ZONE 'UTC',
+                    'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')
+       FROM catalog.datasets
+      WHERE profile_id = $1 AND data_version = $2";
 
 /// A dataset catalog backed by Postgres.
 #[derive(Debug, Clone)]
@@ -27,6 +51,79 @@ impl PgDatasetCatalog {
     }
 }
 
+/// Insert a row and return it, or `None` when the content already exists.
+async fn insert_dataset_row(
+    pool: &PgPool,
+    profile: &ProfileId,
+    record: &quantrule_api::DatasetRecord,
+) -> Result<Option<DatasetRow>, CatalogError> {
+    let summary = &record.summary;
+    let candles = i64::try_from(summary.candles)
+        .map_err(|_| CatalogError::Store("the candle count does not fit".to_owned()))?;
+    let first_bar = i64::try_from(summary.first_bar)
+        .map_err(|_| CatalogError::Store("the first bar does not fit".to_owned()))?;
+    let last_bar = i64::try_from(summary.last_bar)
+        .map_err(|_| CatalogError::Store("the last bar does not fit".to_owned()))?;
+    let bytes = i64::try_from(summary.bytes)
+        .map_err(|_| CatalogError::Store("the byte count does not fit".to_owned()))?;
+    sqlx::query_as(INSERT_DATASET_SQL)
+        .bind(profile.as_str())
+        .bind(summary.data_version.to_string())
+        .bind(&summary.name)
+        .bind(candles)
+        .bind(first_bar)
+        .bind(last_bar)
+        .bind(bytes)
+        .bind(&record.object_key)
+        .bind(record.sha256.as_hex())
+        .bind(
+            record
+                .quality
+                .as_ref()
+                .map(serde_json::to_string)
+                .transpose()
+                .map_err(|error| CatalogError::Store(error.to_string()))?,
+        )
+        .bind(&record.created_at)
+        .bind(&record.summary.archived_at)
+        .fetch_optional(pool)
+        .await
+        .map_err(|error| CatalogError::Store(error.to_string()))
+}
+
+/// Read one row for a profile.
+async fn load_dataset_row(
+    pool: &PgPool,
+    profile: &ProfileId,
+    version: &str,
+) -> Result<Option<DatasetRow>, CatalogError> {
+    sqlx::query_as(SELECT_DATASET_SQL)
+        .bind(profile.as_str())
+        .bind(version)
+        .fetch_optional(pool)
+        .await
+        .map_err(|error| CatalogError::Store(error.to_string()))
+}
+
+/// A transaction-level advisory lock for one object key.
+struct PgObjectGuard {
+    transaction: Option<sqlx::Transaction<'static, sqlx::Postgres>>,
+}
+
+impl ObjectGuard for PgObjectGuard {
+    fn release(mut self: Box<Self>) -> BoxFuture<Result<(), CatalogError>> {
+        Box::pin(async move {
+            if let Some(transaction) = self.transaction.take() {
+                transaction
+                    .commit()
+                    .await
+                    .map_err(|error| CatalogError::Store(error.to_string()))?;
+            }
+            Ok(())
+        })
+    }
+}
+
 impl crate::catalog::DatasetCatalog for PgDatasetCatalog {
     fn insert(
         &self,
@@ -35,49 +132,81 @@ impl crate::catalog::DatasetCatalog for PgDatasetCatalog {
     ) -> BoxFuture<Result<(), CatalogError>> {
         let pool = self.pool.clone();
         Box::pin(async move {
-            let summary = &record.summary;
-            let candles = i64::try_from(summary.candles)
-                .map_err(|_| CatalogError::Store("the candle count does not fit".to_owned()))?;
-            let first_bar = i64::try_from(summary.first_bar)
-                .map_err(|_| CatalogError::Store("the first bar does not fit".to_owned()))?;
-            let last_bar = i64::try_from(summary.last_bar)
-                .map_err(|_| CatalogError::Store("the last bar does not fit".to_owned()))?;
-            let bytes = i64::try_from(summary.bytes)
-                .map_err(|_| CatalogError::Store("the byte count does not fit".to_owned()))?;
-            let inserted = sqlx::query(
-                "INSERT INTO catalog.datasets
-                     (profile_id, data_version, name, candles, first_bar, last_bar, bytes,
-                      object_key, sha256, quality, created_at, archived_at)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11::timestamptz,
-                         $12::timestamptz)
-                 ON CONFLICT (profile_id, data_version) DO NOTHING",
-            )
-            .bind(profile.as_str())
-            .bind(summary.data_version.to_string())
-            .bind(&summary.name)
-            .bind(candles)
-            .bind(first_bar)
-            .bind(last_bar)
-            .bind(bytes)
-            .bind(&record.object_key)
-            .bind(record.sha256.as_hex())
-            .bind(
-                record
-                    .quality
-                    .as_ref()
-                    .map(serde_json::to_string)
-                    .transpose()
-                    .map_err(|error| CatalogError::Store(error.to_string()))?,
-            )
-            .bind(&record.created_at)
-            .bind(&record.summary.archived_at)
-            .execute(&pool)
-            .await
-            .map_err(|error| CatalogError::Store(error.to_string()))?;
-            if inserted.rows_affected() == 0 {
+            if insert_dataset_row(&pool, &profile, &record)
+                .await?
+                .is_none()
+            {
                 return Err(CatalogError::AlreadyExists);
             }
             Ok(())
+        })
+    }
+
+    fn insert_or_get(
+        &self,
+        profile: ProfileId,
+        record: quantrule_api::DatasetRecord,
+    ) -> BoxFuture<Result<DatasetInsert, CatalogError>> {
+        let pool = self.pool.clone();
+        Box::pin(async move {
+            let version = record.summary.data_version.to_string();
+            // The conflict branch waits for the winning transaction to commit,
+            // so the follow-up read sees it. One retry covers an erase that
+            // removed the row in that instant.
+            for _ in 0..2 {
+                if let Some(row) = insert_dataset_row(&pool, &profile, &record).await? {
+                    return Ok(DatasetInsert {
+                        record: dataset_record(row)?,
+                        created: true,
+                    });
+                }
+                if let Some(row) = load_dataset_row(&pool, &profile, &version).await? {
+                    return Ok(DatasetInsert {
+                        record: dataset_record(row)?,
+                        created: false,
+                    });
+                }
+            }
+            Err(CatalogError::Store(
+                "the catalog refused a duplicate but holds no record".to_owned(),
+            ))
+        })
+    }
+
+    fn object_guard(
+        &self,
+        object_key: String,
+    ) -> BoxFuture<Result<Box<dyn ObjectGuard>, CatalogError>> {
+        let pool = self.pool.clone();
+        Box::pin(async move {
+            let mut transaction = pool
+                .begin()
+                .await
+                .map_err(|error| CatalogError::Store(error.to_string()))?;
+            sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))")
+                .bind(&object_key)
+                .execute(&mut *transaction)
+                .await
+                .map_err(|error| CatalogError::Store(error.to_string()))?;
+            Ok(Box::new(PgObjectGuard {
+                transaction: Some(transaction),
+            }) as Box<dyn ObjectGuard>)
+        })
+    }
+
+    fn object_referenced(&self, object_key: String) -> BoxFuture<Result<bool, CatalogError>> {
+        let pool = self.pool.clone();
+        Box::pin(async move {
+            let row: (bool,) = sqlx::query_as(
+                "SELECT EXISTS (
+                     SELECT 1 FROM catalog.datasets WHERE object_key = $1
+                 )",
+            )
+            .bind(&object_key)
+            .fetch_one(&pool)
+            .await
+            .map_err(|error| CatalogError::Store(error.to_string()))?;
+            Ok(row.0)
         })
     }
 
@@ -88,21 +217,10 @@ impl crate::catalog::DatasetCatalog for PgDatasetCatalog {
     ) -> BoxFuture<Result<Option<quantrule_api::DatasetRecord>, CatalogError>> {
         let pool = self.pool.clone();
         Box::pin(async move {
-            let row: Option<DatasetRow> = sqlx::query_as(
-                "SELECT data_version, name, candles, first_bar, last_bar, bytes, object_key,
-                        sha256,
-                        to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'),
-                        quality::text,
-                        to_char(archived_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')
-                 FROM catalog.datasets
-                 WHERE profile_id = $1 AND data_version = $2",
-            )
-            .bind(profile.as_str())
-            .bind(version)
-            .fetch_optional(&pool)
-            .await
-            .map_err(|error| CatalogError::Store(error.to_string()))?;
-            row.map(dataset_record).transpose()
+            load_dataset_row(&pool, &profile, &version)
+                .await?
+                .map(dataset_record)
+                .transpose()
         })
     }
 
@@ -261,7 +379,8 @@ impl crate::catalog::DatasetCatalog for PgDatasetCatalog {
                         quality::text,
                         to_char(archived_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')
                  FROM catalog.datasets
-                 WHERE profile_id = $1 AND data_version = $2",
+                 WHERE profile_id = $1 AND data_version = $2
+                 FOR UPDATE",
             )
             .bind(profile.as_str())
             .bind(&version)
@@ -363,7 +482,8 @@ impl crate::catalog::DatasetCatalog for PgDatasetCatalog {
                 .map_err(|error| CatalogError::Store(error.to_string()))?;
             let exists: Option<(String,)> = sqlx::query_as(
                 "SELECT data_version FROM catalog.datasets
-                  WHERE profile_id = $1 AND data_version = $2",
+                  WHERE profile_id = $1 AND data_version = $2
+                  FOR UPDATE",
             )
             .bind(profile.as_str())
             .bind(&version)
@@ -422,7 +542,8 @@ impl crate::catalog::DatasetCatalog for PgDatasetCatalog {
                 .map_err(|error| CatalogError::Store(error.to_string()))?;
             let exists: Option<(String,)> = sqlx::query_as(
                 "SELECT data_version FROM catalog.datasets
-                  WHERE profile_id = $1 AND data_version = $2",
+                  WHERE profile_id = $1 AND data_version = $2
+                  FOR UPDATE",
             )
             .bind(profile.as_str())
             .bind(&version)

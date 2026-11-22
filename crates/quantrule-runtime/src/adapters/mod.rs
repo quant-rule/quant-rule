@@ -146,6 +146,33 @@ pub trait ObjectStore: Send + Sync {
     fn delete(&self, key: &str) -> BoxFuture<Result<(), StoreError>>;
 }
 
+/// Write content-addressed bytes only when their key is absent.
+///
+/// The check is not a compare-and-swap: two writers can both observe an absent
+/// key and both write it. That is safe for a content-addressed key, because
+/// they write the same bytes. A caller that needs a stronger guarantee must
+/// serialise the key in the database, which is what the data service's object
+/// guard does.
+///
+/// Returns `true` when this call wrote the object and `false` when it was
+/// already present.
+///
+/// # Errors
+///
+/// Returns the object store's error when the existence check or the write
+/// fails. A failed write leaves no object and is reported to the caller.
+pub async fn put_if_absent(
+    store: &dyn ObjectStore,
+    key: &str,
+    bytes: Vec<u8>,
+) -> Result<bool, StoreError> {
+    if store.exists(key).await? {
+        return Ok(false);
+    }
+    store.put(key, bytes).await?;
+    Ok(true)
+}
+
 /// The control-plane queue.
 pub trait Queue: Send + Sync {
     /// Which implementation this is.
@@ -153,4 +180,35 @@ pub trait Queue: Send + Sync {
 
     /// Publish one message under a routing key.
     fn publish(&self, routing_key: &str, payload: Vec<u8>) -> BoxFuture<Result<(), QueueError>>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ObjectStore, put_if_absent};
+    use crate::adapters::memory::MemoryObjects;
+
+    #[tokio::test]
+    async fn put_if_absent_keeps_the_first_content() {
+        let store = MemoryObjects::default();
+        assert!(
+            put_if_absent(&store, "datasets/abc", b"first".to_vec())
+                .await
+                .expect("the first write")
+        );
+        assert!(
+            !put_if_absent(&store, "datasets/abc", b"second".to_vec())
+                .await
+                .expect("the duplicate write")
+        );
+        assert_eq!(
+            store.get("datasets/abc").await.expect("the object"),
+            b"first"
+        );
+        assert!(
+            store
+                .exists("datasets/abc")
+                .await
+                .expect("the object exists")
+        );
+    }
 }

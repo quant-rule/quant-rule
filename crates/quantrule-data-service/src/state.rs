@@ -54,21 +54,20 @@ pub struct DataState {
     pub config_root: PathBuf,
     /// The largest upload the service accepts, in bytes.
     pub max_upload: u64,
-    /// Serialises dataset insert, archive, and erase with object deletion.
+    /// Serialises dataset insert, archive, and erase inside this process.
     ///
-    /// The catalog row and the object store cannot share a transaction. The
-    /// gate makes the check-then-delete window single-writer inside this
-    /// service, so a concurrent upload cannot observe an object that an erase
-    /// is about to remove.
+    /// The catalog row and the object store cannot share a transaction. Across
+    /// replicas the catalog's object guard orders the upload and erase; this
+    /// gate is a local fast path and is never the cross-replica authority.
     pub dataset_gate: Arc<tokio::sync::Mutex<()>>,
-    /// Serialises pack registration and lifecycle with its object write.
+    /// Serialises pack registration and lifecycle inside this process.
     ///
-    /// The registry row and the object store cannot share a transaction; the
-    /// gate makes the check-then-write window single-writer inside this
-    /// service.
+    /// Across replicas the unique pack and label keys are the authority; this
+    /// gate only keeps one process's object and row writes in a local order.
     pub pack_gate: Arc<tokio::sync::Mutex<()>>,
     /// Serialises artifact registration, reference changes, and collection
-    /// with object deletion.
+    /// inside this process. The artifact row locks are the cross-replica
+    /// authority for references.
     pub artifact_gate: Arc<tokio::sync::Mutex<()>>,
 }
 

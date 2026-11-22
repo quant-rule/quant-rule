@@ -18,7 +18,11 @@ decide whether the dataset is admissible as an input.
 | Limit | The upload limit configured by the data service |
 
 A dataset is shared by content. The same bytes in another profile return the
-same `data_version`; a changed candle produces a different one.
+same `data_version`; a changed candle produces a different one. Two data
+replicas may receive the same retry: one row and one content-addressed object are
+stored, and both answers name the same `data_version`. An upload that fails
+before its row is written can leave an unreferenced object; that orphan is safe
+and the next identical upload reuses it.
 
 ## Steps
 

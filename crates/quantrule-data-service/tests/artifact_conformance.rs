@@ -60,7 +60,7 @@ async fn conformance(catalog: &dyn ArtifactCatalog) {
         .register(owner.clone(), retained.clone())
         .await
         .expect("idempotent register");
-    assert_eq!(again.summary.artifact_id, retained.artifact_id);
+    assert_eq!(again.record.summary.artifact_id, retained.artifact_id);
     assert_eq!(
         catalog
             .get(
@@ -190,6 +190,60 @@ async fn conformance(catalog: &dyn ArtifactCatalog) {
         .expect("collect shared");
     assert_eq!(collected.len(), 1);
     assert!(collected[0].object_shared);
+
+    // Two registrars over one content hash: one row, one object identity.
+    let race = artifact(b"artifact-race", "2026-11-20T00:00:00Z");
+    let (left, right) = tokio::join!(
+        catalog.register(owner.clone(), race.clone()),
+        catalog.register(owner.clone(), race.clone()),
+    );
+    let left = left.expect("the first registrar");
+    let right = right.expect("the idempotent registrar");
+    assert_eq!(left.record, right.record);
+    assert_ne!(
+        left.created, right.created,
+        "exactly one registrar must create the duplicate artifact"
+    );
+    assert_eq!(
+        catalog
+            .list(owner.clone(), ArtifactKind::Signal)
+            .await
+            .expect("the race list")
+            .into_iter()
+            .filter(|record| record.summary.artifact_id == race.artifact_id)
+            .count(),
+        1
+    );
+
+    // Duplicate references are counted once even when both replicas register.
+    let (left, right) = tokio::join!(
+        catalog.add_reference(
+            owner.clone(),
+            ArtifactKind::Signal,
+            race.artifact_id.to_string(),
+            reference("run:race"),
+        ),
+        catalog.add_reference(
+            owner.clone(),
+            ArtifactKind::Signal,
+            race.artifact_id.to_string(),
+            reference("run:race"),
+        ),
+    );
+    assert_eq!(left.expect("the first reference"), 1);
+    assert_eq!(right.expect("the idempotent reference"), 1);
+    assert_eq!(
+        catalog
+            .references(
+                owner.clone(),
+                ArtifactKind::Signal,
+                race.artifact_id.to_string()
+            )
+            .await
+            .expect("the race references")
+            .len(),
+        1
+    );
 }
 
 #[tokio::test]
