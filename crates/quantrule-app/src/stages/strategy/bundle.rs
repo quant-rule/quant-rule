@@ -1,9 +1,11 @@
-//! Read a model bundle into the strategy's published snapshot.
+//! Read a model bundle into the published strategy snapshot.
 //!
 //! The reader consumes only `readings.csv`, `events.csv`, and
 //! `provenance.json`. It never reads `result.json`, a candle, a fill, an order,
 //! cash, equity, or P&L. The model bundle is the handoff, and the strategy stage
-//! does not recompute an upstream value.
+//! does not recompute an upstream value. The signal artifact computation reuses
+//! this reader, so the strategy decision and the signal row see one published
+//! model snapshot.
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -142,6 +144,49 @@ impl ModelBundle {
     #[must_use]
     pub fn contains_timeframe(&self, timeframe_secs: u64) -> bool {
         self.bars.contains_key(&timeframe_secs)
+    }
+
+    /// Builds a bundle directly from published rows.
+    ///
+    /// This exists for the signal module's unit tests: they exercise the
+    /// reference position without writing a bundle to disk. The loader is the
+    /// only production constructor, so a test cannot bypass its column checks.
+    #[cfg(test)]
+    pub(crate) fn from_parts(
+        data_version: String,
+        config_id: String,
+        period_from: Option<String>,
+        period_to: Option<String>,
+        bars: BTreeMap<u64, Vec<BarRow>>,
+        events: BTreeMap<u64, Vec<EventView>>,
+    ) -> Self {
+        // Mirror the loader's order so a unit test exercises the same
+        // deterministic collection the production path publishes.
+        let mut bars = bars;
+        for rows in bars.values_mut() {
+            rows.sort_by_key(|row| row.bar);
+        }
+        let mut events = events;
+        for rows in events.values_mut() {
+            rows.sort_by_key(|event| {
+                (
+                    event.available_bar_index,
+                    event.event_code,
+                    event.occurred_bar_index,
+                    event.event_type,
+                    event.subtype,
+                    event.source,
+                )
+            });
+        }
+        Self {
+            data_version,
+            config_id,
+            period_from,
+            period_to,
+            bars,
+            events,
+        }
     }
 
     /// One timeframe's published bars, or `None`.
