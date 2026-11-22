@@ -51,8 +51,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -116,8 +116,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -181,8 +181,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -248,8 +248,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -313,8 +313,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -378,8 +378,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -443,8 +443,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -508,8 +508,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -571,8 +571,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -636,8 +636,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -705,8 +705,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -774,8 +774,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -843,8 +843,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -912,8 +912,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -981,8 +981,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -1050,8 +1050,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -1119,8 +1119,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -1188,8 +1188,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -1257,8 +1257,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -1326,8 +1326,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -1395,8 +1395,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -1464,8 +1464,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -1533,8 +1533,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -1602,8 +1602,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -1671,8 +1671,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -1740,8 +1740,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -1809,8 +1809,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -1878,8 +1878,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -1947,8 +1947,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -2016,8 +2016,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -2085,8 +2085,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -2154,8 +2154,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -2223,8 +2223,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -2292,8 +2292,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -2361,8 +2361,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -2430,8 +2430,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -2495,8 +2495,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -2560,8 +2560,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -2625,8 +2625,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -2690,8 +2690,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -2755,8 +2755,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -2820,8 +2820,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -2885,8 +2885,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -2950,8 +2950,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -3015,8 +3015,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -3080,8 +3080,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -3149,8 +3149,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -3223,8 +3223,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -3301,8 +3301,8 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py",
-            "check_validation.py"
+            "qr-governance check --checker registry",
+            "qr-governance check --checker validation"
           ]
         },
         "spec": {
@@ -3374,7 +3374,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -3386,7 +3386,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -3446,7 +3446,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -3458,7 +3458,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -3518,7 +3518,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -3530,7 +3530,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -3588,7 +3588,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -3600,7 +3600,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -3658,7 +3658,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -3670,7 +3670,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -3728,7 +3728,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -3740,7 +3740,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -3798,7 +3798,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -3810,7 +3810,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -3868,7 +3868,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -3880,7 +3880,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -3938,7 +3938,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -3950,7 +3950,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -4008,7 +4008,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -4020,7 +4020,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -4078,7 +4078,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -4090,7 +4090,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -4148,7 +4148,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -4160,7 +4160,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -4218,7 +4218,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -4230,7 +4230,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -4288,7 +4288,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -4300,7 +4300,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -4358,7 +4358,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -4370,7 +4370,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -4428,7 +4428,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -4440,7 +4440,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -4498,7 +4498,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -4510,7 +4510,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -4568,7 +4568,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -4580,7 +4580,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -4638,7 +4638,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -4650,7 +4650,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -4708,7 +4708,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -4720,7 +4720,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -4778,7 +4778,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -4790,7 +4790,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -4848,7 +4848,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -4860,7 +4860,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -4918,7 +4918,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -4930,7 +4930,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -4988,7 +4988,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -5000,7 +5000,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -5058,7 +5058,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -5070,7 +5070,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -5128,7 +5128,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -5140,7 +5140,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -5198,7 +5198,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -5210,7 +5210,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -5268,7 +5268,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -5280,7 +5280,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -5338,7 +5338,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -5350,7 +5350,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -5408,7 +5408,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -5420,7 +5420,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -5478,7 +5478,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -5490,7 +5490,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -5548,7 +5548,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -5560,7 +5560,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -5618,7 +5618,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -5630,7 +5630,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -5688,7 +5688,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -5700,7 +5700,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -5758,7 +5758,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -5770,7 +5770,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -5828,7 +5828,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -5840,7 +5840,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -5898,7 +5898,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -5910,7 +5910,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -5968,7 +5968,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -5980,7 +5980,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -6038,7 +6038,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -6050,7 +6050,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -6108,7 +6108,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -6120,7 +6120,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -6178,7 +6178,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -6190,7 +6190,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -6248,7 +6248,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -6260,7 +6260,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -6318,7 +6318,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -6330,7 +6330,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -6388,7 +6388,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -6400,7 +6400,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -6458,7 +6458,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -6470,7 +6470,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -6528,7 +6528,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -6540,7 +6540,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -6598,7 +6598,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -6610,7 +6610,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -6668,7 +6668,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -6680,7 +6680,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -6738,7 +6738,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -6750,7 +6750,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -6808,7 +6808,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -6820,7 +6820,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -6878,7 +6878,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -6890,7 +6890,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -6948,7 +6948,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -6960,7 +6960,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -7018,7 +7018,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -7030,7 +7030,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -7088,7 +7088,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -7100,7 +7100,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -7158,7 +7158,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -7170,7 +7170,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -7228,7 +7228,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -7240,7 +7240,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -7298,7 +7298,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -7310,7 +7310,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -7368,7 +7368,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -7380,7 +7380,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -7438,7 +7438,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -7450,7 +7450,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -7508,7 +7508,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -7520,7 +7520,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -7578,7 +7578,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -7590,7 +7590,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -7648,7 +7648,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -7660,7 +7660,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -7718,7 +7718,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -7730,7 +7730,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -7788,7 +7788,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -7800,7 +7800,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -7858,7 +7858,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -7870,7 +7870,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -7928,7 +7928,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -7940,7 +7940,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -7998,7 +7998,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -8010,7 +8010,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -8068,7 +8068,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -8080,7 +8080,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -8138,7 +8138,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -8150,7 +8150,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -8208,7 +8208,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -8220,7 +8220,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -8278,7 +8278,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -8290,7 +8290,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -8348,7 +8348,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -8360,7 +8360,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -8418,7 +8418,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -8430,7 +8430,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -8488,7 +8488,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -8500,7 +8500,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -8558,7 +8558,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -8570,7 +8570,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -8628,7 +8628,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -8640,7 +8640,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -8698,7 +8698,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -8710,7 +8710,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -8768,7 +8768,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -8780,7 +8780,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -8838,7 +8838,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -8850,7 +8850,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -8908,7 +8908,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -8920,7 +8920,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -8978,7 +8978,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -8990,7 +8990,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -9048,7 +9048,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -9060,7 +9060,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -9118,7 +9118,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -9130,7 +9130,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -9188,7 +9188,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -9200,7 +9200,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -9258,7 +9258,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -9270,7 +9270,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -9328,7 +9328,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -9340,7 +9340,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -9398,7 +9398,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -9410,7 +9410,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -9468,7 +9468,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -9480,7 +9480,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -9538,7 +9538,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -9550,7 +9550,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -9608,7 +9608,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -9620,7 +9620,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -9678,7 +9678,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -9690,7 +9690,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -9748,7 +9748,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -9760,7 +9760,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -9818,7 +9818,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -9830,7 +9830,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -9888,7 +9888,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -9900,7 +9900,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -9958,7 +9958,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -9970,7 +9970,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -10028,7 +10028,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -10040,7 +10040,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -10098,7 +10098,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -10110,7 +10110,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -10168,7 +10168,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -10180,7 +10180,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -10238,7 +10238,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -10250,7 +10250,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -10308,7 +10308,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -10320,7 +10320,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -10378,7 +10378,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -10390,7 +10390,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -10448,7 +10448,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -10460,7 +10460,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -10518,7 +10518,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -10530,7 +10530,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -10588,7 +10588,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -10600,7 +10600,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -10658,7 +10658,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -10670,7 +10670,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -10728,7 +10728,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -10740,7 +10740,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -10798,7 +10798,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -10810,7 +10810,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -10868,7 +10868,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -10880,7 +10880,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -10938,7 +10938,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -10950,7 +10950,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -11008,7 +11008,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -11020,7 +11020,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -11078,7 +11078,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -11090,7 +11090,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -11148,7 +11148,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -11160,7 +11160,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -11218,7 +11218,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -11230,7 +11230,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -11288,7 +11288,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -11300,7 +11300,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -11358,7 +11358,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -11370,7 +11370,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -11428,7 +11428,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -11440,7 +11440,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -11498,7 +11498,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -11510,7 +11510,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -11568,7 +11568,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -11580,7 +11580,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -11638,7 +11638,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -11650,7 +11650,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -11708,7 +11708,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -11720,7 +11720,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -11778,7 +11778,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -11790,7 +11790,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -11848,7 +11848,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -11860,7 +11860,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -11918,7 +11918,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -11930,7 +11930,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -11988,7 +11988,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -12000,7 +12000,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -12058,7 +12058,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -12070,7 +12070,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -12128,7 +12128,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -12140,7 +12140,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -12198,7 +12198,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -12210,7 +12210,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -12268,7 +12268,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -12280,7 +12280,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -12338,7 +12338,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -12350,7 +12350,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -12408,7 +12408,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -12420,7 +12420,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -12478,7 +12478,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -12490,7 +12490,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -12548,7 +12548,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -12560,7 +12560,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -12618,7 +12618,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -12630,7 +12630,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -12688,7 +12688,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -12700,7 +12700,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -12758,7 +12758,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -12770,7 +12770,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -12828,7 +12828,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -12840,7 +12840,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -12898,7 +12898,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -12910,7 +12910,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -12968,7 +12968,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -12980,7 +12980,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -13038,7 +13038,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -13050,7 +13050,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -13108,7 +13108,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -13120,7 +13120,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -13178,7 +13178,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -13190,7 +13190,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -13248,7 +13248,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -13260,7 +13260,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -13318,7 +13318,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -13330,7 +13330,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -13388,7 +13388,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -13400,7 +13400,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -13458,7 +13458,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -13470,7 +13470,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -13528,7 +13528,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -13540,7 +13540,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -13598,7 +13598,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -13610,7 +13610,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -13668,7 +13668,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -13680,7 +13680,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -13741,7 +13741,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -13753,7 +13753,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }
@@ -13811,7 +13811,7 @@
         "math": {
           "scope": "tool",
           "tests": [
-            "check_registry.py"
+            "qr-governance check --checker registry"
           ]
         },
         "spec": {
@@ -13823,7 +13823,7 @@
         "emitter": {
           "scope": "tool",
           "tests": [
-            "check_event_emitters.py"
+            "qr-governance check --checker event-emitters"
           ]
         }
       }

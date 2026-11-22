@@ -114,11 +114,11 @@ CI failures.
 | Boundary and dependency direction | Crates and modules depend one way; no cycles; no stage reaches upstream | Crate graph and module import scan | Hard gate |
 | Cohesion and atomicity | One module, one responsibility; the name predicts the contents; one seam per PR | Module map, diff scope, review checklist | Assessment and review |
 | Coupling and surface | Narrow `pub` surface; no sibling internals; no glob re-exports; explicit inputs | `pub`/`pub(crate)` counts, cross-module imports, fan-in and fan-out | Assessment and review |
-| Size and complexity | Files at or under 1,000 lines; over 600 is a scan trigger; functions and parameter lists stay reasonable | `check_file_size.py`, structural report | Hard at 1,000; advisory at 600 |
+| Size and complexity | Files at or under 1,000 lines; over 600 is a scan trigger; functions and parameter lists stay reasonable | `qr-governance check --checker file-size`, structural report | Hard at 1,000; advisory at 600 |
 | Testability and determinism | Pure engines; no I/O, clock, or randomness; causal and deterministic tests; test code is code | Engine-purity scan, test inventory, causality and determinism tests | Hard purity gate; test-count guard |
 | Duplication and abstraction | Extract only on a third real repetition or a named invariant; no speculative abstraction | Duplicate review, shared-helper count | Assessment and review |
 | Error and panic hygiene | No `unsafe`; no new `unwrap`/`expect` in library code; no panic on invalid input | `forbid(unsafe_code)`, clippy, source scan | Hard unsafe rule; ratchet for panics |
-| Documentation and layout | Module docs, indexes, kind/date/slug paths, data allowlist, deterministic order, human-readable tree | `check_links`, `check_terms`, structural gate | Hard objective rules; review for content |
+| Documentation and layout | Module docs, indexes, kind/date/slug paths, data allowlist, deterministic order, human-readable tree | `qr-governance check --checker links`, `--checker terms`, structural gate | Hard objective rules; review for content |
 | Performance, measured only | No speculative optimization; benchmark before and after; identical numeric output | Existing bench harness, baseline and target, output hashes | Plan-specific gate |
 
 Line count is a prompt to look, not a target. A cohesive module is not split

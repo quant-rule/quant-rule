@@ -6,7 +6,7 @@
 - Plan: [`docs/execution-plans/2026-11-04/369-model-v4.md`](../../execution-plans/2026-11-04/369-model-v4.md)
 - Contract: [`docs/model/2026-11-05/model-m1.0.md`](../2026-11-05/model-m1.0.md)
 - Prior protocol: [`docs/model/2026-11-03/path-validation.md`](../2026-11-03/path-validation.md)
-- Harness: `tools/improvement/path_validation.py`
+- Harness: historical `tools/improvement/path_validation.py` (retired; Git history); current command: `qr-governance improvement path-validation`
 - Claim type: model validation evidence; no strategy, cost, or edge claim.
 
 ## 1. Question

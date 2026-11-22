@@ -3,7 +3,7 @@
 - Date: 2026-11-03 (UTC)
 - Status: Pre-registered and executed for `MODEL-2026-11-03-01..02`; result **no edge**
 - Issue: [#348](https://github.com/quant-rule/quant-rule/issues/348)
-- Harness: `tools/improvement/claim_validation.py`
+- Harness: historical `tools/improvement/claim_validation.py` (retired; Git history); current gate: `qr-governance check --checker validation`
 - Contract: [`docs/model/2026-11-03/model-v3.md`](../../registry/history.md)
 
 ## 1. Question

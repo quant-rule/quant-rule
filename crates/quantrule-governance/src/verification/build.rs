@@ -216,7 +216,10 @@ fn indicator_entry(indicator: &Value, claims: &BTreeMap<String, Value>, events: 
         "math",
         slot(
             "tool",
-            tests_of(&["check_registry.py", "check_validation.py"]),
+            tests_of(&[
+                "qr-governance check --checker registry",
+                "qr-governance check --checker validation",
+            ]),
         ),
     );
     map.set(
@@ -341,7 +344,13 @@ fn event_entry(
             |test| slot("row", tests_of(&[test])),
         ),
     );
-    map.set("math", slot("tool", tests_of(&["check_registry.py"])));
+    map.set(
+        "math",
+        slot(
+            "tool",
+            tests_of(&["qr-governance check --checker registry"]),
+        ),
+    );
     map.set(
         "spec",
         slot(
@@ -353,7 +362,10 @@ fn event_entry(
     );
     map.set(
         "emitter",
-        slot("tool", tests_of(&["check_event_emitters.py"])),
+        slot(
+            "tool",
+            tests_of(&["qr-governance check --checker event-emitters"]),
+        ),
     );
     if let Some(rows) = evidence::row_event_tests(&ident) {
         for name in [

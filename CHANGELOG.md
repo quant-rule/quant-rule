@@ -18,6 +18,10 @@ history is in Git and the pull requests.
 
 ## [Unreleased]
 
+### Changed
+
+- The policy is now “No Python” repository-wide; current docs, the manual, the registry, and the verification evidence name `qr-governance` checkers instead of the deleted Python scripts.
+
 ## [1.5.2] - 2026-11-21
 
 ### Fixed

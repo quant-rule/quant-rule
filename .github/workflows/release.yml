@@ -106,6 +106,10 @@ jobs:
             echo "::error::$tag is not on main" >&2
             exit 1
           fi
+          # The gate job has no Rust toolchain. Resolve the current-tag map with
+          # jq; `qr-governance release note --tag` is the local/agent equivalent
+          # and is covered by the release-workflow test.
+          # Same map resolver as the gate job; see the note there.
           relative="$(sed -n '/<!-- current-tags:start -->/,/<!-- current-tags:end -->/p' docs/releases/README.md \
             | sed -n '/```json/,/```/p' | sed '1d;$d' \
             | jq -r --arg tag "$tag" '.[$tag] // empty')"

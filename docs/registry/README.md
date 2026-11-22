@@ -2,7 +2,7 @@
 
 - Date: 2026-11-03 (UTC)
 - Updated: 2026-11-16 for the M1.3 contract and the 100-parameter registry
-- Status: Current; populated 2026-11-03; CI check in `tools/check_registry.py`
+- Status: Current; populated 2026-11-03; CI check: `qr-governance check --checker registry`
 - Contract: [`docs/model/2026-11-10/model-m1.3.md`](../model/2026-11-10/model-m1.3.md)
 - ADR: [`docs/adr/2026-11-03/flat-indicator-event-model.md`](../adr/2026-11-03/flat-indicator-event-model.md)
 
@@ -139,7 +139,7 @@ pass.
 
 ## 5. CI checks
 
-`tools/check_registry.py` enforces:
+`qr-governance check --checker registry` enforces:
 
 1. The registry root and the per-entry required keys agree with `schema.json`,
    and `schema.json` rejects additional properties.
@@ -154,7 +154,7 @@ pass.
    validation test kind; every `diagnostic` event has `claim: "none"`.
 8. `indicators.md` is a current generation of `indicators.json`.
 
-The check fails on drift; it is not a warning. `check_validation.py`
+The check fails on drift; it is not a warning. `qr-governance check --checker validation`
 additionally resolves every `construct_tests` entry to a Rust function name.
 
 ### 5.1 Verification evidence
@@ -169,7 +169,7 @@ scope:
 - `tool` — a repository gate covers every row;
 - `n/a` — the class does not apply.
 
-`tools/check_verification.py` rejects a missing class, an unknown scope, a
+`qr-governance check --checker verification` rejects a missing class, an unknown scope, a
 missing Rust test, a row scope that does not name its row, or an unknown tool
 gate. `family` means family-level evidence; it is not displayed as per-row
 proof.

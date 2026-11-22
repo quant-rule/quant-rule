@@ -288,7 +288,7 @@ events reach the condition evaluator for the evaluated instrument.
 | No strategy fields | Entry, exit, position, cash, and P&L belong to the strategy/execution/portfolio tiers |
 | No forward outcome | The evaluator, not the spec, owns the horizon and costs |
 | Panel sources are M1 CSVs | The data engine constructs the one timeframe; the spec does not parse candles |
-| v2 preflight | `tools/research/spec_preflight.py` still checks v1; the M2 charter/batch phase adds v2 preflight |
+| v2 preflight | The historical v1 preflight was retired with the Python research stack; v2 uses the Rust spec evaluator and the committed config |
 
 ## 11. Verification
 

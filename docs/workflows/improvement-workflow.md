@@ -243,7 +243,7 @@ The v3 record is a gateway-reference pre-registration. It does not create a loca
 run folder, copy a config, or write a generated index. The local
 `data/improvement/<YYYY-MM-DD>/<run-id>/` folders, the `index.json`/`index.md`
 files, and the Python `tools/improvement/` run-store tooling are historical v2
-records. They are retained only to reproduce a pre-v3 run. The current store is
+records. They are recoverable from Git history only, to reproduce a pre-v3 run. The current store is
 Rust in the evidence service; it never computes a signal. Baseline acceptance and
 invalidation remain human decisions, and the committed `docs/improvement/`
 registry remains the human-owned source of truth.

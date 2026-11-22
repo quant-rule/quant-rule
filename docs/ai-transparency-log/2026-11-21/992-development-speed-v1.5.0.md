@@ -209,3 +209,13 @@ test is deleted without a replacement or human approval.
 - Worktrees: only the project directory remains. Every task worktree was checked with `qr-governance worktree check` before removal.
 - Branches: every task branch was deleted locally and remotely.
 - Release: v1.5.2 is published; v1.5.0 and v1.5.1 are withdrawn tags with notes that record the supersession.
+
+## Policy and docs cutover
+
+- Changed `AGENTS.md` from “Python is confined to repository governance” to an absolute “No Python” policy.
+- Replaced the remaining current-doc Python checker paths with `qr-governance check --checker ...` in the architecture, manual, registry, and workflows.
+- Updated the verification builder and checker to record `qr-governance check --checker registry`, `--checker validation`, and `--checker event-emitters`; regenerated `verification.json` and the matrices.
+- Updated the README, architecture overview, and first-run example to v1.5.2, and marked ADR-10 as superseded by the zero-Python ADR.
+- Removed the local untracked `apps/desktop-shell/` tree (including the 1.3.0 AppImage) and the four untracked `data/improvement` Python artifacts.
+- Verification: `qr-governance check --all` passes; `find . -name '*.py'` is empty; `rg 'python3'` shows only the image absence assertion.
+- Release-note deviation: the release workflow keeps its shell `jq` resolver because the gate job has no Rust toolchain; `qr-governance release note --tag` is the tested local/agent equivalent and resolves the same map.

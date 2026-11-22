@@ -15,7 +15,7 @@ gate and in CI.
 | Verification manifest builder | Regenerates `verification.json` and both verification matrices from the registry and claims. | `qr-governance verification build` |
 | Registry generator | Rewrites the generated registry Markdown from `indicators.json`. | `qr-governance registry --write` |
 | Label table | Checks or rewrites the generated client label table. | `qr-governance labels generate [--write]` |
-| Python guard | Refuses any `.py` file or interpreter reference in the product tree. | `qr-governance guard python` |
+| Python guard | Refuses any `.py` file or interpreter reference in the repository tree. | `qr-governance guard python` |
 | Structure report | Reports module size, public surface, and layout metrics. | `qr-governance structure --report` |
 | Composed tier | Checks a running Compose stack's gateway, then submits two equivalent runs and compares their canonical digest. | `tools/composed.sh` |
 | Project-sync test | Checks that `Done` is terminal in the board status decision. | `tools/test_project_sync.sh` |
@@ -36,7 +36,7 @@ not in the product image, and never reads a service.
 | `qr-governance history erase --manifest ... --confirm ...` | Erase only a manifest that still matches the source bytes |
 | `qr-governance verification build` | Regenerate the evidence manifest and both matrices |
 | `qr-governance labels generate [--write]` | Check or rewrite the generated client label table |
-| `qr-governance guard python` | Refuse Python in the product tree |
+| `qr-governance guard python` | Refuse Python in the repository tree |
 | `qr-governance release note --tag <tag>` | Resolve a current tag to its release note |
 | `qr-governance improvement ...` | Validate, index, and run improvement records |
 | `qr-governance research ...` | Validate, run, and report research programs |

@@ -10,9 +10,9 @@ use crate::checks::rust_tests;
 use crate::report::Diagnostic;
 
 const TOOLS: [&str; 3] = [
-    "check_registry.py",
-    "check_validation.py",
-    "check_event_emitters.py",
+    "qr-governance check --checker registry",
+    "qr-governance check --checker validation",
+    "qr-governance check --checker event-emitters",
 ];
 const CLASSES: [&str; 11] = [
     "formula",
