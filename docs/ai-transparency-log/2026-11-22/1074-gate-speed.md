@@ -33,8 +33,10 @@ change.
 - Web-only PR #1079: `plan_and_check` 24s; web 19s; e2e 55s; cross-browser
   1m18s; `rust` skipped.
 - `CARGO_INCREMENTAL=0` and `CARGO_PROFILE_DEV_DEBUG=0` did not show a win on
-  the #1076 full run (rust 3m30s vs 3m01s before), so they are removed and the
-  revert is measured on this full PR.
+  the #1076 full run (rust 3m30s vs 3m01s before), so they were removed. The
+  #1080 full run measured 3m9s, within 10% of the baseline; no setting is kept.
+- Final scoped runs: docs #1077 24-28s; governance #1078 34s + 32s; web #1079
+  24s + 19s + 55s + 1m18s.
 
 ## Learning
 
