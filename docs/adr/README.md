@@ -23,3 +23,5 @@ record keeps its path and gains a superseded status.
 | Browser GUI and terminal CLI boundary | Accepted 2026-11-21 | `docs/adr/2026-11-21/992-browser-cli-boundary.md` |
 | Zero Python in the repository | Accepted 2026-11-21 | `docs/adr/2026-11-21/992-zero-python-governance.md` |
 | Build once, release fast, and time out safely | Accepted 2026-11-21 | `docs/adr/2026-11-21/992-ci-build-once-release.md` |
+| Research artifact layer and seventh strategy service | Accepted 2026-11-22 | `docs/adr/2026-11-22/1082-research-artifact-layer.md` |
+| HA deployment profile, four databases and reliability contract | Accepted 2026-11-22 | `docs/adr/2026-11-22/1082-ha-deployment-profile.md` |
