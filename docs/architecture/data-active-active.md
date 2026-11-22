@@ -52,8 +52,9 @@ is the safe direction and is reused by the next identical upload.
 
 The object guard is a transaction-level PostgreSQL advisory lock keyed by a
 hash of the object key. It is the cross-replica serialiser; the in-process
-`DataState::dataset_gate` is only a local fast path. Two replicas therefore
-cannot interleave an upload's put-and-insert with an erase's delete.
+`DataState::dataset_gate` only serialises archive and erase inside one process.
+Two replicas therefore cannot interleave an upload's put-and-insert with an
+erase's delete.
 
 ## 3. Erase and the object guard
 
@@ -86,9 +87,10 @@ rule and a unique metadata key:
 | Artifact reference | `(profile_id, artifact_kind, artifact_id, reference_id)` | Idempotent: one row | Not applicable |
 
 Pack show, validate, freeze, retire, and byte fetch re-read the object and verify
-its hash; a missing object fails closed. A duplicate label is refused before the
-bytes can acquire a second identity. The pack and artifact routes do not delete
-the bytes they registered, so an orphan is a storage leak, not a lost artifact.
+its hash; a missing object fails closed. A duplicate label is refused after the
+object is written; the losing object is an orphan and no second row is
+published. The pack and artifact routes do not delete the bytes they registered,
+so an orphan is a storage leak, not a lost artifact.
 
 ## 5. References and erase
 
