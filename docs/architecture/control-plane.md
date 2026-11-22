@@ -36,8 +36,8 @@ no run row.
 
 | Type | Producer | Consumer | Payload |
 |---|---|---|---|
-| `run.requested` | evidence | backtest | run id only; the run row holds the inputs |
-| `run.computed` | backtest | evidence | run id only; the run row holds the manifest |
+| `run.requested` | evidence (outbox) | backtest | run id only; the run row holds the inputs |
+| `run.computed` | evidence (outbox), backtest | evidence | run id only; the run row holds the manifest |
 | `run.cancelled` | evidence | backtest | run id only; the run row is authoritative |
 | `run.failed` | backtest | none required | run id only; the run row holds the error |
 | `run.dead` | backtest | operator | run id only; the run row holds the error and attempts |
@@ -56,6 +56,10 @@ Rules:
 - The run row is the source of truth for status; messages are notifications of
   intent.
 - Consumers are idempotent: the same message twice produces the same state.
+- `run.requested` and `run.computed` are published from the evidence outbox.
+  The intent commits with the run write; a delivery may repeat, and a broker
+  that is down delays the message instead of losing the run. See
+  [cross-database consistency](cross-database-consistency.md).
 
 ## 3. Topology
 
@@ -74,16 +78,22 @@ consumers cannot hold each other's delivery; the worker starts
 run consumer and declares RabbitMQ consumer priority `x-priority = -1`; the run
 consumer keeps the default `0`.
 
-A publish waits for the broker's confirmation. A nack, a channel that is not in
-confirm mode, or a confirmation that misses the 5 s deadline is a failed publish:
-the route returns `503 queue.unavailable`, and a resubmission republishes the
-queued run.
+A publish waits for the broker's confirmation. The durable producer is the
+evidence outbox: the run row and its intent commit together, so a broker that is
+down delays the message and does not fail the submission. The publisher retries
+pending intents every 5 s, and a restart re-arms every unfinished run.
 
-Retry budget: three deliveries. The handler holds the unacked delivery for 5 s
+A repeated publish is allowed. The worker treats a `run.requested` for a run it
+already claimed as a lookup, and evidence treats a `run.computed` for a finished
+run as a skip.
+
+Retry budget: three attempts. The handler holds the unacked delivery for 5 s
 after the first failure and 25 s after the second; the third failure marks the
 run `failed` and publishes `run.dead`. A dead-lettered run is never silently
-lost; the run row records the attempt count. A redelivered message reclaims a
-running, uncomputed run; a computed run is only republished.
+lost; the run row records the attempt count. A claim records a monotonic term
+and a 60 s lease, and the worker renews it every 20 s. A queued run is
+claimable; a running run only when its lease is absent or expired. A computed
+run is only republished.
 
 ## 4. Idempotency
 
@@ -103,11 +113,21 @@ canonical digest.
 
 - A submission whose `run_id` exists returns the existing run with `200`.
 - A first submission returns `202`.
+- The run row, the submission, and the `run.requested` intent commit in one
+  transaction, so a retry after a commit finds the same run and does not create
+  a second run record.
+- A restart re-arms and republishes every unfinished run, which rebuilds the
+  queue from run rows after a broker loss.
+- A run that is `running` without a digest is unfinished: its `run.requested`
+  intent is re-armed, while a `running` run with a digest wants `run.computed`.
 - The same promoted submission returns the same promoted run; a full and a
   promoted submission never collide.
-- A redelivered message reclaims a running, uncomputed run; a running run with
-  a recorded digest republishes `run.computed` so a lost publish still reaches
-  evidence. Neither is executed twice.
+- A claim takes a new lease term; a running run is reclaimable only after its
+  lease expires. A running run with a recorded digest republishes
+  `run.computed` so a lost publish still reaches evidence. Neither is executed
+  twice.
+- `computed`, `complete`, and `failed` carry the claim term. Evidence refuses a
+  stale term, so a worker that lost its lease cannot overwrite the new attempt.
 - Cancellation followed by completion is impossible: the worker checks the
   cancellation flag after the claim, before the model call, before the backtest,
   and before the first CAS write.
@@ -124,8 +144,8 @@ A run is never split across backtest workers. Scaling adds workers, not shards.
 ## 6. Cancellation
 
 1. Client calls `POST /runs/{id}/cancel`.
-2. Evidence writes `cancelled` on the run row and publishes `run.cancelled`
-   best-effort; the row is authoritative.
+2. Evidence writes `cancelled` on the run row, increments the lease term, clears
+   the lease, and publishes `run.cancelled` best-effort; the row is authoritative.
 3. The worker checks the flag after the claim, before the model call, before the
    backtest, and before the first CAS write.
 4. If it stops, the run stays `cancelled`; no artifact is finalized. A check

@@ -14,6 +14,8 @@ use quantrule_runtime::client::DataClient;
 use quantrule_runtime::health::HealthRegistry;
 
 use crate::operations::OperationsStatus;
+use crate::outbox::RunOutbox;
+use crate::releases::ReferenceReleaseLog;
 use crate::research::{HypothesisStore, ImprovementStore};
 use crate::runs::RunStore;
 use crate::stage::StageStore;
@@ -23,6 +25,10 @@ use crate::stage::StageStore;
 pub struct EvidenceServices {
     /// Where runs are recorded.
     pub runs: Option<Arc<dyn RunStore>>,
+    /// Where run notifications are recorded and retried.
+    pub outbox: Option<Arc<dyn RunOutbox>>,
+    /// Where dataset-reference release tombstones are recorded and retried.
+    pub releases: Option<Arc<dyn ReferenceReleaseLog>>,
     /// Where diagnostic stage runs are recorded.
     pub stages: Option<Arc<dyn StageStore>>,
     /// Where sealed hypotheses live.
@@ -45,6 +51,12 @@ pub struct EvidenceState {
     pub health: HealthRegistry,
     /// Where runs are recorded; absent when no database is configured.
     pub runs: Option<Arc<dyn RunStore>>,
+    /// Where run notifications are recorded; absent when no database is
+    /// configured.
+    pub outbox: Option<Arc<dyn RunOutbox>>,
+    /// Where dataset-reference release tombstones are recorded; absent when no
+    /// database is configured.
+    pub releases: Option<Arc<dyn ReferenceReleaseLog>>,
     /// Where diagnostic stage runs are recorded; absent when no database is
     /// configured.
     pub stages: Option<Arc<dyn StageStore>>,
@@ -83,6 +95,8 @@ impl std::fmt::Debug for EvidenceState {
             .field("version", &self.version)
             .field("health", &self.health)
             .field("runs", &self.runs.is_some())
+            .field("outbox", &self.outbox.is_some())
+            .field("releases", &self.releases.is_some())
             .field("stages", &self.stages.is_some())
             .field("hypotheses", &self.hypotheses.is_some())
             .field("improvements", &self.improvements.is_some())
@@ -106,6 +120,8 @@ impl EvidenceState {
             version: VersionInfo::current(env!("CARGO_PKG_VERSION"), config.image_digest.clone()),
             health,
             runs: services.runs,
+            outbox: services.outbox,
+            releases: services.releases,
             stages: services.stages,
             hypotheses: services.hypotheses,
             improvements: services.improvements,

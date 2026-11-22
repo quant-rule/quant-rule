@@ -57,6 +57,8 @@ pub enum ProcessOutcome {
     Retry {
         /// How long to wait before the next attempt.
         delay: Duration,
+        /// The term the same holder continues on the next attempt.
+        term: u64,
     },
     /// The retry budget is spent; the run is failed and dead-lettered.
     Exhausted,
@@ -78,12 +80,15 @@ pub struct WorkerServices {
     pub objects: Arc<dyn ObjectStore>,
     /// The control-plane queue.
     pub queue: Arc<dyn Queue>,
+    /// The worker identity recorded in the run lease.
+    pub holder: String,
 }
 
 /// Process one `run.requested` run id.
 ///
-/// `redelivered` is the broker's flag. It is the only proof that the previous
-/// holder is gone, so it is what lets a running run be reclaimed.
+/// `continuation` is the term of this worker's own previous attempt when the
+/// handler is retrying. The lease, not the broker's redelivery flag, decides a
+/// claim: a live lease is never stolen, and an expired one is reclaimable.
 ///
 /// # Errors
 ///
@@ -92,12 +97,12 @@ pub struct WorkerServices {
 /// error, so the consumer can acknowledge it.
 pub async fn process(
     run_id: String,
-    redelivered: bool,
+    continuation: Option<u64>,
     services: &WorkerServices,
 ) -> Result<ProcessOutcome, WorkerError> {
     let record = match services
         .evidence
-        .claim(run_id.clone(), redelivered)
+        .claim(run_id.clone(), services.holder.clone(), continuation)
         .await
         .map_err(|error| WorkerError(error.to_string()))?
     {
@@ -118,6 +123,7 @@ pub async fn process(
             return exhaust(
                 services,
                 &run_id,
+                record.lease_term,
                 "the retry budget was exhausted",
                 record.attempts,
             )
@@ -125,7 +131,14 @@ pub async fn process(
         }
     };
     let attempts = record.attempts;
-    if cancelled(services, &run_id).await? {
+    let term = record.lease_term;
+    let lease = LeaseHeartbeat::start(
+        Arc::clone(&services.evidence),
+        &run_id,
+        &services.holder,
+        term,
+    );
+    if stopped(&lease, services, &run_id).await? {
         return Ok(ProcessOutcome::Skipped);
     }
 
@@ -137,13 +150,14 @@ pub async fn process(
         .await
     {
         Ok(Some(config)) => config,
-        Ok(None) => return fail(services, &run_id, "the config is unknown").await,
-        Err(error) => return client_failure(services, &run_id, &error, attempts).await,
+        Ok(None) => return fail(services, &run_id, term, "the config is unknown").await,
+        Err(error) => return client_failure(services, &run_id, term, &error, attempts).await,
     };
     if !config.valid {
         return fail(
             services,
             &run_id,
+            term,
             config.message.as_deref().unwrap_or("the config is invalid"),
         )
         .await;
@@ -152,13 +166,14 @@ pub async fn process(
         return fail(
             services,
             &run_id,
+            term,
             "the config hash changed after submission",
         )
         .await;
     }
     let expected_model_input = match config.model_input_hash() {
         Ok(hash) => hash,
-        Err(message) => return fail(services, &run_id, &message).await,
+        Err(message) => return fail(services, &run_id, term, &message).await,
     };
     let dataset = match services
         .data
@@ -166,21 +181,21 @@ pub async fn process(
         .await
     {
         Ok(Some(dataset)) => dataset,
-        Ok(None) => return fail(services, &run_id, "the dataset is unknown").await,
-        Err(error) => return client_failure(services, &run_id, &error, attempts).await,
+        Ok(None) => return fail(services, &run_id, term, "the dataset is unknown").await,
+        Err(error) => return client_failure(services, &run_id, term, &error, attempts).await,
     };
     let bytes = match services.objects.get(&dataset.object_key).await {
         Ok(bytes) => bytes,
         Err(error) => {
-            return retry_or_exhaust(services, &run_id, &error.to_string(), attempts).await;
+            return retry_or_exhaust(services, &run_id, term, &error.to_string(), attempts).await;
         }
     };
     if Digest::sha256(&bytes) != record.data_version {
-        return fail(services, &run_id, "the dataset bytes do not match").await;
+        return fail(services, &run_id, term, "the dataset bytes do not match").await;
     }
 
     // The row is authoritative; a cancel before the model call writes nothing.
-    if cancelled(services, &run_id).await? {
+    if stopped(&lease, services, &run_id).await? {
         return Ok(ProcessOutcome::Skipped);
     }
     let model_files = if let Some(artifact_id) = record.model_artifact_id.as_ref() {
@@ -195,10 +210,10 @@ pub async fn process(
         {
             Ok(files) => files,
             Err(ModelRead::Store(message)) => {
-                return retry_or_exhaust(services, &run_id, &message, attempts).await;
+                return retry_or_exhaust(services, &run_id, term, &message, attempts).await;
             }
             Err(ModelRead::Mismatch(message)) => {
-                return fail(services, &run_id, &message).await;
+                return fail(services, &run_id, term, &message).await;
             }
         }
     } else {
@@ -212,23 +227,23 @@ pub async fn process(
             .await
         {
             Ok(manifest) => manifest,
-            Err(error) => return client_failure(services, &run_id, &error, attempts).await,
+            Err(error) => return client_failure(services, &run_id, term, &error, attempts).await,
         };
         if let Err(message) = verify_manifest(&manifest, &record) {
-            return fail(services, &run_id, &message).await;
+            return fail(services, &run_id, term, &message).await;
         }
         match load_model_artifacts(&services.objects, &manifest).await {
             Ok(files) => {
                 if let Err(message) = verify_model_input(&files, &expected_model_input) {
-                    return fail(services, &run_id, &message).await;
+                    return fail(services, &run_id, term, &message).await;
                 }
                 files
             }
             Err(ModelRead::Store(message)) => {
-                return retry_or_exhaust(services, &run_id, &message, attempts).await;
+                return retry_or_exhaust(services, &run_id, term, &message, attempts).await;
             }
             Err(ModelRead::Mismatch(message)) => {
-                return fail(services, &run_id, &message).await;
+                return fail(services, &run_id, term, &message).await;
             }
         }
     };
@@ -244,14 +259,14 @@ pub async fn process(
     {
         Ok(Ok(workspace)) => workspace,
         Ok(Err(error)) => {
-            return retry_or_exhaust(services, &run_id, &error.to_string(), attempts).await;
+            return retry_or_exhaust(services, &run_id, term, &error.to_string(), attempts).await;
         }
         Err(error) => {
-            return retry_or_exhaust(services, &run_id, &error.to_string(), attempts).await;
+            return retry_or_exhaust(services, &run_id, term, &error.to_string(), attempts).await;
         }
     };
     // A cancel before the backtest must leave the materialized workspace unread.
-    if cancelled(services, &run_id).await? {
+    if stopped(&lease, services, &run_id).await? {
         return Ok(ProcessOutcome::Skipped);
     }
     let run_path = workspace.run_config();
@@ -270,23 +285,29 @@ pub async fn process(
     let outcome = match outcome {
         Ok(Ok(outcome)) => outcome,
         Ok(Err(error)) => {
-            return retry_or_exhaust(services, &run_id, &error.to_string(), attempts).await;
+            return retry_or_exhaust(services, &run_id, term, &error.to_string(), attempts).await;
         }
         Err(error) => {
-            return retry_or_exhaust(services, &run_id, &error.to_string(), attempts).await;
+            return retry_or_exhaust(services, &run_id, term, &error.to_string(), attempts).await;
         }
     };
     // A cancel after the backtest must leave no bundle. Check before the first
     // CAS write, not after the upload.
-    if cancelled(services, &run_id).await? {
+    if stopped(&lease, services, &run_id).await? {
         return Ok(ProcessOutcome::Skipped);
     }
     let artifacts = match publish_artifacts(&services.objects, &outcome.root).await {
         Ok(artifacts) => artifacts,
         Err(error) => {
-            return retry_or_exhaust(services, &run_id, &error.to_string(), attempts).await;
+            return retry_or_exhaust(services, &run_id, term, &error.to_string(), attempts).await;
         }
     };
+    // The upload may outlast the lease. Check once more before the shared
+    // manifest write; the blobs are content-addressed and safe, but a stale
+    // worker must not publish the run prefix or call computed.
+    if stopped(&lease, services, &run_id).await? {
+        return Ok(ProcessOutcome::Skipped);
+    }
     let run_manifest = RunManifest::from_artifacts(&run_id, &artifacts);
     let manifest_bytes = run_manifest
         .to_bytes()
@@ -296,26 +317,84 @@ pub async fn process(
         .put(&RunManifest::key(&run_id), manifest_bytes)
         .await
     {
-        return retry_or_exhaust(services, &run_id, &error.to_string(), attempts).await;
+        return retry_or_exhaust(services, &run_id, term, &error.to_string(), attempts).await;
     }
     let record = services
         .evidence
         .computed(
             run_id.clone(),
+            term,
             run_manifest.digest.clone(),
             run_manifest.refs(),
             computed_stages(),
         )
         .await
         .map_err(|error| WorkerError(error.to_string()))?;
-    if record.status != RunState::Running {
+    if record.status != RunState::Running || record.lease_term != term {
         return Ok(ProcessOutcome::Skipped);
     }
     publish(&services.queue, ROUTING_COMPUTED, &run_id).await?;
     Ok(ProcessOutcome::Computed)
 }
 
-async fn cancelled(services: &WorkerServices, run_id: &str) -> Result<bool, WorkerError> {
+/// A run's claim lease, renewed from a control-plane task.
+///
+/// The guard aborts the heartbeat when the attempt returns. A heartbeat that
+/// evidence rejects as stale sets `lost`, so the worker stops before its next
+/// CAS or lifecycle write.
+struct LeaseHeartbeat {
+    handle: tokio::task::JoinHandle<()>,
+    lost: std::sync::Arc<std::sync::atomic::AtomicBool>,
+}
+
+impl LeaseHeartbeat {
+    fn start(evidence: Arc<dyn EvidenceClient>, run_id: &str, holder: &str, term: u64) -> Self {
+        let lost = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let flag = std::sync::Arc::clone(&lost);
+        let run_id = run_id.to_owned();
+        let holder = holder.to_owned();
+        let handle = tokio::spawn(async move {
+            let interval = Duration::from_secs(quantrule_service_api::RUN_LEASE_RENEW_SECONDS);
+            loop {
+                tokio::time::sleep(interval).await;
+                match evidence
+                    .heartbeat(run_id.clone(), holder.clone(), term)
+                    .await
+                {
+                    Ok(_) => {}
+                    Err(ClientError::Status { status: 409, .. }) => {
+                        flag.store(true, std::sync::atomic::Ordering::SeqCst);
+                        break;
+                    }
+                    Err(error) => {
+                        tracing::warn!(run_id = %run_id, %error, "the run lease heartbeat will retry");
+                    }
+                }
+            }
+        });
+        Self { handle, lost }
+    }
+
+    fn lost(&self) -> bool {
+        self.lost.load(std::sync::atomic::Ordering::SeqCst)
+    }
+}
+
+impl Drop for LeaseHeartbeat {
+    fn drop(&mut self) {
+        self.handle.abort();
+    }
+}
+
+/// Whether the worker must stop: the lease was lost, or the run was cancelled.
+async fn stopped(
+    lease: &LeaseHeartbeat,
+    services: &WorkerServices,
+    run_id: &str,
+) -> Result<bool, WorkerError> {
+    if lease.lost() {
+        return Ok(true);
+    }
     Ok(services
         .evidence
         .get_run(run_id.to_owned())
@@ -344,13 +423,14 @@ fn terminal(error: &ClientError) -> bool {
 async fn client_failure(
     services: &WorkerServices,
     run_id: &str,
+    term: u64,
     error: &ClientError,
     attempts: u32,
 ) -> Result<ProcessOutcome, WorkerError> {
     if terminal(error) {
-        fail(services, run_id, &error.to_string()).await
+        fail(services, run_id, term, &error.to_string()).await
     } else {
-        retry_or_exhaust(services, run_id, &error.to_string(), attempts).await
+        retry_or_exhaust(services, run_id, term, &error.to_string(), attempts).await
     }
 }
 
@@ -528,27 +608,29 @@ async fn load_model_artifacts(
 async fn retry_or_exhaust(
     services: &WorkerServices,
     run_id: &str,
+    term: u64,
     message: &str,
     attempts: u32,
 ) -> Result<ProcessOutcome, WorkerError> {
     match retry::decide(attempts) {
-        RetryDecision::Retry(delay) => Ok(ProcessOutcome::Retry { delay }),
-        RetryDecision::DeadLetter => exhaust(services, run_id, message, attempts).await,
+        RetryDecision::Retry(delay) => Ok(ProcessOutcome::Retry { delay, term }),
+        RetryDecision::DeadLetter => exhaust(services, run_id, term, message, attempts).await,
     }
 }
 
 async fn exhaust(
     services: &WorkerServices,
     run_id: &str,
+    term: u64,
     message: &str,
     _attempts: u32,
 ) -> Result<ProcessOutcome, WorkerError> {
     let record = services
         .evidence
-        .failed(run_id.to_owned(), message.to_owned(), failed_stages())
+        .failed(run_id.to_owned(), term, message.to_owned(), failed_stages())
         .await
         .map_err(|error| WorkerError(error.to_string()))?;
-    if record.status != RunState::Failed {
+    if record.status != RunState::Failed || record.lease_term != term {
         return Ok(ProcessOutcome::Skipped);
     }
     publish(&services.queue, ROUTING_DEAD, run_id).await?;
@@ -558,14 +640,15 @@ async fn exhaust(
 async fn fail(
     services: &WorkerServices,
     run_id: &str,
+    term: u64,
     message: &str,
 ) -> Result<ProcessOutcome, WorkerError> {
     let record = services
         .evidence
-        .failed(run_id.to_owned(), message.to_owned(), failed_stages())
+        .failed(run_id.to_owned(), term, message.to_owned(), failed_stages())
         .await
         .map_err(|error| WorkerError(error.to_string()))?;
-    if record.status != RunState::Failed {
+    if record.status != RunState::Failed || record.lease_term != term {
         return Ok(ProcessOutcome::Skipped);
     }
     publish(&services.queue, ROUTING_FAILED, run_id).await?;

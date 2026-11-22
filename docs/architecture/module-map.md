@@ -60,7 +60,7 @@ cannot read a strategy, write a run, publish to the queue, or compute a model.
 | `quantrule-data-service` | `src/routes.rs`, `src/ingest.rs`, `src/catalog.rs`, `src/postgres.rs` |
 | `quantrule-model-service` | `src/routes.rs`, `src/bundle.rs`, `src/state.rs` |
 | `quantrule-backtest-service` | `src/backtest/worker.rs`, `src/backtest/workspace.rs`, `src/backtest/retry.rs`, `src/stage/` |
-| `quantrule-evidence-service` | `src/state.rs`, `src/postgres.rs`, `src/migrations.rs`, `src/stage/` |
+| `quantrule-evidence-service` | `src/state.rs`, `src/postgres.rs`, `src/migrations.rs`, `src/outbox.rs`, `src/releases.rs`, `src/reconcile.rs`, `src/stage/` |
 | `quantrule-simulation-service` | `src/routes/`, `src/postgres.rs`, `src/bundle.rs` |
 | `quantrule-runtime` | `src/config.rs`, `src/health.rs`, `src/adapters/`, `src/client.rs`, `src/migrations.rs` |
 

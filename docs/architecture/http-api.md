@@ -158,7 +158,7 @@ bundle manifest records the registry version (`2026-11-10.2`), and
 | `research.invalid` | 400 | Bad pre-registration, config, dataset, or note |
 | `research.conflict` | 409 | Duplicate submit/decision, or accepted without a succeeded digest |
 | `upload.too_large` | 413 | Over the configured limit |
-| `queue.unavailable` | 503 | Broker unreachable |
+| `queue.unavailable` | 503 | No queue is configured; a run submission still commits its outbox intent |
 | `service.unavailable` | 503 | A downstream service is unreachable or refused the proxied call |
 | `internal` | 500 | Unclassified; the message is returned without a stack trace |
 | `simulation.not_found` | 404 | Unknown simulation run |

@@ -118,12 +118,24 @@ These are recorded rather than silently widened in HA-002.
 
 ## 7. Verification
 
+The evidence database adds `runs.outbox` and `runs.dataset_reference_releases`
+in migration 18, and `lease_holder`, `lease_term`, and `lease_expires_at` in
+migration 19. The outbox commits with a run write and is delivered by the
+publisher; the release tombstone commits with a consumer delete and is retried
+by the reconciler; the lease fences a stale worker. None of these is read by
+another service. The contract is
+[`cross-database-consistency.md`](../../architecture/cross-database-consistency.md).
+
 - `cargo test -p quantrule-runtime --test database_topology` checks the Compose
   URLs, the migration jobs, the stateless services, and the bootstrap's
   databases, roles, schemas, and grants. It fails when an owner URL appears in a
   long-running service.
 - `cargo test -p quantrule-deploy` checks the rendered service and migration env
   files and the role URL builder.
+- `cargo test -p quantrule-evidence-service --test outbox_conformance` checks
+  the notification outbox, the restart re-arm, and the release tombstone against
+  the memory store, and the same body against Postgres when
+  `QR_TEST_DATABASE_URL` names a disposable database.
 - `tools/postgres_composed.sh` runs the bootstrap against a disposable
   PostgreSQL and checks own-database access, cross-database refusal, app DDL
   refusal, owner DDL, and app DML.

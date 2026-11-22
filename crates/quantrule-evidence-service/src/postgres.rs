@@ -13,13 +13,26 @@ use quantrule_runtime::adapters::BoxFuture;
 #[derive(Debug, Clone)]
 pub struct PgRunStore {
     pub(crate) pool: PgPool,
+    pub(crate) lease_seconds: u64,
 }
 
 impl PgRunStore {
-    /// Build the store over an existing pool.
+    /// Build the store over an existing pool with the production lease TTL.
     #[must_use]
     pub fn new(pool: PgPool) -> Self {
-        Self { pool }
+        Self::with_lease_seconds(pool, quantrule_service_api::RUN_LEASE_TTL_SECONDS)
+    }
+
+    /// Build the store with an explicit lease TTL.
+    ///
+    /// The production service uses [`Self::new`]. A composed test can pass a
+    /// zero TTL to observe an expired lease without waiting.
+    #[must_use]
+    pub fn with_lease_seconds(pool: PgPool, lease_seconds: u64) -> Self {
+        Self {
+            pool,
+            lease_seconds,
+        }
     }
 }
 
@@ -36,6 +49,9 @@ type RunRow = (
     Option<String>,
     Option<String>,
     i32,
+    Option<String>,
+    Option<String>,
+    i64,
     Option<String>,
 );
 
@@ -82,7 +98,10 @@ pub(crate) async fn load_run_rows(
                 "SELECT r.run_id, r.status, r.owner, r.config_id, r.data_version,
                         r.config_hash, r.model_version, r.image_digest,
                         to_char(r.submitted_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'),
-                        r.digest, r.error, r.attempts, r.model_artifact_id
+                        r.digest, r.error, r.attempts, r.model_artifact_id,
+                        r.lease_holder, r.lease_term,
+                        to_char(r.lease_expires_at AT TIME ZONE 'UTC',
+                                'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')
                  FROM runs.runs r
                  JOIN runs.submissions s ON s.run_id = r.run_id
                  WHERE s.profile_id = $1 AND r.run_id = $2",
@@ -97,7 +116,10 @@ pub(crate) async fn load_run_rows(
                 "SELECT r.run_id, r.status, r.owner, r.config_id, r.data_version,
                         r.config_hash, r.model_version, r.image_digest,
                         to_char(r.submitted_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'),
-                        r.digest, r.error, r.attempts, r.model_artifact_id
+                        r.digest, r.error, r.attempts, r.model_artifact_id,
+                        r.lease_holder, r.lease_term,
+                        to_char(r.lease_expires_at AT TIME ZONE 'UTC',
+                                'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')
                  FROM runs.runs r
                  WHERE r.run_id = $1",
             )
@@ -182,6 +204,11 @@ pub(crate) async fn load_run_rows(
                     "a stored model artifact id is malformed: {error}"
                 ))
             })?,
+        lease_holder: row.13,
+        lease_term: u64::try_from(row.14).map_err(|_| {
+            crate::runs::RunStoreError("a stored lease term is negative".to_owned())
+        })?,
+        lease_expires_at: row.15,
     }))
 }
 

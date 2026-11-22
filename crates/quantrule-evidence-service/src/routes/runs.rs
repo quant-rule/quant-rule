@@ -1,9 +1,11 @@
 //! Run submission, listing, detail, cancellation, artifacts, and digest.
 //!
 //! The run row is authoritative. Evidence validates the referenced dataset and
-//! config through the data service, writes the content-addressed row, and
-//! publishes `run.requested`. Artifact bytes are read by the content key the run
-//! recorded; a name never selects a file.
+//! config through the data service, writes the content-addressed row, and the
+//! same transaction records the `run.requested` intent in `runs.outbox`. The
+//! publisher delivers that intent; a broker that is unavailable delays the
+//! message instead of losing the run. Artifact bytes are read by the content
+//! key the run recorded; a name never selects a file.
 
 use std::sync::Arc;
 
@@ -16,13 +18,14 @@ use quantrule_api::{
     RunState, RunSummary, StageKind, SubmitRunRequest, SubmitRunResponse,
 };
 use quantrule_runtime::clock;
-use quantrule_runtime::queue::{ROUTING_CANCELLED, ROUTING_REQUESTED};
+use quantrule_runtime::queue::ROUTING_CANCELLED;
 use quantrule_service_api::{ConfigBundle, RunManifest};
 use serde::Deserialize;
 
 use crate::routes::{ApiFailure, data_failure, failure, request_profile};
 use crate::runs::{
-    CancelOutcome, NewRun, RunArchiveOutcome, RunEraseOutcome, RunRecord, derive_with_model,
+    CancelOutcome, DatasetReferenceRelease, NewRun, RunArchiveOutcome, RunEraseOutcome, RunRecord,
+    derive_with_model,
 };
 use crate::state::EvidenceState;
 
@@ -201,65 +204,79 @@ pub(crate) async fn submit_validated_pipeline(
         .runs
         .as_ref()
         .ok_or_else(|| failure(ErrorCode::Internal, "no run store is configured"))?;
-    // The dataset reference is registered before the run row exists. A crash
-    // between the two leaves a blocking reference, not an unprotected dataset,
-    // and the registration is idempotent on a retry.
-    let _gate = state.history_gate.lock().await;
-    data.register_dataset_reference(
-        profile.clone(),
-        request.data_version.clone(),
-        reference_id.clone(),
-        DatasetReferenceKind::Run,
-    )
-    .await
-    .map_err(data_failure)?;
-    let data_version = request.data_version.clone();
-    let outcome = match runs
-        .submit(
-            profile.clone(),
-            NewRun {
-                run_id,
-                config_id: request.config_id,
-                data_version: request.data_version,
-                config_hash,
-                model_version,
-                image_digest,
-                model_artifact_id,
-                owner: profile.as_str().to_owned(),
-                submitted_at: clock::now_utc()
-                    .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?,
-            },
-        )
-        .await
-    {
-        Ok(outcome) => outcome,
-        Err(error) => {
-            if let Err(release) = data
-                .release_dataset_reference(profile.clone(), data_version, reference_id)
-                .await
-            {
-                tracing::warn!(%release, "run submission failed and its dataset reference was not released");
-            }
-            return Err(failure(ErrorCode::Internal, error.to_string()));
-        }
-    };
-    let record = outcome.record().clone();
-
-    // Publish for a duplicate too: a retry after a lost publish must be able to
-    // recover, and the worker treats a repeated message as a lookup. The
-    // message carries the run id only; the worker reads the rest from the run
-    // store, so a queued message cannot disagree with the recorded provenance.
+    let outbox = state
+        .outbox
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no run outbox is configured"))?;
     let queue = state
         .queue
         .as_ref()
         .ok_or_else(|| failure(ErrorCode::QueueUnavailable, "no run queue is configured"))?;
-    let message = serde_json::json!({ "run_id": record.run_id.to_string() });
-    let payload = serde_json::to_vec(&message)
-        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
-    queue
-        .publish(ROUTING_REQUESTED, payload)
+    // The dataset reference is registered before the run row exists. A crash
+    // between the two leaves a blocking reference, not an unprotected dataset,
+    // and the registration is idempotent on a retry.
+    let data_version = request.data_version.clone();
+    let outcome = {
+        let _gate = state.history_gate.lock().await;
+        data.register_dataset_reference(
+            profile.clone(),
+            request.data_version.clone(),
+            reference_id.clone(),
+            DatasetReferenceKind::Run,
+        )
         .await
-        .map_err(|error| failure(ErrorCode::QueueUnavailable, error.to_string()))?;
+        .map_err(data_failure)?;
+        match runs
+            .submit(
+                profile.clone(),
+                NewRun {
+                    run_id,
+                    config_id: request.config_id,
+                    data_version: request.data_version,
+                    config_hash,
+                    model_version,
+                    image_digest,
+                    model_artifact_id,
+                    owner: profile.as_str().to_owned(),
+                    submitted_at: clock::now_utc()
+                        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?,
+                },
+            )
+            .await
+        {
+            Ok(outcome) => outcome,
+            Err(error) => {
+                if let Some(releases) = state.releases.as_ref() {
+                    let release = DatasetReferenceRelease {
+                        profile: profile.clone(),
+                        data_version: data_version.clone(),
+                        reference_id: reference_id.clone(),
+                        kind: DatasetReferenceKind::Run,
+                    };
+                    if let Err(log) = releases.record(release).await {
+                        tracing::warn!(%log, "the failed submission's release was not recorded");
+                    }
+                }
+                if let Err(release) = data
+                    .release_dataset_reference(profile.clone(), data_version, reference_id)
+                    .await
+                {
+                    tracing::warn!(%release, "run submission failed and its dataset reference was not released");
+                }
+                return Err(failure(ErrorCode::Internal, error.to_string()));
+            }
+        }
+    };
+    let record = outcome.record().clone();
+
+    // The run row and its intent committed together. A publish failure leaves
+    // the intent pending for the reconciler, so the run is not lost and a
+    // repeated submission still finds the same run record.
+    if let Err(error) =
+        crate::outbox::drain(outbox.as_ref(), queue.as_ref(), crate::outbox::DRAIN_LIMIT).await
+    {
+        tracing::warn!(run_id = %record.run_id, %error, "the run notification will be retried");
+    }
 
     let response = SubmitRunResponse {
         run_id: record.run_id.clone(),
@@ -385,6 +402,12 @@ pub(crate) async fn erase_run(
         .runs
         .as_ref()
         .ok_or_else(|| failure(ErrorCode::Internal, "no run store is configured"))?;
+    let releases = state.releases.as_ref().ok_or_else(|| {
+        failure(
+            ErrorCode::Internal,
+            "no reference release log is configured",
+        )
+    })?;
     let objects = state
         .objects
         .as_ref()
@@ -431,19 +454,11 @@ pub(crate) async fn erase_run(
             }
         }
     }
-    if let Err(error) = data
-        .release_dataset_reference(
-            profile,
-            receipt.data_version.clone(),
-            format!("run:{}", receipt.run_id),
-        )
-        .await
-    {
-        tracing::warn!(
-            run_id = %id,
-            %error,
-            "erased run left its dataset reference behind"
-        );
+    // The store wrote the release tombstone in the erase transaction. Retrying
+    // here is best effort: if the data service is unavailable, the tombstone
+    // stays pending for the reconciler and the erase stands.
+    if let Err(error) = crate::reconcile::release_all(releases.as_ref(), data.as_ref()).await {
+        tracing::warn!(run_id = %id, %error, "the erased run's dataset reference will be retried");
     }
     Ok(Json(EraseReceipt {
         record_id: id,

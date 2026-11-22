@@ -106,10 +106,10 @@ edge, accept a baseline, or show that another run reproduces it.
 | `run.conflict` | Cancel after a terminal state | Read `run status`; do not retry the cancel |
 | `config.invalid` | Config validation failed | Fix the config; do not edit the run |
 | `dataset.not_found` | The dataset is unknown in this profile | Re-run `dataset list` |
-| `queue.unavailable` | The broker is unreachable | Read `health`; stop |
+| `queue.unavailable` | The service has no queue configured | Read `health`; a submission is accepted on its outbox row, so fix the configuration rather than resubmitting |
 | `service.unavailable` | A downstream service is down | Read `health` and `make logs`; stop |
 | `failed` at evidence | Artifact missing or hash mismatch | Record the stage and error; do not accept |
-| `queued` forever | No worker | Check the worker and queue; stop |
+| `queued` forever | No worker, or the publisher has not delivered the outbox row | Check the publisher log, the worker, and the queue; stop |
 
 ## Related
 

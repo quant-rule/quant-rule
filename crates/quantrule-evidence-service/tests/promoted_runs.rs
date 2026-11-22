@@ -106,12 +106,15 @@ async fn harness() -> Arc<EvidenceState> {
         image_digest: Some(Digest::sha256(b"image")),
         ..Config::default()
     };
+    let runs = Arc::new(MemoryRuns::default());
     Arc::new(EvidenceState::with_services(
         &config,
         HealthRegistry::new(),
         EvidenceServices {
             data: Some(Arc::new(data)),
-            runs: Some(Arc::new(MemoryRuns::default())),
+            runs: Some(runs.clone()),
+            outbox: Some(runs.clone()),
+            releases: Some(runs),
             stages: Some(Arc::new(stages)),
             queue: Some(Arc::new(queue)),
             ..EvidenceServices::default()

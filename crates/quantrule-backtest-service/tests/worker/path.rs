@@ -5,7 +5,7 @@ use super::support::*;
 #[tokio::test]
 async fn a_queued_run_computes_artifacts_and_digest() {
     let fixture = fixture().await;
-    let outcome = process(fixture.run_id.clone(), false, &fixture.services)
+    let outcome = process(fixture.run_id.clone(), None, &fixture.services)
         .await
         .expect("process");
     assert_eq!(
@@ -62,7 +62,7 @@ async fn a_queued_run_computes_artifacts_and_digest() {
 async fn a_second_delivery_does_not_execute_again() {
     let fixture = fixture().await;
     assert_eq!(
-        process(fixture.run_id.clone(), false, &fixture.services)
+        process(fixture.run_id.clone(), None, &fixture.services)
             .await
             .expect("first"),
         ProcessOutcome::Computed
@@ -75,7 +75,7 @@ async fn a_second_delivery_does_not_execute_again() {
         .expect("get")
         .expect("record");
     assert_eq!(
-        process(fixture.run_id.clone(), false, &fixture.services)
+        process(fixture.run_id.clone(), None, &fixture.services)
             .await
             .expect("second"),
         ProcessOutcome::Skipped
@@ -89,7 +89,7 @@ async fn a_second_delivery_does_not_execute_again() {
     assert_eq!(first.artifacts, second.artifacts);
     assert_eq!(second.status, RunState::Running);
     assert_eq!(
-        process(fixture.run_id.clone(), true, &fixture.services)
+        process(fixture.run_id.clone(), None, &fixture.services)
             .await
             .expect("redelivery"),
         ProcessOutcome::Skipped
@@ -113,10 +113,11 @@ async fn a_redelivery_executes_a_run_left_running_by_a_killed_worker() {
     let fixture = fixture().await;
     fixture
         .runs
-        .claim(fixture.run_id.clone(), false)
+        .claim(fixture.run_id.clone(), "test-worker".to_owned(), None)
         .await
         .expect("simulated claim");
-    let outcome = process(fixture.run_id.clone(), true, &fixture.services)
+    fixture.runs.expire_lease(&fixture.run_id);
+    let outcome = process(fixture.run_id.clone(), None, &fixture.services)
         .await
         .expect("process");
     assert_eq!(outcome, ProcessOutcome::Computed);
@@ -137,11 +138,12 @@ async fn a_stopped_write_leaves_no_manifest() {
     let fixture = fixture().await;
     let services = services_with_stop_after(&fixture, 1);
     assert_eq!(
-        process(fixture.run_id.clone(), false, &services)
+        process(fixture.run_id.clone(), None, &services)
             .await
             .expect("process"),
         ProcessOutcome::Retry {
-            delay: Duration::from_secs(5)
+            delay: Duration::from_secs(5),
+            term: 1
         }
     );
     let record = fixture
@@ -175,11 +177,12 @@ async fn a_manifest_write_failure_leaves_no_published_set() {
     let fixture = fixture().await;
     let services = services_with_manifest_failure(&fixture);
     assert_eq!(
-        process(fixture.run_id.clone(), false, &services)
+        process(fixture.run_id.clone(), None, &services)
             .await
             .expect("first"),
         ProcessOutcome::Retry {
-            delay: Duration::from_secs(5)
+            delay: Duration::from_secs(5),
+            term: 1
         }
     );
     let record = fixture
@@ -216,7 +219,7 @@ async fn a_manifest_write_failure_leaves_no_published_set() {
 
     // Restart on the durable store: the blobs are reused and the set publishes.
     assert_eq!(
-        process(fixture.run_id.clone(), true, &fixture.services)
+        process(fixture.run_id.clone(), Some(1), &fixture.services)
             .await
             .expect("restart"),
         ProcessOutcome::Computed
@@ -228,11 +231,12 @@ async fn a_stage_failure_retries_then_dead_letters() {
     let fixture = fixture().await;
     let services = services_with_put_failure(&fixture);
     assert_eq!(
-        process(fixture.run_id.clone(), false, &services)
+        process(fixture.run_id.clone(), None, &services)
             .await
             .expect("first"),
         ProcessOutcome::Retry {
-            delay: Duration::from_secs(5)
+            delay: Duration::from_secs(5),
+            term: 1
         }
     );
     let record = fixture
@@ -246,15 +250,16 @@ async fn a_stage_failure_retries_then_dead_letters() {
     assert!(!fixture.queue.keys().contains(&"run.dead".to_owned()));
 
     assert_eq!(
-        process(fixture.run_id.clone(), true, &services)
+        process(fixture.run_id.clone(), Some(1), &services)
             .await
             .expect("second"),
         ProcessOutcome::Retry {
-            delay: Duration::from_secs(25)
+            delay: Duration::from_secs(25),
+            term: 2
         }
     );
     assert_eq!(
-        process(fixture.run_id.clone(), true, &services)
+        process(fixture.run_id.clone(), Some(2), &services)
             .await
             .expect("third"),
         ProcessOutcome::Exhausted
@@ -300,7 +305,7 @@ async fn a_run_cancelled_after_claim_writes_no_bundle() {
     let fixture = fixture().await;
     fixture
         .runs
-        .claim(fixture.run_id.clone(), false)
+        .claim(fixture.run_id.clone(), "test-worker".to_owned(), None)
         .await
         .expect("claim");
     fixture
@@ -312,7 +317,7 @@ async fn a_run_cancelled_after_claim_writes_no_bundle() {
         .await
         .expect("cancel");
     assert_eq!(
-        process(fixture.run_id.clone(), false, &fixture.services)
+        process(fixture.run_id.clone(), None, &fixture.services)
             .await
             .expect("process"),
         ProcessOutcome::Skipped
@@ -353,7 +358,7 @@ async fn a_cancelled_run_is_not_executed() {
         .await
         .expect("cancel");
     assert_eq!(
-        process(fixture.run_id.clone(), false, &fixture.services)
+        process(fixture.run_id.clone(), None, &fixture.services)
             .await
             .expect("process"),
         ProcessOutcome::Skipped
@@ -380,7 +385,7 @@ async fn a_missing_dataset_fails_the_run() {
     )
     .await;
     assert_eq!(
-        process(run_id.clone(), false, &fixture.services)
+        process(run_id.clone(), None, &fixture.services)
             .await
             .expect("process"),
         ProcessOutcome::Failed
@@ -416,7 +421,7 @@ async fn an_invalid_config_fails_the_run() {
     )
     .await;
     assert_eq!(
-        process(run_id.clone(), false, &fixture.services)
+        process(run_id.clone(), None, &fixture.services)
             .await
             .expect("process"),
         ProcessOutcome::Failed
@@ -442,7 +447,7 @@ async fn a_queued_run_matches_the_coupled_baseline() {
         "sha256:32dc2c72bfa54569067b0beedacd2c97e06d87532da6f32930f068732e73e26f"
     );
     assert_eq!(
-        process(fixture.run_id.clone(), false, &fixture.services)
+        process(fixture.run_id.clone(), None, &fixture.services)
             .await
             .expect("process"),
         ProcessOutcome::Computed

@@ -84,6 +84,10 @@ fn routes() -> Router<Arc<EvidenceState>> {
         .route("/internal/v1/runs/{id}", get(internal::get_run))
         .route("/internal/v1/runs/{id}/claim", post(internal::claim_run))
         .route(
+            "/internal/v1/runs/{id}/heartbeat",
+            post(internal::heartbeat_run),
+        )
+        .route(
             "/internal/v1/runs/{id}/computed",
             post(internal::computed_run),
         )

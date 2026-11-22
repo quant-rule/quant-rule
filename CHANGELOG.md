@@ -33,9 +33,16 @@ history is in Git and the pull requests.
 - The schema-migration contract is recorded in `docs/architecture/migrations.md`: forward-only ledgers, one owner per database, expand/contract release order, checksum pinning, rollback compatibility, and the four-job order.
 - `deploy/postgres/migration-ledger.json` pins every ledger version and SQL checksum; a fast test refuses a reordered ledger, an edited migration body, or a database-owning service without its `--migrate-only` entry point.
 - The operator runbook covers a failed migration, a stopped migration job, and a rollback to the previous image digest while the old stack stays available.
+- The evidence database adds `runs.outbox` (migration 18): a run row and its `run.requested` or `run.computed` notification commit in one transaction, and a publisher reconciles and drains the intents so a broker outage cannot lose a queued run.
+- The evidence database adds `runs.dataset_reference_releases` (migration 18): an erase records the dataset-reference release in the same transaction as the consumer delete, and a reconciler retries the data-service call until it is confirmed.
+- `docs/architecture/cross-database-consistency.md` records the outbox, reference, reconciliation, and tombstone contract, and the failure matrix for a crash after commit, a duplicate publish, a restart, and an erase.
+- The evidence run row carries a per-run lease (`lease_holder`, `lease_term`, `lease_expires_at`, migration 19); a claim records a monotonic term, the worker renews the lease every 20 s from a control-plane task, and `computed`, `complete`, and `fail` carry the term so evidence refuses a stale worker.
 
 ### Changed
 
+- `run submit` is accepted when the run row and its outbox intent commit; a broker that is down delays the notification instead of returning `503 queue.unavailable`, and a repeated submission republishes the queued run while returning the same run record.
+- A run claim is lease-based: a queued run is claimable, a running run only when its lease is absent, expired, or continued by the same holder, and a live lease is never stolen. Cancellation increments the term and clears the lease; a terminal run releases it.
+- A run erase releases its dataset reference from the committed tombstone rather than a best-effort call, so a crash between the databases leaves a retry instead of a reference that blocks the dataset forever.
 - Each database-owning service receives only its own `QR_DATABASE_URL` and `QR_MIGRATE=0`; model and backtest receive no database URL. The long-running process never receives `QR_DATABASE_OWNER_URL`, so a compromised service cannot reconnect with DDL rights.
 - A rollback starts the previous image without its migration job: the runner refuses a database ahead of the binary, and the previous image must tolerate the expanded schema.
 - No role is granted connect on another service's database.
@@ -43,6 +50,11 @@ history is in Git and the pull requests.
 
 - The pull-request CI gate is scope-aware: docs, governance, and web scopes skip Rust or web work they cannot observe, and a `gate` aggregator fails when a needed job failed or was wrongly skipped.
 - The policy is now “No Python” repository-wide; current docs, the manual, the registry, and the verification evidence name `qr-governance` checkers instead of the deleted Python scripts.
+
+### Fixed
+
+- The run outbox now re-arms a `running` run without a digest as `run.requested`; a startup reconciliation names every unfinished run even after its worker or delivery was lost, while a terminal run still deletes its intents and a retry cannot create a second run record.
+- A running run whose worker died is reclaimed after its lease expires and a stale term is refused, so a rebuilt queue recovers the run without a partial artifact set or a duplicate run record.
 
 ## [1.5.2] - 2026-11-21
 

@@ -63,6 +63,21 @@ impl crate::runs::RunStore for PgRunStore {
             .execute(&mut *transaction)
             .await
             .map_err(|error| crate::runs::RunStoreError(error.to_string()))?;
+            // The notification commits with the run row. A crash after this
+            // commit leaves a durable intent, not a queued run nobody sees.
+            sqlx::query(
+                "INSERT INTO runs.outbox (run_id, routing_key)
+                 SELECT $1, 'run.requested'
+                  WHERE EXISTS (SELECT 1 FROM runs.runs
+                                 WHERE run_id = $1 AND status = 'queued')
+                 ON CONFLICT (run_id, routing_key) DO UPDATE
+                     SET published_at = NULL, last_error = NULL
+                     WHERE runs.outbox.published_at IS NOT NULL",
+            )
+            .bind(run.run_id.to_string())
+            .execute(&mut *transaction)
+            .await
+            .map_err(|error| crate::runs::RunStoreError(error.to_string()))?;
             transaction
                 .commit()
                 .await
@@ -383,6 +398,21 @@ impl crate::runs::RunStore for PgRunStore {
                     .map_err(|error| crate::runs::RunStoreError(error.to_string()))?;
                 return Ok(RunEraseOutcome::Protected(status));
             }
+            // The release commits with the delete and survives it. A failed
+            // data-service call is retried from this tombstone instead of
+            // leaving an orphan reference that blocks the dataset forever.
+            sqlx::query(
+                "INSERT INTO runs.dataset_reference_releases
+                     (profile_id, data_version, reference_id, kind)
+                 VALUES ($1, $2, $3, 'run')
+                 ON CONFLICT (profile_id, data_version, reference_id) DO NOTHING",
+            )
+            .bind(profile.as_str())
+            .bind(&data_version)
+            .bind(format!("run:{run_id}"))
+            .execute(&mut *transaction)
+            .await
+            .map_err(|error| crate::runs::RunStoreError(error.to_string()))?;
             sqlx::query("DELETE FROM runs.submissions WHERE profile_id = $1 AND run_id = $2")
                 .bind(profile.as_str())
                 .bind(&run_id)
@@ -521,13 +551,23 @@ impl crate::runs::RunStore for PgRunStore {
             // committed after the read above must win, and a second concurrent
             // cancel must be a conflict, not a second 202.
             let updated = sqlx::query(
-                "UPDATE runs.runs SET status = 'cancelled', finished_at = now()
-                 WHERE run_id = $1 AND status IN ('queued', 'running')",
+                "UPDATE runs.runs
+                    SET status = 'cancelled', finished_at = now(),
+                        lease_holder = NULL, lease_expires_at = NULL,
+                        lease_term = lease_term + 1
+                  WHERE run_id = $1 AND status IN ('queued', 'running')",
             )
             .bind(&run_id)
             .execute(&pool)
             .await
             .map_err(|error| crate::runs::RunStoreError(error.to_string()))?;
+            if updated.rows_affected() == 1 {
+                sqlx::query("DELETE FROM runs.outbox WHERE run_id = $1")
+                    .bind(&run_id)
+                    .execute(&pool)
+                    .await
+                    .map_err(|error| crate::runs::RunStoreError(error.to_string()))?;
+            }
             let record = load_run(&pool, profile.as_str(), &run_id)
                 .await?
                 .ok_or_else(|| {
@@ -552,55 +592,106 @@ impl crate::runs::RunStore for PgRunStore {
     fn claim(
         &self,
         run_id: String,
-        redelivered: bool,
+        holder: String,
+        continuation: Option<u64>,
     ) -> BoxFuture<Result<crate::runs::ClaimOutcome, crate::runs::RunStoreError>> {
         let pool = self.pool.clone();
+        let lease_seconds = self.lease_seconds;
         Box::pin(async move {
-            let started = sqlx::query(
+            let continuation = continuation
+                .map(i64::try_from)
+                .transpose()
+                .map_err(|_| crate::runs::RunStoreError("a claim term does not fit".to_owned()))?;
+            // One conditional statement is the claim. The lease is the claim
+            // right: a queued run, an absent/expired lease, or the same
+            // holder's own live continuation. A live lease held by another
+            // attempt matches no branch and is never stolen.
+            let claimed = sqlx::query(
                 "UPDATE runs.runs
-                 SET status = 'running', started_at = now(), attempts = attempts + 1
-                 WHERE run_id = $1 AND status = 'queued'",
+                 SET status = 'running', started_at = now(), attempts = attempts + 1,
+                     lease_holder = $2, lease_term = lease_term + 1,
+                     lease_expires_at = now() + make_interval(secs => $3)
+                 WHERE run_id = $1
+                   AND attempts < $4
+                   AND (
+                       status = 'queued'
+                       OR (status = 'running' AND digest IS NULL
+                           AND (lease_expires_at IS NULL
+                                OR lease_expires_at < now()
+                                OR (lease_holder = $2 AND lease_term = $5)))
+                   )",
             )
             .bind(&run_id)
+            .bind(&holder)
+            .bind(lease_seconds as f64)
+            .bind(i64::from(crate::runs::MAX_ATTEMPTS))
+            .bind(continuation)
             .execute(&pool)
             .await
             .map_err(|error| crate::runs::RunStoreError(error.to_string()))?;
             let Some(record) = load_run_rows(&pool, None, &run_id).await? else {
                 return Ok(crate::runs::ClaimOutcome::Missing);
             };
-            if started.rows_affected() == 1 {
+            if claimed.rows_affected() == 1 {
                 return Ok(crate::runs::ClaimOutcome::Claimed(record));
             }
             if record.status != quantrule_api::RunState::Running {
                 return Ok(crate::runs::ClaimOutcome::Terminal(record));
             }
-            if !redelivered || record.digest.is_some() {
+            if record.digest.is_some() {
                 return Ok(crate::runs::ClaimOutcome::Running(record));
             }
-            if record.attempts >= crate::runs::MAX_ATTEMPTS {
-                return Ok(crate::runs::ClaimOutcome::Exhausted(record));
-            }
-            // The conditional update is what makes two redeliveries race
-            // safely: only one increments, the other reloads and skips.
-            let reclaimed = sqlx::query(
-                "UPDATE runs.runs SET attempts = attempts + 1, started_at = now()
-                 WHERE run_id = $1 AND status = 'running' AND digest IS NULL
-                   AND attempts < $2",
+            let (live, spent): (bool, bool) = sqlx::query_as(
+                "SELECT lease_expires_at IS NOT NULL AND lease_expires_at >= now(),
+                        attempts >= $2
+                   FROM runs.runs WHERE run_id = $1",
             )
             .bind(&run_id)
             .bind(i64::from(crate::runs::MAX_ATTEMPTS))
+            .fetch_one(&pool)
+            .await
+            .map_err(|error| crate::runs::RunStoreError(error.to_string()))?;
+            if live || !spent {
+                Ok(crate::runs::ClaimOutcome::Running(record))
+            } else {
+                Ok(crate::runs::ClaimOutcome::Exhausted(record))
+            }
+        })
+    }
+
+    fn heartbeat(
+        &self,
+        run_id: String,
+        holder: String,
+        term: u64,
+    ) -> BoxFuture<Result<crate::runs::HeartbeatOutcome, crate::runs::RunStoreError>> {
+        let pool = self.pool.clone();
+        let lease_seconds = self.lease_seconds;
+        Box::pin(async move {
+            let term = i64::try_from(term)
+                .map_err(|_| crate::runs::RunStoreError("a lease term does not fit".to_owned()))?;
+            let renewed = sqlx::query(
+                "UPDATE runs.runs
+                 SET lease_expires_at = now() + make_interval(secs => $4)
+                 WHERE run_id = $1 AND status = 'running'
+                   AND lease_holder = $2 AND lease_term = $3
+                   AND lease_expires_at IS NOT NULL
+                   AND lease_expires_at >= now()",
+            )
+            .bind(&run_id)
+            .bind(&holder)
+            .bind(term)
+            .bind(lease_seconds as f64)
             .execute(&pool)
             .await
             .map_err(|error| crate::runs::RunStoreError(error.to_string()))?;
             let Some(record) = load_run_rows(&pool, None, &run_id).await? else {
-                return Ok(crate::runs::ClaimOutcome::Missing);
+                return Ok(crate::runs::HeartbeatOutcome::Missing);
             };
-            if reclaimed.rows_affected() == 1 {
-                Ok(crate::runs::ClaimOutcome::Claimed(record))
-            } else if record.status == quantrule_api::RunState::Running {
-                Ok(crate::runs::ClaimOutcome::Running(record))
+            if renewed.rows_affected() == 1 {
+                Ok(crate::runs::HeartbeatOutcome::Renewed(Box::new(record)))
             } else {
-                Ok(crate::runs::ClaimOutcome::Terminal(record))
+                Ok(crate::runs::HeartbeatOutcome::Stale)
             }
         })
     }
@@ -608,21 +699,28 @@ impl crate::runs::RunStore for PgRunStore {
     fn computed(
         &self,
         run_id: String,
+        term: u64,
         digest: quantrule_api::Digest,
         artifacts: Vec<quantrule_api::ArtifactRef>,
         stages: Vec<quantrule_api::StageProgress>,
     ) -> BoxFuture<Result<crate::runs::RunRecord, crate::runs::RunStoreError>> {
         let pool = self.pool.clone();
         Box::pin(async move {
+            let term = i64::try_from(term)
+                .map_err(|_| crate::runs::RunStoreError("a lease term does not fit".to_owned()))?;
             let mut transaction = pool
                 .begin()
                 .await
                 .map_err(|error| crate::runs::RunStoreError(error.to_string()))?;
+            // The term is the fence: a stale worker cannot write the digest or
+            // the artifact set of a later attempt.
             let updated = sqlx::query(
-                "UPDATE runs.runs SET digest = $2 WHERE run_id = $1 AND status = 'running'",
+                "UPDATE runs.runs SET digest = $2
+                  WHERE run_id = $1 AND status = 'running' AND lease_term = $3",
             )
             .bind(&run_id)
             .bind(digest.to_string())
+            .bind(term)
             .execute(&mut *transaction)
             .await
             .map_err(|error| crate::runs::RunStoreError(error.to_string()))?;
@@ -635,6 +733,18 @@ impl crate::runs::RunStore for PgRunStore {
                     .await?
                     .ok_or_else(|| crate::runs::RunStoreError(format!("run {run_id} is unknown")));
             }
+            // The computed notification is written in the same transaction as
+            // the digest. A lost worker publish is then repaired by evidence's
+            // outbox instead of leaving the run running forever.
+            sqlx::query(
+                "INSERT INTO runs.outbox (run_id, routing_key)
+                 VALUES ($1, 'run.computed')
+                 ON CONFLICT (run_id, routing_key) DO NOTHING",
+            )
+            .bind(&run_id)
+            .execute(&mut *transaction)
+            .await
+            .map_err(|error| crate::runs::RunStoreError(error.to_string()))?;
             for stage in stages {
                 let elapsed = stage
                     .elapsed_ms
@@ -687,22 +797,28 @@ impl crate::runs::RunStore for PgRunStore {
     fn complete(
         &self,
         run_id: String,
+        term: u64,
         digest: quantrule_api::Digest,
         artifacts: Vec<quantrule_api::ArtifactRef>,
         stages: Vec<quantrule_api::StageProgress>,
     ) -> BoxFuture<Result<crate::runs::RunRecord, crate::runs::RunStoreError>> {
         let pool = self.pool.clone();
         Box::pin(async move {
+            let term = i64::try_from(term)
+                .map_err(|_| crate::runs::RunStoreError("a lease term does not fit".to_owned()))?;
             let mut transaction = pool
                 .begin()
                 .await
                 .map_err(|error| crate::runs::RunStoreError(error.to_string()))?;
             let updated = sqlx::query(
-                "UPDATE runs.runs SET status = 'succeeded', digest = $2, finished_at = now()
-                 WHERE run_id = $1 AND status = 'running'",
+                "UPDATE runs.runs
+                    SET status = 'succeeded', digest = $2, finished_at = now(),
+                        lease_holder = NULL, lease_expires_at = NULL
+                  WHERE run_id = $1 AND status = 'running' AND lease_term = $3",
             )
             .bind(&run_id)
             .bind(digest.to_string())
+            .bind(term)
             .execute(&mut *transaction)
             .await
             .map_err(|error| crate::runs::RunStoreError(error.to_string()))?;
@@ -715,6 +831,14 @@ impl crate::runs::RunStore for PgRunStore {
                     .await?
                     .ok_or_else(|| crate::runs::RunStoreError(format!("run {run_id} is unknown")));
             }
+            // A terminal run needs no further notification. Deleting the rows
+            // keeps the outbox bounded; a run row that is erased later removes
+            // any remaining row through its cascade.
+            sqlx::query("DELETE FROM runs.outbox WHERE run_id = $1")
+                .bind(&run_id)
+                .execute(&mut *transaction)
+                .await
+                .map_err(|error| crate::runs::RunStoreError(error.to_string()))?;
             for stage in stages {
                 let elapsed = stage
                     .elapsed_ms
@@ -767,17 +891,23 @@ impl crate::runs::RunStore for PgRunStore {
     fn fail(
         &self,
         run_id: String,
+        term: u64,
         error: String,
         stages: Vec<quantrule_api::StageProgress>,
     ) -> BoxFuture<Result<crate::runs::RunRecord, crate::runs::RunStoreError>> {
         let pool = self.pool.clone();
         Box::pin(async move {
+            let term = i64::try_from(term)
+                .map_err(|_| crate::runs::RunStoreError("a lease term does not fit".to_owned()))?;
             let updated = sqlx::query(
-                "UPDATE runs.runs SET status = 'failed', error = $2, finished_at = now()
-                 WHERE run_id = $1 AND status = 'running'",
+                "UPDATE runs.runs
+                    SET status = 'failed', error = $2, finished_at = now(),
+                        lease_holder = NULL, lease_expires_at = NULL
+                  WHERE run_id = $1 AND status = 'running' AND lease_term = $3",
             )
             .bind(&run_id)
             .bind(&error)
+            .bind(term)
             .execute(&pool)
             .await
             .map_err(|error| crate::runs::RunStoreError(error.to_string()))?;
@@ -786,6 +916,11 @@ impl crate::runs::RunStore for PgRunStore {
                     .await?
                     .ok_or_else(|| crate::runs::RunStoreError(format!("run {run_id} is unknown")));
             }
+            sqlx::query("DELETE FROM runs.outbox WHERE run_id = $1")
+                .bind(&run_id)
+                .execute(&pool)
+                .await
+                .map_err(|error| crate::runs::RunStoreError(error.to_string()))?;
             for stage in stages {
                 let elapsed = stage
                     .elapsed_ms

@@ -21,8 +21,9 @@ pub use manifest::{
     ManifestArtifact, ManifestError, RunManifest, SCHEMA as RUN_MANIFEST_SCHEMA, canonical_digest,
 };
 pub use run::{
-    MAX_ATTEMPTS, NewRun, RunCancelOutcome, RunClaimOutcome, RunClaimRequest, RunComputed,
-    RunFailed, RunRecord, derive_run_id, derive_run_id_with_model,
+    MAX_ATTEMPTS, NewRun, RUN_LEASE_RENEW_SECONDS, RUN_LEASE_TTL_SECONDS, RunCancelOutcome,
+    RunClaimOutcome, RunClaimRequest, RunComputed, RunFailed, RunHeartbeat, RunRecord,
+    derive_run_id, derive_run_id_with_model,
 };
 pub use stage::{
     NewStageRun, STAGE_MANIFEST_SCHEMA, StageCancelOutcome, StageClaim, StageClaimOutcome,
