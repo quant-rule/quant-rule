@@ -10,14 +10,14 @@
 //! a stack trace or an absolute path.
 
 mod data;
-mod error;
+pub(crate) mod error;
 mod execution;
 mod model;
 mod model_v4;
 pub use model_v4::effective_json;
 mod portfolio;
 mod qualification;
-mod read;
+pub(crate) mod read;
 mod run;
 pub mod spec;
 mod strategy;
@@ -27,6 +27,8 @@ mod tests;
 
 pub use data::DataConfig;
 pub use error::ConfigError;
+#[cfg(test)]
+pub(crate) use error::ConfigErrorKind;
 pub use qualification::{Correction, CostModel, Dimension, MultipleTesting, Operator};
 pub use qualification::{
     Criteria, Criterion, EvidenceArtifact, Partition, load as load_qualification,
@@ -34,3 +36,4 @@ pub use qualification::{
 pub use run::{RUN_SCHEMA, RUN_SCHEMA_V3, RunConfig};
 pub use strategy::parse as parse_strategy;
 pub use strategy::{StrategyConfig, load as load_strategy};
+pub(crate) use strategy::{StrategyEngine, parse_risk, parse_timeframe};

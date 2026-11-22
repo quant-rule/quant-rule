@@ -32,7 +32,7 @@ quantrule-simulation-service ──> quantrule-simulation
 | `quantrule-data` | Candle validation, bounded window, timeframe construction, gaps, UTC | Files, indicators, events, strategy |
 | `quantrule-model` | Readings, states, levels, events, progression, context, report, spec | Files, strategy, fills, cash |
 | `quantrule-backtest` | Strategy, execution, portfolio, benchmark | Files, transport, rendering |
-| `quantrule-app` | Workspace, dataset, configuration, run orchestration, artifact I/O, shared use cases | Indicators, rules, fills, P&L, transport, research memory |
+| `quantrule-app` | Workspace, dataset, configuration, research artifact packs, run orchestration, artifact I/O, shared use cases | Indicators, rules, fills, P&L, transport, research memory |
 | `quantrule-api` | Contract types, error envelope, state enum, stage types, version constants | Any engine dependency |
 | `quantrule-service-api` | `quantrule.internal/v1` records, bundles, run lifecycle, stage manifest, canonical digest | Any engine, runtime, or service dependency |
 | `quantrule-research` | Hypothesis evaluation: expectancy, significance, drawdown, comparison | I/O, clock, engine dependency |
@@ -78,6 +78,7 @@ cannot read a strategy, write a run, publish to the queue, or compute a model.
 | Client screen | `apps/web/src/lib/<Name>Panel.svelte` | store, `client.md`, Playwright test |
 | Command | `shell/src/command/parse/<family>.rs`, `dispatch/<family>.rs`, `src/output/<family>.rs` | `command-surface.md`, help, tutorial, `tests/cases/`, checker |
 | Config field | `app/src/config/<file>.rs` | input type, provenance, docs, registry |
+| Pack field | `app/src/pack/<kind>.rs` | config contract, canonical hash, lifecycle test |
 | Artifact field | `evidence-service/src/` | artifact contract, golden bundle |
 
 ## 4. Repository tooling

@@ -1,6 +1,6 @@
 # Research Artifacts
 
-- Status: Target for the next release; accepted by [ADR-RA](../adr/2026-11-22/1082-research-artifact-layer.md)
+- Status: Strategy pack and envelope current (RA-002); remaining artifacts target the next release; accepted by [ADR-RA](../adr/2026-11-22/1082-research-artifact-layer.md)
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 

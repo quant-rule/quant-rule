@@ -54,7 +54,175 @@ pub enum StrategyEngine {
     CompressionBracket(CompressionBracketConfig),
 }
 
+impl StrategyEngine {
+    /// Parses the engine-specific fields at `path`.
+    ///
+    /// The caller owns the allowed-field list and the common fields. Sharing
+    /// this parser between the run strategy file and a strategy pack keeps the
+    /// registered-event and engine validation in one place.
+    pub(crate) fn parse(
+        file: &str,
+        path: &str,
+        object: &Map<String, Value>,
+        execution_timeframe: Timeframe,
+    ) -> Result<Self, ConfigError> {
+        let engine = read::string(
+            file,
+            &read::child(path, "engine"),
+            read::field(file, path, object, "engine")?,
+        )?;
+        match engine {
+            "event_composite" => {
+                let event_window_bars = optional_u64(file, path, object, "event_window_bars", 1)?;
+                let event_window_bars = usize::try_from(event_window_bars).map_err(|_| {
+                    ConfigError::range(
+                        file,
+                        &read::child(path, "event_window_bars"),
+                        "a representable bar count",
+                        &event_window_bars.to_string(),
+                    )
+                })?;
+                let time_stop_bars = optional_u64(file, path, object, "time_stop_bars", 0)?;
+                let entry_path = read::child(path, "entry");
+                let exit_path = read::child(path, "exit");
+                let entry =
+                    parse_conditions(file, &entry_path, read::field(file, path, object, "entry")?)?;
+                let exit = object
+                    .get("exit")
+                    .map(|value| parse_conditions(file, &exit_path, value))
+                    .transpose()?
+                    .unwrap_or_default();
+                let mut config =
+                    EventCompositeConfig::new(event_window_bars, time_stop_bars, &entry, &exit)
+                        .map_err(|error| {
+                            ConfigError::range(
+                                file,
+                                path,
+                                "a valid event-composite strategy",
+                                &error.to_string(),
+                            )
+                        })?;
+                if let Some(value) = object.get("giveback_atr") {
+                    let giveback_atr =
+                        read::number(file, &read::child(path, "giveback_atr"), value)?;
+                    let arm = match object.get("giveback_arm_atr") {
+                        Some(value) => {
+                            read::number(file, &read::child(path, "giveback_arm_atr"), value)?
+                        }
+                        None => 0.0,
+                    };
+                    config = config
+                        .with_giveback_atr(giveback_atr, arm)
+                        .map_err(|error| {
+                            ConfigError::range(
+                                file,
+                                &read::child(path, "giveback_atr"),
+                                "a valid giveback exit",
+                                &error.to_string(),
+                            )
+                        })?;
+                }
+                Ok(Self::EventComposite(config))
+            }
+            "compression_bracket" => {
+                let event_path = read::child(path, "event");
+                let event =
+                    read::object(file, &event_path, read::field(file, path, object, "event")?)?;
+                read::check_fields(
+                    file,
+                    &event_path,
+                    event,
+                    &["timeframe", "event_type", "subtype", "source"],
+                )?;
+                let event_timeframe = parse_timeframe(
+                    file,
+                    &read::child(&event_path, "timeframe"),
+                    read::field(file, &event_path, event, "timeframe")?,
+                )?;
+                if event_timeframe != execution_timeframe {
+                    return Err(ConfigError::inconsistent(
+                        file,
+                        &read::child(&event_path, "timeframe"),
+                        "the execution timeframe",
+                        event_timeframe.code(),
+                    ));
+                }
+                let event_type = integer_u8(
+                    file,
+                    &read::child(&event_path, "event_type"),
+                    read::field(file, &event_path, event, "event_type")?,
+                )?;
+                let subtype = integer_u8(
+                    file,
+                    &read::child(&event_path, "subtype"),
+                    read::field(file, &event_path, event, "subtype")?,
+                )?;
+                let source = integer_u16(
+                    file,
+                    &read::child(&event_path, "source"),
+                    read::field(file, &event_path, event, "source")?,
+                )?;
+                let entry_valid_bars = integer_u32(
+                    file,
+                    &read::child(path, "entry_valid_bars"),
+                    read::field(file, path, object, "entry_valid_bars")?,
+                )?;
+                let time_stop_bars = read::u64(
+                    file,
+                    &read::child(path, "time_stop_bars"),
+                    read::field(file, path, object, "time_stop_bars")?,
+                )?;
+                let config = CompressionBracketConfig::new(
+                    u64::from(event_timeframe.seconds()),
+                    event_type,
+                    subtype,
+                    source,
+                    entry_valid_bars,
+                    time_stop_bars,
+                )
+                .map_err(|error| {
+                    ConfigError::range(
+                        file,
+                        path,
+                        "a valid compression-bracket strategy",
+                        &error.to_string(),
+                    )
+                })?;
+                Ok(Self::CompressionBracket(config))
+            }
+            other => Err(ConfigError::range(
+                file,
+                &read::child(path, "engine"),
+                "event_composite or compression_bracket",
+                other,
+            )),
+        }
+    }
+}
+
 impl StrategyConfig {
+    /// Builds a validated pipeline strategy from its parts.
+    ///
+    /// The run parser and the strategy-pack parser share this constructor so
+    /// both produce the same pipeline value and the engine field stays private.
+    pub(crate) fn from_parts(
+        id: Option<String>,
+        execution_timeframe: Timeframe,
+        context_timeframes: Vec<Timeframe>,
+        engine: StrategyEngine,
+        risk: RiskPolicy,
+        require_contiguous: bool,
+    ) -> Self {
+        Self {
+            id,
+            execution_timeframe,
+            context_timeframes,
+            engine,
+            risk,
+            require_contiguous,
+        }
+    }
+
     /// The engine name recorded in the summary and provenance.
     #[must_use]
     pub fn engine_name(&self) -> &'static str {
@@ -238,140 +406,32 @@ pub fn parse(value: &Value, file: &str) -> Result<StrategyConfig, ConfigError> {
         "$.execution_timeframe",
         read::field(file, ROOT, object, "execution_timeframe")?,
     )?;
-    let context_timeframes = parse_context_timeframes(file, object, execution_timeframe)?;
-    let risk = parse_risk(file, read::field(file, ROOT, object, "risk")?)?;
+    let context_timeframes =
+        parse_context_timeframes(file, "$.context_timeframes", object, execution_timeframe)?;
+    let risk = parse_risk(file, "$.risk", read::field(file, ROOT, object, "risk")?)?;
     let require_contiguous = object
         .get("require_contiguous")
         .map(|value| read::boolean(file, "$.require_contiguous", value))
         .transpose()?
         .unwrap_or(true);
 
-    let engine = match engine {
-        "event_composite" => {
-            let event_window_bars = optional_u64(file, object, "event_window_bars", 1)?;
-            let event_window_bars = usize::try_from(event_window_bars).map_err(|_| {
-                ConfigError::range(
-                    file,
-                    "$.event_window_bars",
-                    "a representable bar count",
-                    &event_window_bars.to_string(),
-                )
-            })?;
-            let time_stop_bars = optional_u64(file, object, "time_stop_bars", 0)?;
-            let entry =
-                parse_conditions(file, "$.entry", read::field(file, ROOT, object, "entry")?)?;
-            let exit = object
-                .get("exit")
-                .map(|value| parse_conditions(file, "$.exit", value))
-                .transpose()?
-                .unwrap_or_default();
-            let mut config =
-                EventCompositeConfig::new(event_window_bars, time_stop_bars, &entry, &exit)
-                    .map_err(|error| {
-                        ConfigError::range(
-                            file,
-                            "$",
-                            "a valid event-composite strategy",
-                            &error.to_string(),
-                        )
-                    })?;
-            if let Some(value) = object.get("giveback_atr") {
-                let giveback_atr = read::number(file, "$.giveback_atr", value)?;
-                let arm = match object.get("giveback_arm_atr") {
-                    Some(value) => read::number(file, "$.giveback_arm_atr", value)?,
-                    None => 0.0,
-                };
-                config = config
-                    .with_giveback_atr(giveback_atr, arm)
-                    .map_err(|error| {
-                        ConfigError::range(
-                            file,
-                            "$.giveback_atr",
-                            "a valid giveback exit",
-                            &error.to_string(),
-                        )
-                    })?;
-            }
-            StrategyEngine::EventComposite(config)
-        }
-        "compression_bracket" => {
-            let event = read::object(file, "$.event", read::field(file, ROOT, object, "event")?)?;
-            read::check_fields(
-                file,
-                "$.event",
-                event,
-                &["timeframe", "event_type", "subtype", "source"],
-            )?;
-            let event_timeframe = parse_timeframe(
-                file,
-                "$.event.timeframe",
-                read::field(file, "$.event", event, "timeframe")?,
-            )?;
-            if event_timeframe != execution_timeframe {
-                return Err(ConfigError::inconsistent(
-                    file,
-                    "$.event.timeframe",
-                    "the execution timeframe",
-                    event_timeframe.code(),
-                ));
-            }
-            let event_type = integer_u8(
-                file,
-                "$.event.event_type",
-                read::field(file, "$.event", event, "event_type")?,
-            )?;
-            let subtype = integer_u8(
-                file,
-                "$.event.subtype",
-                read::field(file, "$.event", event, "subtype")?,
-            )?;
-            let source = integer_u16(
-                file,
-                "$.event.source",
-                read::field(file, "$.event", event, "source")?,
-            )?;
-            let entry_valid_bars = integer_u32(
-                file,
-                "$.entry_valid_bars",
-                read::field(file, ROOT, object, "entry_valid_bars")?,
-            )?;
-            let time_stop_bars = read::u64(
-                file,
-                "$.time_stop_bars",
-                read::field(file, ROOT, object, "time_stop_bars")?,
-            )?;
-            let config = CompressionBracketConfig::new(
-                u64::from(event_timeframe.seconds()),
-                event_type,
-                subtype,
-                source,
-                entry_valid_bars,
-                time_stop_bars,
-            )
-            .map_err(|error| {
-                ConfigError::range(
-                    file,
-                    "$",
-                    "a valid compression-bracket strategy",
-                    &error.to_string(),
-                )
-            })?;
-            StrategyEngine::CompressionBracket(config)
-        }
-        _ => unreachable!("the engine name was matched above"),
-    };
+    let engine = StrategyEngine::parse(file, ROOT, object, execution_timeframe)?;
 
-    Ok(StrategyConfig {
+    Ok(StrategyConfig::from_parts(
         id,
         execution_timeframe,
         context_timeframes,
         engine,
         risk,
         require_contiguous,
-    })
+    ))
 }
 
-fn parse_timeframe(file: &str, path: &str, value: &Value) -> Result<Timeframe, ConfigError> {
+pub(crate) fn parse_timeframe(
+    file: &str,
+    path: &str,
+    value: &Value,
+) -> Result<Timeframe, ConfigError> {
     let code = read::string(file, path, value)?;
     let timeframe = Timeframe::from_code(code)
         .ok_or_else(|| ConfigError::range(file, path, "1m, 5m, 15m, or 1h", code))?;
@@ -388,16 +448,17 @@ fn parse_timeframe(file: &str, path: &str, value: &Value) -> Result<Timeframe, C
 
 fn parse_context_timeframes(
     file: &str,
+    path: &str,
     object: &Map<String, Value>,
     execution: Timeframe,
 ) -> Result<Vec<Timeframe>, ConfigError> {
     let Some(value) = object.get("context_timeframes") else {
         return Ok(Vec::new());
     };
-    let values = read::array(file, "$.context_timeframes", value)?;
+    let values = read::array(file, path, value)?;
     let mut timeframes = Vec::with_capacity(values.len());
     for (index, value) in values.iter().enumerate() {
-        let path = read::index("$.context_timeframes", index);
+        let path = read::index(path, index);
         let timeframe = parse_timeframe(file, &path, value)?;
         if timeframe == execution {
             return Err(ConfigError::range(
@@ -421,31 +482,26 @@ fn parse_context_timeframes(
     Ok(timeframes)
 }
 
-fn parse_risk(file: &str, value: &Value) -> Result<RiskPolicy, ConfigError> {
-    let object = read::object(file, "$.risk", value)?;
-    read::check_fields(
-        file,
-        "$.risk",
-        object,
-        &["stop_atr_multiple", "reward_to_risk"],
-    )?;
+pub(crate) fn parse_risk(file: &str, path: &str, value: &Value) -> Result<RiskPolicy, ConfigError> {
+    let object = read::object(file, path, value)?;
+    read::check_fields(file, path, object, &["stop_atr_multiple", "reward_to_risk"])?;
     let stop = read::number(
         file,
-        "$.risk.stop_atr_multiple",
-        read::field(file, "$.risk", object, "stop_atr_multiple")?,
+        &read::child(path, "stop_atr_multiple"),
+        read::field(file, path, object, "stop_atr_multiple")?,
     )?;
     let reward = read::number(
         file,
-        "$.risk.reward_to_risk",
-        read::field(file, "$.risk", object, "reward_to_risk")?,
+        &read::child(path, "reward_to_risk"),
+        read::field(file, path, object, "reward_to_risk")?,
     )?;
-    RiskPolicy::new(stop, reward).map_err(|error| risk_error(file, error))
+    RiskPolicy::new(stop, reward).map_err(|error| risk_error(file, path, error))
 }
 
-fn risk_error(file: &str, error: RiskPolicyError) -> ConfigError {
+fn risk_error(file: &str, path: &str, error: RiskPolicyError) -> ConfigError {
     ConfigError::range(
         file,
-        "$.risk",
+        path,
         "a positive finite ATR stop and reward-to-risk",
         &error.to_string(),
     )
@@ -563,12 +619,13 @@ fn parse_condition(file: &str, path: &str, value: &Value) -> Result<Condition, C
 
 fn optional_u64(
     file: &str,
+    path: &str,
     object: &Map<String, Value>,
     name: &str,
     default: u64,
 ) -> Result<u64, ConfigError> {
     match object.get(name) {
-        Some(value) => read::u64(file, &format!("$.{name}"), value),
+        Some(value) => read::u64(file, &read::child(path, name), value),
         None => Ok(default),
     }
 }
