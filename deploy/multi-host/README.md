@@ -219,6 +219,10 @@ forward `5672`, `5432`, or `9000` beyond the overlay.
 4. Start core, then compute, then the gateway (§6). Each role's one-shot
    migration job runs before its service; the jobs are idempotent and
    forward-only.
+5. If the release changes the queue generation, retire the old queues before
+   step 4: drain them with the old workers, stop the workers, then unbind or
+   delete the empty queues. An old queue left bound to `quantrule.runs` receives
+   copies with no consumer. Rebuild a lost queued run from its run row.
 
 If a migration job fails, its service does not start. Keep the old gateway
 serving, read the job log and the ledger, and correct forward with a new
@@ -258,6 +262,24 @@ archived. The current tools dump one database, so they do not yet archive all
 four; treat that as a known limitation until the backup change lands. A restore
 must reproduce the canonical digest, and copying a live database or object-store
 volume is not a backup.
+
+The broker topology is exported separately; definitions do not contain messages:
+
+```bash
+docker compose --env-file deploy/multi-host/env/infra.env \
+  -f deploy/multi-host/compose.infra.yaml \
+  exec -T rabbitmq rabbitmqctl export_definitions /tmp/qr-definitions.json
+definitions="qr-definitions-$(date -u +%Y%m%dT%H%M%SZ).json"
+docker compose --env-file deploy/multi-host/env/infra.env \
+  -f deploy/multi-host/compose.infra.yaml \
+  cp rabbitmq:/tmp/qr-definitions.json "$definitions"
+chmod 600 "$definitions"
+```
+
+Keep the file mode 600: it contains the broker users and password hashes.
+Restore into an empty broker with `docker compose ... cp` and `rabbitmqctl
+import_definitions`, then rebuild queued work from run rows. The queues are
+generated quorum queues; `QR_QUEUE_GENERATION` names the active generation.
 
 ## 12. What this profile does not provide
 

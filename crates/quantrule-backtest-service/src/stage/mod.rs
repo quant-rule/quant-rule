@@ -1,6 +1,7 @@
 //! The diagnostic stage worker.
 //!
-//! The worker consumes `stages.worker`, claims one stage row through evidence,
+//! The worker consumes the generated `stages.worker.<generation>` queue, claims
+//! one stage row through evidence,
 //! invokes a [`StageExecutor`] seam, publishes the content-addressed artifact to
 //! the stage object namespace, and records the result through evidence. It never
 //! runs a full backtest, writes a run row, or produces a canonical digest.

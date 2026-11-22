@@ -11,6 +11,8 @@ use std::path::PathBuf;
 
 use quantrule_api::Digest;
 
+use crate::queue::{DEFAULT_QUEUE_GENERATION, QueueNames};
+
 /// The argument that selects the one-shot owner migration mode.
 ///
 /// A long-running service never applies a migration: it holds only the
@@ -95,6 +97,12 @@ pub struct Config {
     pub object_store_bucket: String,
     /// AMQP connection string.
     pub queue_url: String,
+    /// The queue generation appended to every declared queue name.
+    ///
+    /// A changed queue declaration moves to a new generation instead of
+    /// redeclaring a live name with different arguments. The service never
+    /// deletes the old generation; the operator drains or retires it.
+    pub queue_generation: u32,
     /// Upload cap in bytes.
     pub upload_limit_bytes: u64,
     /// When set, every request must carry it.
@@ -132,6 +140,7 @@ impl fmt::Debug for Config {
             .field("object_store_url", &"<redacted>")
             .field("object_store_bucket", &self.object_store_bucket)
             .field("queue_url", &"<redacted>")
+            .field("queue_generation", &self.queue_generation)
             .field("upload_limit_bytes", &self.upload_limit_bytes)
             .field(
                 "bearer_token",
@@ -157,6 +166,7 @@ impl Default for Config {
             object_store_url: DEFAULT_OBJECT_STORE_URL.to_owned(),
             object_store_bucket: DEFAULT_OBJECT_BUCKET.to_owned(),
             queue_url: DEFAULT_QUEUE_URL.to_owned(),
+            queue_generation: DEFAULT_QUEUE_GENERATION,
             upload_limit_bytes: DEFAULT_UPLOAD_LIMIT,
             bearer_token: None,
             static_dir: None,
@@ -185,6 +195,15 @@ impl Config {
             validate_internal_bind(&self.bind)?;
         }
         Ok(())
+    }
+
+    /// The queue names this process declares and consumes.
+    ///
+    /// A consumer must use these names. A base name, or another generation's
+    /// name, is outside the declared topology and is refused by the adapter.
+    #[must_use]
+    pub fn queue_names(&self) -> QueueNames {
+        QueueNames::new(self.queue_generation)
     }
 
     /// Read the configuration from the process environment.
@@ -234,6 +253,21 @@ impl Config {
         }
         if let Some(value) = values.get("QR_QUEUE_URL") {
             config.queue_url.clone_from(value);
+        }
+        if let Some(value) = values.get("QR_QUEUE_GENERATION") {
+            let parsed: u32 = value.parse().map_err(|_| ConfigError::Invalid {
+                name: "QR_QUEUE_GENERATION",
+                value: value.clone(),
+                reason: "must be a positive integer",
+            })?;
+            if parsed == 0 {
+                return Err(ConfigError::Invalid {
+                    name: "QR_QUEUE_GENERATION",
+                    value: value.clone(),
+                    reason: "must be at least one",
+                });
+            }
+            config.queue_generation = parsed;
         }
         if let Some(value) = values.get("QR_UPLOAD_LIMIT_BYTES") {
             config.upload_limit_bytes = value.parse().map_err(|_| ConfigError::Invalid {
@@ -444,6 +478,27 @@ mod tests {
         let rendered = format!("{config:?}");
         assert!(!rendered.contains("app-secret"), "{rendered}");
         assert!(!rendered.contains("owner-secret"), "{rendered}");
+    }
+
+    #[test]
+    fn the_queue_generation_defaults_to_one_and_rejects_zero() {
+        assert_eq!(
+            Config::from_map(&BTreeMap::new())
+                .expect("config")
+                .queue_generation,
+            DEFAULT_QUEUE_GENERATION
+        );
+        assert_eq!(
+            Config::from_map(&values(&[("QR_QUEUE_GENERATION", "2")]))
+                .expect("config")
+                .queue_generation,
+            2
+        );
+        for invalid in ["0", "-1", "one"] {
+            let error = Config::from_map(&values(&[("QR_QUEUE_GENERATION", invalid)]))
+                .expect_err("an invalid generation must be refused");
+            assert!(error.to_string().contains("QR_QUEUE_GENERATION"), "{error}");
+        }
     }
 
     #[test]

@@ -35,9 +35,14 @@ history is in Git and the pull requests.
 - The schema-migration contract is recorded in `docs/architecture/migrations.md`: forward-only ledgers, one owner per database, expand/contract release order, checksum pinning, rollback compatibility, and the four-job order.
 - `deploy/postgres/migration-ledger.json` pins every ledger version and SQL checksum; a fast test refuses a reordered ledger, an edited migration body, or a database-owning service without its `--migrate-only` entry point.
 - The operator runbook covers a failed migration, a stopped migration job, and a rollback to the previous image digest while the old stack stays available.
+- RabbitMQ run, evidence, and stage queues are durable quorum queues with a three-redelivery limit, a dead-letter exchange, a quorum dead-letter queue, and generated names (`QR_QUEUE_GENERATION`, default 1); a failed handler rejects so delivery-limit exhaustion is observable in the DLQ.
+- The operator runbook, manual, and deployment docs document queue-generation retirement and the separate definitions backup/restore, which records topology but not messages.
 
 ### Changed
 
+- Queue names now end in `.g<generation>`; the pre-generation classic queues are drained or retired by the operator instead of being redeclared with new arguments.
+- A failed handler uses `basic.reject` rather than `basic.nack`, because RabbitMQ 4.3 and later count only a rejected delivery toward the quorum delivery limit.
+- The multi-host renderer writes `QR_QUEUE_GENERATION=1`, and the composed queue check verifies the quorum type, delivery limit, dead-letter bindings, and generated names.
 - Each database-owning service receives only its own `QR_DATABASE_URL` and `QR_MIGRATE=0`; model and backtest receive no database URL. The long-running process never receives `QR_DATABASE_OWNER_URL`, so a compromised service cannot reconnect with DDL rights.
 - A rollback starts the previous image without its migration job: the runner refuses a database ahead of the binary, and the previous image must tolerate the expanded schema.
 - No role is granted connect on another service's database.

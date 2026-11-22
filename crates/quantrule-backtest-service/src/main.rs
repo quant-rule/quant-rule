@@ -1,6 +1,7 @@
 //! The backtest worker binary.
 //!
-//! It consumes `runs.backtest` (`run.requested` and `run.cancelled`), loads the
+//! It consumes the generated `runs.backtest.<generation>` queue
+//! (`run.requested` and `run.cancelled`), loads the
 //! dataset and config from `qr-data`, obtains the model bundle from `qr-model`,
 //! runs strategy, execution, and portfolio from that bundle, writes the
 //! artifacts to CAS, records the computed digest through `qr-evidence`, and
@@ -8,11 +9,11 @@
 //! retryable failure holds the delivery, waits, and retries in place. It serves
 //! no HTTP and owns no database schema.
 //!
-//! The same process also consumes `stages.worker` (`stage.requested` and
-//! `stage.cancelled`) through the diagnostic stage worker. The run consumer is
-//! registered first, so a stage cannot delay an evidence run. The model,
-//! strategy, and portfolio executors are wired here; a stage never writes a run
-//! row, a canonical digest, or an evidence record.
+//! The same process also consumes the generated `stages.worker.<generation>`
+//! queue (`stage.requested` and `stage.cancelled`) through the diagnostic stage
+//! worker. The run consumer is registered first, so a stage cannot delay an
+//! evidence run. The model, strategy, and portfolio executors are wired here; a
+//! stage never writes a run row, a canonical digest, or an evidence record.
 //!
 //! The worker uses RabbitMQ for the control-plane queue and S3 for artifact
 //! bytes.
@@ -36,7 +37,7 @@ use quantrule_runtime::client::{
 };
 use quantrule_runtime::config::ConfigError;
 use quantrule_runtime::queue::{
-    QUEUE_BACKTEST, QUEUE_STAGE, ROUTING_CANCELLED, ROUTING_REQUESTED, ROUTING_STAGE_CANCELLED,
+    QueueKind, ROUTING_CANCELLED, ROUTING_REQUESTED, ROUTING_STAGE_CANCELLED,
     ROUTING_STAGE_REQUESTED,
 };
 use quantrule_runtime::{Config, RuntimeError, logging};
@@ -49,6 +50,7 @@ async fn main() -> Result<(), RuntimeError> {
 
     let objects: Arc<dyn ObjectStore> = Arc::new(Objects::open(&config).await?);
     let queue = Arc::new(ControlQueue::open(&config).await?);
+    let names = queue.names().clone();
 
     let data: Arc<dyn DataClient> = Arc::new(
         HttpServiceClient::from_env(Service::Data)
@@ -119,31 +121,19 @@ async fn main() -> Result<(), RuntimeError> {
     for _ in 0..config.backtest_concurrency {
         let queue = Arc::clone(&queue);
         let handler = make_run_handler(Arc::clone(&services));
-        consumers.spawn(async move {
-            queue
-                .consume(
-                    QUEUE_BACKTEST,
-                    &[ROUTING_REQUESTED, ROUTING_CANCELLED],
-                    handler,
-                )
-                .await
-        });
+        let queue_name = names.name(QueueKind::Backtest).to_owned();
+        consumers.spawn(async move { queue.consume(&queue_name, handler).await });
     }
     let stage_queue = Arc::clone(&queue);
     let stage_handler = make_stage_handler(Arc::clone(&stage_services), Arc::clone(&dispatch));
-    consumers.spawn(async move {
-        stage_queue
-            .consume(
-                QUEUE_STAGE,
-                &[ROUTING_STAGE_REQUESTED, ROUTING_STAGE_CANCELLED],
-                stage_handler,
-            )
-            .await
-    });
+    let stage_name = names.name(QueueKind::Stage).to_owned();
+    consumers.spawn(async move { stage_queue.consume(&stage_name, stage_handler).await });
 
     tracing::info!(
         runs = config.backtest_concurrency,
-        "backtest worker consuming {QUEUE_BACKTEST} and {QUEUE_STAGE}"
+        queue = names.name(QueueKind::Backtest),
+        stage_queue = names.name(QueueKind::Stage),
+        "backtest worker consuming the generated run and stage queues"
     );
     tokio::select! {
         _ = quantrule_runtime::shutdown::signal() => Ok(()),

@@ -60,12 +60,31 @@ Rules:
 ## 3. Topology
 
 ```text
-exchange  quantrule.runs        (direct, durable)
-queue     runs.backtest         routing keys run.requested, run.cancelled
-queue     runs.evidence         routing key run.computed
-queue     runs.dead-letter      routing key run.dead
-queue     stages.worker         routing keys stage.requested, stage.cancelled
+exchange  quantrule.runs          (direct, durable)
+exchange  quantrule.runs.dlx      (direct, durable, dead-letter)
+queue     runs.backtest.g1        run.requested, run.cancelled
+queue     runs.evidence.g1        run.computed
+queue     runs.dead-letter.g1     run.dead and dead-lettered work
+queue     stages.worker.g1        stage.requested, stage.cancelled
 ```
+
+Every queue is a durable quorum queue. The three work queues declare
+`x-delivery-limit=3` and `x-dead-letter-exchange=quantrule.runs.dlx`; the
+dead-letter queue is quorum and has no dead-letter target, so an exhausted
+message is kept once and cannot loop. A failed handler rejects with requeue,
+which RabbitMQ 4.3 and later count as a failed delivery; the next failed delivery
+after the limit is dead-lettered with its original routing key and an `x-death`
+header. The run row remains the record of the run.
+
+The `.g1` suffix is the queue generation, read from `QR_QUEUE_GENERATION`
+(default 1). Every service in one deployment must use the same generation; a
+mismatch leaves publishers and consumers on different queues. A changed
+declaration is deployed as a new generation: the services declare new names and
+never redeclare a live queue with different arguments. The exchange names stay
+stable. Stop new submissions, let the old generation's consumers drain its
+queues to zero, stop them, then unbind or delete the empty queues before the new
+generation publishes; the service never deletes a queue. A definitions export
+records the topology but not the queued messages.
 
 The stage queue is separate so a long diagnostic stage cannot delay an evidence
 run. Each consumer owns its channel and one prefetch slot, so the run and stage
@@ -83,7 +102,8 @@ Retry budget: three deliveries. The handler holds the unacked delivery for 5 s
 after the first failure and 25 s after the second; the third failure marks the
 run `failed` and publishes `run.dead`. A dead-lettered run is never silently
 lost; the run row records the attempt count. A redelivered message reclaims a
-running, uncomputed run; a computed run is only republished.
+running, uncomputed run; a computed run is only republished. The quorum delivery
+limit is the second guard for a consumer that cannot reach that path.
 
 ## 4. Idempotency
 

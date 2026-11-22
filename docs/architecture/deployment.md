@@ -125,7 +125,7 @@ to start.
 | `QR_EVIDENCE_URL` | compose value | Evidence service, used by the gateway and the backtest worker |
 | `QR_SIMULATION_URL` | compose value | Simulation service, used by the gateway |
 | `QR_OBJECT_STORE_URL` | compose value | MinIO endpoint |
-| `QR_QUEUE_URL` | compose value | RabbitMQ |
+| `QR_QUEUE_URL` / `QR_QUEUE_GENERATION` | compose value / `1` | RabbitMQ endpoint / queue-generation suffix; a changed queue declaration uses a new generation |
 | `QR_UPLOAD_LIMIT_BYTES` | `536870912` | Dataset upload cap; a config bundle is capped at 4 MiB separately |
 | `QR_BEARER_TOKEN` | empty | Enables the token check when set |
 | `QR_BACKTEST_CONCURRENCY` | `1` | Runs per worker |

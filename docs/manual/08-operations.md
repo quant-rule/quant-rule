@@ -80,6 +80,51 @@ export is what makes the laptop a client rather than a local stack.
 
 A token is a network gate, not an account. There is one principal.
 
+## Queue operations
+
+The run, evidence, and stage work queues are generated quorum queues
+(`runs.backtest.g<n>`, `runs.evidence.g<n>`, `stages.worker.g<n>`). Each has a
+three-redelivery limit and dead-letters to `runs.dead-letter.g<n>`; the
+dead-letter queue is quorum and has no dead-letter target. Inspect the state:
+
+```bash
+docker compose exec -T rabbitmq rabbitmqctl list_queues name type messages consumers arguments --formatter json
+docker compose exec -T rabbitmq rabbitmqctl list_bindings source_name destination_name routing_key --formatter json
+```
+
+A delivery that keeps failing is rejected and eventually appears in the
+dead-letter queue with its original routing key and an `x-death` header; the run
+row is the record. Every service in one deployment must use the same
+`QR_QUEUE_GENERATION`. Do not purge or delete a live queue. A topology change is
+a new `QR_QUEUE_GENERATION`: stop new submissions, drain the old generation with
+its consumers, stop them, then unbind or delete the empty queues before the new
+generation publishes.
+
+### Definitions backup and restore
+
+The archive does not contain the broker. Export the topology separately; the
+file contains the broker users and password hashes, so keep it mode 600 and out
+of Git.
+
+```bash
+definitions="qr-definitions-$(date -u +%Y%m%dT%H%M%SZ).json"
+docker compose exec -T rabbitmq rabbitmqctl export_definitions /tmp/qr-definitions.json
+docker compose cp rabbitmq:/tmp/qr-definitions.json "$definitions"
+chmod 600 "$definitions"
+docker compose exec -T rabbitmq rm -f /tmp/qr-definitions.json
+```
+
+Restore into an empty broker with:
+
+```bash
+docker compose cp qr-definitions.json rabbitmq:/tmp/qr-definitions.json
+docker compose exec -T rabbitmq rabbitmqctl import_definitions /tmp/qr-definitions.json
+```
+
+Definitions restore queues and bindings, not messages. Rebuild queued runs from
+run rows. A definitions file names a queue generation; importing it over a live
+generation is not the upgrade path.
+
 ## Backup and restore
 
 | Command | Effect |
@@ -90,7 +135,8 @@ A token is a network gate, not an account. There is one principal.
 
 The queue is not archived; messages are rebuilt from run rows. Restore writes
 objects before rows, so an interrupted copy leaves unreferenced blobs rather
-than a run that looks present but cannot verify.
+than a run that looks present but cannot verify. Export the broker topology
+separately; definitions restore queues and bindings, not messages.
 
 The stack now stores evidence in four logical databases. `tools/backup.sh` and
 `tools/restore.sh` still dump and restore one database, so they do not yet
@@ -114,6 +160,15 @@ schema.
 
 The exact commands and the rollback conditions are in
 [`migrations.md`](../architecture/migrations.md) section 5.
+
+### Queue generation cutover
+
+An upgrade that changes the queue topology does not reuse the old names. Stop
+the gateway and old workers, let the old queues drain, then unbind or delete the
+empty old queues before the new generation starts publishing. Leaving an old
+queue bound to `quantrule.runs` while the new generation runs makes it receive
+copies with no consumer. A queued run that is lost with the old queue is rebuilt
+from its run row; the run row is authoritative.
 
 ## What you see
 
