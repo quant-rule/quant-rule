@@ -510,6 +510,92 @@ async fn a_decision_locks_marking() {
 }
 
 #[tokio::test]
+async fn a_second_decision_is_a_locked_conflict() {
+    let store = Arc::new(MemoryStore::default());
+    let objects = Arc::new(MemoryObjects::default());
+    let fixture = store_bundle(&objects, 40).await;
+    let service = state(store, objects);
+    let id = create(Arc::clone(&service), "default", &fixture).await;
+    let body = json!({"decision": "test", "note": "the rule is testable"});
+
+    let (status, _) = request(
+        Arc::clone(&service),
+        "POST",
+        &format!("/simulation/runs/{id}/decision"),
+        "default",
+        Some(body.clone()),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED);
+
+    let (status, body) = request(
+        Arc::clone(&service),
+        "POST",
+        &format!("/simulation/runs/{id}/decision"),
+        "default",
+        Some(body),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(json(&body)["error"]["code"], "simulation.locked");
+
+    let (_, detail) = request(
+        service,
+        "GET",
+        &format!("/simulation/runs/{id}"),
+        "default",
+        None,
+    )
+    .await;
+    assert_eq!(json(&detail)["status"], "decided");
+    assert_eq!(json(&detail)["decision"]["note"], "the rule is testable");
+}
+
+#[tokio::test]
+async fn a_duplicate_mark_returns_the_same_identity() {
+    let store = Arc::new(MemoryStore::default());
+    let objects = Arc::new(MemoryObjects::default());
+    let fixture = store_bundle(&objects, 40).await;
+    let service = state(store, objects);
+    let id = create(Arc::clone(&service), "default", &fixture).await;
+    windows(Arc::clone(&service), "default", &id).await;
+    let body = json!({
+        "chart": 0, "bar": 80, "action": "entry", "quality": "good",
+        "side": "long", "note": "same mark"
+    });
+
+    let (first_status, first) = request(
+        Arc::clone(&service),
+        "POST",
+        &format!("/simulation/runs/{id}/marks"),
+        "default",
+        Some(body.clone()),
+    )
+    .await;
+    let (second_status, second) = request(
+        Arc::clone(&service),
+        "POST",
+        &format!("/simulation/runs/{id}/marks"),
+        "default",
+        Some(body),
+    )
+    .await;
+    assert_eq!(first_status, StatusCode::CREATED);
+    assert_eq!(second_status, StatusCode::CREATED);
+    assert_eq!(json(&first)["mark_id"], json(&second)["mark_id"]);
+
+    let (_, marks) = request(
+        service,
+        "GET",
+        &format!("/simulation/runs/{id}/marks"),
+        "default",
+        None,
+    )
+    .await;
+    assert_eq!(json(&marks).as_array().expect("marks").len(), 1);
+}
+
+#[tokio::test]
 async fn the_mark_csv_mirror_is_written() {
     let store = Arc::new(MemoryStore::default());
     let objects = Arc::new(MemoryObjects::default());

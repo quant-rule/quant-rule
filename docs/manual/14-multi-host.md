@@ -48,6 +48,10 @@ Each host needs only the files for the services it runs. The image is already
 loaded; the Compose files use `network_mode: host` and the env file's
 `QR_BIND_IP`/`QR_BIND_PORT`.
 
+The v2 profile runs one simulation instance. Two simulation replicas are an HA
+capability and require the [concurrency contract](../architecture/simulation-concurrency.md);
+do not start a second v2 instance.
+
 The rendered service env files carry `QR_QUEUE_GENERATION=1`; every queue name
 ends in `.g1`. The work queues are quorum with a delivery limit and a dead-letter
 queue. A release that changes the topology uses a new generation: stop new
@@ -89,6 +93,7 @@ availability.
 | `SKIP backtest` | The worker has no HTTP surface | Check the container on the compute host |
 | Gateway `degraded` | An upstream is down | Start the missing service; `/ready` names it |
 | Run stays `queued` | No backtest worker is consuming | Start a worker on the compute host |
+| `simulation.locked` on decide | Another replica already recorded the terminal decision | Read the simulation; the first decision is final |
 | 401 | The gateway token is missing or wrong | Enter the token in the client |
 | Port already allocated | Another stack owns `8080` | Stop the other stack; do not change the descriptor to hide the conflict |
 

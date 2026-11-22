@@ -50,6 +50,7 @@ targets=(
   "quantrule-evidence-service stage_conformance"
   "quantrule-gateway profile_conformance"
   "quantrule-runtime migration_lock"
+  "quantrule-simulation-service concurrency"
 )
 
 index=0

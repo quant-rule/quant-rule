@@ -136,6 +136,10 @@ another service. The contract is
   the notification outbox, the restart re-arm, and the release tombstone against
   the memory store, and the same body against Postgres when
   `QR_TEST_DATABASE_URL` names a disposable database.
+- The simulation database adds migration 16: a terminal-decision constraint and
+  trigger. `cargo test -p quantrule-simulation-service --test concurrency` runs
+  the mark and decision race against the memory store, and the Postgres cases
+  run in the same disposable-database tier.
 - `tools/postgres_composed.sh` runs the bootstrap against a disposable
   PostgreSQL and checks own-database access, cross-database refusal, app DDL
   refusal, owner DDL, and app DML.

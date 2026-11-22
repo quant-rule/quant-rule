@@ -164,7 +164,7 @@ bundle manifest records the registry version (`2026-11-10.2`), and
 | `simulation.not_found` | 404 | Unknown simulation run |
 | `simulation.mark_invalid` | 400 | Bar outside the window, or a schema violation |
 | `simulation.check_incomplete` | 409 | Fewer than 30 events, or an unmarked check window |
-| `simulation.locked` | 409 | Marking after the decision is recorded |
+| `simulation.locked` | 409 | Marking or a second decision after the decision is recorded |
 
 An upload is idempotent: the same bytes return the existing record and never
 create a second row. A config row carries the whole bundle, so a run can
@@ -200,9 +200,9 @@ Rules:
 - `marked_time_utc` is assigned by the server; the client clock is untrusted.
 - `series` returns numbers and codes only. The client maps codes to words.
 - A mark is validated against the window's bar range and the event availability
-  bar before it is stored.
+  bar; a duplicate identity is an upsert, and a mark after a decision is `simulation.locked`.
 - `oracle` and `check` are synchronous and idempotent: the same inputs digest
-  yields the same output.
+  yields the same output. A decision is terminal: the first wins and a later one is `simulation.locked`.
 - No simulation endpoint can write into a run artifact or read a strategy.
 
 ## 7. Profiles
