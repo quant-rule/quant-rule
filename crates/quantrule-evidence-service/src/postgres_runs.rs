@@ -798,93 +798,32 @@ impl crate::runs::RunStore for PgRunStore {
         &self,
         run_id: String,
         term: u64,
+        leader_term: u64,
         digest: quantrule_api::Digest,
         artifacts: Vec<quantrule_api::ArtifactRef>,
         stages: Vec<quantrule_api::StageProgress>,
     ) -> BoxFuture<Result<crate::runs::RunRecord, crate::runs::RunStoreError>> {
-        let pool = self.pool.clone();
+        let store = self.clone();
         Box::pin(async move {
-            let term = i64::try_from(term)
-                .map_err(|_| crate::runs::RunStoreError("a lease term does not fit".to_owned()))?;
-            let mut transaction = pool
-                .begin()
+            store
+                .finalize_succeeded(run_id, term, leader_term, digest, artifacts, stages)
                 .await
-                .map_err(|error| crate::runs::RunStoreError(error.to_string()))?;
-            let updated = sqlx::query(
-                "UPDATE runs.runs
-                    SET status = 'succeeded', digest = $2, finished_at = now(),
-                        lease_holder = NULL, lease_expires_at = NULL
-                  WHERE run_id = $1 AND status = 'running' AND lease_term = $3",
-            )
-            .bind(&run_id)
-            .bind(digest.to_string())
-            .bind(term)
-            .execute(&mut *transaction)
-            .await
-            .map_err(|error| crate::runs::RunStoreError(error.to_string()))?;
-            if updated.rows_affected() == 0 {
-                transaction
-                    .rollback()
-                    .await
-                    .map_err(|error| crate::runs::RunStoreError(error.to_string()))?;
-                return load_run_rows(&pool, None, &run_id)
-                    .await?
-                    .ok_or_else(|| crate::runs::RunStoreError(format!("run {run_id} is unknown")));
-            }
-            // A terminal run needs no further notification. Deleting the rows
-            // keeps the outbox bounded; a run row that is erased later removes
-            // any remaining row through its cascade.
-            sqlx::query("DELETE FROM runs.outbox WHERE run_id = $1")
-                .bind(&run_id)
-                .execute(&mut *transaction)
+        })
+    }
+
+    fn fail_finalization(
+        &self,
+        run_id: String,
+        term: u64,
+        leader_term: u64,
+        error: String,
+        stages: Vec<quantrule_api::StageProgress>,
+    ) -> BoxFuture<Result<crate::runs::RunRecord, crate::runs::RunStoreError>> {
+        let store = self.clone();
+        Box::pin(async move {
+            store
+                .finalize_failed(run_id, term, leader_term, error, stages)
                 .await
-                .map_err(|error| crate::runs::RunStoreError(error.to_string()))?;
-            for stage in stages {
-                let elapsed = stage
-                    .elapsed_ms
-                    .map(i64::try_from)
-                    .transpose()
-                    .map_err(|_| {
-                        crate::runs::RunStoreError("a stage duration does not fit".to_owned())
-                    })?;
-                sqlx::query(
-                    "UPDATE runs.stages SET state = $3, elapsed_ms = $4
-                     WHERE run_id = $1 AND name = $2",
-                )
-                .bind(&run_id)
-                .bind(stage.name.as_str())
-                .bind(stage.state.as_str())
-                .bind(elapsed)
-                .execute(&mut *transaction)
-                .await
-                .map_err(|error| crate::runs::RunStoreError(error.to_string()))?;
-            }
-            for artifact in &artifacts {
-                let bytes = i64::try_from(artifact.bytes).map_err(|_| {
-                    crate::runs::RunStoreError("an artifact size does not fit".to_owned())
-                })?;
-                sqlx::query(
-                    "INSERT INTO runs.artifacts (run_id, name, bytes, sha256)
-                     VALUES ($1, $2, $3, $4)
-                     ON CONFLICT (run_id, name) DO UPDATE SET
-                         bytes = EXCLUDED.bytes,
-                         sha256 = EXCLUDED.sha256",
-                )
-                .bind(&run_id)
-                .bind(&artifact.name)
-                .bind(bytes)
-                .bind(artifact.sha256.as_hex())
-                .execute(&mut *transaction)
-                .await
-                .map_err(|error| crate::runs::RunStoreError(error.to_string()))?;
-            }
-            transaction
-                .commit()
-                .await
-                .map_err(|error| crate::runs::RunStoreError(error.to_string()))?;
-            load_run_rows(&pool, None, &run_id)
-                .await?
-                .ok_or_else(|| crate::runs::RunStoreError(format!("run {run_id} is unknown")))
         })
     }
 

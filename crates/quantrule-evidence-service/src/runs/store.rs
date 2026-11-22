@@ -262,12 +262,32 @@ pub trait RunStore: Send + Sync {
     ) -> BoxFuture<Result<RunRecord, RunStoreError>>;
 
     /// Mark a run succeeded with its artifacts and final digest.
+    ///
+    /// `term` is the worker attempt's run lease term; `leader_term` is the
+    /// evidence leader lease term read by the finalizer. The store refuses the
+    /// write when either term is stale, so a replica that lost leadership
+    /// cannot finish a run and a late worker cannot finish a later attempt.
     fn complete(
         &self,
         run_id: String,
         term: u64,
+        leader_term: u64,
         digest: Digest,
         artifacts: Vec<ArtifactRef>,
+        stages: Vec<StageProgress>,
+    ) -> BoxFuture<Result<RunRecord, RunStoreError>>;
+
+    /// Mark a computed run failed after evidence verification.
+    ///
+    /// A worker-reported failure uses [`RunStore::fail`]. This method is the
+    /// finalizer's decision and carries the same leader fence as
+    /// [`RunStore::complete`].
+    fn fail_finalization(
+        &self,
+        run_id: String,
+        term: u64,
+        leader_term: u64,
+        error: String,
         stages: Vec<StageProgress>,
     ) -> BoxFuture<Result<RunRecord, RunStoreError>>;
 

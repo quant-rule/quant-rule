@@ -10,6 +10,7 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use common::body_bytes;
 use quantrule_api::{Digest, PROFILE_HEADER, RunState};
+use quantrule_evidence_service::leader::LeaderLease;
 use quantrule_evidence_service::runs::{ClaimOutcome, MemoryRuns, RunStore, derive};
 use quantrule_evidence_service::{EvidenceServices, EvidenceState, router};
 use quantrule_runtime::adapters::ObjectStore;
@@ -130,9 +131,16 @@ async fn a_succeeded_run_refuses_erase() {
         .expect("submit");
     let id = submitted.record().run_id.to_string();
     let term = claim_term(&runs, &id).await;
+    let leader_term = runs
+        .leader_lease()
+        .acquire("retention-leader".to_owned())
+        .await
+        .expect("leader lease")
+        .expect("this process is the leader");
     runs.complete(
         id.clone(),
         term,
+        leader_term,
         Digest::sha256(b"canonical"),
         Vec::new(),
         Vec::new(),

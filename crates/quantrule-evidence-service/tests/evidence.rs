@@ -10,6 +10,7 @@ use quantrule_api::{
 use quantrule_evidence_service::evidence::{
     EvidenceError, EvidenceServices, FinalizeOutcome, RunManifest, digest, finalize,
 };
+use quantrule_evidence_service::leader::LeaderLease;
 use quantrule_evidence_service::runs::{
     CancelOutcome, ClaimOutcome, MemoryRuns, NewRun, RunArchiveOutcome, RunDatasetReference,
     RunEraseOutcome, RunRecord, RunStore, RunStoreError, SubmitOutcome, derive,
@@ -164,6 +165,7 @@ impl RunStore for CompleteFails {
         &self,
         run_id: String,
         term: u64,
+        leader_term: u64,
         digest: Digest,
         artifacts: Vec<ArtifactRef>,
         stages: Vec<StageProgress>,
@@ -186,9 +188,21 @@ impl RunStore for CompleteFails {
                 return Err(RunStoreError("the evidence process was killed".to_owned()));
             }
             inner
-                .complete(run_id, term, digest, artifacts, stages)
+                .complete(run_id, term, leader_term, digest, artifacts, stages)
                 .await
         })
+    }
+
+    fn fail_finalization(
+        &self,
+        run_id: String,
+        term: u64,
+        leader_term: u64,
+        error: String,
+        stages: Vec<StageProgress>,
+    ) -> BoxFuture<Result<RunRecord, RunStoreError>> {
+        self.inner
+            .fail_finalization(run_id, term, leader_term, error, stages)
     }
 
     fn fail(
@@ -207,6 +221,7 @@ struct Fixture {
     objects: common::MemoryObjects,
     run_id: String,
     term: u64,
+    leader_term: u64,
 }
 
 async fn fixture(suffix: &str) -> Fixture {
@@ -225,11 +240,18 @@ async fn fixture(suffix: &str) -> Fixture {
         panic!("the run was not claimable");
     };
     let term = record.lease_term;
+    let leader_term = runs
+        .leader_lease()
+        .acquire("test-evidence".to_owned())
+        .await
+        .expect("leader lease")
+        .expect("this process is the leader");
     Fixture {
         runs,
         objects,
         run_id,
         term,
+        leader_term,
     }
 }
 
@@ -303,6 +325,10 @@ impl Fixture {
             .expect("get")
             .expect("record")
     }
+
+    async fn finalize(&self) -> Result<FinalizeOutcome, EvidenceError> {
+        finalize(self.run_id.clone(), &self.services(), self.leader_term).await
+    }
 }
 
 #[tokio::test]
@@ -323,9 +349,7 @@ async fn a_computed_run_is_verified_and_finished() {
         .await;
 
     assert_eq!(
-        finalize(fixture.run_id.clone(), &fixture.services())
-            .await
-            .expect("finalize"),
+        fixture.finalize().await.expect("finalize"),
         FinalizeOutcome::Succeeded
     );
     let record = fixture.record().await;
@@ -368,7 +392,7 @@ async fn a_finalize_crash_leaves_the_run_running() {
         }),
         objects: Arc::new(fixture.objects.clone()),
     };
-    let error = finalize(fixture.run_id.clone(), &services)
+    let error = finalize(fixture.run_id.clone(), &services, fixture.leader_term)
         .await
         .expect_err("the crash must surface");
     assert!(matches!(error, EvidenceError::Store(_)), "{error:?}");
@@ -385,9 +409,7 @@ async fn a_finalize_crash_leaves_the_run_running() {
 
     // Restart: the manifest and blobs are complete, so a second pass finishes.
     assert_eq!(
-        finalize(fixture.run_id.clone(), &fixture.services())
-            .await
-            .expect("restart"),
+        fixture.finalize().await.expect("restart"),
         FinalizeOutcome::Succeeded
     );
     assert_eq!(fixture.record().await.status, RunState::Succeeded);
@@ -405,9 +427,7 @@ async fn a_missing_manifest_blocks_success() {
         )
         .await;
     assert_eq!(
-        finalize(fixture.run_id.clone(), &fixture.services())
-            .await
-            .expect("finalize"),
+        fixture.finalize().await.expect("finalize"),
         FinalizeOutcome::Failed
     );
     let record = fixture.record().await;
@@ -430,9 +450,7 @@ async fn a_manifest_that_disagrees_with_the_run_blocks_success() {
         .computed(vec![results], manifest.digest.clone(), computed_stages())
         .await;
     assert_eq!(
-        finalize(fixture.run_id.clone(), &fixture.services())
-            .await
-            .expect("finalize"),
+        fixture.finalize().await.expect("finalize"),
         FinalizeOutcome::Failed
     );
     let record = fixture.record().await;
@@ -458,9 +476,7 @@ async fn a_missing_artifact_blocks_success() {
         .computed(vec![missing], manifest.digest.clone(), computed_stages())
         .await;
     assert_eq!(
-        finalize(fixture.run_id.clone(), &fixture.services())
-            .await
-            .expect("finalize"),
+        fixture.finalize().await.expect("finalize"),
         FinalizeOutcome::Failed
     );
     let record = fixture.record().await;
@@ -493,9 +509,7 @@ async fn one_changed_artifact_blocks_success() {
         .await
         .expect("overwrite");
     assert_eq!(
-        finalize(fixture.run_id.clone(), &fixture.services())
-            .await
-            .expect("finalize"),
+        fixture.finalize().await.expect("finalize"),
         FinalizeOutcome::Failed
     );
     let record = fixture.record().await;
@@ -520,9 +534,7 @@ async fn a_digest_mismatch_blocks_success() {
         )
         .await;
     assert_eq!(
-        finalize(fixture.run_id.clone(), &fixture.services())
-            .await
-            .expect("finalize"),
+        fixture.finalize().await.expect("finalize"),
         FinalizeOutcome::Failed
     );
     let record = fixture.record().await;
@@ -549,9 +561,7 @@ async fn an_unfinished_stage_blocks_success() {
         .publish(std::slice::from_ref(&results), None, stages)
         .await;
     assert_eq!(
-        finalize(fixture.run_id.clone(), &fixture.services())
-            .await
-            .expect("finalize"),
+        fixture.finalize().await.expect("finalize"),
         FinalizeOutcome::Failed
     );
     let record = fixture.record().await;
@@ -573,13 +583,13 @@ async fn a_finished_run_is_not_finalized_again() {
         .await;
     let services = fixture.services();
     assert_eq!(
-        finalize(fixture.run_id.clone(), &services)
+        finalize(fixture.run_id.clone(), &services, fixture.leader_term)
             .await
             .expect("first"),
         FinalizeOutcome::Succeeded
     );
     assert_eq!(
-        finalize(fixture.run_id.clone(), &services)
+        finalize(fixture.run_id.clone(), &services, fixture.leader_term)
             .await
             .expect("second"),
         FinalizeOutcome::Skipped
@@ -596,9 +606,7 @@ async fn a_cancelled_run_is_not_finalized() {
         .await
         .expect("cancel");
     assert_eq!(
-        finalize(fixture.run_id.clone(), &fixture.services())
-            .await
-            .expect("finalize"),
+        fixture.finalize().await.expect("finalize"),
         FinalizeOutcome::Skipped
     );
     assert_eq!(fixture.record().await.status, RunState::Cancelled);
@@ -618,9 +626,7 @@ async fn two_profiles_share_one_finalized_run() {
         .publish(std::slice::from_ref(&results), None, computed_stages())
         .await;
     assert_eq!(
-        finalize(fixture.run_id.clone(), &fixture.services())
-            .await
-            .expect("finalize"),
+        fixture.finalize().await.expect("finalize"),
         FinalizeOutcome::Succeeded
     );
     for name in ["default", "alpha"] {

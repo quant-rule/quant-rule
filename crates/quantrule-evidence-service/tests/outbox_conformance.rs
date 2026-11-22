@@ -16,11 +16,13 @@ use std::sync::{Arc, Mutex};
 use quantrule_api::{
     DatasetReferenceCount, DatasetReferenceKind, Digest, ProfileId, RunState, StageProgress,
 };
+use quantrule_evidence_service::leader::LeaderLease;
 use quantrule_evidence_service::migrations;
 use quantrule_evidence_service::outbox::{
     DRAIN_LIMIT, DrainReport, ReconcileMode, RunOutbox, drain, reconcile,
 };
 use quantrule_evidence_service::postgres::PgRunStore;
+use quantrule_evidence_service::postgres_leader::PgLeaderLease;
 use quantrule_evidence_service::reconcile::release_all;
 use quantrule_evidence_service::releases::ReferenceReleaseLog;
 use quantrule_evidence_service::runs::{MemoryRuns, NewRun, RunStore};
@@ -170,6 +172,13 @@ async fn reset_postgres(pool: &sqlx::PgPool) {
     .execute(pool)
     .await
     .expect("truncate the evidence tables");
+    sqlx::query(
+        "UPDATE runs.leader_lease
+            SET holder = '', term = 0, expires_at = '-infinity'",
+    )
+    .execute(pool)
+    .await
+    .expect("reset the leader lease");
 }
 
 async fn claim<S>(store: &S, run_id: &str) -> u64
@@ -186,7 +195,7 @@ where
     record.lease_term
 }
 
-async fn conformance<S>(store: &S)
+async fn conformance<S>(store: &S, leader_term: u64)
 where
     S: RunStore + RunOutbox + ReferenceReleaseLog,
 {
@@ -268,6 +277,7 @@ where
         .complete(
             run_id.clone(),
             term,
+            leader_term,
             Digest::sha256(b"conformance-digest"),
             Vec::new(),
             done_stages(),
@@ -402,7 +412,14 @@ where
 
 #[tokio::test]
 async fn the_memory_outbox_conforms() {
-    conformance(&MemoryRuns::with_lease_seconds(0)).await;
+    let store = MemoryRuns::with_lease_seconds(0);
+    let leader_term = store
+        .leader_lease()
+        .acquire("conformance-leader".to_owned())
+        .await
+        .expect("leader lease")
+        .expect("this process is the leader");
+    conformance(&store, leader_term).await;
 }
 
 #[tokio::test]
@@ -423,7 +440,13 @@ async fn the_postgres_outbox_conforms() {
     .await
     .expect("the evidence migrations");
     reset_postgres(database.pool()).await;
-    conformance(&PgRunStore::with_lease_seconds(database.pool().clone(), 0)).await;
+    let store = PgRunStore::with_lease_seconds(database.pool().clone(), 0);
+    let leader_term = PgLeaderLease::with_lease_seconds(database.pool().clone(), 3_600)
+        .acquire("conformance-leader".to_owned())
+        .await
+        .expect("leader lease")
+        .expect("this process is the leader");
+    conformance(&store, leader_term).await;
 }
 
 #[tokio::test]
@@ -489,6 +512,11 @@ async fn the_postgres_lease_fences_a_stale_worker() {
     .expect("the evidence migrations");
     reset_postgres(database.pool()).await;
     let store = PgRunStore::new(database.pool().clone());
+    let leader_term = PgLeaderLease::with_lease_seconds(database.pool().clone(), 3_600)
+        .acquire("pg-lease-leader".to_owned())
+        .await
+        .expect("leader lease")
+        .expect("this process is the leader");
     let owner = profile("pg-lease");
     let submitted = store.submit(owner, run(b"pg-lease")).await.expect("submit");
     let run_id = submitted.record().run_id.to_string();
@@ -545,6 +573,7 @@ async fn the_postgres_lease_fences_a_stale_worker() {
         .complete(
             run_id.clone(),
             first,
+            leader_term,
             Digest::sha256(b"stale-digest"),
             Vec::new(),
             Vec::new(),
@@ -558,6 +587,7 @@ async fn the_postgres_lease_fences_a_stale_worker() {
         .complete(
             run_id.clone(),
             continued.lease_term,
+            leader_term,
             Digest::sha256(b"current-digest"),
             Vec::new(),
             Vec::new(),

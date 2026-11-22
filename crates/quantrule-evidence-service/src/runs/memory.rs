@@ -17,6 +17,7 @@ use quantrule_api::{
 use quantrule_runtime::adapters::BoxFuture;
 use quantrule_service_api::RUN_LEASE_TTL_SECONDS;
 
+use crate::leader::MemoryLeaderLease;
 use crate::outbox::{EnsureOutcome, OutboxError, OutboxNotification, ReconcileMode, RunOutbox};
 use crate::releases::{ReferenceReleaseLog, ReleaseLogError};
 
@@ -208,6 +209,7 @@ impl MemoryState {
 pub struct MemoryRuns {
     inner: Arc<Mutex<MemoryState>>,
     lease_ttl: Duration,
+    leader: MemoryLeaderLease,
 }
 
 impl Default for MemoryRuns {
@@ -226,7 +228,17 @@ impl MemoryRuns {
         Self {
             inner: Arc::new(Mutex::new(MemoryState::default())),
             lease_ttl: Duration::from_secs(seconds),
+            leader: MemoryLeaderLease::default(),
         }
+    }
+
+    /// The leader lease that fences this store's finalisation.
+    ///
+    /// The handle shares the row with the store, so a test can acquire a term
+    /// and then complete a run under it.
+    #[must_use]
+    pub fn leader_lease(&self) -> MemoryLeaderLease {
+        self.leader.clone()
     }
 
     /// Expire a run's lease without waiting for its window.
@@ -669,36 +681,25 @@ impl RunStore for MemoryRuns {
         &self,
         run_id: String,
         term: u64,
+        leader_term: u64,
         digest: Digest,
         artifacts: Vec<ArtifactRef>,
         stages: Vec<StageProgress>,
     ) -> BoxFuture<Result<RunRecord, RunStoreError>> {
-        let inner = Arc::clone(&self.inner);
-        Box::pin(async move {
-            let mut state = inner
-                .lock()
-                .map_err(|_| RunStoreError("the run lock is poisoned".to_owned()))?;
-            let Some(record) = state.runs.get_mut(&run_id) else {
-                return Err(RunStoreError(format!("run {run_id} is unknown")));
-            };
-            // Only a running run can finish, and only the attempt that holds
-            // the term may finish it. The Postgres store enforces both with its
-            // predicate; the memory store must agree.
-            if record.status != RunState::Running || record.lease_term != term {
-                return Ok(record.clone());
-            }
-            record.status = RunState::Succeeded;
-            record.digest = Some(digest);
-            record.stages = stages;
-            record.artifacts = artifacts;
-            record.error = None;
-            record.lease_holder = None;
-            record.lease_expires_at = None;
-            let record = record.clone();
-            state.leases.remove(&run_id);
-            state.clear_notifications(&run_id);
-            Ok(record)
-        })
+        let result = self.finalize_succeeded(run_id, term, leader_term, digest, artifacts, stages);
+        Box::pin(async move { result })
+    }
+
+    fn fail_finalization(
+        &self,
+        run_id: String,
+        term: u64,
+        leader_term: u64,
+        error: String,
+        stages: Vec<StageProgress>,
+    ) -> BoxFuture<Result<RunRecord, RunStoreError>> {
+        let result = self.finalize_failed(run_id, term, leader_term, error, stages);
+        Box::pin(async move { result })
     }
 
     fn fail(
@@ -951,6 +952,8 @@ impl ReferenceReleaseLog for MemoryRuns {
         })
     }
 }
+
+mod finalize;
 
 #[cfg(test)]
 mod tests;

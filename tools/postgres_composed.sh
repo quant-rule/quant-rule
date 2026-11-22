@@ -47,6 +47,7 @@ targets=(
   "quantrule-data-service catalog_conformance"
   "quantrule-data-service d1"
   "quantrule-data-service pack_conformance"
+  "quantrule-evidence-service leader"
   "quantrule-evidence-service lineage"
   "quantrule-evidence-service outbox_conformance"
   "quantrule-evidence-service research_ledger"

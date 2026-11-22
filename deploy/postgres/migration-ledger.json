@@ -157,6 +157,12 @@
           "name": "run-lineage",
           "file": "crates/quantrule-evidence-service/migrations/0020_run_lineage.sql",
           "checksum": "65e185dcd2d10075"
+        },
+        {
+          "version": 21,
+          "name": "leader-lease",
+          "file": "crates/quantrule-evidence-service/migrations/0021_leader_lease.sql",
+          "checksum": "8baef2fa046b7701"
         }
       ]
     },

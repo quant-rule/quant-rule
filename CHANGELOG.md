@@ -49,6 +49,9 @@ history is in Git and the pull requests.
 - `deploy/postgres/migration-ledger.json` pins catalog migrations 7 and 8 and evidence migration 20; the composed Postgres tier now runs the pack, artifact and lineage conformance suites.
 - The simulation database adds migration 16: a decision-completeness constraint and a trigger that refuse a changed or cleared decision. The repository locks the run row for mark, check, decision, and erase transactions, so two simulation replicas cannot corrupt the mark set or overwrite a decision.
 - The simulation service supports two replicas only through the HA-008 row-lock concurrency contract; the v2 multi-host profile remains single-instance.
+- The evidence database adds `runs.leader_lease` (migration 21): one row carries the finalizer holder, a monotonic term and a database-time expiry. Acquisition swaps an expired row for a new term, renewal keeps the term, and a standby takes over after expiry.
+- Only the evidence leader consumes `run.computed`; both replicas serve reads. A leader loss drops the consumer, the standby acquires a higher term, and the outbox re-arms the unfinished run.
+- `complete` and `fail_finalization` lock `runs.leader_lease` and require the live leader term as well as the run-attempt term, so a stale leader cannot write a terminal state, a duplicate delivery is a lookup, and one run record and one canonical digest remain.
 
 ### Changed
 
@@ -58,6 +61,7 @@ history is in Git and the pull requests.
 - The multi-host renderer writes `QR_QUEUE_GENERATION=1`, and the composed queue check verifies the quorum type, delivery limit, dead-letter bindings, and generated names.
 - `run submit` is accepted when the run row and its outbox intent commit; a broker that is down delays the notification instead of returning `503 queue.unavailable`, and a repeated submission republishes the queued run while returning the same run record.
 - A run claim is lease-based: a queued run is claimable, a running run only when its lease is absent, expired, or continued by the same holder, and a live lease is never stolen. Cancellation increments the term and clears the lease; a terminal run releases it.
+- Evidence finalisation is leader-only: a standby does not consume `run.computed`, and a finalisation that loses the lease is refused instead of acknowledging the delivery.
 - A run erase releases its dataset reference from the committed tombstone rather than a best-effort call, so a crash between the databases leaves a retry instead of a reference that blocks the dataset forever.
 - Each database-owning service receives only its own `QR_DATABASE_URL` and `QR_MIGRATE=0`; model and backtest receive no database URL. The long-running process never receives `QR_DATABASE_OWNER_URL`, so a compromised service cannot reconnect with DDL rights.
 - A rollback starts the previous image without its migration job: the runner refuses a database ahead of the binary, and the previous image must tolerate the expanded schema.
