@@ -143,7 +143,7 @@ v2 remains readable for the older multi-host profile.
 |---|---|
 | Gateway/ingress loss | Load balancer routes to survivor; client reconnects |
 | Data/model/strategy loss | Other replica serves; retry is idempotent |
-| Backtest worker kill | Quorum redelivery; no partial publish |
+| Backtest worker kill | Lease expires; outbox re-arms; no partial publish |
 | Evidence leader kill | Lease expires; new leader; one finalisation |
 | PostgreSQL primary loss | Patroni promotes a synchronous standby; RPO 0 |
 | PostgreSQL standby loss | Primary continues on the remaining synchronous standby |

@@ -14,6 +14,12 @@ use serde::{Deserialize, Serialize};
 /// The number of deliveries a run may receive before it is dead-lettered.
 pub const MAX_ATTEMPTS: u32 = 3;
 
+/// How long a claimed run's lease stays valid without a heartbeat.
+pub const RUN_LEASE_TTL_SECONDS: u64 = 60;
+
+/// How often a worker renews its run lease while it executes.
+pub const RUN_LEASE_RENEW_SECONDS: u64 = 20;
+
 /// Derive a run id from the four inputs the contract names.
 ///
 /// The fields are newline-delimited and tagged with the identity version, so a
@@ -130,6 +136,15 @@ pub struct RunRecord {
     pub error: Option<String>,
     /// The number of deliveries claimed.
     pub attempts: u32,
+    /// The worker that holds the current lease, when one is held.
+    #[serde(default)]
+    pub lease_holder: Option<String>,
+    /// The monotonic claim term that fences a stale worker.
+    #[serde(default)]
+    pub lease_term: u64,
+    /// When the current lease expires, RFC 3339 UTC.
+    #[serde(default)]
+    pub lease_expires_at: Option<String>,
 }
 
 impl RunRecord {
@@ -164,6 +179,9 @@ impl RunRecord {
             artifacts: Vec::new(),
             error: None,
             attempts: 0,
+            lease_holder: None,
+            lease_term: 0,
+            lease_expires_at: None,
         }
     }
 
@@ -204,13 +222,27 @@ impl RunRecord {
 }
 
 /// A worker's request to take a delivery.
+///
+/// A queued run is claimable. A running run is claimable only when its lease
+/// is absent, expired, or continued by the same holder with the previous term;
+/// a live lease held by another attempt is never stolen.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RunClaimRequest {
     /// The run the message names.
     pub run_id: RunId,
     /// Whether the broker says this delivery was redelivered.
+    ///
+    /// The lease decides a claim; the flag is retained for the log and for the
+    /// previous protocol, not for the decision.
+    #[serde(default)]
     pub redelivered: bool,
+    /// The worker identity that would hold the lease.
+    #[serde(default)]
+    pub holder: String,
+    /// The previous term when the same holder continues its own retry.
+    #[serde(default)]
+    pub continuation: Option<u64>,
 }
 
 /// What a claim did.
@@ -235,6 +267,9 @@ pub enum RunClaimOutcome {
 pub struct RunComputed {
     /// The run that produced the artifacts.
     pub run_id: RunId,
+    /// The claim term the worker holds.
+    #[serde(default)]
+    pub term: u64,
     /// The canonical digest over the data artifacts.
     pub digest: Digest,
     /// The artifact set, ordered by name.
@@ -249,10 +284,25 @@ pub struct RunComputed {
 pub struct RunFailed {
     /// The run that failed.
     pub run_id: RunId,
+    /// The claim term the worker holds.
+    #[serde(default)]
+    pub term: u64,
     /// The failure, as recorded on the run row.
     pub error: String,
     /// Per-stage progress at the failure.
     pub stages: Vec<StageProgress>,
+}
+
+/// A worker's lease renewal.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RunHeartbeat {
+    /// The run whose lease is renewed.
+    pub run_id: RunId,
+    /// The worker identity that holds the lease.
+    pub holder: String,
+    /// The claim term the worker holds.
+    pub term: u64,
 }
 
 /// What a cancellation did.
@@ -388,6 +438,7 @@ mod tests {
     fn completion_and_failure_payloads_round_trip() {
         let computed = RunComputed {
             run_id: RunId(digest(b"run")),
+            term: 7,
             digest: digest(b"digest"),
             artifacts: vec![ArtifactRef {
                 name: "results.json".to_owned(),
@@ -404,6 +455,7 @@ mod tests {
 
         let failed = RunFailed {
             run_id: RunId(digest(b"run")),
+            term: 7,
             error: "the dataset is unknown".to_owned(),
             stages: record().stages,
         };
@@ -411,6 +463,30 @@ mod tests {
         assert_eq!(
             serde_json::from_str::<RunFailed>(&text).expect("decode"),
             failed
+        );
+    }
+
+    #[test]
+    fn a_lease_and_a_heartbeat_round_trip() {
+        let mut record = record();
+        record.lease_holder = Some("worker-1".to_owned());
+        record.lease_term = 3;
+        record.lease_expires_at = Some("2026-11-22T00:01:00Z".to_owned());
+        let text = serde_json::to_string(&record).expect("encode");
+        assert_eq!(
+            serde_json::from_str::<RunRecord>(&text).expect("decode"),
+            record
+        );
+
+        let heartbeat = RunHeartbeat {
+            run_id: record.run_id.clone(),
+            holder: "worker-1".to_owned(),
+            term: 3,
+        };
+        let text = serde_json::to_string(&heartbeat).expect("encode");
+        assert_eq!(
+            serde_json::from_str::<RunHeartbeat>(&text).expect("decode"),
+            heartbeat
         );
     }
 

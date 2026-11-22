@@ -134,24 +134,36 @@ impl RunStore for CompleteFails {
     fn claim(
         &self,
         run_id: String,
-        redelivered: bool,
+        holder: String,
+        continuation: Option<u64>,
     ) -> BoxFuture<Result<ClaimOutcome, RunStoreError>> {
-        self.inner.claim(run_id, redelivered)
+        self.inner.claim(run_id, holder, continuation)
+    }
+
+    fn heartbeat(
+        &self,
+        run_id: String,
+        holder: String,
+        term: u64,
+    ) -> BoxFuture<Result<quantrule_evidence_service::runs::HeartbeatOutcome, RunStoreError>> {
+        self.inner.heartbeat(run_id, holder, term)
     }
 
     fn computed(
         &self,
         run_id: String,
+        term: u64,
         digest: Digest,
         artifacts: Vec<ArtifactRef>,
         stages: Vec<StageProgress>,
     ) -> BoxFuture<Result<RunRecord, RunStoreError>> {
-        self.inner.computed(run_id, digest, artifacts, stages)
+        self.inner.computed(run_id, term, digest, artifacts, stages)
     }
 
     fn complete(
         &self,
         run_id: String,
+        term: u64,
         digest: Digest,
         artifacts: Vec<ArtifactRef>,
         stages: Vec<StageProgress>,
@@ -173,17 +185,20 @@ impl RunStore for CompleteFails {
             if should_fail {
                 return Err(RunStoreError("the evidence process was killed".to_owned()));
             }
-            inner.complete(run_id, digest, artifacts, stages).await
+            inner
+                .complete(run_id, term, digest, artifacts, stages)
+                .await
         })
     }
 
     fn fail(
         &self,
         run_id: String,
+        term: u64,
         error: String,
         stages: Vec<StageProgress>,
     ) -> BoxFuture<Result<RunRecord, RunStoreError>> {
-        self.inner.fail(run_id, error, stages)
+        self.inner.fail(run_id, term, error, stages)
     }
 }
 
@@ -191,6 +206,7 @@ struct Fixture {
     runs: MemoryRuns,
     objects: common::MemoryObjects,
     run_id: String,
+    term: u64,
 }
 
 async fn fixture(suffix: &str) -> Fixture {
@@ -201,11 +217,19 @@ async fn fixture(suffix: &str) -> Fixture {
         .await
         .expect("submit");
     let run_id = submitted.record().run_id.to_string();
-    runs.claim(run_id.clone(), false).await.expect("claim");
+    let claimed = runs
+        .claim(run_id.clone(), "test-worker".to_owned(), None)
+        .await
+        .expect("claim");
+    let ClaimOutcome::Claimed(record) = claimed else {
+        panic!("the run was not claimable");
+    };
+    let term = record.lease_term;
     Fixture {
         runs,
         objects,
         run_id,
+        term,
     }
 }
 
@@ -251,7 +275,7 @@ impl Fixture {
         stages: Vec<StageProgress>,
     ) -> RunRecord {
         self.runs
-            .computed(self.run_id.clone(), digest, artifacts, stages)
+            .computed(self.run_id.clone(), self.term, digest, artifacts, stages)
             .await
             .expect("computed")
     }

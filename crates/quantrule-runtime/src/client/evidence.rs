@@ -8,7 +8,8 @@ use std::collections::BTreeMap;
 
 use quantrule_api::{ArtifactRef, Digest, ProfileId, RunId, RunState, StageProgress};
 use quantrule_service_api::{
-    RunCancelOutcome, RunClaimOutcome, RunClaimRequest, RunComputed, RunFailed, RunRecord,
+    RUN_LEASE_TTL_SECONDS, RunCancelOutcome, RunClaimOutcome, RunClaimRequest, RunComputed,
+    RunFailed, RunHeartbeat, RunRecord,
 };
 
 use crate::adapters::BoxFuture;
@@ -20,12 +21,25 @@ use crate::client::{ClientError, HttpServiceClient, Service};
 /// `qr-evidence`, and a worker hop is a request rather than a local query. A
 /// fake implements it so the worker is tested without a socket.
 pub trait EvidenceClient: Send + Sync {
-    /// Claim one delivery.
+    /// Claim one delivery for a worker and record a new lease term.
+    ///
+    /// `continuation` is the term of the worker's own previous attempt when it
+    /// is retrying; it lets the same holder continue a live lease without
+    /// letting a different worker steal one.
     fn claim(
         &self,
         run_id: String,
-        redelivered: bool,
+        holder: String,
+        continuation: Option<u64>,
     ) -> BoxFuture<Result<RunClaimOutcome, ClientError>>;
+
+    /// Renew the lease for one attempt.
+    fn heartbeat(
+        &self,
+        run_id: String,
+        holder: String,
+        term: u64,
+    ) -> BoxFuture<Result<RunRecord, ClientError>>;
 
     /// Read a run without a profile, for the worker's cancellation check.
     fn get_run(&self, run_id: String) -> BoxFuture<Result<Option<RunRecord>, ClientError>>;
@@ -34,6 +48,7 @@ pub trait EvidenceClient: Send + Sync {
     fn computed(
         &self,
         run_id: String,
+        term: u64,
         digest: Digest,
         artifacts: Vec<ArtifactRef>,
         stages: Vec<StageProgress>,
@@ -43,6 +58,7 @@ pub trait EvidenceClient: Send + Sync {
     fn failed(
         &self,
         run_id: String,
+        term: u64,
         error: String,
         stages: Vec<StageProgress>,
     ) -> BoxFuture<Result<RunRecord, ClientError>>;
@@ -52,7 +68,8 @@ impl EvidenceClient for HttpServiceClient {
     fn claim(
         &self,
         run_id: String,
-        redelivered: bool,
+        holder: String,
+        continuation: Option<u64>,
     ) -> BoxFuture<Result<RunClaimOutcome, ClientError>> {
         let client = self.clone();
         Box::pin(async move {
@@ -65,12 +82,44 @@ impl EvidenceClient for HttpServiceClient {
                 );
             let request = RunClaimRequest {
                 run_id: id,
-                redelivered,
+                redelivered: false,
+                holder,
+                continuation,
             };
             client
                 .post_json(
                     Service::Evidence,
                     format!("/internal/v1/runs/{run_id}/claim"),
+                    &request,
+                )
+                .await
+        })
+    }
+
+    fn heartbeat(
+        &self,
+        run_id: String,
+        holder: String,
+        term: u64,
+    ) -> BoxFuture<Result<RunRecord, ClientError>> {
+        let client = self.clone();
+        Box::pin(async move {
+            let id =
+                RunId(
+                    Digest::parse(&run_id).map_err(|error| ClientError::InvalidResponse {
+                        service: Service::Evidence,
+                        message: format!("the run id is invalid: {error}"),
+                    })?,
+                );
+            let request = RunHeartbeat {
+                run_id: id,
+                holder,
+                term,
+            };
+            client
+                .post_json(
+                    Service::Evidence,
+                    format!("/internal/v1/runs/{run_id}/heartbeat"),
                     &request,
                 )
                 .await
@@ -93,6 +142,7 @@ impl EvidenceClient for HttpServiceClient {
     fn computed(
         &self,
         run_id: String,
+        term: u64,
         digest: Digest,
         artifacts: Vec<ArtifactRef>,
         stages: Vec<StageProgress>,
@@ -108,6 +158,7 @@ impl EvidenceClient for HttpServiceClient {
                 );
             let computed = RunComputed {
                 run_id: id,
+                term,
                 digest,
                 artifacts,
                 stages,
@@ -125,6 +176,7 @@ impl EvidenceClient for HttpServiceClient {
     fn failed(
         &self,
         run_id: String,
+        term: u64,
         error: String,
         stages: Vec<StageProgress>,
     ) -> BoxFuture<Result<RunRecord, ClientError>> {
@@ -139,6 +191,7 @@ impl EvidenceClient for HttpServiceClient {
                 );
             let failed = RunFailed {
                 run_id: id,
+                term,
                 error,
                 stages,
             };
@@ -153,17 +206,67 @@ impl EvidenceClient for HttpServiceClient {
     }
 }
 
-type EvidenceState = (
-    BTreeMap<String, RunRecord>,
-    std::collections::BTreeSet<(String, String)>,
-);
+#[derive(Debug, Clone)]
+struct FakeLease {
+    holder: String,
+    term: u64,
+    expires_at: std::time::SystemTime,
+}
+
+#[derive(Debug, Default)]
+struct EvidenceState {
+    runs: BTreeMap<String, RunRecord>,
+    submissions: std::collections::BTreeSet<(String, String)>,
+    leases: BTreeMap<String, FakeLease>,
+}
+
+impl EvidenceState {
+    fn start_lease(&mut self, run_id: &str, holder: &str) -> bool {
+        let Some(record) = self.runs.get_mut(run_id) else {
+            return false;
+        };
+        if record.attempts >= quantrule_service_api::MAX_ATTEMPTS {
+            return false;
+        }
+        record.status = RunState::Running;
+        record.attempts += 1;
+        record.lease_term += 1;
+        record.lease_holder = Some(holder.to_owned());
+        let expires_at =
+            std::time::SystemTime::now() + std::time::Duration::from_secs(RUN_LEASE_TTL_SECONDS);
+        record.lease_expires_at = crate::clock::rfc3339_at(expires_at).ok();
+        self.leases.insert(
+            run_id.to_owned(),
+            FakeLease {
+                holder: holder.to_owned(),
+                term: record.lease_term,
+                expires_at,
+            },
+        );
+        true
+    }
+
+    fn clear_lease(&mut self, run_id: &str) {
+        self.leases.remove(run_id);
+        if let Some(record) = self.runs.get_mut(run_id) {
+            record.lease_holder = None;
+            record.lease_expires_at = None;
+        }
+    }
+
+    fn lease_is_live(&self, run_id: &str) -> Option<&FakeLease> {
+        self.leases
+            .get(run_id)
+            .filter(|lease| lease.expires_at > std::time::SystemTime::now())
+    }
+}
 
 /// An in-memory evidence lifecycle for worker tests.
 ///
-/// It mirrors the run state machine the evidence store enforces: a claim starts
-/// a queued run, a redelivery reclaims a running run until the budget is spent,
-/// and only a running run can be computed or failed. The fake exists so the
-/// worker is tested without a database or a socket.
+/// It mirrors the run state machine the evidence store enforces: a queued run
+/// is claimable, a running run is claimable only when its lease is absent,
+/// expired, or continued by the same holder, and a claim records a new term.
+/// The fake exists so the worker is tested without a database or a socket.
 #[derive(Debug, Clone, Default)]
 pub struct MemoryEvidence {
     inner: std::sync::Arc<std::sync::Mutex<EvidenceState>>,
@@ -185,12 +288,15 @@ impl MemoryEvidence {
             })?;
             let key = run.run_id.to_string();
             let record = state
-                .0
+                .runs
                 .get(&key)
                 .cloned()
                 .unwrap_or_else(|| RunRecord::queued(&run));
-            state.0.entry(key.clone()).or_insert_with(|| record.clone());
-            state.1.insert((profile, key));
+            state
+                .runs
+                .entry(key.clone())
+                .or_insert_with(|| record.clone());
+            state.submissions.insert((profile, key));
             Ok(record)
         })
     }
@@ -208,18 +314,35 @@ impl MemoryEvidence {
                 service: Service::Evidence,
                 message: "the evidence lock is poisoned".to_owned(),
             })?;
-            if !state.1.contains(&(profile, run_id.clone())) {
+            if !state.submissions.contains(&(profile, run_id.clone())) {
                 return Ok(RunCancelOutcome::Missing);
             }
-            let Some(record) = state.0.get_mut(&run_id) else {
+            let Some(record) = state.runs.get_mut(&run_id) else {
                 return Ok(RunCancelOutcome::Missing);
             };
             if !record.status.is_cancellable() {
                 return Ok(RunCancelOutcome::Conflict(record.clone()));
             }
             record.status = RunState::Cancelled;
-            Ok(RunCancelOutcome::Cancelled(record.clone()))
+            // Cancellation is the fence: a stale worker's term no longer
+            // matches, so it cannot complete the run.
+            record.lease_term += 1;
+            let record = record.clone();
+            state.clear_lease(&run_id);
+            Ok(RunCancelOutcome::Cancelled(record))
         })
+    }
+
+    /// Expire the current lease, as a killed worker would after the TTL.
+    ///
+    /// The term remains on the record; only the time-based lease is removed,
+    /// so the next claim records a new term.
+    pub fn expire_lease(&self, run_id: &str) {
+        let mut state = self.inner.lock().expect("the evidence lock");
+        state.leases.remove(run_id);
+        if let Some(record) = state.runs.get_mut(run_id) {
+            record.lease_expires_at = None;
+        }
     }
 
     /// Read one run without a profile.
@@ -230,7 +353,7 @@ impl MemoryEvidence {
                 service: Service::Evidence,
                 message: "the evidence lock is poisoned".to_owned(),
             })?;
-            Ok(state.0.get(&run_id).cloned())
+            Ok(state.runs.get(&run_id).cloned())
         })
     }
 }
@@ -239,7 +362,8 @@ impl EvidenceClient for MemoryEvidence {
     fn claim(
         &self,
         run_id: String,
-        redelivered: bool,
+        holder: String,
+        continuation: Option<u64>,
     ) -> BoxFuture<Result<RunClaimOutcome, ClientError>> {
         let inner = std::sync::Arc::clone(&self.inner);
         Box::pin(async move {
@@ -247,25 +371,90 @@ impl EvidenceClient for MemoryEvidence {
                 service: Service::Evidence,
                 message: "the evidence lock is poisoned".to_owned(),
             })?;
-            let Some(record) = state.0.get_mut(&run_id) else {
+            let Some(record) = state.runs.get(&run_id).cloned() else {
                 return Ok(RunClaimOutcome::Missing);
             };
-            if record.status == RunState::Queued {
-                record.status = RunState::Running;
-                record.attempts = 1;
-                return Ok(RunClaimOutcome::Claimed(record.clone()));
+            match record.status {
+                RunState::Queued => {
+                    state.start_lease(&run_id, &holder);
+                    let record = state.runs.get(&run_id).cloned().expect("the run");
+                    Ok(RunClaimOutcome::Claimed(record))
+                }
+                RunState::Running => {
+                    if record.digest.is_some() {
+                        return Ok(RunClaimOutcome::Running(record));
+                    }
+                    let same_attempt = state.lease_is_live(&run_id).is_some_and(|lease| {
+                        continuation == Some(lease.term) && lease.holder == holder
+                    });
+                    let live = state.lease_is_live(&run_id).is_some();
+                    if live && !same_attempt {
+                        return Ok(RunClaimOutcome::Running(record));
+                    }
+                    if record.attempts >= quantrule_service_api::MAX_ATTEMPTS {
+                        return Ok(RunClaimOutcome::Exhausted(record));
+                    }
+                    state.start_lease(&run_id, &holder);
+                    let record = state.runs.get(&run_id).cloned().expect("the run");
+                    Ok(RunClaimOutcome::Claimed(record))
+                }
+                _ => Ok(RunClaimOutcome::Terminal(record)),
             }
-            if record.status != RunState::Running {
-                return Ok(RunClaimOutcome::Terminal(record.clone()));
+        })
+    }
+
+    fn heartbeat(
+        &self,
+        run_id: String,
+        holder: String,
+        term: u64,
+    ) -> BoxFuture<Result<RunRecord, ClientError>> {
+        let inner = std::sync::Arc::clone(&self.inner);
+        Box::pin(async move {
+            let mut state = inner.lock().map_err(|_| ClientError::InvalidResponse {
+                service: Service::Evidence,
+                message: "the evidence lock is poisoned".to_owned(),
+            })?;
+            if !state.runs.contains_key(&run_id) {
+                return Err(ClientError::Status {
+                    service: Service::Evidence,
+                    status: 404,
+                    message: format!("run {run_id} is unknown"),
+                });
             }
-            if !redelivered || record.digest.is_some() {
-                return Ok(RunClaimOutcome::Running(record.clone()));
+            let Some(lease) = state.lease_is_live(&run_id).cloned() else {
+                return Err(ClientError::Status {
+                    service: Service::Evidence,
+                    status: 409,
+                    message: "the run lease is stale".to_owned(),
+                });
+            };
+            if lease.holder != holder || lease.term != term {
+                return Err(ClientError::Status {
+                    service: Service::Evidence,
+                    status: 409,
+                    message: "the run lease is stale".to_owned(),
+                });
             }
-            if record.attempts >= quantrule_service_api::MAX_ATTEMPTS {
-                return Ok(RunClaimOutcome::Exhausted(record.clone()));
-            }
-            record.attempts += 1;
-            Ok(RunClaimOutcome::Claimed(record.clone()))
+            let expires_at = std::time::SystemTime::now()
+                + std::time::Duration::from_secs(RUN_LEASE_TTL_SECONDS);
+            state.leases.insert(
+                run_id.clone(),
+                FakeLease {
+                    holder,
+                    term,
+                    expires_at,
+                },
+            );
+            let Some(record) = state.runs.get_mut(&run_id) else {
+                return Err(ClientError::Status {
+                    service: Service::Evidence,
+                    status: 404,
+                    message: format!("run {run_id} is unknown"),
+                });
+            };
+            record.lease_expires_at = crate::clock::rfc3339_at(expires_at).ok();
+            Ok(record.clone())
         })
     }
 
@@ -276,6 +465,7 @@ impl EvidenceClient for MemoryEvidence {
     fn computed(
         &self,
         run_id: String,
+        term: u64,
         digest: Digest,
         artifacts: Vec<ArtifactRef>,
         stages: Vec<StageProgress>,
@@ -286,14 +476,14 @@ impl EvidenceClient for MemoryEvidence {
                 service: Service::Evidence,
                 message: "the evidence lock is poisoned".to_owned(),
             })?;
-            let Some(record) = state.0.get_mut(&run_id) else {
+            let Some(record) = state.runs.get_mut(&run_id) else {
                 return Err(ClientError::Status {
                     service: Service::Evidence,
                     status: 404,
                     message: format!("run {run_id} is unknown"),
                 });
             };
-            if record.status == RunState::Running {
+            if record.status == RunState::Running && record.lease_term == term {
                 record.digest = Some(digest);
                 record.stages = stages;
                 record.artifacts = artifacts;
@@ -305,6 +495,7 @@ impl EvidenceClient for MemoryEvidence {
     fn failed(
         &self,
         run_id: String,
+        term: u64,
         error: String,
         stages: Vec<StageProgress>,
     ) -> BoxFuture<Result<RunRecord, ClientError>> {
@@ -314,17 +505,20 @@ impl EvidenceClient for MemoryEvidence {
                 service: Service::Evidence,
                 message: "the evidence lock is poisoned".to_owned(),
             })?;
-            let Some(record) = state.0.get_mut(&run_id) else {
+            let Some(record) = state.runs.get_mut(&run_id) else {
                 return Err(ClientError::Status {
                     service: Service::Evidence,
                     status: 404,
                     message: format!("run {run_id} is unknown"),
                 });
             };
-            if record.status == RunState::Running {
+            if record.status == RunState::Running && record.lease_term == term {
                 record.status = RunState::Failed;
                 record.error = Some(error);
                 record.stages = stages;
+                let record = record.clone();
+                state.clear_lease(&run_id);
+                return Ok(record);
             }
             Ok(record.clone())
         })

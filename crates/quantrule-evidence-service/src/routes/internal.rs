@@ -10,9 +10,12 @@ use std::sync::Arc;
 use axum::extract::rejection::JsonRejection;
 use axum::extract::{Json, Path, State};
 use quantrule_api::ErrorCode;
-use quantrule_service_api::{RunClaimOutcome, RunClaimRequest, RunComputed, RunFailed, RunRecord};
+use quantrule_service_api::{
+    RunClaimOutcome, RunClaimRequest, RunComputed, RunFailed, RunHeartbeat, RunRecord,
+};
 
 use crate::routes::{ApiFailure, failure};
+use crate::runs::HeartbeatOutcome;
 use crate::state::EvidenceState;
 
 pub(crate) async fn get_run(
@@ -46,14 +49,54 @@ pub(crate) async fn claim_run(
             "the claim names a different run than the path",
         ));
     }
+    if request.holder.is_empty() || request.holder.len() > 128 {
+        return Err(failure(
+            ErrorCode::RunInvalid,
+            "a claim holder must be between 1 and 128 characters",
+        ));
+    }
     let runs = state
         .runs
         .as_ref()
         .ok_or_else(|| failure(ErrorCode::Internal, "no run store is configured"))?;
-    runs.claim(id, request.redelivered)
+    runs.claim(id, request.holder, request.continuation)
         .await
         .map(Json)
         .map_err(|error| failure(ErrorCode::Internal, error.to_string()))
+}
+
+pub(crate) async fn heartbeat_run(
+    State(state): State<Arc<EvidenceState>>,
+    Path(id): Path<String>,
+    payload: Result<Json<RunHeartbeat>, JsonRejection>,
+) -> Result<Json<RunRecord>, ApiFailure> {
+    let Json(heartbeat) =
+        payload.map_err(|_| failure(ErrorCode::RunInvalid, "the body is not a heartbeat"))?;
+    if heartbeat.run_id.to_string() != id {
+        return Err(failure(
+            ErrorCode::RunInvalid,
+            "the heartbeat names a different run than the path",
+        ));
+    }
+    if heartbeat.holder.is_empty() || heartbeat.holder.len() > 128 {
+        return Err(failure(
+            ErrorCode::RunInvalid,
+            "a heartbeat holder must be between 1 and 128 characters",
+        ));
+    }
+    let runs = state
+        .runs
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no run store is configured"))?;
+    match runs
+        .heartbeat(id, heartbeat.holder, heartbeat.term)
+        .await
+        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?
+    {
+        HeartbeatOutcome::Renewed(record) => Ok(Json(*record)),
+        HeartbeatOutcome::Stale => Err(failure(ErrorCode::RunConflict, "the run lease is stale")),
+        HeartbeatOutcome::Missing => Err(failure(ErrorCode::RunNotFound, "the run is unknown")),
+    }
 }
 
 pub(crate) async fn computed_run(
@@ -73,10 +116,26 @@ pub(crate) async fn computed_run(
         .runs
         .as_ref()
         .ok_or_else(|| failure(ErrorCode::Internal, "no run store is configured"))?;
-    runs.computed(id, computed.digest, computed.artifacts, computed.stages)
+    let record = runs
+        .computed(
+            id,
+            computed.term,
+            computed.digest,
+            computed.artifacts,
+            computed.stages,
+        )
         .await
-        .map(Json)
-        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))
+        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
+    // The computed notification committed with the digest. Publishing it here
+    // keeps the normal path immediate; the reconciler retries a failed drain,
+    // so the response does not fail on a broker that is merely unavailable.
+    if let (Some(outbox), Some(queue)) = (state.outbox.as_ref(), state.queue.as_ref())
+        && let Err(error) =
+            crate::outbox::drain(outbox.as_ref(), queue.as_ref(), crate::outbox::DRAIN_LIMIT).await
+    {
+        tracing::warn!(run_id = %record.run_id, %error, "the computed notification will be retried");
+    }
+    Ok(Json(record))
 }
 
 pub(crate) async fn failed_run(
@@ -96,7 +155,7 @@ pub(crate) async fn failed_run(
         .runs
         .as_ref()
         .ok_or_else(|| failure(ErrorCode::Internal, "no run store is configured"))?;
-    runs.fail(id, failed.error, failed.stages)
+    runs.fail(id, failed.term, failed.error, failed.stages)
         .await
         .map(Json)
         .map_err(|error| failure(ErrorCode::Internal, error.to_string()))

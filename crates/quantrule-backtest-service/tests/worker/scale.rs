@@ -10,7 +10,7 @@ use super::support::*;
 async fn one_worker_and_two_workers_produce_the_same_digest() {
     let sequential = fixture().await;
     assert_eq!(
-        process(sequential.run_id.clone(), false, &sequential.services)
+        process(sequential.run_id.clone(), None, &sequential.services)
             .await
             .expect("sequential"),
         ProcessOutcome::Computed
@@ -26,8 +26,8 @@ async fn one_worker_and_two_workers_produce_the_same_digest() {
 
     let concurrent = fixture().await;
     let (left, right) = tokio::join!(
-        process(concurrent.run_id.clone(), false, &concurrent.services,),
-        process(concurrent.run_id.clone(), false, &concurrent.services,),
+        process(concurrent.run_id.clone(), None, &concurrent.services,),
+        process(concurrent.run_id.clone(), None, &concurrent.services,),
     );
     let outcomes = [left.expect("left"), right.expect("right")];
     assert!(outcomes.contains(&ProcessOutcome::Computed));

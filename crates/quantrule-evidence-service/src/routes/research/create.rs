@@ -6,9 +6,10 @@ use axum::extract::rejection::{JsonRejection, QueryRejection};
 use axum::extract::{Json, Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use quantrule_api::{
-    CreateImprovementRequest, DatasetReferenceKind, EraseReceipt, ErrorCode, ImprovementRunDetail,
-    ImprovementRunState, ImprovementRunSummary, SubmitRunRequest,
+    CreateImprovementRequest, DatasetReferenceKind, Digest, EraseReceipt, ErrorCode,
+    ImprovementRunDetail, ImprovementRunState, ImprovementRunSummary, ProfileId, SubmitRunRequest,
 };
+use quantrule_runtime::client::DataClient;
 use serde::Deserialize;
 
 use super::{
@@ -18,6 +19,7 @@ use super::{
 use crate::research::{ResearchArchiveOutcome, ResearchEraseOutcome};
 use crate::routes::runs::{submit_validated_pipeline, validated_config};
 use crate::routes::{ApiFailure, data_failure, failure, request_profile};
+use crate::runs::DatasetReferenceRelease;
 use crate::state::EvidenceState;
 
 /// The optional filters on a research list.
@@ -99,23 +101,25 @@ pub(crate) async fn create(
                 return Ok((status, Json(outcome.record().clone())));
             }
             Err(error) if error.to_string().contains("already") => {
-                let _ = data
-                    .release_dataset_reference(
-                        profile.clone(),
-                        request.data_version.clone(),
-                        reference_id,
-                    )
-                    .await;
+                release_failed_reference(
+                    &state,
+                    data.as_ref(),
+                    profile.clone(),
+                    request.data_version.clone(),
+                    reference_id,
+                )
+                .await;
                 continue;
             }
             Err(error) => {
-                let _ = data
-                    .release_dataset_reference(
-                        profile.clone(),
-                        request.data_version.clone(),
-                        reference_id,
-                    )
-                    .await;
+                release_failed_reference(
+                    &state,
+                    data.as_ref(),
+                    profile,
+                    request.data_version.clone(),
+                    reference_id,
+                )
+                .await;
                 return Err(store_failure(error));
             }
         }
@@ -305,12 +309,28 @@ pub(crate) async fn erase(
         .map_err(store_failure)?
     {
         ResearchEraseOutcome::Erased(receipt) => {
-            if let Err(error) = data
-                .release_dataset_reference(
-                    profile,
-                    receipt.data_version,
-                    format!("research:{}", receipt.improvement_id),
-                )
+            let reference_id = format!("research:{}", receipt.improvement_id);
+            if let Some(releases) = state.releases.as_ref() {
+                let release = DatasetReferenceRelease {
+                    profile: profile.clone(),
+                    data_version: receipt.data_version.clone(),
+                    reference_id: reference_id.clone(),
+                    kind: DatasetReferenceKind::Research,
+                };
+                if let Err(error) = releases.record(release).await {
+                    tracing::warn!(%error, "the erased research record's release was not recorded");
+                }
+                if let Err(error) =
+                    crate::reconcile::release_all(releases.as_ref(), data.as_ref()).await
+                {
+                    tracing::warn!(
+                        improvement_id = %receipt.improvement_id,
+                        %error,
+                        "the erased research record's dataset reference will be retried"
+                    );
+                }
+            } else if let Err(error) = data
+                .release_dataset_reference(profile, receipt.data_version, reference_id)
                 .await
             {
                 tracing::warn!(
@@ -336,5 +356,38 @@ pub(crate) async fn erase(
             ErrorCode::HistoryProtected,
             "a decided research record is evidence and cannot be erased",
         )),
+    }
+}
+
+/// Release a reference a failed create registered.
+///
+/// The tombstone is written before the data-service call, so a failed or
+/// interrupted release is retried by the reconciler instead of leaving a
+/// reference that blocks the dataset forever. The tombstone is evidence-owned;
+/// the release itself is a separate call with no cross-database transaction.
+async fn release_failed_reference(
+    state: &EvidenceState,
+    data: &dyn DataClient,
+    profile: ProfileId,
+    data_version: Digest,
+    reference_id: String,
+) {
+    if let Some(releases) = state.releases.as_ref()
+        && let Err(error) = releases
+            .record(DatasetReferenceRelease {
+                profile: profile.clone(),
+                data_version: data_version.clone(),
+                reference_id: reference_id.clone(),
+                kind: DatasetReferenceKind::Research,
+            })
+            .await
+    {
+        tracing::warn!(%error, "the failed create's release was not recorded");
+    }
+    if let Err(error) = data
+        .release_dataset_reference(profile, data_version, reference_id)
+        .await
+    {
+        tracing::warn!(%error, "a failed research create left its dataset reference for retry");
     }
 }

@@ -65,6 +65,16 @@ pub fn available() -> Vec<Migration> {
             name: "retention",
             sql: include_str!("../migrations/0017_retention.sql"),
         },
+        Migration {
+            version: 18,
+            name: "outbox-and-releases",
+            sql: include_str!("../migrations/0018_outbox_and_releases.sql"),
+        },
+        Migration {
+            version: 19,
+            name: "run-lease",
+            sql: include_str!("../migrations/0019_run_lease.sql"),
+        },
     ];
     migrations.sort_by_key(|migration| migration.version);
     migrations
@@ -107,7 +117,7 @@ mod tests {
         let pending = plan(&applied, &available).expect("plan");
         assert_eq!(
             pending.iter().map(|m| m.version).collect::<Vec<_>>(),
-            vec![4, 5, 8, 9, 13, 14, 15, 16, 17]
+            vec![4, 5, 8, 9, 13, 14, 15, 16, 17, 18, 19]
         );
     }
 
@@ -128,7 +138,7 @@ mod tests {
             .iter()
             .map(|migration| migration.version)
             .collect();
-        assert_eq!(versions, vec![2, 4, 5, 8, 9, 13, 14, 15, 16, 17]);
+        assert_eq!(versions, vec![2, 4, 5, 8, 9, 13, 14, 15, 16, 17, 18, 19]);
     }
 
     #[test]
@@ -164,6 +174,48 @@ mod tests {
         assert!(
             migration.sql.contains("CREATE SCHEMA IF NOT EXISTS stage"),
             "migration 14 must create the stage schema"
+        );
+    }
+
+    #[test]
+
+    fn the_outbox_migration_is_registered() {
+        let available = available();
+        let migration = available
+            .iter()
+            .find(|migration| migration.version == 18)
+            .expect("migration 18");
+        assert_eq!(migration.name, "outbox-and-releases");
+        for table in ["runs.outbox", "runs.dataset_reference_releases"] {
+            assert!(
+                migration.sql.contains(table),
+                "migration 18 must create {table}"
+            );
+        }
+        assert!(
+            migration.sql.contains("ON DELETE CASCADE"),
+            "migration 18 must remove a notification with its run"
+        );
+    }
+
+    #[test]
+
+    fn the_run_lease_migration_is_registered() {
+        let available = available();
+        let migration = available
+            .iter()
+            .find(|migration| migration.version == 19)
+            .expect("migration 19");
+        assert_eq!(migration.name, "run-lease");
+        for column in ["lease_holder", "lease_term", "lease_expires_at"] {
+            assert!(
+                migration.sql.contains(column),
+                "migration 19 must add {column}"
+            );
+        }
+        assert!(
+            migration.sql.contains("runs_lease_expiry_idx"),
+            "migration 19 must index the lease expiry"
         );
     }
 

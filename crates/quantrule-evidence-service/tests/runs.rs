@@ -115,12 +115,15 @@ async fn harness_with_image(image_digest: Option<Digest>) -> (Arc<EvidenceState>
         image_digest,
         ..Config::default()
     };
+    let runs = Arc::new(MemoryRuns::default());
     let state = Arc::new(EvidenceState::with_services(
         &config,
         HealthRegistry::new(),
         EvidenceServices {
             data: Some(Arc::new(data)),
-            runs: Some(Arc::new(MemoryRuns::default())),
+            runs: Some(runs.clone()),
+            outbox: Some(runs.clone()),
+            releases: Some(runs),
             queue: Some(Arc::new(queue.clone())),
             ..EvidenceServices::default()
         },
@@ -190,18 +193,21 @@ async fn a_server_without_an_image_digest_refuses_submission() {
 }
 
 #[tokio::test]
-async fn a_failed_publish_is_unavailable_and_a_retry_recovers() {
+async fn a_failed_publish_leaves_a_durable_intent_and_a_retry_sends_it() {
     let (state, queue) = harness().await;
     let (data_version, config_id, _) = seed();
     queue.set_failing(true);
 
     let response = submit(Arc::clone(&state), "default", &data_version, &config_id).await;
-    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
-    let text = String::from_utf8(body_bytes(response).await).expect("utf8");
-    assert!(text.contains("queue.unavailable"), "{text}");
+    assert_eq!(response.status(), StatusCode::ACCEPTED);
     assert!(
         queue.messages().is_empty(),
         "a failed publish left a message"
+    );
+    assert_eq!(
+        list(Arc::clone(&state), "default").await.len(),
+        1,
+        "the run row must survive a failed notification"
     );
 
     queue.set_failing(false);
@@ -213,6 +219,11 @@ async fn a_failed_publish_is_unavailable_and_a_retry_recovers() {
     let messages = queue.messages();
     assert_eq!(messages.len(), 1, "the retry republished the queued run");
     assert_eq!(messages[0].0, "run.requested");
+    assert_eq!(
+        list(state, "default").await.len(),
+        1,
+        "a retry created a second run row"
+    );
 }
 
 #[tokio::test]
@@ -506,7 +517,14 @@ async fn finished_run_named(
         .await
         .expect("submit");
     let id = submitted.record().run_id.to_string();
-    runs.claim(id.clone(), false).await.expect("claim");
+    let claimed = runs
+        .claim(id.clone(), "artifact-worker".to_owned(), None)
+        .await
+        .expect("claim");
+    let quantrule_evidence_service::runs::ClaimOutcome::Claimed(record) = claimed else {
+        panic!("the run was not claimable");
+    };
+    let term = record.lease_term;
     let bytes = body.to_vec();
     let artifact = ArtifactRef {
         name: name.to_owned(),
@@ -520,13 +538,14 @@ async fn finished_run_named(
     let digest = Digest::sha256(b"canonical");
     runs.computed(
         id.clone(),
+        term,
         digest.clone(),
         vec![artifact.clone()],
         Vec::new(),
     )
     .await
     .expect("computed");
-    runs.complete(id.clone(), digest.clone(), vec![artifact], Vec::new())
+    runs.complete(id.clone(), term, digest.clone(), vec![artifact], Vec::new())
         .await
         .expect("complete");
     (id, digest, bytes)
@@ -729,7 +748,8 @@ async fn the_internal_lifecycle_serves_claim_read_computed_and_failed() {
             Request::post(format!("/internal/v1/runs/{id}/claim"))
                 .header("content-type", "application/json")
                 .body(Body::from(
-                    serde_json::json!({"run_id": id, "redelivered": false}).to_string(),
+                    serde_json::json!({"run_id": id, "redelivered": false, "holder": "test-worker"})
+                        .to_string(),
                 ))
                 .expect("request"),
         )
@@ -738,10 +758,10 @@ async fn the_internal_lifecycle_serves_claim_read_computed_and_failed() {
     assert_eq!(response.status(), StatusCode::OK);
     let outcome: quantrule_service_api::RunClaimOutcome =
         serde_json::from_slice(&body_bytes(response).await).expect("claim");
-    assert!(matches!(
-        outcome,
-        quantrule_service_api::RunClaimOutcome::Claimed(_)
-    ));
+    let quantrule_service_api::RunClaimOutcome::Claimed(claimed) = outcome else {
+        panic!("the run was not claimable");
+    };
+    let term = claimed.lease_term;
 
     let response = router(Arc::clone(&state))
         .oneshot(
@@ -757,6 +777,41 @@ async fn the_internal_lifecycle_serves_claim_read_computed_and_failed() {
     assert_eq!(record.status, RunState::Running);
     assert_eq!(record.attempts, 1);
 
+    let response = router(Arc::clone(&state))
+        .oneshot(
+            Request::post(format!("/internal/v1/runs/{id}/heartbeat"))
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "run_id": id,
+                        "holder": "test-worker",
+                        "term": term,
+                    })
+                    .to_string(),
+                ))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let response = router(Arc::clone(&state))
+        .oneshot(
+            Request::post(format!("/internal/v1/runs/{id}/heartbeat"))
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "run_id": id,
+                        "holder": "test-worker",
+                        "term": term + 1,
+                    })
+                    .to_string(),
+                ))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::CONFLICT);
+
     let digest = Digest::sha256(b"canonical");
     let response = router(Arc::clone(&state))
         .oneshot(
@@ -765,6 +820,7 @@ async fn the_internal_lifecycle_serves_claim_read_computed_and_failed() {
                 .body(Body::from(
                     serde_json::json!({
                         "run_id": id,
+                        "term": term,
                         "digest": digest,
                         "artifacts": [],
                         "stages": computed_stages(),
@@ -787,6 +843,7 @@ async fn the_internal_lifecycle_serves_claim_read_computed_and_failed() {
                 .body(Body::from(
                     serde_json::json!({
                         "run_id": id,
+                        "term": term,
                         "error": "late failure",
                         "stages": computed_stages(),
                     })
@@ -830,4 +887,67 @@ async fn an_internal_claim_for_another_run_is_refused() {
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     let text = String::from_utf8(body_bytes(response).await).expect("utf8");
     assert!(text.contains("run.invalid"), "{text}");
+}
+
+#[tokio::test]
+async fn a_computed_run_publishes_one_durable_notification() {
+    let (state, queue) = harness().await;
+    let (data_version, config_id, _) = seed();
+    let response = submit(Arc::clone(&state), "default", &data_version, &config_id).await;
+    assert_eq!(response.status(), StatusCode::ACCEPTED);
+    let created: SubmitRunResponse =
+        serde_json::from_slice(&body_bytes(response).await).expect("submission");
+    let id = created.run_id.to_string();
+    let claimed = state
+        .runs
+        .as_ref()
+        .expect("runs")
+        .claim(id.clone(), "route-worker".to_owned(), None)
+        .await
+        .expect("claim");
+    let quantrule_evidence_service::runs::ClaimOutcome::Claimed(record) = claimed else {
+        panic!("the run was not claimable");
+    };
+
+    let body = serde_json::json!({
+        "run_id": created.run_id,
+        "term": record.lease_term,
+        "digest": Digest::sha256(b"canonical"),
+        "artifacts": [],
+        "stages": [],
+    })
+    .to_string();
+    for _ in 0..2 {
+        let response = router(Arc::clone(&state))
+            .oneshot(
+                Request::post(format!("/internal/v1/runs/{id}/computed"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(body.clone()))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    let computed: Vec<_> = queue
+        .messages()
+        .into_iter()
+        .filter(|(key, _)| key == "run.computed")
+        .collect();
+    assert_eq!(
+        computed.len(),
+        1,
+        "a repeated computed call repeated the notification"
+    );
+    let record = state
+        .runs
+        .as_ref()
+        .expect("runs")
+        .get_any(id)
+        .await
+        .expect("get")
+        .expect("record");
+    assert_eq!(record.status, RunState::Running);
+    assert_eq!(record.digest, Some(Digest::sha256(b"canonical")));
 }

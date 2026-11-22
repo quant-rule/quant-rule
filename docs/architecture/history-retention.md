@@ -21,9 +21,8 @@ control and stays in `qr-governance history`; it is not a product capability.
 | dataset | data | Yes | Yes, after archive and zero registered references |
 | config | data | No | No; repository evidence |
 
-A dataset erase is a catalog operation, not a cross-service read. Every consumer
-registers a reference in the data service before it uses the dataset and releases
-it before the consumer row is erased.
+A dataset erase is a catalog operation, not a cross-service read. A consumer
+registers a reference before use and releases it before its own row is erased.
 
 ## 3. States
 
@@ -77,6 +76,11 @@ owning service registers it in the same use case that writes the consumer row,
 and releases it before erasing that row. On upgrade, each owner reconciles its
 current rows once and registers any missing reference; the operation is
 idempotent, so a restart is safe.
+
+A release is recorded in `runs.dataset_reference_releases` in the same
+transaction as the consumer delete and survives it. The release sweep retries
+the data-service call; a `404` confirms it. See
+[cross-database consistency](cross-database-consistency.md).
 
 Artifacts are content-addressed and may be shared by several runs. Evidence does
 not delete an object on the strength of one run row. It deletes the run row and
@@ -133,9 +137,8 @@ a typed confirmation. Protected rows show the reason and disable the action.
 
 ## 7. Safety
 
-- Profile scope comes from the request header; no cross-profile operation.
-- No client path is accepted; every operation names an id.
-- Archive first, erase second; a tombstone is mandatory.
+- Profile scope is the request header; no client path is accepted, and every
+  operation names an id. Archive first, erase second; a tombstone is mandatory.
 - No wildcard erase and no automatic agent deletion.
 - A dataset with any registered reference refuses erase.
 - Dataset insert, archive, erase, and object deletion share a service gate, so
@@ -145,16 +148,14 @@ a typed confirmation. Protected rows show the reason and disable the action.
 ## 8. Migration
 
 The data service adds `archived_at`, `dataset_references`, and
-`retention_events`. Evidence adds `archived_at` to runs and research records;
-artifact counting uses the existing `sha256` column and needs no new relation.
-Simulation adds `archived_at` and its own event table. Both Postgres and SQLite
-migrations are required. A list sorts by creation time and id; the transaction
-locks the row, checks state and references, writes the event, then commits.
+`retention_events`. Evidence adds `archived_at`, the release tombstone, and the
+notification outbox. Simulation adds `archived_at` and its own event table. A
+list sorts by creation time and id; the transaction locks the row, checks state
+and references, writes the event, then commits.
 
 ## 9. Verification
 
-- Service tests on SQLite and Postgres for state, protection, tombstone, and
-  rollback.
+- Store tests for state, protection, tombstone, and rollback.
 - Shell tests for list, archive, erase, refusal, and dry-run.
 - Browser parity and typed-confirmation tests.
 - A succeeded run, a decided research record, a checked simulation run, and a
@@ -167,4 +168,3 @@ locks the row, checks state and references, writes the event, then commits.
 - Repository evidence in the GUI; it stays in the governance CLI.
 - Bulk erase by date in v1; a selection file can follow after the single-id path
   is proven.
-- Orphan-object sweeping; an erase can leave a leak, never a missing artifact.

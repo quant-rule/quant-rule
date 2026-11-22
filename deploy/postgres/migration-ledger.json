@@ -127,6 +127,18 @@
           "name": "retention",
           "file": "crates/quantrule-evidence-service/migrations/0017_retention.sql",
           "checksum": "50d3572036271f83"
+        },
+        {
+          "version": 18,
+          "name": "outbox-and-releases",
+          "file": "crates/quantrule-evidence-service/migrations/0018_outbox_and_releases.sql",
+          "checksum": "769e8852e5ed5234"
+        },
+        {
+          "version": 19,
+          "name": "run-lease",
+          "file": "crates/quantrule-evidence-service/migrations/0019_run_lease.sql",
+          "checksum": "fcdf15c98f8e1321"
         }
       ]
     },

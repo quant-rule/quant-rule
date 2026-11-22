@@ -179,6 +179,7 @@ fn services(fixture: &Fixture) -> WorkerServices {
         stages: Arc::clone(&fixture.services.stages),
         objects: Arc::clone(&fixture.services.objects),
         queue: Arc::clone(&fixture.services.queue),
+        holder: "test-worker".to_owned(),
     }
 }
 
@@ -195,7 +196,7 @@ async fn a_promoted_run_reuses_the_model_stage_and_keeps_the_canonical_digest() 
     let run_id = submitted.run_id.to_string();
     assert_ne!(run_id, fixture.run_id);
 
-    let outcome = process(run_id.clone(), false, &services(&fixture))
+    let outcome = process(run_id.clone(), None, &services(&fixture))
         .await
         .expect("process the promoted run");
     assert_eq!(outcome, ProcessOutcome::Computed);
@@ -230,7 +231,7 @@ async fn a_promoted_run_reuses_the_model_stage_and_keeps_the_canonical_digest() 
         .await
         .expect("resubmit the promoted run");
     assert_eq!(again.run_id.to_string(), run_id);
-    let rerun = process(run_id, false, &services(&fixture))
+    let rerun = process(run_id, None, &services(&fixture))
         .await
         .expect("the deterministic rerun");
     assert_eq!(rerun, ProcessOutcome::Skipped);
@@ -275,7 +276,7 @@ async fn a_strategy_only_change_reuses_the_model_stage() {
         .expect("submit")
         .run_id
         .to_string();
-    let outcome = process(run_id.clone(), false, &services(&fixture))
+    let outcome = process(run_id.clone(), None, &services(&fixture))
         .await
         .expect("process the strategy-only run");
     assert_eq!(outcome, ProcessOutcome::Computed);
@@ -336,7 +337,7 @@ async fn a_changed_model_config_is_refused_by_the_model_input_identity() {
         .expect("submit")
         .run_id
         .to_string();
-    let outcome = process(run_id.clone(), false, &services(&fixture))
+    let outcome = process(run_id.clone(), None, &services(&fixture))
         .await
         .expect("process the changed-model run");
     assert_eq!(outcome, ProcessOutcome::Failed);
@@ -369,7 +370,7 @@ async fn a_missing_or_corrupt_model_stage_fails_the_promoted_run() {
         .expect("submit the missing model")
         .run_id
         .to_string();
-    let outcome = process(missing_id.clone(), false, &services(&fixture))
+    let outcome = process(missing_id.clone(), None, &services(&fixture))
         .await
         .expect("process the missing model");
     assert_eq!(outcome, ProcessOutcome::Failed);
@@ -406,7 +407,7 @@ async fn a_missing_or_corrupt_model_stage_fails_the_promoted_run() {
         .put(&StageManifest::blob_key(&file.sha256), b"corrupt".to_vec())
         .await
         .expect("corrupt the stage blob");
-    let outcome = process(corrupt_id.clone(), false, &services(&fixture))
+    let outcome = process(corrupt_id.clone(), None, &services(&fixture))
         .await
         .expect("process the corrupt model");
     assert_eq!(outcome, ProcessOutcome::Failed);
@@ -438,7 +439,7 @@ async fn a_promoted_run_keeps_the_model_bytes_the_stage_published() {
         .expect("submit")
         .run_id
         .to_string();
-    let outcome = process(run_id.clone(), false, &services(&fixture))
+    let outcome = process(run_id.clone(), None, &services(&fixture))
         .await
         .expect("process");
     assert_eq!(outcome, ProcessOutcome::Computed);
@@ -519,7 +520,7 @@ async fn a_changed_strategy_is_recomputed_in_a_promoted_run() {
         .expect("submit")
         .run_id
         .to_string();
-    let outcome = process(run_id.clone(), false, &services(&fixture))
+    let outcome = process(run_id.clone(), None, &services(&fixture))
         .await
         .expect("process");
     assert_eq!(outcome, ProcessOutcome::Computed);
@@ -555,13 +556,14 @@ async fn a_missing_model_stage_blob_is_retried() {
         .expect("submit")
         .run_id
         .to_string();
-    let outcome = process(run_id, false, &services(&fixture))
+    let outcome = process(run_id, None, &services(&fixture))
         .await
         .expect("process");
     assert_eq!(
         outcome,
         ProcessOutcome::Retry {
-            delay: std::time::Duration::from_secs(5)
+            delay: std::time::Duration::from_secs(5),
+            term: 1
         }
     );
 }

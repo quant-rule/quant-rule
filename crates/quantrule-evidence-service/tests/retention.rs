@@ -10,7 +10,7 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use common::body_bytes;
 use quantrule_api::{Digest, PROFILE_HEADER, RunState};
-use quantrule_evidence_service::runs::{MemoryRuns, RunStore, derive};
+use quantrule_evidence_service::runs::{ClaimOutcome, MemoryRuns, RunStore, derive};
 use quantrule_evidence_service::{EvidenceServices, EvidenceState, router};
 use quantrule_runtime::adapters::ObjectStore;
 use quantrule_runtime::client::MemoryDataClient;
@@ -18,6 +18,17 @@ use quantrule_runtime::{Config, HealthRegistry};
 use quantrule_service_api::{DatasetObject, NewRun};
 use std::sync::Arc;
 use tower::ServiceExt;
+
+async fn claim_term(runs: &MemoryRuns, id: &str) -> u64 {
+    let outcome = runs
+        .claim(id.to_owned(), "retention-worker".to_owned(), None)
+        .await
+        .expect("claim");
+    let ClaimOutcome::Claimed(record) = outcome else {
+        panic!("the run was not claimable");
+    };
+    record.lease_term
+}
 
 fn new_run(seed: &[u8]) -> NewRun {
     let data_version = Digest::sha256(seed);
@@ -48,7 +59,7 @@ async fn a_failed_run_is_archived_and_erased_with_its_unshared_blob() {
         .await
         .expect("submit");
     let id = submitted.record().run_id.to_string();
-    runs.claim(id.clone(), false).await.expect("claim");
+    let term = claim_term(&runs, &id).await;
     let bytes = b"{\"retention\":true}".to_vec();
     let artifact = ArtifactRef {
         name: "results.json".to_owned(),
@@ -57,13 +68,14 @@ async fn a_failed_run_is_archived_and_erased_with_its_unshared_blob() {
     };
     runs.computed(
         id.clone(),
+        term,
         Digest::sha256(b"retention-digest"),
         vec![artifact.clone()],
         Vec::new(),
     )
     .await
     .expect("computed");
-    runs.fail(id.clone(), "the run failed".to_owned(), Vec::new())
+    runs.fail(id.clone(), term, "the run failed".to_owned(), Vec::new())
         .await
         .expect("fail");
 
@@ -117,9 +129,10 @@ async fn a_succeeded_run_refuses_erase() {
         .await
         .expect("submit");
     let id = submitted.record().run_id.to_string();
-    runs.claim(id.clone(), false).await.expect("claim");
+    let term = claim_term(&runs, &id).await;
     runs.complete(
         id.clone(),
+        term,
         Digest::sha256(b"canonical"),
         Vec::new(),
         Vec::new(),
@@ -153,8 +166,8 @@ async fn a_shared_run_survives_the_first_profile_erase() {
     let id = runs.list(alpha.clone(), None, 10).await.expect("list")[0]
         .run_id
         .to_string();
-    runs.claim(id.clone(), false).await.expect("claim");
-    runs.fail(id.clone(), "the run failed".to_owned(), Vec::new())
+    let term = claim_term(&runs, &id).await;
+    runs.fail(id.clone(), term, "the run failed".to_owned(), Vec::new())
         .await
         .expect("fail");
     for owner in [alpha.clone(), beta.clone()] {
@@ -197,7 +210,7 @@ async fn the_archive_and_erase_routes_enforce_state_and_confirmation() {
         .await
         .expect("submit");
     let id = submitted.record().run_id.to_string();
-    runs.claim(id.clone(), false).await.expect("claim");
+    let term = claim_term(&runs, &id).await;
     let bytes = b"{\"route\":true}".to_vec();
     let artifact = quantrule_api::ArtifactRef {
         name: "results.json".to_owned(),
@@ -206,13 +219,14 @@ async fn the_archive_and_erase_routes_enforce_state_and_confirmation() {
     };
     runs.computed(
         id.clone(),
+        term,
         Digest::sha256(b"route-digest"),
         vec![artifact.clone()],
         Vec::new(),
     )
     .await
     .expect("computed");
-    runs.fail(id.clone(), "the run failed".to_owned(), Vec::new())
+    runs.fail(id.clone(), term, "the run failed".to_owned(), Vec::new())
         .await
         .expect("fail");
 
@@ -245,11 +259,14 @@ async fn the_archive_and_erase_routes_enforce_state_and_confirmation() {
     )
     .await
     .expect("reference");
+    let runs = Arc::new(runs);
     let state = Arc::new(EvidenceState::with_services(
         &Config::default(),
         HealthRegistry::new(),
         EvidenceServices {
-            runs: Some(Arc::new(runs) as Arc<dyn RunStore>),
+            runs: Some(runs.clone() as Arc<dyn RunStore>),
+            outbox: Some(runs.clone()),
+            releases: Some(runs),
             objects: Some(Arc::new(objects.clone())),
             data: Some(Arc::new(data.clone()) as Arc<dyn DataClient>),
             ..EvidenceServices::default()

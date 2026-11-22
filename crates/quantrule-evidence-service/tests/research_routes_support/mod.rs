@@ -143,6 +143,8 @@ pub fn harness() -> Harness {
         EvidenceServices {
             improvements: Some(improvements.clone()),
             runs: Some(runs.clone()),
+            outbox: Some(runs.clone()),
+            releases: Some(runs.clone()),
             objects: Some(Arc::new(objects.clone())),
             queue: Some(Arc::new(queue.clone())),
             data: Some(data.clone()),
@@ -284,17 +286,30 @@ pub async fn succeed_run(
         .await
         .expect("submit");
     let run_id = outcome.record().run_id.clone();
+    let term = claim_term(harness, &run_id.to_string()).await;
     harness
         .runs
-        .claim(run_id.to_string(), false)
-        .await
-        .expect("claim");
-    harness
-        .runs
-        .complete(run_id.to_string(), digest, artifacts, Vec::new())
+        .complete(run_id.to_string(), term, digest, artifacts, Vec::new())
         .await
         .expect("complete");
     run_id
+}
+
+async fn claim_term(harness: &Harness, run_id: &str) -> u64 {
+    let outcome = harness
+        .runs
+        .claim(run_id.to_owned(), "research-worker".to_owned(), None)
+        .await
+        .expect("claim");
+    match outcome {
+        quantrule_evidence_service::runs::ClaimOutcome::Claimed(record)
+        | quantrule_evidence_service::runs::ClaimOutcome::Running(record)
+        | quantrule_evidence_service::runs::ClaimOutcome::Terminal(record)
+        | quantrule_evidence_service::runs::ClaimOutcome::Exhausted(record) => record.lease_term,
+        quantrule_evidence_service::runs::ClaimOutcome::Missing => {
+            panic!("the run is missing")
+        }
+    }
 }
 
 pub async fn succeed_seeded(
@@ -324,14 +339,10 @@ pub async fn succeed_seeded(
         .await
         .expect("submit");
     let run_id = outcome.record().run_id.clone();
+    let term = claim_term(harness, &run_id.to_string()).await;
     harness
         .runs
-        .claim(run_id.to_string(), false)
-        .await
-        .expect("claim");
-    harness
-        .runs
-        .complete(run_id.to_string(), digest, artifacts, Vec::new())
+        .complete(run_id.to_string(), term, digest, artifacts, Vec::new())
         .await
         .expect("complete");
     run_id
@@ -346,14 +357,15 @@ pub async fn fail_run(harness: &Harness) -> quantrule_api::RunId {
         .await
         .expect("submit");
     let run_id = outcome.record().run_id.clone();
+    let term = claim_term(harness, &run_id.to_string()).await;
     harness
         .runs
-        .claim(run_id.to_string(), false)
-        .await
-        .expect("claim");
-    harness
-        .runs
-        .fail(run_id.to_string(), "the run failed".to_owned(), Vec::new())
+        .fail(
+            run_id.to_string(),
+            term,
+            "the run failed".to_owned(),
+            Vec::new(),
+        )
         .await
         .expect("fail");
     run_id

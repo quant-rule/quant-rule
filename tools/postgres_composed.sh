@@ -45,6 +45,7 @@ target_dir="${CARGO_TARGET_DIR:-$root/target/gate}"
 targets=(
   "quantrule-data-service catalog_conformance"
   "quantrule-data-service d1"
+  "quantrule-evidence-service outbox_conformance"
   "quantrule-evidence-service research_ledger"
   "quantrule-evidence-service stage_conformance"
   "quantrule-gateway profile_conformance"
