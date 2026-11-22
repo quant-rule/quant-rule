@@ -49,7 +49,7 @@ recorded in [`ADR-13`](../adr/2026-11-14/13-three-tier-testing.md):
   socket; runs in the gate on every change.
 - **Composed** — opt-in, runs under Compose, required before a release.
 - **Port parity** — golden fixtures from the retired implementation, matched to
-  `1e-9`; `tools/check_port_parity.py` runs in the gate.
+  `1e-9`; `qr-governance check --checker port-parity` runs in the gate.
 
 A passing test that does not exercise the behavior proves nothing.
 

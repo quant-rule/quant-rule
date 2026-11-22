@@ -5,17 +5,17 @@ evidence — and keeps that evidence auditable after the client that submitted i
 has closed. It is candles-only, rule-based, and deterministic. There is no
 account, no cloud provider, and no live trading.
 
-> **Status.** The current release tag is **v1.4.2** (2026-11-20). The next
-> next release retires the desktop distribution, removes Python
-> from the repository, and makes the browser and headless CLI the only clients.
-> One image and six services serve the server profile. Windows and Linux are the
-> supported browser and CLI platforms; macOS is unsupported in the next release. The
-> browser client and command shell share one `quantrule.api/v1` contract.
-> **v1.4.1** and **v1.4.0** are withdrawn because their release workflows failed;
+> **Status.** The current release tag is **v1.5.2** (2026-11-21). The desktop
+> distribution is retired, Python is removed from the repository, and the browser
+> and headless CLI are the only clients. One image and six services serve the
+> server profile. Windows and Linux are the supported browser and CLI platforms;
+> macOS is unsupported. The browser client and command shell share one
+> `quantrule.api/v1` contract. **v1.5.0** and **v1.5.1** are withdrawn because
+> their Windows CLI gate failed; **v1.4.2** is the previous published release;
 > **v1.3.0** is the stage execution surface; **v1.2.0** is the version-alignment
 > release; **v1.1.0** is the 1.1.0 alignment release; **v1.0.0** is the historical
 > desktop release. Current note:
-> [`docs/releases/2026-11-20/v1.4.2.md`](docs/releases/2026-11-20/v1.4.2.md);
+> [`docs/releases/2026-11-21/v1.5.2.md`](docs/releases/2026-11-21/v1.5.2.md);
 > mapping: [`docs/releases/README.md`](docs/releases/README.md). The
 > architecture is specified in
 > [`docs/architecture/`](docs/architecture/README.md).
@@ -46,7 +46,7 @@ make up
 `make up` builds the image, starts the stack, waits for health, and prints:
 
 ```text
-QuantRule v1.4.2 ready → http://localhost:8080
+QuantRule v1.5.2 ready → http://localhost:8080
 ```
 
 `make` is the Linux path. Windows runs the same Compose file directly,
@@ -172,8 +172,8 @@ browser ── HTTP ── gateway ── postgres
   object storage.
 - **The engines did not change.** Every pipeline service is a thin adapter over
   `quantrule-app`.
-- **No Python in the product.** The image is Rust and static assets; the client is
-  built with Bun.
+- **No Python.** The repository, image, and tools are Rust; the client is built
+  with Bun.
 
 Details: [`services.md`](docs/architecture/services.md),
 [`data-plane.md`](docs/architecture/data-plane.md),

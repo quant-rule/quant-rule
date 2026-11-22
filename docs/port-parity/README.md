@@ -148,7 +148,7 @@ Validator's independent read.
 
 ## 8. Enforcement
 
-`tools/check_port_parity.py` runs in `tools/gate.sh` and fails when:
+`qr-governance check --checker port-parity` runs in `tools/gate.sh` and fails when:
 
 - the registry is missing, malformed, or has an unknown field;
 - an entry has a missing or duplicate ID, a missing target, test, or fixture;

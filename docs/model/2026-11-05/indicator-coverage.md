@@ -235,7 +235,7 @@ Every indicator entry must carry:
 }
 ```
 
-Every event entry must carry a `formula` string. `tools/check_registry.py` must
+Every event entry must carry a `formula` string. `qr-governance check --checker registry` must
 reject an event without a formula.
 
 ## 16. Test plan

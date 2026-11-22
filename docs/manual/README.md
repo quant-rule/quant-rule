@@ -45,7 +45,7 @@ Chapters 1–8 and 13–14 are runnable procedures, not a reference dump:
 - **Failure:** the stable error and what to do next.
 
 Chapters 9–12 are reference tables. A table carries the same information more
-clearly than prose, and `tools/check_manual.py` enforces the chapter table, the
+clearly than prose, and `qr-governance check --checker manual` enforces the chapter table, the
 46 command rows, the screen and tab rows, and the six-section shape.
 
 ## 4. Evidence labels

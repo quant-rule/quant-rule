@@ -13,7 +13,7 @@ images are excluded.
 
 - Docker with Compose on Linux or WSL2, and the repository.
 - The Rust toolchain; the script builds the thin shell client.
-- `curl`, `python3`, and `sha256sum`.
+- `curl`, `jq`, and `sha256sum`.
 - The checked-in fixture: `config/examples/verify-mini/` and
   `config/examples/verify-mini-replica/`.
 

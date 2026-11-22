@@ -64,7 +64,7 @@ qualification "verdict" is evidence status, not acceptance.
 A command is **Implemented** only when it has a `CommandHelp` entry in
 [`crates/quantrule-shell/src/command/help.rs`](../../crates/quantrule-shell/src/command/help.rs),
 a row in the README command table, and a runnable example in a tutorial. The
-checker [`tools/check_command_surface.py`](`qr-governance check --checker command-surface`)
+checker `qr-governance check --checker command-surface`
 enforces the distinction.
 
 | Command | Status | Input | Output |
@@ -199,7 +199,7 @@ A new command lands as one coherent change:
 3. Add the README row and the tutorial invocation.
 4. Add the registry row.
 5. Add the printed-output test against the fixture server.
-6. Run `python3 tools/check_command_surface.py` and the full gate.
+6. Run `qr-governance check --checker command-surface` and the full gate.
 
 A change to an existing command's meaning is not part of this checklist. It is a
 contract change reserved to the human.

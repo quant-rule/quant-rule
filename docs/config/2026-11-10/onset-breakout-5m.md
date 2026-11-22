@@ -147,7 +147,7 @@ The model event is not built because the gate failed.
 
 ## 10. Verification
 
-- Fixture test: `python3 -m unittest tools/research/test_breakout_edge.py -v`
+- Fixture test: `test_breakout_edge.py` (retired; Git history)
   (9 tests: long, short, boundary-equal, window expiry, next-onset
   supersession, gap-open entry, end-of-series, non-overlap, stats).
 - Ladder check: the 5m-only rows are byte-identical to the full

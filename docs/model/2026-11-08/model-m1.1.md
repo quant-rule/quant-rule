@@ -84,7 +84,7 @@ first predictive test.
 - Edge cases: no completed opening range, zero-width range, equal high/low
   excursion, zero volume, and a session boundary are covered by the session
   fixture and the event contract.
-- Emitter check: `check_event_emitters.py` sees both constants in production.
+- Emitter check: `qr-governance check --checker event-emitters` sees both constants in production.
 
 ## 7. Boundary
 

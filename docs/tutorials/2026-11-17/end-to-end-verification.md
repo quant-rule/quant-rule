@@ -19,7 +19,7 @@ claim about profitability.
 | Repository | A clean checkout of the release candidate |
 | Container runtime | Docker Compose, or Podman through `make up COMPOSE="podman compose"` |
 | Ports | `8080` published by the gateway |
-| Host tools | `curl`, `make`, `python3`, and a Rust toolchain for the shell build |
+| Host tools | `curl`, `make`, `jq`, and a Rust toolchain for the shell build |
 | Token | None for the default stack; `make remote` generates one |
 
 The checked-in fixtures are the reference:

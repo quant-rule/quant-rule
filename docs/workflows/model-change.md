@@ -46,12 +46,12 @@ Requirement -> Contract -> Registry -> Implementation -> Tests -> Validation -> 
 |---|---|---|---|---|
 | 1. Requirement | What measurement or behavior is needed, and why? | Quant Researcher | Requirement note | The research or audit route is named |
 | 2. Contract | What is the exact formula, input, availability, and output? | Quant Developer + Architect | Contract section | Human approves a behavior change |
-| 3. Registry | What is the indicator/event ID, code, role, claim, and parameters? | Quant Developer | `docs/registry/indicators.json` | `check_registry.py` passes |
+| 3. Registry | What is the indicator/event ID, code, role, claim, and parameters? | Quant Developer | `docs/registry/indicators.json` | `qr-governance check --checker registry` passes |
 | 4. Implementation | How is the pure engine implemented? | Quant Developer | Rust code | Engine purity and module docs pass |
 | 5. Tests | What proves the behavior and its boundaries? | Test Engineer | Unit, causality, determinism, golden, edge, property tests | `cargo test` passes |
-| 6. Validation | What claim does the measurement make? | Quant Researcher + Quant Developer | `validation.json` claim | `check_validation.py` passes |
-| 7. Verification | What evidence class covers each row? | Test Engineer | `verification.json` and matrices | `check_verification.py`, `check_verification_matrix.py` pass |
-| 8. Changelog | What changed and why? | Implementer | Changelog entry and AI log | `check_changelog.py` passes |
+| 6. Validation | What claim does the measurement make? | Quant Researcher + Quant Developer | `validation.json` claim | `qr-governance check --checker validation` passes |
+| 7. Verification | What evidence class covers each row? | Test Engineer | `verification.json` and matrices | `qr-governance check --checker verification` and `--checker verification-matrix` pass |
+| 8. Changelog | What changed and why? | Implementer | Changelog entry and AI log | `qr-governance check --checker changelog` passes |
 
 ## 4. Adding an indicator or event
 
@@ -62,8 +62,8 @@ Requirement -> Contract -> Registry -> Implementation -> Tests -> Validation -> 
 5. Add the validation claim and the pre-registered outcome.
 6. Add the construct tests and the verification evidence.
 7. Regenerate `indicators.md`.
-8. Run `check_registry.py`, `check_validation.py`,
-   `check_verification.py`, and `check_verification_matrix.py`.
+8. Run `qr-governance check --checker registry`, `--checker validation`,
+   `--checker verification`, and `--checker verification-matrix`.
 9. Add the changelog release entry when the change is meaningful, and the AI log entry.
 
 A signal or context entry without a claim is not complete. A diagnostic entry

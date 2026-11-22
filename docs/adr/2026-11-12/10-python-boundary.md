@@ -1,7 +1,8 @@
 # ADR — Confine Python to Repository Governance
 
 - Date: 2026-11-12 (UTC)
-- Status: Accepted
+- Status: Superseded
+- Superseded by: [`2026-11-21/992-zero-python-governance.md`](../2026-11-21/992-zero-python-governance.md)
 - Owner: Human
 - Claim type: ADR (Architecture Decision)
 - Related: [`09`](09-add-simulation-service.md)

@@ -164,11 +164,9 @@ byte-identical on rerun. The spec file name is recorded, never an absolute path.
 
 ### Preflight
 
-```text
-python3 tools/research/spec_preflight.py --config <run.json> --spec <spec.json>
-```
-
-The preflight is read-only and does not run the model. It checks:
+The v1 preflight was retired with the Python research stack. Git history holds
+the historical `spec_preflight.py`; the Rust spec evaluator and the committed
+config remain the current check. The historical preflight checked:
 
 | Check | Rule |
 |---|---|
@@ -211,4 +209,4 @@ unknown extension.
 | Causality, determinism, and missing-timeframe rejection | `crates/quantrule-model/src/spec/tests.rs` |
 | JSON parsing, registry resolution, and end-to-end evaluation | `crates/quantrule-shell/src/spec.rs` |
 | CLI spec run, `conditions.csv`, provenance, and byte-identical rerun | `crates/quantrule-shell/tests/report_command.rs` |
-| Preflight registry, ladder, source, and period checks | `tools/research/test_spec_preflight.py` |
+| Historical preflight registry, ladder, source, and period checks | Retired with the Python research stack; Git history |

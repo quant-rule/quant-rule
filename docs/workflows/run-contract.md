@@ -328,7 +328,7 @@ The v2 contract wrote a manifest and copied config into a local folder under
 generated index. That layout, the `tools/improvement/` Python validator and
 run-store scripts, and the v2 manifest with `run_config`, `strategy_config`,
 `qualification_criteria`, and `output_root` paths are **historical**. They are
-retained only to reproduce pre-v3 records. A v3 record does not create a local
+recoverable from Git history only, to reproduce pre-v3 records. A v3 record does not create a local
 run folder, does not copy a config, and does not use `output_root`.
 
 The committed `docs/improvement/` files remain durable history. Do not import a

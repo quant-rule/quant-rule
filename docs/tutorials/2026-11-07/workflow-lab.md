@@ -124,7 +124,7 @@ The adapter creates the run folder, copies the provenance, invokes the current
 commands, and writes `results.json`:
 
 ```bash
-python3 tools/improvement/run_current.py \
+qr-governance improvement run-current \
   /tmp/opencode/workflow-run-test-manifest.json \
   --qr target/debug/quantrule
 ```
