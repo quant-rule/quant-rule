@@ -4,6 +4,11 @@
 # rustup, so `rustup show` installs the pinned toolchain and components.
 # The Rust commands and the shared checker gate are the same ones documented in
 # README.md and run by tools/gate.sh.
+#
+# The `plan-and-check` job classifies the pull request with
+# `qr-governance gate plan`. The `rust` and web jobs run only when the mode
+# needs them. The final `gate` job fails when a needed job failed or was wrongly
+# skipped. Main pushes classify as full.
 
 name: CI
 
@@ -21,9 +26,66 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  CARGO_PROFILE_DEV_DEBUG: "0"
 
 jobs:
-  verify:
+  plan_and_check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CARGO_TARGET_DIR: target/gate
+    outputs:
+      mode: ${{ steps.plan.outputs.mode }}
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Install the pinned toolchain
+        run: rustup show
+
+      - name: Cache the Rust dependencies
+        uses: Swatinem/rust-cache@e9d7b9f1e587218970671bac74e5511ed9506e6a # v2.9.3
+        with:
+          workspaces: ". -> target/gate"
+          shared-key: "gate"
+          add-job-id-key: false
+          cache-targets: true
+          cache-all-crates: false
+          cache-workspace-crates: false
+          cache-bin: false
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Plan the gate scope
+        id: plan
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="origin/${{ github.base_ref }}"
+            mode="$(cargo run --quiet -p quantrule-governance -- gate plan --changed "$base...HEAD" --field mode)" || mode=full
+          else
+            mode=full
+          fi
+          case "$mode" in
+            docs|governance|web|full) ;;
+            *) mode=full ;;
+          esac
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+          echo "gate scope: $mode"
+
+      - name: Checker gate
+        run: cargo run --quiet -p quantrule-governance -- check --all
+
+      - name: Project sync
+        run: |
+          bash -n .github/scripts/project-sync.sh
+          bash tools/test_project_sync.sh
+
+  rust:
+    needs: plan_and_check
+    if: needs.plan_and_check.outputs.mode == 'governance' || needs.plan_and_check.outputs.mode == 'full'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -50,26 +112,37 @@ jobs:
       - name: Format
         run: cargo fmt --all -- --check
 
-      - name: Lints
+      - name: Lints (governance)
+        if: needs.plan_and_check.outputs.mode == 'governance'
+        run: cargo clippy -p quantrule-governance --all-targets -- -D warnings
+
+      - name: Lints (full)
+        if: needs.plan_and_check.outputs.mode == 'full'
         run: cargo clippy --all-targets -- -D warnings
 
-      - name: Checker gate
-        run: cargo run --quiet -p quantrule-governance -- check --all
+      - name: Tests (governance)
+        if: needs.plan_and_check.outputs.mode == 'governance'
+        run: cargo test -p quantrule-governance
 
-      - name: Project sync
-        run: |
-          bash -n .github/scripts/project-sync.sh
-          bash tools/test_project_sync.sh
-
-      - name: Tests
+      - name: Tests (full)
+        if: needs.plan_and_check.outputs.mode == 'full'
         run: cargo test
 
-      - name: Documentation
+      - name: Documentation (governance)
+        if: needs.plan_and_check.outputs.mode == 'governance'
+        run: cargo doc -p quantrule-governance --no-deps
+        env:
+          RUSTDOCFLAGS: -D warnings
+
+      - name: Documentation (full)
+        if: needs.plan_and_check.outputs.mode == 'full'
         run: cargo doc --no-deps
         env:
           RUSTDOCFLAGS: -D warnings
 
   web:
+    needs: plan_and_check
+    if: needs.plan_and_check.outputs.mode == 'web' || needs.plan_and_check.outputs.mode == 'full'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -104,6 +177,8 @@ jobs:
         run: bun run build
 
   web-e2e:
+    needs: plan_and_check
+    if: needs.plan_and_check.outputs.mode == 'web' || needs.plan_and_check.outputs.mode == 'full'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -142,6 +217,8 @@ jobs:
         run: bun run e2e
 
   web-cross-browser:
+    needs: plan_and_check
+    if: needs.plan_and_check.outputs.mode == 'web' || needs.plan_and_check.outputs.mode == 'full'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -178,6 +255,52 @@ jobs:
 
       - name: Firefox end-to-end tests
         run: bunx playwright test --project=firefox
+
+  gate:
+    name: Gate
+    if: always()
+    needs: [plan_and_check, rust, web, web-e2e, web-cross-browser]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify the scoped gate
+        shell: bash
+        run: |
+          mode="${{ needs.plan_and_check.outputs.mode }}"
+          status=0
+          check() {
+            if [ "$1" != "success" ]; then
+              echo "::error::$2 is $1"
+              status=1
+            fi
+          }
+          check "${{ needs.plan_and_check.result }}" plan_and_check
+          case "$mode" in
+            docs)
+              ;;
+            governance)
+              check "${{ needs.rust.result }}" rust
+              ;;
+            web)
+              check "${{ needs.web.result }}" web
+              check "${{ needs.web-e2e.result }}" web-e2e
+              check "${{ needs.web-cross-browser.result }}" web-cross-browser
+              ;;
+            full)
+              check "${{ needs.rust.result }}" rust
+              check "${{ needs.web.result }}" web
+              check "${{ needs.web-e2e.result }}" web-e2e
+              check "${{ needs.web-cross-browser.result }}" web-cross-browser
+              ;;
+            *)
+              echo "::error::unknown gate mode '$mode'"
+              status=1
+              ;;
+          esac
+          if [ "$status" -ne 0 ]; then
+            exit 1
+          fi
+          echo "gate ok: $mode"
 
   release-binaries:
     name: Release binaries
