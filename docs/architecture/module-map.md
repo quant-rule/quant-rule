@@ -78,7 +78,7 @@ cannot read a strategy, write a run, publish to the queue, or compute a model.
 | Client screen | `apps/web/src/lib/<Name>Panel.svelte` | store, `client.md`, Playwright test |
 | Command | `shell/src/command/parse/<family>.rs`, `dispatch/<family>.rs`, `src/output/<family>.rs` | `command-surface.md`, help, tutorial, `tests/cases/`, checker |
 | Config field | `app/src/config/<file>.rs` | input type, provenance, docs, registry |
-| Pack field | `app/src/pack/<kind>.rs`; shared identity in `pack/core.rs` | config contract, canonical hash, lifecycle test |
+| Pack field | `app/src/pack/<kind>.rs`; shared envelope, identity and lifecycle in `pack/envelope.rs`, `pack/core.rs`, `pack/identity.rs` | config contract, canonical hash, lifecycle test |
 | Artifact field | `evidence-service/src/` | artifact contract, golden bundle |
 
 ## 4. Repository tooling

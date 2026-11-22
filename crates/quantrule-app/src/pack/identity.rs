@@ -11,6 +11,7 @@ use std::fmt;
 use quantrule_api::Digest;
 
 use super::envelope::PackMetadata;
+use super::execution::ExecutionPack;
 use super::portfolio::PortfolioPack;
 use super::strategy::StrategyPack;
 
@@ -20,6 +21,7 @@ mod sealed {
 
 impl sealed::Sealed for StrategyPack {}
 impl sealed::Sealed for PortfolioPack {}
+impl sealed::Sealed for ExecutionPack {}
 
 /// A pack that carries an envelope label and a content identity.
 ///
@@ -51,6 +53,16 @@ impl PackIdentity for PortfolioPack {
 
     fn id(&self) -> &Digest {
         PortfolioPack::id(self)
+    }
+}
+
+impl PackIdentity for ExecutionPack {
+    fn metadata(&self) -> &PackMetadata {
+        ExecutionPack::metadata(self)
+    }
+
+    fn id(&self) -> &Digest {
+        ExecutionPack::id(self)
     }
 }
 
@@ -168,7 +180,7 @@ impl PackIndex {
 #[cfg(test)]
 mod tests {
     use super::PackIndex;
-    use crate::pack::{PortfolioPack, StrategyPack};
+    use crate::pack::{ExecutionPack, PortfolioPack, StrategyPack};
 
     fn portfolio(version: &str, exposure: f64) -> PortfolioPack {
         let document = serde_json::json!({
@@ -223,6 +235,28 @@ mod tests {
         StrategyPack::parse(&document, "pack.json").expect("the test pack is valid")
     }
 
+    fn execution(version: &str, slippage_bps: f64) -> ExecutionPack {
+        let document = serde_json::json!({
+            "schema": "quantrule.pack/v1",
+            "kind": "execution",
+            "version": version,
+            "name": "btcusd-conservative-fills",
+            "owner": "operator",
+            "payload": {
+                "fill_timeframe": "5m",
+                "order_type": "market_next_open",
+                "tie_break": "stop_first",
+                "fee_rate": 0.0,
+                "slippage_bps": slippage_bps,
+                "commission": {"rate": 0.0002, "base": "equity", "per": "operation"},
+                "funding": {"rate": 0.0, "interval_hours": 8},
+                "zero_volume": "reject",
+                "end_of_data": "leave_open"
+            }
+        });
+        ExecutionPack::parse(&document, "pack.json").expect("the test pack is valid")
+    }
+
     #[test]
     fn registering_the_same_pack_twice_is_idempotent() {
         let pack = pack("1.0.0", 1.5);
@@ -255,13 +289,15 @@ mod tests {
     }
 
     #[test]
-    fn one_index_registers_both_pack_kinds() {
+    fn one_index_registers_every_pack_kind() {
         let strategy = pack("1.0.0", 1.5);
         let policy = portfolio("1.0.0", 0.5);
+        let fills = execution("1.0.0", 2.0);
         let mut index = PackIndex::new();
         index.register(&strategy).expect("the strategy pack");
         index.register(&policy).expect("the portfolio pack");
-        assert_eq!(index.len(), 2);
+        index.register(&fills).expect("the execution pack");
+        assert_eq!(index.len(), 3);
         assert_eq!(
             index.resolve("compression-fade-5m", "1.0.0"),
             Some(strategy.id())
@@ -269,6 +305,10 @@ mod tests {
         assert_eq!(
             index.resolve("single-position-conservative", "1.0.0"),
             Some(policy.id())
+        );
+        assert_eq!(
+            index.resolve("btcusd-conservative-fills", "1.0.0"),
+            Some(fills.id())
         );
     }
 

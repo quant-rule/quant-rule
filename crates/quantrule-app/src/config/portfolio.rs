@@ -6,11 +6,11 @@
 //! table-driven tests keep them in step.
 
 use quantrule_backtest::portfolio::{
-    CommissionBase, CommissionConfig, CommissionPer, Currency, DrawdownAction, FundingConfig,
-    FundingInterval, MarkToMarket, MaxDrawdownConfig, PortfolioConfig, SizingMode,
+    Currency, DrawdownAction, MarkToMarket, MaxDrawdownConfig, PortfolioConfig, SizingMode,
 };
 use serde_json::Value;
 
+use super::costs;
 use super::error::ConfigError;
 use super::read::{self, ROOT};
 
@@ -109,8 +109,16 @@ pub fn parse(value: &Value, file: &str) -> Result<PortfolioConfig, ConfigError> 
         )
     })?;
 
-    let commission = commission(file, read::field(file, ROOT, object, "commission")?)?;
-    let funding = funding(file, read::field(file, ROOT, object, "funding")?)?;
+    let commission = costs::commission(
+        file,
+        "$.commission",
+        read::field(file, ROOT, object, "commission")?,
+    )?;
+    let funding = costs::funding(
+        file,
+        "$.funding",
+        read::field(file, ROOT, object, "funding")?,
+    )?;
     let max_drawdown = max_drawdown(file, read::field(file, ROOT, object, "max_drawdown")?)?;
 
     let mark_to_market = read::string(
@@ -242,110 +250,6 @@ fn sizing(file: &str, value: &Value) -> Result<SizingMode, ConfigError> {
             other,
         )),
     }
-}
-
-fn commission(file: &str, value: &Value) -> Result<CommissionConfig, ConfigError> {
-    let object = read::object(file, "$.commission", value)?;
-    read::check_fields(file, "$.commission", object, &["rate", "base", "per"])?;
-
-    let rate = read::number(
-        file,
-        "$.commission.rate",
-        read::field(file, "$.commission", object, "rate")?,
-    )?;
-    if rate < 0.0 {
-        return Err(ConfigError::range(
-            file,
-            "$.commission.rate",
-            ">= 0",
-            &rate.to_string(),
-        ));
-    }
-
-    let base = read::string(
-        file,
-        "$.commission.base",
-        read::field(file, "$.commission", object, "base")?,
-    )?;
-    if base != CommissionBase::Equity.code() {
-        return Err(ConfigError::unsupported(
-            file,
-            "$.commission.base",
-            CommissionBase::Equity.code(),
-            base,
-        ));
-    }
-    let per = read::string(
-        file,
-        "$.commission.per",
-        read::field(file, "$.commission", object, "per")?,
-    )?;
-    if per != CommissionPer::Operation.code() {
-        return Err(ConfigError::unsupported(
-            file,
-            "$.commission.per",
-            CommissionPer::Operation.code(),
-            per,
-        ));
-    }
-
-    CommissionConfig::new(rate, CommissionBase::Equity, CommissionPer::Operation).map_err(|error| {
-        ConfigError::range(
-            file,
-            "$.commission",
-            "a valid commission configuration",
-            &error.to_string(),
-        )
-    })
-}
-
-fn funding(file: &str, value: &Value) -> Result<FundingConfig, ConfigError> {
-    let object = read::object(file, "$.funding", value)?;
-    read::check_fields(file, "$.funding", object, &["rate", "interval_hours"])?;
-
-    let rate = read::number(
-        file,
-        "$.funding.rate",
-        read::field(file, "$.funding", object, "rate")?,
-    )?;
-    let hours = read::u64(
-        file,
-        "$.funding.interval_hours",
-        read::field(file, "$.funding", object, "interval_hours")?,
-    )?;
-    if !matches!(hours, 1 | 2 | 4 | 8 | 12 | 24) {
-        return Err(ConfigError::range(
-            file,
-            "$.funding.interval_hours",
-            "1, 2, 4, 8, 12, or 24",
-            &hours.to_string(),
-        ));
-    }
-    let hours = u32::try_from(hours).map_err(|_| {
-        ConfigError::range(
-            file,
-            "$.funding.interval_hours",
-            "1, 2, 4, 8, 12, or 24",
-            &hours.to_string(),
-        )
-    })?;
-    let interval = FundingInterval::new(hours).map_err(|error| {
-        ConfigError::range(
-            file,
-            "$.funding.interval_hours",
-            "1, 2, 4, 8, 12, or 24",
-            &error.to_string(),
-        )
-    })?;
-
-    FundingConfig::new(rate, interval).map_err(|error| {
-        ConfigError::range(
-            file,
-            "$.funding.rate",
-            "a finite number",
-            &error.to_string(),
-        )
-    })
 }
 
 fn max_drawdown(file: &str, value: &Value) -> Result<MaxDrawdownConfig, ConfigError> {
