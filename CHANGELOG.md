@@ -23,6 +23,7 @@ history is in Git and the pull requests.
 - `qr-governance gate plan` and `tools/gate.sh --changed` classify a change as docs, governance, web, or full; engine/shared changes, `main`, and releases keep the full gate.
 - Historical research programs carry `retired` and are refused by `research batch` and `research cell`.
 - ADR-RA accepts the research artifact layer, model artifact input, strategy/portfolio/execution packs, signal artifacts and the seventh strategy service.
+- The research artifact pack envelope and strategy-pack schema validate a closed JSON contract, hash canonical bytes, reject duplicate name/version identities, and enforce the draft, validated, frozen and retired lifecycle.
 - ADR-HA accepts the Swarm HA profile, one Patroni cluster with four logical databases, quorum queues, distributed MinIO and the `quantrule.deploy/v3` descriptor.
 - The `v1.6.0` execution plan, issue tree, research-artifacts architecture and HA architecture are recorded as the plan of record.
 

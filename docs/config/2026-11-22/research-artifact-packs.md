@@ -1,7 +1,7 @@
 # Research Artifact Packs and Run v5
 
 - Date: 2026-11-22 (UTC)
-- Status: Target for the next release; accepted by [ADR-RA](../../adr/2026-11-22/1082-research-artifact-layer.md)
+- Status: Strategy pack and envelope implemented (RA-002); portfolio, execution-simulation, signal artifacts and run v5 target the next release; accepted by [ADR-RA](../../adr/2026-11-22/1082-research-artifact-layer.md)
 - Claim type: Behaviour Claim
 - Related: [Research artifacts](../../architecture/research-artifacts.md), [Run v4](../2026-11-13/run-v4-strategy.md)
 
@@ -45,6 +45,9 @@ retired lifecycle is metadata outside the hash.
   re-serialised after freeze.
 - File paths are sorted; each path, byte length and bytes are hashed.
 - The pack ID is `sha256(canonical bytes)`.
+- Canonicalisation happens once when the pack is created. The canonical bytes
+  are stored, and every later identity check hashes the stored bytes without
+  re-serialising them.
 
 ## 3. Strategy pack payload
 
