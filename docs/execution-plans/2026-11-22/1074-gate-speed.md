@@ -1,7 +1,7 @@
 # Gate Speed: Change-Scope Gate and Retired Research Guard
 
 - Date: 2026-11-22 (UTC)
-- Status: In Review
+- Status: Verified
 - Issue: [#1074](https://github.com/quant-rule/quant-rule/issues/1074)
 - Claim type: Behaviour Claim
 - AI log: [`docs/ai-transparency-log/2026-11-22/1074-gate-speed.md`](../../ai-transparency-log/2026-11-22/1074-gate-speed.md)

@@ -44,3 +44,13 @@ change.
   once per PR by combining planning and checking.
 - Historical command arrays are evidence, not live runners; the retired flag
   makes that explicit.
+
+## Final result
+
+- #1075: classifier, retired guard, local gate, docs.
+- #1076: CI plan/check split, conditional jobs, aggregator.
+- #1077: docs-only run, 24-28s.
+- #1078: governance-only run, 34s plan + 32s rust.
+- #1079: web-only run, 24s plan + web/e2e/cross-browser.
+- #1080: full run, 3m1s rust, build settings reverted.
+- All V01-V18 rows are Pass; the plan is Verified.
