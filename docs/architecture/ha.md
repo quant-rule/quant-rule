@@ -1,6 +1,6 @@
 # Highly Available Runtime
 
-- Status: Target for the next release; accepted by [ADR-HA](../adr/2026-11-22/1082-ha-deployment-profile.md)
+- Status: Target for the next release; data active/active is current (HA-007); accepted by [ADR-HA](../adr/2026-11-22/1082-ha-deployment-profile.md)
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 
@@ -31,7 +31,7 @@ The stateful and ingress layers are described in sections 4–8.
 | Service | Replicas | State | Notes |
 |---|---:|---|---|
 | `gateway` | 2+ | `qr_gateway` | Stateless HTTP, token, static client |
-| `data` | 2 | `qr_catalog` + object store | Idempotent upload |
+| `data` | 2 | `qr_catalog` + object store | [Idempotent upload](data-active-active.md) (HA-007) |
 | `model` | N | Object store | Stateless compute |
 | `strategy` | N | Object store + evidence lineage | Stateless signal compiler |
 | `backtest` | N | Object store + queue | Per-run fold, no HTTP |
@@ -106,7 +106,7 @@ No distributed transactions. The platform uses:
 
 - outbox events for run submission and finalisation;
 - idempotency keys and unique constraints;
-- reconciliation jobs for references and orphan objects;
+- reconciliation jobs for references; an orphan object is safe and reusable (HA-007);
 - tombstones for dataset and profile erase;
 - one evidence leader for finalisation;
 - no cross-database joins.

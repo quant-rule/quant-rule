@@ -141,8 +141,8 @@ a typed confirmation. Protected rows show the reason and disable the action.
   operation names an id. Archive first, erase second; a tombstone is mandatory.
 - No wildcard erase and no automatic agent deletion.
 - A dataset with any registered reference refuses erase.
-- Dataset insert, archive, erase, and object deletion share a service gate, so a
-  concurrent upload cannot observe an object an erase is removing.
+- Dataset insert, archive, erase, and object deletion share a service gate; across
+  replicas the [object guard](data-active-active.md) keeps a row with its bytes.
 - A successful erase is irreversible; the tombstone is the surviving evidence.
 
 ## 8. Migration

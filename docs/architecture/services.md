@@ -16,7 +16,7 @@ security boundary ([`ADR-11`](../adr/2026-11-12/11-profiles.md)).
 | Service | Binary | Responsibility | Owns | Must never |
 |---|---|---|---|---|
 | `gateway` | `qr-gateway` | HTTP boundary, static client, upload streaming, health aggregation, principal injection, proxy table | `gateway` schema in `qr_gateway` | compute a model value, read a candle, render a label |
-| `data` | `qr-data` | Ingestion, `data_version`, timeframe ladder, dataset and config catalog (including the read-only `config/` mount), read-only inspection | `catalog` schema in `qr_catalog`, `datasets/` and `ladder/` objects | run a model, decide a signal |
+| `data` | `qr-data` | Ingestion, `data_version`, timeframe ladder, dataset/config/pack/artifact catalog (including the read-only `config/` mount), read-only inspection | `catalog` schema in `qr_catalog`, `datasets/`, `ladder/`, `packs/` and `artifacts/` objects | run a model, decide a signal |
 | `model` | `qr-model` | Readings, states, events, levels, progression, context, report | model objects | read strategy, execution, or portfolio |
 | `backtest` | `qr-backtest` | Run orchestration, strategy, execution, portfolio, diagnostic stage execution | artifact objects, stage worker | own the final provenance, canonical digest, or run record |
 | `evidence` | `qr-evidence` | Provenance, canonical digest, run records, research memory, stage lifecycle, finalization | `runs`, `research`, and `stage` schemas in `qr_evidence`, bundle objects | compute a reading or decide a trade |
@@ -88,7 +88,7 @@ only to the private overlay.
 | Service | Scale | Reason |
 |---|---|---|
 | `gateway` | by connection count | stateless HTTP |
-| `data` | one | object-store I/O and a catalog; replicas add nothing |
+| `data` | one in Compose and v2; 2 in HA | [idempotent upload and object guard](data-active-active.md) (HA-007) |
 | `model` | **N** | shards by timeframe; CPU-bound |
 | `backtest` | **N** | one run per worker; CPU-bound and sequential within a run |
 | `evidence` | one | finalization is a short, ordered step |
@@ -110,7 +110,7 @@ a fold over time. Claiming otherwise would be false.
 | Failure | Result |
 |---|---|
 | `gateway` down | Client shows disconnected; queued and running work is unaffected |
-| `data` down | Submission of a new run fails fast; existing runs are unaffected |
+| `data` down | HA's other replica serves idempotent uploads; a single-instance profile fails a new run fast; existing runs continue |
 | `model` down | The run fails at the model stage; no artifact is finalized |
 | `backtest` down mid-run | Message is redelivered; recomputation is idempotent |
 | `evidence` down after compute | Artifacts exist but the run stays `running`; finalization retries |

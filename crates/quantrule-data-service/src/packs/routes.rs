@@ -16,6 +16,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use quantrule_api::{Digest, ErrorCode, PackKind, PackRecord, PackState, PackSummary};
+use quantrule_runtime::adapters::put_if_absent;
 use quantrule_runtime::clock;
 use serde::Deserialize;
 
@@ -162,8 +163,7 @@ async fn create_pack(
     let _gate = state.pack_gate.lock().await;
     // The object is written first. A metadata failure leaves an orphan object,
     // which is safe and reconcilable; a row without bytes is not.
-    objects
-        .put(&pack.object_key, bytes)
+    put_if_absent(objects.as_ref(), &pack.object_key, bytes)
         .await
         .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
     let outcome = registry

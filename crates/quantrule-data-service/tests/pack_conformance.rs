@@ -195,6 +195,61 @@ async fn conformance(registry: &dyn PackRegistry) {
             .state,
         PackState::Retired
     );
+
+    // Two registrars race on one content hash: one row, one creation event.
+    let race = pack("2.0.0", 0.5);
+    let (left, right) = tokio::join!(
+        registry.register(owner.clone(), race.clone()),
+        registry.register(owner.clone(), race.clone()),
+    );
+    let left = left.expect("the first registrar");
+    let right = right.expect("the idempotent registrar");
+    assert_eq!(left.record, right.record);
+    assert_ne!(
+        left.created, right.created,
+        "exactly one registrar must create the duplicate pack"
+    );
+    assert_eq!(
+        registry
+            .list(owner.clone(), PackFilter::default())
+            .await
+            .expect("the race list")
+            .into_iter()
+            .filter(|pack| pack.version == "2.0.0")
+            .count(),
+        1
+    );
+
+    // A label still names one content hash: the loser fails, and the label has
+    // one row after the race.
+    let first_bytes = pack("2.0.1", 0.5);
+    let second_bytes = pack("2.0.1", 0.25);
+    let (left, right) = tokio::join!(
+        registry.register(owner.clone(), first_bytes),
+        registry.register(owner.clone(), second_bytes),
+    );
+    let mut winners = 0;
+    let mut conflicts = 0;
+    for result in [left, right] {
+        match result {
+            Ok(_) => winners += 1,
+            Err(quantrule_data_service::PackRegistryError::LabelConflict { .. }) => {
+                conflicts += 1;
+            }
+            Err(other) => panic!("unexpected label race result: {other}"),
+        }
+    }
+    assert_eq!((winners, conflicts), (1, 1));
+    assert_eq!(
+        registry
+            .list(owner.clone(), PackFilter::default())
+            .await
+            .expect("the label list")
+            .into_iter()
+            .filter(|pack| pack.version == "2.0.1")
+            .count(),
+        1
+    );
 }
 
 #[tokio::test]

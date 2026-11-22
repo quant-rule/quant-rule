@@ -60,6 +60,27 @@ pub struct EraseOutcome {
     pub object_shared: bool,
 }
 
+/// The outcome of an idempotent dataset insert.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DatasetInsert {
+    /// The stored row.
+    pub record: DatasetRecord,
+    /// Whether this call created the row.
+    pub created: bool,
+}
+
+/// A database-backed guard for one content-addressed object key.
+///
+/// The guard serialises the object write and the row insert against the erase
+/// path across replicas. It is not an object-store lock: the catalog's database
+/// decides the order, and the caller releases the guard after the object and
+/// row are consistent.
+pub trait ObjectGuard: Send {
+    /// Release the guard. A dropped guard must also be safe; releasing is the
+    /// explicit path that reports a database failure.
+    fn release(self: Box<Self>) -> BoxFuture<Result<(), CatalogError>>;
+}
+
 /// Where datasets are catalogued.
 pub trait DatasetCatalog: Send + Sync {
     /// Add a dataset to a profile's catalog.
@@ -68,6 +89,31 @@ pub trait DatasetCatalog: Send + Sync {
         profile: ProfileId,
         record: DatasetRecord,
     ) -> BoxFuture<Result<(), CatalogError>>;
+
+    /// Add a dataset, or return the stored row for the same content.
+    ///
+    /// The unique `(profile_id, data_version)` key is the authority. A
+    /// concurrent duplicate returns the winner's row with `created == false`;
+    /// it is never an error, so two replicas can answer a retry identically.
+    fn insert_or_get(
+        &self,
+        profile: ProfileId,
+        record: DatasetRecord,
+    ) -> BoxFuture<Result<DatasetInsert, CatalogError>>;
+
+    /// Acquire the per-object guard for one object key.
+    ///
+    /// Upload takes it before the object write and the row insert. Erase takes
+    /// it after its row delete and rechecks the object's references before
+    /// deleting bytes. Two replicas therefore cannot publish a row whose bytes
+    /// a concurrent erase removes.
+    fn object_guard(
+        &self,
+        object_key: String,
+    ) -> BoxFuture<Result<Box<dyn ObjectGuard>, CatalogError>>;
+
+    /// Whether any dataset row still names this object key.
+    fn object_referenced(&self, object_key: String) -> BoxFuture<Result<bool, CatalogError>>;
 
     /// Read one by version within a profile.
     fn get(
@@ -150,6 +196,21 @@ struct MemoryRetentionEvent {
 #[derive(Debug, Clone, Default)]
 pub struct MemoryCatalog {
     inner: Arc<Mutex<MemoryInner>>,
+    object_gate: Arc<tokio::sync::Mutex<()>>,
+}
+
+/// The in-memory counterpart of a database object guard.
+struct MemoryObjectGuard {
+    _gate: tokio::sync::OwnedMutexGuard<()>,
+}
+
+impl ObjectGuard for MemoryObjectGuard {
+    fn release(self: Box<Self>) -> BoxFuture<Result<(), CatalogError>> {
+        Box::pin(async move {
+            drop(self);
+            Ok(())
+        })
+    }
 }
 
 impl MemoryCatalog {
@@ -201,6 +262,57 @@ impl DatasetCatalog for MemoryCatalog {
             }
             map.datasets.insert(key, record);
             Ok(())
+        })
+    }
+
+    fn insert_or_get(
+        &self,
+        profile: ProfileId,
+        record: DatasetRecord,
+    ) -> BoxFuture<Result<DatasetInsert, CatalogError>> {
+        let inner = Arc::clone(&self.inner);
+        Box::pin(async move {
+            let mut map = inner
+                .lock()
+                .map_err(|_| CatalogError::Store("the catalog lock is poisoned".to_owned()))?;
+            let key = (
+                profile.as_str().to_owned(),
+                record.summary.data_version.to_string(),
+            );
+            if let Some(existing) = map.datasets.get(&key) {
+                return Ok(DatasetInsert {
+                    record: existing.clone(),
+                    created: false,
+                });
+            }
+            map.datasets.insert(key, record.clone());
+            Ok(DatasetInsert {
+                record,
+                created: true,
+            })
+        })
+    }
+
+    fn object_guard(
+        &self,
+        _object_key: String,
+    ) -> BoxFuture<Result<Box<dyn ObjectGuard>, CatalogError>> {
+        let gate = Arc::clone(&self.object_gate);
+        Box::pin(async move {
+            let guard = gate.lock_owned().await;
+            Ok(Box::new(MemoryObjectGuard { _gate: guard }) as Box<dyn ObjectGuard>)
+        })
+    }
+
+    fn object_referenced(&self, object_key: String) -> BoxFuture<Result<bool, CatalogError>> {
+        let inner = Arc::clone(&self.inner);
+        Box::pin(async move {
+            Ok(inner
+                .lock()
+                .map_err(|_| CatalogError::Store("the catalog lock is poisoned".to_owned()))?
+                .datasets
+                .values()
+                .any(|record| record.object_key == object_key))
         })
     }
 

@@ -19,7 +19,7 @@ pub mod store;
 pub use memory::MemoryArtifacts;
 pub use postgres::PgArtifacts;
 pub use routes::routes;
-pub use store::{ArtifactCatalog, ArtifactError, NewArtifact};
+pub use store::{ArtifactCatalog, ArtifactError, ArtifactRegisterOutcome, NewArtifact};
 
 /// How long an unreferenced computed artifact is retained, in days.
 ///

@@ -750,6 +750,21 @@ mod tests {
     }
 
     #[test]
+    fn a_second_data_replica_is_rejected_by_v2() {
+        let mut value = valid_example();
+        value["services"]["data"]["replicas"] = serde_json::json!(2);
+        let error = validate(&parse(value)).expect_err("two data replicas");
+        assert!(
+            error.to_string().contains("services.data.replicas"),
+            "{error}"
+        );
+        assert!(
+            error.to_string().contains("must be one"),
+            "the refusal must name the v2 replica rule: {error}"
+        );
+    }
+
+    #[test]
     fn a_duplicate_host_port_is_rejected() {
         let mut value = valid_example();
         value["services"]["evidence"]["port"] = serde_json::json!(18081);

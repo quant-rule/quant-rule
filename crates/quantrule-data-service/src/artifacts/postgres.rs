@@ -14,7 +14,7 @@ use quantrule_api::{
 use quantrule_runtime::adapters::BoxFuture;
 use sqlx::PgPool;
 
-use super::store::{ArtifactCatalog, ArtifactError, NewArtifact};
+use super::store::{ArtifactCatalog, ArtifactError, ArtifactRegisterOutcome, NewArtifact};
 
 /// An artifact catalog backed by Postgres.
 #[derive(Debug, Clone)]
@@ -82,34 +82,15 @@ async fn load(
     row.map(record_of).transpose()
 }
 
-async fn count(
-    pool: &PgPool,
-    profile: &ProfileId,
-    kind: ArtifactKind,
-    artifact_id: &str,
-) -> Result<u64, ArtifactError> {
-    let row: (i64,) = sqlx::query_as(
-        "SELECT count(*) FROM catalog.artifact_references
-          WHERE profile_id = $1 AND artifact_kind = $2 AND artifact_id = $3",
-    )
-    .bind(profile.as_str())
-    .bind(kind.code())
-    .bind(artifact_id)
-    .fetch_one(pool)
-    .await
-    .map_err(|error| ArtifactError::Store(error.to_string()))?;
-    Ok(u64::try_from(row.0).unwrap_or(0))
-}
-
 impl ArtifactCatalog for PgArtifacts {
     fn register(
         &self,
         profile: ProfileId,
         artifact: NewArtifact,
-    ) -> BoxFuture<Result<ArtifactRecord, ArtifactError>> {
+    ) -> BoxFuture<Result<ArtifactRegisterOutcome, ArtifactError>> {
         let pool = self.pool.clone();
         Box::pin(async move {
-            sqlx::query(
+            let inserted = sqlx::query(
                 "INSERT INTO catalog.artifacts
                      (profile_id, artifact_kind, artifact_id, object_key, sha256, bytes,
                       created_at)
@@ -126,14 +107,18 @@ impl ArtifactCatalog for PgArtifacts {
             .execute(&pool)
             .await
             .map_err(|error| ArtifactError::Store(error.to_string()))?;
-            load(
+            let record = load(
                 &pool,
                 &profile,
                 artifact.kind,
                 &artifact.artifact_id.to_string(),
             )
             .await?
-            .ok_or(ArtifactError::NotFound)
+            .ok_or(ArtifactError::NotFound)?;
+            Ok(ArtifactRegisterOutcome {
+                record,
+                created: inserted.rows_affected() == 1,
+            })
         })
     }
 
@@ -173,7 +158,26 @@ impl ArtifactCatalog for PgArtifacts {
     ) -> BoxFuture<Result<u64, ArtifactError>> {
         let pool = self.pool.clone();
         Box::pin(async move {
-            if load(&pool, &profile, kind, &artifact_id).await?.is_none() {
+            let mut transaction = pool
+                .begin()
+                .await
+                .map_err(|error| ArtifactError::Store(error.to_string()))?;
+            let exists: Option<(String,)> = sqlx::query_as(
+                "SELECT artifact_id FROM catalog.artifacts
+                  WHERE profile_id = $1 AND artifact_kind = $2 AND artifact_id = $3
+                  FOR UPDATE",
+            )
+            .bind(profile.as_str())
+            .bind(kind.code())
+            .bind(&artifact_id)
+            .fetch_optional(&mut *transaction)
+            .await
+            .map_err(|error| ArtifactError::Store(error.to_string()))?;
+            if exists.is_none() {
+                transaction
+                    .rollback()
+                    .await
+                    .map_err(|error| ArtifactError::Store(error.to_string()))?;
                 return Err(ArtifactError::NotFound);
             }
             sqlx::query(
@@ -188,10 +192,24 @@ impl ArtifactCatalog for PgArtifacts {
             .bind(&reference.reference_id)
             .bind(reference.kind.as_str())
             .bind(&reference.created_at)
-            .execute(&pool)
+            .execute(&mut *transaction)
             .await
             .map_err(|error| ArtifactError::Store(error.to_string()))?;
-            count(&pool, &profile, kind, &artifact_id).await
+            let remaining: (i64,) = sqlx::query_as(
+                "SELECT count(*) FROM catalog.artifact_references
+                  WHERE profile_id = $1 AND artifact_kind = $2 AND artifact_id = $3",
+            )
+            .bind(profile.as_str())
+            .bind(kind.code())
+            .bind(&artifact_id)
+            .fetch_one(&mut *transaction)
+            .await
+            .map_err(|error| ArtifactError::Store(error.to_string()))?;
+            transaction
+                .commit()
+                .await
+                .map_err(|error| ArtifactError::Store(error.to_string()))?;
+            Ok(u64::try_from(remaining.0).unwrap_or(0))
         })
     }
 
@@ -204,7 +222,26 @@ impl ArtifactCatalog for PgArtifacts {
     ) -> BoxFuture<Result<u64, ArtifactError>> {
         let pool = self.pool.clone();
         Box::pin(async move {
-            if load(&pool, &profile, kind, &artifact_id).await?.is_none() {
+            let mut transaction = pool
+                .begin()
+                .await
+                .map_err(|error| ArtifactError::Store(error.to_string()))?;
+            let exists: Option<(String,)> = sqlx::query_as(
+                "SELECT artifact_id FROM catalog.artifacts
+                  WHERE profile_id = $1 AND artifact_kind = $2 AND artifact_id = $3
+                  FOR UPDATE",
+            )
+            .bind(profile.as_str())
+            .bind(kind.code())
+            .bind(&artifact_id)
+            .fetch_optional(&mut *transaction)
+            .await
+            .map_err(|error| ArtifactError::Store(error.to_string()))?;
+            if exists.is_none() {
+                transaction
+                    .rollback()
+                    .await
+                    .map_err(|error| ArtifactError::Store(error.to_string()))?;
                 return Err(ArtifactError::NotFound);
             }
             sqlx::query(
@@ -216,10 +253,24 @@ impl ArtifactCatalog for PgArtifacts {
             .bind(kind.code())
             .bind(&artifact_id)
             .bind(&reference_id)
-            .execute(&pool)
+            .execute(&mut *transaction)
             .await
             .map_err(|error| ArtifactError::Store(error.to_string()))?;
-            count(&pool, &profile, kind, &artifact_id).await
+            let remaining: (i64,) = sqlx::query_as(
+                "SELECT count(*) FROM catalog.artifact_references
+                  WHERE profile_id = $1 AND artifact_kind = $2 AND artifact_id = $3",
+            )
+            .bind(profile.as_str())
+            .bind(kind.code())
+            .bind(&artifact_id)
+            .fetch_one(&mut *transaction)
+            .await
+            .map_err(|error| ArtifactError::Store(error.to_string()))?;
+            transaction
+                .commit()
+                .await
+                .map_err(|error| ArtifactError::Store(error.to_string()))?;
+            Ok(u64::try_from(remaining.0).unwrap_or(0))
         })
     }
 

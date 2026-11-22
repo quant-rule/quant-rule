@@ -48,8 +48,10 @@ Each host needs only the files for the services it runs. The image is already
 loaded; the Compose files use `network_mode: host` and the env file's
 `QR_BIND_IP`/`QR_BIND_PORT`.
 
-The v2 profile runs one simulation instance. Two simulation replicas are an HA
-capability and require the [concurrency contract](../architecture/simulation-concurrency.md);
+The v2 profile runs one data and one simulation instance. Two data replicas are
+an HA capability and require the [active/active contract](../architecture/data-active-active.md);
+the v2 validator refuses a second internal replica. Two simulation replicas
+require the [concurrency contract](../architecture/simulation-concurrency.md);
 do not start a second v2 instance.
 
 The rendered service env files carry `QR_QUEUE_GENERATION=1`; every queue name

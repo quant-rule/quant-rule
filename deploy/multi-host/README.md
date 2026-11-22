@@ -96,6 +96,11 @@ roles are fixed by the bootstrap. Per-role password files belong to v3. The full
 contract is
 [`docs/config/2026-11-22/four-databases.md`](../../docs/config/2026-11-22/four-databases.md).
 
+`qr-deploy validate` refuses a second data, evidence, or simulation replica in
+v2. Two data replicas are an HA-profile placement and require the
+[active/active contract](../../docs/architecture/data-active-active.md); this
+profile stays single-instance.
+
 ## 5. Image distribution — one digest
 
 One image carries all six binaries. Build it once, then distribute the archive;

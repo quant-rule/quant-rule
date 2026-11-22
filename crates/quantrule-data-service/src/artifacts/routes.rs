@@ -26,6 +26,7 @@ use crate::artifacts::store::{ArtifactError, NewArtifact};
 use crate::artifacts::{ARTIFACT_RETENTION_DAYS, ArtifactCatalog};
 use crate::routes::{ApiFailure, failure, request_profile};
 use crate::state::DataState;
+use quantrule_runtime::adapters::put_if_absent;
 
 /// The largest computed artifact the data service accepts.
 ///
@@ -125,25 +126,22 @@ async fn register_artifact(
     };
 
     let _gate = state.artifact_gate.lock().await;
-    let exists = catalog
-        .get(profile.clone(), kind, artifact.artifact_id.to_string())
-        .await
-        .map_err(store_failure)?
-        .is_some();
-    objects
-        .put(&artifact.object_key, body.to_vec())
+    // The object is written first. The unique artifact key makes a duplicate
+    // registration idempotent after the write; a metadata failure leaves an
+    // orphan object, which is safe, never a row without bytes.
+    put_if_absent(objects.as_ref(), &artifact.object_key, body.to_vec())
         .await
         .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
-    let record = catalog
+    let outcome = catalog
         .register(profile, artifact)
         .await
         .map_err(store_failure)?;
-    let status = if exists {
-        StatusCode::OK
-    } else {
+    let status = if outcome.created {
         StatusCode::CREATED
+    } else {
+        StatusCode::OK
     };
-    Ok((status, Json(record)))
+    Ok((status, Json(outcome.record)))
 }
 
 async fn list_artifacts(
