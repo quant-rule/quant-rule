@@ -1,7 +1,7 @@
 # Research Artifact Packs and Run v5
 
 - Date: 2026-11-22 (UTC)
-- Status: Strategy, portfolio policy and execution-simulation pack schemas implemented (RA-002, RA-003, RA-004); the run-v5 reference contract and config identity implemented (RA-005); signal computation, the persistent registry and the client surface target the next release; accepted by [ADR-RA](../../adr/2026-11-22/1082-research-artifact-layer.md)
+- Status: Strategy, portfolio policy and execution-simulation pack schemas implemented (RA-002, RA-003, RA-004); the run-v5 reference contract and config identity implemented (RA-005); the persistent pack registry, run lineage and artifact retention implemented (RA-006); signal computation, run-v5 catalog/worker reachability and the client surface target the next release; accepted by [ADR-RA](../../adr/2026-11-22/1082-research-artifact-layer.md)
 - Claim type: Behaviour Claim
 - Related: [Research artifacts](../../architecture/research-artifacts.md), [Run v4](../2026-11-13/run-v4-strategy.md)
 
@@ -41,13 +41,11 @@ retired lifecycle is metadata outside the hash.
 - JSON keys are sorted lexicographically.
 - No insignificant whitespace.
 - UTF-8, no BOM, trailing newline only.
-- Numbers use the JSON representation stored in the pack; the bytes are not
+- Numbers use the JSON representation stored in the pack; bytes are not
   re-serialised after freeze.
-- File paths are sorted; each path, byte length and bytes are hashed.
 - The pack ID is `sha256(canonical bytes)`.
-- Canonicalisation happens once when the pack is created. The canonical bytes
-  are stored, and every later identity check hashes the stored bytes without
-  re-serialising them.
+- Canonicalisation happens once when the pack is created; every later identity
+  check hashes the stored bytes without re-serialising them.
 
 ## 3. Strategy pack payload
 
@@ -87,12 +85,11 @@ retired lifecycle is metadata outside the hash.
 | `risk.reward_to_risk` | Positive finite |
 | `entry` / `exit` | Registered event and state conditions |
 
-Rule purity: only arithmetic, comparison, clamp, sign and rounding. No fitted,
+Rule purity: only arithmetic, comparison, clamp, sign and rounding; no fitted,
 statistical, machine-learning or percentile parameter is permitted.
 
 The validator rejects unknown fields, duplicate conditions, unregistered events,
-diagnostic roles, conflicting entry directions, and a fold-only field in signal
-mode.
+diagnostic roles, conflicting entry directions, and fold-only signal fields.
 
 ## 4. Portfolio policy pack payload
 
@@ -140,11 +137,10 @@ Constraint kinds in v1:
 | `max_positions_per_instrument` | Positive integer | At most `risk.max_open_positions` |
 | `min_holding_bars` | Positive integer | Minimum execution bars in a position |
 
-`rebalance` and `constraints` are optional; their defaults are `none` and an
-empty list. Initial cash and currency are not in this pack; they are
-account-specific run inputs. The closed schema rejects `initial_cash`,
-`currency`, `leverage`, correlation, covariance, optimisation and every other
-statistical or fitted field.
+`rebalance` and `constraints` are optional, defaulting to `none` and an empty
+list. Initial cash and currency are account-specific run inputs, not pack fields.
+The closed schema rejects `initial_cash`, `currency`, `leverage`, correlation,
+covariance, optimisation and every other statistical or fitted field.
 
 ## 5. Execution-simulation pack payload
 
@@ -155,15 +151,8 @@ statistical or fitted field.
   "tie_break": "stop_first",
   "fee_rate": 0.0,
   "slippage_bps": 2.0,
-  "commission": {
-    "rate": 0.0002,
-    "base": "equity",
-    "per": "operation"
-  },
-  "funding": {
-    "rate": 0.0,
-    "interval_hours": 8
-  },
+  "commission": {"rate": 0.0002, "base": "equity", "per": "operation"},
+  "funding": {"rate": 0.0, "interval_hours": 8},
   "zero_volume": "reject",
   "end_of_data": "leave_open"
 }
@@ -214,9 +203,8 @@ volatility and every other live-market or statistical field.
 ```
 
 The artifact contains no fill, quantity, fee, cash, equity, P&L or edge metric.
-`available_bar_index` is the first bar on which the row was knowable. A later bar
-cannot change an earlier row. The same model artifact plus pack plus schema
-produces the same signal ID.
+`available_bar_index` is the first bar on which the row was knowable; a later bar
+cannot change it, and the same model artifact plus pack plus schema gives one ID.
 
 ## 7. Run v5
 
@@ -249,34 +237,30 @@ produces the same signal ID.
 | `output_root` | A relative path inside the config directory |
 | Legacy fields | `strategy`, `execution`, `portfolio`, `execution_id` and `portfolio_id` are rejected in v5 |
 
-Each `{id, hash}` pair names one content-addressed object. The id and hash are
-the same value. A pack's id is the SHA-256 of its canonical bytes. A signal
-artifact's id is the SHA-256 of its stored bytes. A model artifact's id is the
-canonical digest over its `(name, sha256)` file entries, which is the same
-identity the diagnostic stage contract records. A strategy-only change leaves
-the model artifact bytes and content address unchanged; the model bundle never
-lists the strategy file.
+Each `{id, hash}` pair names one content-addressed object with both fields equal.
+A pack's id is the SHA-256 of its canonical bytes; a signal artifact's id is the
+SHA-256 of its stored bytes; a model artifact's id is the canonical digest over
+its `(name, sha256)` entries, which the diagnostic stage also records. A
+strategy-only change leaves the model artifact bytes and id unchanged.
 
-The loader verifies every content hash, rejects a wrong-kind pack, and checks
-the signal artifact's `strategy_pack_id`, `model_artifact_id` and `timeframe`.
-For fold mode, `signal_artifact` is absent. For signal mode it is required and
-must exist before submission. v3 and v4 configs remain readable; a v5 config is
-new.
+The loader verifies every content hash, rejects a wrong-kind pack, and checks the
+signal artifact's `strategy_pack_id`, `model_artifact_id` and `timeframe`. Fold
+mode omits `signal_artifact`; signal mode requires it before submission. v3 and
+v4 configs remain readable; a v5 config is new.
 
 `RunId` remains `data_version ‖ config_hash ‖ model_version ‖ image_digest`.
 The config hash covers the run, data and model files and each reference tag and
-hash; changing any pack or signal hash therefore changes the run identity. The
-config hash for v3 and v4 is unchanged, so an old config reproduces its run.
-The canonical digest remains over result artifacts only and excludes
-`provenance.json` and input payloads.
+hash, so a pack or signal change changes the run identity; v3 and v4 keep their
+hash and the canonical digest still covers result artifacts only.
 
-The persistent registry is not implemented yet. A v5 config is validated
-through a supplied reference resolver (`RunConfig::load_with`,
-`AppService::load_run_with`); the catalog and worker wiring arrives with RA-006.
+A v5 config is validated through a supplied reference resolver
+(`RunConfig::load_with`, `AppService::load_run_with`). The pack registry now
+stores and serves the pack bytes, but run submission, the catalog scan and the
+worker do not yet resolve a v5 config, and the signal artifact writer does not
+exist. Those integrations are later work items; no client command is added here.
 The current fold materializes strategy, execution, commission, funding, sizing,
-drawdown and position limits. `per_trade_risk`, `max_exposure`, `rebalance` and
-`constraints` are validated and retained in the resolved `RunV5`, but the
-portfolio engine does not read them yet.
+drawdown and position limits; `per_trade_risk`, `max_exposure`, `rebalance` and
+`constraints` are retained in `RunV5` but not applied yet.
 
 ## 8. Lifecycle and validation
 
@@ -289,17 +273,57 @@ portfolio engine does not read them yet.
 
 Validation covers schema, canonical hash, registry roles, causality,
 determinism, golden fixtures, duplicate identity and version immutability. Freeze
-is a human decision with an independent Quant Validator record.
+needs a human decision and an independent Quant Validator record.
+
+### Registry storage and API
+
+The data service owns `catalog.packs`,
+`catalog.pack_validation_records` and `catalog.pack_lifecycle_events` (migration
+7). The row is profile-scoped metadata and identity; the object store is the
+single byte authority, under `packs/<hash>`, and the row records its key, hash
+and size. Registration writes the object first and commits the metadata row
+second, so a failed commit leaves an orphan object, never a row without bytes.
+Canonicalisation happens once, the same hash is idempotent, and a `(name,
+version)` label with different bytes is refused. Validate, freeze, retire, show
+and byte fetch re-read the object and verify its hash; a missing object fails
+closed. Validate re-parses the document; freeze and retire lock the row and
+append one event in the same transaction. Both are idempotent; a frozen pack
+cannot be re-validated and a retired pack is never deleted.
+
+| Method | Path | Effect |
+|---|---|---|
+| `POST` | `/catalog/packs` | Create from a pack document |
+| `GET` | `/catalog/packs?kind=&state=`, `/catalog/packs/{id}` | List and show |
+| `GET` | `/catalog/packs/{id}/bytes` | Fetch canonical bytes by content id |
+| `POST` | `/catalog/packs/{id}/validate` | Re-validate a draft |
+| `POST` | `/catalog/packs/{id}/freeze` | Freeze a validated pack |
+| `POST` | `/catalog/packs/{id}/retire` | Retire a frozen pack |
+| `GET` | `/internal/v1/packs/{id}`, `.../bytes` | Service-to-service read |
+
+No shell command and no browser screen is added. The routes take a profile
+header and an identifier, never a client path.
+
+### Signal artifacts, lineage and retention
+
+Evidence adds `runs.run_lineage` and `runs.run_lineage_references` (migration
+20): a run's model, strategy, signal, portfolio and execution references by id
+and hash with pack provenance. A repeated set is idempotent; a different set is
+refused. `PUT`/`GET /internal/v1/runs/{id}/lineage` is the run-v5 integration
+seam; no submission or worker path reaches it yet.
+
+The data service adds `catalog.artifacts` and `catalog.artifact_references`
+(migration 8) as the signal-artifact seam. A referenced artifact is never
+collected. The internal pass collects an unreferenced signal artifact at least 30
+days old, writes a `catalog.retention_events` tombstone, then deletes an unshared
+object. Signal creation stays RA-007/RA-008.
 
 ## 9. Compatibility and clients
 
-- The 49 existing commands and screens are unchanged.
-- Additive commands: `pack create/list/show/validate/freeze/retire` and
-  `signal create/list/show/fetch`.
-- A run detail shows model, pack and signal hashes.
+- The 49 existing commands and screens are unchanged; RA-006 adds none.
+- Planned additive commands: `pack create/list/show/validate/freeze/retire` and
+  `signal create/list/show/fetch`; a run detail will show the hashes.
 - No client computes a signal or a statistic; the server owns computation.
 
 ## 10. Non-goals
 
-No live trading, broker, OMS, real-time risk, regulatory scope, statistical
-signal parameter, per-bar network fold or fifth database.
+No live trading, broker, OMS, real-time risk, regulatory scope, statistical signal parameter, per-bar network fold or fifth database.

@@ -5,64 +5,14 @@
 //! elsewhere, and is finally `retired`. Freeze never rewrites the content: the
 //! transition mutates the state field only, and the canonical bytes and pack ID
 //! stay fixed for the life of the value.
+//!
+//! The state vocabulary itself is the shared `quantrule.api/v1` contract, so
+//! the registry and the parser cannot drift into two spellings. This module
+//! owns only the transition guard an in-process value enforces.
 
 use std::fmt;
 
-/// One pack lifecycle state.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum PackState {
-    /// Editable and validatable; not usable in a run.
-    Draft,
-    /// Schema-valid and ready for the freeze decision.
-    Validated,
-    /// Immutable and usable in new runs.
-    Frozen,
-    /// Readable for existing runs only; refused for new runs.
-    Retired,
-}
-
-impl PackState {
-    /// The stable wire code.
-    #[must_use]
-    pub const fn code(self) -> &'static str {
-        match self {
-            Self::Draft => "draft",
-            Self::Validated => "validated",
-            Self::Frozen => "frozen",
-            Self::Retired => "retired",
-        }
-    }
-
-    /// Whether the lifecycle permits a move from this state to `next`.
-    ///
-    /// `validated -> draft` is the rejection path. A frozen pack cannot return
-    /// to an earlier state, and a retired pack is terminal.
-    #[must_use]
-    pub const fn can_transition_to(self, next: Self) -> bool {
-        matches!(
-            (self, next),
-            (Self::Draft, Self::Validated)
-                | (Self::Validated, Self::Draft)
-                | (Self::Validated, Self::Frozen)
-                | (Self::Frozen, Self::Retired)
-        )
-    }
-
-    /// Whether a new run may reference a pack in this state.
-    ///
-    /// Only a frozen pack is usable for a new run. A retired pack remains
-    /// readable for runs that already cite it.
-    #[must_use]
-    pub const fn allows_new_runs(self) -> bool {
-        matches!(self, Self::Frozen)
-    }
-}
-
-impl fmt::Display for PackState {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(self.code())
-    }
-}
+pub use quantrule_api::PackState;
 
 /// A lifecycle transition is not allowed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -8,11 +8,13 @@
 
 #![forbid(unsafe_code)]
 
+pub mod artifacts;
 pub mod catalog;
 pub mod configs;
 pub mod ingest;
 pub mod inspect;
 pub mod migrations;
+pub mod packs;
 pub mod postgres;
 pub mod routes;
 mod rows;
@@ -20,7 +22,9 @@ pub mod state;
 pub mod tolerant;
 pub mod upload;
 
+pub use artifacts::{ArtifactCatalog, ArtifactError, MemoryArtifacts};
 pub use catalog::{CatalogError, DatasetCatalog, MemoryCatalog};
 pub use configs::{ConfigCatalog, ConfigRecord, ConfigStoreError, MemoryConfigs};
+pub use packs::{MemoryPacks, PackRegistry, PackRegistryError};
 pub use routes::router;
 pub use state::{DataServices, DataState};

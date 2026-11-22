@@ -6,7 +6,7 @@
 
 ## 1. Boundary
 
-Runtime history is service-owned product data. Both product clients reach it.
+Runtime history is service-owned product data reached by both clients.
 Repository evidence (`config/research`, `config/sr*`, docs records) is source
 control and stays in `qr-governance history`; it is not a product capability.
 
@@ -19,6 +19,8 @@ control and stays in `qr-governance history`; it is not a product capability.
 | research record | evidence | Yes | Open records only; decided records refuse |
 | simulation run | simulation | Yes | Draft/marking only; checked and decided refuse |
 | dataset | data | Yes | Yes, after archive and zero registered references |
+| pack | data | No | No; retire is not delete and a pack is never erased |
+| signal artifact | data | No | Unreferenced only, after the retention window, with a tombstone |
 | config | data | No | No; repository evidence |
 
 A dataset erase is a catalog operation, not a cross-service read. A consumer
@@ -33,11 +35,9 @@ its bytes after a tombstone is written.
 Protected states:
 
 - run: `succeeded` with a canonical digest; `queued` and `running` are never
-  erasable. A succeeded run referenced by a research record or baseline is
-  protected by the evidence owner.
+  erasable; a succeeded run cited by research or a baseline is protected.
 - research: `decided` is protected.
-- stage: erase uses the existing `stage delete`; a stage referenced by a run is
-  protected by the evidence owner.
+- stage: existing `stage delete`; a run-cited stage is protected.
 - simulation: `checked` and `decided` are protected.
 - dataset: erase requires `archived_at` and zero rows in `dataset_references`.
 
@@ -51,7 +51,7 @@ Every service owns an append-only `retention_event` table:
 | Field | Meaning |
 |---|---|
 | `profile_id` | organisational scope |
-| `kind` | run, stage, research, simulation, dataset |
+| `kind` | run, stage, research, simulation, dataset, artifact |
 | `record_id` | stable record identity |
 | `action` | archive or erase |
 | `reason` | stable code |
@@ -71,24 +71,24 @@ The data service owns `dataset_references`:
 | `created_at` | UTC timestamp |
 
 Registration is idempotent on `(profile_id, data_version, reference_id)`. A
-reference is a promise, not a copy: the consumer still points at the dataset. The
-owning service registers it in the same use case that writes the consumer row,
-and releases it before erasing that row. On upgrade, each owner reconciles its
-current rows once and registers any missing reference; the operation is
-idempotent, so a restart is safe.
+reference is a promise, not a copy. The owner registers before it writes the
+consumer row and releases before erasing it; upgrade reconciliation is idempotent.
 
 A release is recorded in `runs.dataset_reference_releases` in the same
-transaction as the consumer delete and survives it. The release sweep retries
-the data-service call; a `404` confirms it. See
-[cross-database consistency](cross-database-consistency.md).
+transaction as the consumer delete and survives it; the sweep retries it, and a
+`404` confirms it. See [cross-database consistency](cross-database-consistency.md).
+
+`artifact_references` is the parallel relation for signal artifacts. It is
+idempotent on `(profile_id, artifact_kind, artifact_id, reference_id)` and blocks
+collection while any row remains; the pass writes a tombstone before an unshared
+object is deleted.
 
 Artifacts are content-addressed and may be shared by several runs. Evidence does
 not delete an object on the strength of one run row. It deletes the run row and
 its `artifacts` rows in one transaction, then counts the remaining rows with the
 same `sha256`; the object is deleted only when the count is zero. The dataset
-catalog follows the same rule across profiles: the row and tombstone commit
-first, then the object is deleted only when no catalog row for that object key
-remains. A leaked object is safe; a missing shared object is not.
+catalog follows the same rule across profiles. A leaked object is safe; a missing
+shared object is not.
 
 ## 5. API
 
@@ -111,8 +111,8 @@ The owning service exposes the operation; the gateway only proxies.
 | `GET` | `/internal/v1/datasets/{version}/references` | list references |
 
 The gateway already forwards `/runs/{id}` and the wildcard `/research`,
-`/simulation`, `/catalog`, and `/stages` paths. It needs one new route for
-`/runs/{id}/archive`. Internal reference routes are service-to-service only.
+`/simulation`, `/catalog`, and `/stages` paths. `/runs/{id}/archive` is the one
+new public route; internal reference routes are service-to-service only.
 
 The clients map each published list summary to one presentation row. No client
 aggregates across services; one command is one kind and one gateway call.
@@ -128,9 +128,9 @@ history archive --kind <run|research|simulation|dataset> --id <id>
 history erase   --kind <run|research|simulation|stage|dataset> --id <id> --confirm <id>
 ```
 
-`history list` is read-only. `--dry-run` for archive/erase performs the list and
-prints the intended operation without calling the mutating endpoint. Erase
-requires the exact id as confirmation, and the server checks the same value.
+`history list` is read-only; `--dry-run` for archive/erase prints the intended
+operation without calling the mutating endpoint. Erase requires the exact id as
+confirmation, and the server checks the same value.
 
 Browser: a History screen with one tab per kind, the same filters, a preview, and
 a typed confirmation. Protected rows show the reason and disable the action.
@@ -141,17 +141,17 @@ a typed confirmation. Protected rows show the reason and disable the action.
   operation names an id. Archive first, erase second; a tombstone is mandatory.
 - No wildcard erase and no automatic agent deletion.
 - A dataset with any registered reference refuses erase.
-- Dataset insert, archive, erase, and object deletion share a service gate, so
-  a concurrent upload cannot observe an object an erase is removing.
+- Dataset insert, archive, erase, and object deletion share a service gate, so a
+  concurrent upload cannot observe an object an erase is removing.
 - A successful erase is irreversible; the tombstone is the surviving evidence.
 
 ## 8. Migration
 
-The data service adds `archived_at`, `dataset_references`, and
-`retention_events`. Evidence adds `archived_at`, the release tombstone, and the
-notification outbox. Simulation adds `archived_at` and its own event table. A
-list sorts by creation time and id; the transaction locks the row, checks state
-and references, writes the event, then commits.
+The data service adds `archived_at`, `dataset_references`, `retention_events`,
+`packs`, and `artifacts`; evidence adds `archived_at`, the release tombstone, the
+notification outbox, and run lineage; simulation adds `archived_at` and its event
+table. A list sorts by creation time and id; the transaction locks the row,
+checks state and references, writes the event, then commits.
 
 ## 9. Verification
 

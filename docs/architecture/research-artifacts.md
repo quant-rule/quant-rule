@@ -1,6 +1,6 @@
 # Research Artifacts
 
-- Status: Strategy, portfolio policy and execution-simulation packs current (RA-002–RA-004); the run-v5 reference and identity contract current (RA-005); signal computation, the persistent registry and the client surface target the next release; accepted by [ADR-RA](../adr/2026-11-22/1082-research-artifact-layer.md)
+- Status: Strategy, portfolio policy and execution-simulation packs current (RA-002–RA-004); the run-v5 reference and identity contract current (RA-005); the persistent pack registry, run lineage and artifact retention current (RA-006); signal computation, run-v5 catalog/worker reachability and the client surface target the next release; accepted by [ADR-RA](../adr/2026-11-22/1082-research-artifact-layer.md)
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 
@@ -13,10 +13,10 @@ below mean historical simulation.
 | Object | Kind | Owner | Storage | Identity |
 |---|---|---|---|---|
 | Model artifact | Computed upstream artifact | `model` | Object store + evidence provenance | Content hash |
-| Strategy pack | Human-owned definition | Human, via `data` | Catalog DB + object store | Content hash |
+| Strategy pack | Human-owned definition | Human, via `data` | Catalog metadata + object store | Content hash |
 | Signal artifact | Computed alpha output | `strategy` | Object store + evidence lineage | Content hash |
-| Portfolio policy pack | Human-owned definition | Human, via `data` | Catalog DB + object store | Content hash |
-| Execution-simulation pack | Human-owned definition | Human, via `data` | Catalog DB + object store | Content hash |
+| Portfolio policy pack | Human-owned definition | Human, via `data` | Catalog metadata + object store | Content hash |
+| Execution-simulation pack | Human-owned definition | Human, via `data` | Catalog metadata + object store | Content hash |
 | Run v5 | Reference document | Human, via config | Catalog DB + evidence | Config hash |
 | Run artifact set | Simulation result | `backtest` + `evidence` | Object store | Canonical digest |
 
@@ -37,8 +37,7 @@ The strategy pack contains the human-owned alpha definition:
 - validation status and lifecycle.
 
 A pack is `draft`, `validated`, `frozen` or `retired`. Freeze is a human decision
-supported by an independent Quant Validator record. A frozen pack is immutable.
-A change is a new pack version.
+backed by a Quant Validator record; a frozen pack is immutable, a change is a new pack.
 
 ## 3. Signal artifact
 
@@ -82,9 +81,8 @@ schema has no venue, order-routing, latency, participation or live-market field.
 
 `quantrule.run/v5` references the model artifact, strategy pack, signal artifact,
 portfolio policy pack and execution-simulation pack by ID and hash. It carries
-the account cash and currency. It does not inline pack bodies. The model
-artifact and signal artifact are optional only for a fold-mode run that computes
-the model; a signal-mode run requires both.
+cash and currency and does not inline pack bodies. The model and signal artifacts
+are optional only for a fold-mode run; a signal-mode run requires both.
 
 `RunId` remains `data_version ‖ config_hash ‖ model_version ‖ image_digest`. The
 config hash covers every reference hash, so a pack change changes the run
@@ -93,10 +91,8 @@ canonical digest remains over result artifacts only; provenance and inputs are
 excluded. v3 and v4 configs remain readable and keep their config hash.
 
 The signal artifact must exist before `run submit`; otherwise the run identity
-cannot be known at submission. Because the persistent registry is not
-implemented yet, a v5 config is loaded with a supplied reference resolver. The
-catalog and worker reach it when the registry lands; no client command or
-service boundary is added by this contract.
+cannot be known at submission. A v5 config is loaded with a supplied reference
+resolver; the catalog scan and worker do not yet resolve one.
 
 ## 7. Services and flow
 
@@ -129,13 +125,21 @@ Run v5 + Execution pack + Portfolio pack
 
 ## 8. Registry and lineage
 
-`qr_catalog` stores pack definitions, files, validation records and lifecycle
-events. MinIO stores pack bytes and signal artifacts. `qr_evidence` stores signal
-lineage, model references and run identity. There is no fifth database.
+`qr_catalog` stores pack metadata, validation records and lifecycle events;
+MinIO is the sole byte authority under `packs/<hash>`. Registration writes the
+object first and the metadata row second; show, validate, freeze, retire and
+fetch re-read the object and verify its hash, so a missing object fails closed.
+A frozen pack is immutable and a retired pack is never deleted.
 
-A referenced pack or signal is never deleted. Unreferenced signal artifacts are
-garbage-collected after the retention window with a tombstone. A retired pack
-remains readable for existing runs and is refused for new runs.
+`qr_evidence` stores a run's model, strategy, signal, portfolio and execution
+references with pack provenance. The set is immutable: the same set is
+idempotent and a different set is refused. No cross-database transaction exists
+and no fifth database is added.
+
+`catalog.artifacts` is the generic signal-artifact seam. A registered consumer
+reference protects an artifact; the retention pass removes only an unreferenced
+artifact older than 30 days, writes a tombstone in the same transaction, and
+deletes an unshared object after the commit.
 
 ## 9. Alpha and edge
 
@@ -153,10 +157,8 @@ change to alpha is a new pack and a new hypothesis.
 
 ## 10. Client surface
 
-The 49 existing commands and screens remain unchanged. Additive commands cover
-pack create/list/show/validate/freeze/retire and signal create/list/show/fetch.
-The browser gains a Packs surface and run detail shows pack hashes and the signal
-artifact. Both clients reach every capability.
+The 49 existing commands and screens remain unchanged. Additive pack and signal
+commands and a browser Packs surface are a later client slice; RA-006 adds none.
 
 ## 11. Non-goals
 

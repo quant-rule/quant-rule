@@ -5,7 +5,9 @@
 use axum::body::Body;
 use axum::http::Request;
 use quantrule_api::{DatasetRecord, PROFILE_HEADER};
-use quantrule_data_service::{DataServices, DataState, MemoryCatalog, MemoryConfigs};
+use quantrule_data_service::{
+    DataServices, DataState, MemoryArtifacts, MemoryCatalog, MemoryConfigs, MemoryPacks,
+};
 use quantrule_runtime::{Config, HealthRegistry};
 use std::path::Path;
 use std::sync::Arc;
@@ -31,7 +33,7 @@ pub async fn state_with_catalog_and_objects() -> (Arc<DataState>, MemoryObjects)
         DataServices {
             catalog: Some(Arc::new(MemoryCatalog::default())),
             objects: Some(Arc::new(objects.clone())),
-            configs: None,
+            ..DataServices::default()
         },
     );
     (state, objects)
@@ -51,9 +53,30 @@ pub async fn state_with_small_upload() -> Arc<DataState> {
         DataServices {
             catalog: Some(Arc::new(MemoryCatalog::default())),
             objects: Some(Arc::new(MemoryObjects::default())),
-            configs: None,
+            ..DataServices::default()
         },
     )
+}
+
+pub async fn state_with_research_artifacts() -> (
+    Arc<DataState>,
+    MemoryObjects,
+    Arc<MemoryPacks>,
+    Arc<MemoryArtifacts>,
+) {
+    let objects = MemoryObjects::default();
+    let packs = Arc::new(MemoryPacks::default());
+    let artifacts = Arc::new(MemoryArtifacts::default());
+    let state = state(
+        &Config::default(),
+        DataServices {
+            packs: Some(packs.clone()),
+            artifacts: Some(artifacts.clone()),
+            objects: Some(Arc::new(objects.clone())),
+            ..DataServices::default()
+        },
+    );
+    (state, objects, packs, artifacts)
 }
 
 pub async fn state_with_configs() -> Arc<DataState> {
@@ -64,9 +87,8 @@ pub async fn state_with_configs() -> Arc<DataState> {
     state(
         &config,
         DataServices {
-            catalog: None,
-            objects: None,
             configs: Some(Arc::new(MemoryConfigs::default())),
+            ..DataServices::default()
         },
     )
 }

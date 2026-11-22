@@ -6,8 +6,8 @@ use serde_json::{Value, json};
 
 use super::{
     ContentReference, MODEL_ARTIFACT_SCHEMA, MemoryReferences, ReferenceKind, RunReferenceResolver,
-    RunReferences, SIGNAL_ARTIFACT_SCHEMA, parse_model_artifact, parse_signal_artifact,
-    resolve_bytes,
+    RunReferences, SIGNAL_ARTIFACT_SCHEMA, parse_content_reference, parse_model_artifact,
+    parse_signal_artifact, resolve_bytes,
 };
 use crate::config::ConfigErrorKind;
 
@@ -55,7 +55,7 @@ fn every_reference_kind_has_a_stable_code() {
 fn a_reference_parses_and_keeps_one_identity() {
     let expected = reference(b"strategy");
     let parsed =
-        ContentReference::parse("run.json", "$.strategy_pack", &reference_value(&expected))
+        parse_content_reference("run.json", "$.strategy_pack", &reference_value(&expected))
             .expect("the reference is valid");
     assert_eq!(parsed, expected);
     assert_eq!(parsed.to_value(), reference_value(&expected));
@@ -66,7 +66,7 @@ fn a_reference_parses_and_keeps_one_identity() {
 #[test]
 fn a_reference_rejects_an_id_that_differs_from_its_hash() {
     let value = json!({"id": digest(b"a"), "hash": digest(b"b")});
-    let error = ContentReference::parse("run.json", "$.strategy_pack", &value)
+    let error = parse_content_reference("run.json", "$.strategy_pack", &value)
         .expect_err("the two identities disagree");
     assert_eq!(error.kind(), ConfigErrorKind::Inconsistent);
     assert_eq!(error.path(), "$.strategy_pack");
@@ -75,13 +75,13 @@ fn a_reference_rejects_an_id_that_differs_from_its_hash() {
 #[test]
 fn a_reference_rejects_an_unknown_field_and_a_non_digest_value() {
     let value = json!({"id": digest(b"a"), "hash": digest(b"a"), "path": "x"});
-    let error = ContentReference::parse("run.json", "$.strategy_pack", &value)
+    let error = parse_content_reference("run.json", "$.strategy_pack", &value)
         .expect_err("the field is unknown");
     assert_eq!(error.kind(), ConfigErrorKind::UnknownField);
     assert_eq!(error.path(), "$.strategy_pack.path");
 
     let value = json!({"id": "not-a-digest", "hash": "not-a-digest"});
-    let error = ContentReference::parse("run.json", "$.strategy_pack", &value)
+    let error = parse_content_reference("run.json", "$.strategy_pack", &value)
         .expect_err("the digest is invalid");
     assert_eq!(error.kind(), ConfigErrorKind::Range);
     assert_eq!(error.path(), "$.strategy_pack.id");

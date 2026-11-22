@@ -39,10 +39,10 @@ quantrule-simulation-service ──> quantrule-simulation
 | `quantrule-simulation` | Research plane: deterministic windows, marks, oracle, check, exit lab | I/O, clock, run artifacts |
 | `quantrule-runtime` | Configuration, health, logging, shutdown, adapters, migrations, service client | An engine or `quantrule-app` |
 | `quantrule-gateway` | Profiles (`gateway` schema), static client, proxy table, health | Any app, engine, or domain service crate |
-| `quantrule-data-service` | `catalog` schema, ingest, datasets, configs, inspection, ladder | Another schema or a model run |
+| `quantrule-data-service` | `catalog` schema, ingest, datasets, configs, pack registry, artifact retention, inspection, ladder | Another schema or a model run |
 | `quantrule-model-service` | Model compute and content-addressed model bundles | A strategy, execution, portfolio, or database schema |
 | `quantrule-backtest-service` | Worker orchestration, strategy, execution, portfolio, stage worker, artifact objects | A catalog, run, or research schema |
-| `quantrule-evidence-service` | `runs`, `research`, and `stage` schemas, run records, stage lifecycle, provenance, digest, memory, hypotheses, research ledger | An engine or `quantrule-app` |
+| `quantrule-evidence-service` | `runs`, `research`, and `stage` schemas, run records, stage lifecycle, provenance, digest, memory, hypotheses, research ledger, run lineage | An engine or `quantrule-app` |
 | `quantrule-simulation-service` | `simulation` schema, research objects, eleven endpoints | A model, run artifact, strategy, or queue message |
 | `quantrule-shell` | Parsing, terminal rendering, HTTP calls | Domain logic, engine dependency |
 | `apps/web` | Svelte screens, stores, SVG chart, rendering | Domain logic, computation |
@@ -57,10 +57,10 @@ cannot read a strategy, write a run, publish to the queue, or compute a model.
 | Crate | Read first |
 |---|---|
 | `quantrule-gateway` | `src/server.rs` for the route and proxy table; `src/profile/` for `gateway.profiles`; `src/static_files.rs` for the SPA |
-| `quantrule-data-service` | `src/routes.rs`, `src/ingest.rs`, `src/catalog.rs`, `src/postgres.rs` |
+| `quantrule-data-service` | `src/routes.rs`, `src/ingest.rs`, `src/catalog.rs`, `src/packs/`, `src/artifacts/`, `src/postgres.rs` |
 | `quantrule-model-service` | `src/routes.rs`, `src/bundle.rs`, `src/state.rs` |
 | `quantrule-backtest-service` | `src/backtest/worker.rs`, `src/backtest/workspace.rs`, `src/backtest/retry.rs`, `src/stage/` |
-| `quantrule-evidence-service` | `src/state.rs`, `src/postgres.rs`, `src/migrations.rs`, `src/outbox.rs`, `src/releases.rs`, `src/reconcile.rs`, `src/stage/` |
+| `quantrule-evidence-service` | `src/state.rs`, `src/postgres.rs`, `src/migrations.rs`, `src/lineage.rs`, `src/outbox.rs`, `src/releases.rs`, `src/reconcile.rs`, `src/stage/` |
 | `quantrule-simulation-service` | `src/routes/`, `src/postgres.rs`, `src/bundle.rs` |
 | `quantrule-runtime` | `src/config.rs`, `src/health.rs`, `src/adapters/`, `src/client.rs`, `src/migrations.rs` |
 
@@ -80,6 +80,9 @@ cannot read a strategy, write a run, publish to the queue, or compute a model.
 | Command | `shell/src/command/parse/<family>.rs`, `dispatch/<family>.rs`, `src/output/<family>.rs` | `command-surface.md`, help, tutorial, `tests/cases/`, checker |
 | Config field | `app/src/config/<file>.rs` | input type, provenance, docs, registry |
 | Pack field | `app/src/pack/<kind>.rs`; shared envelope, identity and lifecycle in `pack/envelope.rs`, `pack/core.rs`, `pack/identity.rs` | config contract, canonical hash, lifecycle test |
+| Pack registry | `data-service/src/packs/`; migration `0007_packs.sql` stores metadata only, the object store holds the bytes; routes under `/catalog/packs` and `/internal/v1/packs` | config contract, migration ledger, route and conformance tests |
+| Artifact retention | `data-service/src/artifacts/`; migration `0008_artifacts.sql`; internal routes under `/internal/v1/artifacts` | history retention, cross-database consistency, tombstone test |
+| Run lineage | `evidence-service/src/lineage/`; migration `0020_run_lineage.sql`; internal route under `/internal/v1/runs/{id}/lineage` | research artifacts, retention, lineage test |
 | Artifact field | `evidence-service/src/` | artifact contract, golden bundle |
 
 ## 4. Repository tooling

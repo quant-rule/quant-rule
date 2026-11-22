@@ -72,6 +72,8 @@ fn routes() -> Router<Arc<DataState>> {
         )
         .route("/inspect/candles", get(inspect_candles))
         .route("/inspect/timeframes", get(inspect_timeframes))
+        .merge(crate::packs::routes())
+        .merge(crate::artifacts::routes())
         .route("/datasets/{version}/candles", get(get_candles))
         .route("/datasets/{version}/ladder/{timeframe}", get(get_ladder))
         .route("/internal/v1/configs/{config_id}", get(internal_config))

@@ -13,6 +13,7 @@ use quantrule_runtime::adapters::{ObjectStore, Queue};
 use quantrule_runtime::client::DataClient;
 use quantrule_runtime::health::HealthRegistry;
 
+use crate::lineage::RunLineageStore;
 use crate::operations::OperationsStatus;
 use crate::outbox::RunOutbox;
 use crate::releases::ReferenceReleaseLog;
@@ -35,6 +36,8 @@ pub struct EvidenceServices {
     pub hypotheses: Option<Arc<dyn HypothesisStore>>,
     /// Where improvement runs, baselines, and invalidations live.
     pub improvements: Option<Arc<dyn ImprovementStore>>,
+    /// Where a run's research artifact lineage lives.
+    pub lineage: Option<Arc<dyn RunLineageStore>>,
     /// Where artifact bytes live.
     pub objects: Option<Arc<dyn ObjectStore>>,
     /// The control-plane queue; evidence publishes every run message.
@@ -65,6 +68,9 @@ pub struct EvidenceState {
     /// Where improvement runs, baselines, and invalidations live; absent when
     /// no database is configured.
     pub improvements: Option<Arc<dyn ImprovementStore>>,
+    /// Where a run's research artifact lineage lives; absent when no database
+    /// is configured.
+    pub lineage: Option<Arc<dyn RunLineageStore>>,
     /// Where artifact bytes live; absent when no object store is configured.
     pub objects: Option<Arc<dyn ObjectStore>>,
     /// The control-plane queue; absent when the broker is unreachable.
@@ -100,6 +106,7 @@ impl std::fmt::Debug for EvidenceState {
             .field("stages", &self.stages.is_some())
             .field("hypotheses", &self.hypotheses.is_some())
             .field("improvements", &self.improvements.is_some())
+            .field("lineage", &self.lineage.is_some())
             .field("objects", &self.objects.is_some())
             .field("queue", &self.queue.is_some())
             .field("data", &self.data.is_some())
@@ -125,6 +132,7 @@ impl EvidenceState {
             stages: services.stages,
             hypotheses: services.hypotheses,
             improvements: services.improvements,
+            lineage: services.lineage,
             objects: services.objects,
             queue: services.queue,
             data: services.data,

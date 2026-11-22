@@ -49,7 +49,7 @@ repeating a status.
 | Data partitions | `model_dev` 2018–2020, `model_validation` 2021–2022, `strategy_dev` 2018–2022, `strategy_validation` 2024, `portfolio_dev` 2024, `portfolio_holdout` 2025; 2023 excluded. A dense Binance BTCUSDT cross-venue source exists outside the partitions. |
 | Improvement workflow | Current; the v3 research-ledger store, research commands, and Research screen are implemented; the SR1/SR2 strategy runs, the SR3 feature programme, the SR4 multi-instrument fade, the SR5 absorption count gate, the SR6 VWAP rejection run, the SR7 BTC+ETH H3 cross-section, the SR8 2023 buffer test, the SR8-A 2023 archive data rejection, the SR9 15m structure campaign, and the Binance BTCUSDT cross-venue check are recorded; accepted model baselines: 1m 4 ATR compression expansion, 1m compression-range, and 5m fresh-onset range; no accepted strategy or portfolio baseline. |
 | Run contract | Current; `quantrule.improvement-run/v3` is current, v2 is historical. |
-| Cross-DB consistency | Current for the run-notification outbox, the per-run lease and term fence, the dataset-reference release tombstones, and the reconcilers (HA-004); quorum queues, the evidence leader and simulation references belong to later slices. [cross-database-consistency.md](cross-database-consistency.md). |
+| Cross-DB consistency | Current for the run-notification outbox, the per-run lease and term fence, the dataset-reference release tombstones, artifact references and run lineage, and the reconcilers (HA-004); quorum queues and the evidence leader belong to later slices. [cross-database-consistency.md](cross-database-consistency.md). |
 | Research swarm | Current contract; no active campaign. |
 | Release tags | `v1.5.2` is the latest published release (2026-11-21), the Windows fixture recovery; `v1.5.0` and `v1.5.1` are withdrawn because their Windows CLI gate failed. `v1.4.2` is the second release recovery for the multi-host deployment; `v1.4.1` and `v1.4.0` are withdrawn because their workflows failed. `v1.3.0` is the stage execution surface (`sha256:d9b8daa1…`). `v1.2.0` is the version-alignment release (`sha256:26350916…`); `v1.1.0` is the 1.1.0 alignment release (`sha256:d5ce83da…`); `v1.0.0` is the desktop release, prepared as `v1.1.0` (`sha256:a133ff14…`); `v0.9.0` is the distributed platform (`sha256:1250438f…`). The tag mapping is in `docs/releases/README.md`. |
 | Changelog | Grouped release history; `1.5.2` is the current section, and the historical headings are normalized to the current tags. |
@@ -63,7 +63,7 @@ repeating a status.
 | [`kata.md`](kata.md) | Current | Why the product exists |
 | [`characteristics.md`](characteristics.md) | Current | Which qualities are measurable and how |
 | [`services.md`](services.md) | Current; released as v0.9.0 (prepared as v1.0.0); current in v1.5.2 | Who does what, and what each service owns |
-| [`research-artifacts.md`](research-artifacts.md) | Strategy, portfolio policy and execution-simulation packs current (RA-002–RA-004); run-v5 reference and identity contract current (RA-005); signal computation, the persistent registry and the client surface target the next release; accepted by ADR-RA | The model artifact, packs, signal artifacts, run v5 and lineage |
+| [`research-artifacts.md`](research-artifacts.md) | Strategy, portfolio policy and execution-simulation packs current (RA-002–RA-004); run-v5 reference and identity contract current (RA-005); persistent registry, run lineage and artifact retention current (RA-006); signal computation, run-v5 catalog/worker reachability and the client surface target the next release; accepted by ADR-RA | The model artifact, packs, signal artifacts, run v5 and lineage |
 | [`ha.md`](ha.md) | Target for the next release; accepted by ADR-HA | Swarm HA, four databases, replication, failure and evidence boundary |
 | [`data-plane.md`](data-plane.md) | Current; released as v0.9.0 (prepared as v1.0.0); current in v1.5.2 | How one run stays deterministic |
 | [`control-plane.md`](control-plane.md) | Current; released as v0.9.0 (prepared as v1.0.0); current in v1.5.2 | How a run is submitted, retried, and cancelled |
@@ -79,7 +79,7 @@ repeating a status.
 | [`module-map.md`](module-map.md) | Current; released as v0.9.0 (prepared as v1.0.0); current in v1.5.2 | Where code lives |
 | [`command-surface.md`](command-surface.md) | Current; 49 commands, released as v1.5.2 | Implemented commands and the retirement record |
 | [`stage-surface.md`](stage-surface.md) | Current; released as v1.3.0; current in v1.5.2 | The stage, research, and operations API, commands, services, and client screens |
-| [`history-retention.md`](history-retention.md) | Current; implemented for #937 | Runtime history ownership, states, and safety |
+| [`history-retention.md`](history-retention.md) | Current; implemented for #937; pack and signal-artifact retention added by RA-006 | Runtime history ownership, states, and safety |
 | [S3 command-surface plan](../execution-plans/2026-11-06/s3-command-surface.md) | Approved 2026-11-06; all phases merged; human acceptance pending | The command-surface phases |
 
 ## Glossary

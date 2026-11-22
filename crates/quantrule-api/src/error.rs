@@ -25,6 +25,25 @@ pub enum ErrorCode {
     /// A configuration failed schema or cross-config validation.
     #[serde(rename = "config.invalid")]
     ConfigInvalid,
+    /// The pack is unknown in this profile.
+    #[serde(rename = "pack.not_found")]
+    PackNotFound,
+    /// A pack upload or lifecycle request is invalid.
+    #[serde(rename = "pack.invalid")]
+    PackInvalid,
+    /// A pack label already names different bytes, or the lifecycle refuses
+    /// the requested transition.
+    #[serde(rename = "pack.conflict")]
+    PackConflict,
+    /// The computed artifact is unknown in this profile.
+    #[serde(rename = "artifact.not_found")]
+    ArtifactNotFound,
+    /// An artifact registration or reference request is invalid.
+    #[serde(rename = "artifact.invalid")]
+    ArtifactInvalid,
+    /// An artifact reference or retention request conflicts with the record.
+    #[serde(rename = "artifact.conflict")]
+    ArtifactConflict,
     /// The hypothesis fingerprint is unknown.
     #[serde(rename = "hypothesis.not_found")]
     HypothesisNotFound,
@@ -34,6 +53,9 @@ pub enum ErrorCode {
     /// The run id is unknown.
     #[serde(rename = "run.not_found")]
     RunNotFound,
+    /// The run exists but has no recorded research artifact lineage.
+    #[serde(rename = "run.lineage_not_found")]
+    LineageNotFound,
     /// A run submission or query is invalid.
     #[serde(rename = "run.invalid")]
     RunInvalid,
@@ -106,9 +128,16 @@ impl ErrorCode {
             Self::DatasetNotFound => "dataset.not_found",
             Self::DatasetInvalid => "dataset.invalid",
             Self::ConfigInvalid => "config.invalid",
+            Self::PackNotFound => "pack.not_found",
+            Self::PackInvalid => "pack.invalid",
+            Self::PackConflict => "pack.conflict",
+            Self::ArtifactNotFound => "artifact.not_found",
+            Self::ArtifactInvalid => "artifact.invalid",
+            Self::ArtifactConflict => "artifact.conflict",
             Self::HypothesisNotFound => "hypothesis.not_found",
             Self::HypothesisInvalid => "hypothesis.invalid",
             Self::RunNotFound => "run.not_found",
+            Self::LineageNotFound => "run.lineage_not_found",
             Self::RunInvalid => "run.invalid",
             Self::RunModelArtifactInvalid => "run.model_artifact_invalid",
             Self::RunConflict => "run.conflict",
@@ -141,6 +170,8 @@ impl ErrorCode {
             Self::ProfileInvalid
             | Self::DatasetInvalid
             | Self::ConfigInvalid
+            | Self::PackInvalid
+            | Self::ArtifactInvalid
             | Self::HypothesisInvalid
             | Self::RunInvalid
             | Self::RunModelArtifactInvalid
@@ -149,14 +180,19 @@ impl ErrorCode {
             | Self::SimulationMarkInvalid => 400,
             Self::ProfileNotFound
             | Self::DatasetNotFound
+            | Self::PackNotFound
+            | Self::ArtifactNotFound
             | Self::HypothesisNotFound
             | Self::RunNotFound
+            | Self::LineageNotFound
             | Self::StageNotFound
             | Self::ResearchNotFound
             | Self::SimulationNotFound => 404,
             Self::RunConflict
             | Self::StageConflict
             | Self::ResearchConflict
+            | Self::PackConflict
+            | Self::ArtifactConflict
             | Self::SimulationCheckIncomplete
             | Self::SimulationLocked
             | Self::HistoryProtected
@@ -219,7 +255,7 @@ impl ErrorEnvelope {
 mod tests {
     use super::*;
 
-    const ALL: [ErrorCode; 27] = [
+    const ALL: [ErrorCode; 34] = [
         ErrorCode::ProfileNotFound,
         ErrorCode::ProfileInvalid,
         ErrorCode::HypothesisNotFound,
@@ -227,7 +263,14 @@ mod tests {
         ErrorCode::DatasetNotFound,
         ErrorCode::DatasetInvalid,
         ErrorCode::ConfigInvalid,
+        ErrorCode::PackNotFound,
+        ErrorCode::PackInvalid,
+        ErrorCode::PackConflict,
+        ErrorCode::ArtifactNotFound,
+        ErrorCode::ArtifactInvalid,
+        ErrorCode::ArtifactConflict,
         ErrorCode::RunNotFound,
+        ErrorCode::LineageNotFound,
         ErrorCode::RunInvalid,
         ErrorCode::RunConflict,
         ErrorCode::StageNotFound,
