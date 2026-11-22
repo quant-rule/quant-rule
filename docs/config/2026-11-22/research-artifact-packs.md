@@ -1,7 +1,7 @@
 # Research Artifact Packs and Run v5
 
 - Date: 2026-11-22 (UTC)
-- Status: Strategy pack and envelope implemented (RA-002); portfolio, execution-simulation, signal artifacts and run v5 target the next release; accepted by [ADR-RA](../../adr/2026-11-22/1082-research-artifact-layer.md)
+- Status: Strategy and portfolio policy pack schemas implemented (RA-002, RA-003); execution-simulation, signal artifacts and run v5 target the next release; accepted by [ADR-RA](../../adr/2026-11-22/1082-research-artifact-layer.md)
 - Claim type: Behaviour Claim
 - Related: [Research artifacts](../../architecture/research-artifacts.md), [Run v4](../2026-11-13/run-v4-strategy.md)
 
@@ -113,22 +113,38 @@ mode.
     "action": "halt"
   },
   "rebalance": "none",
-  "constraints": []
+  "constraints": [
+    {"kind": "max_positions_per_instrument", "value": 1},
+    {"kind": "min_holding_bars", "value": 1}
+  ]
 }
 ```
 
 | Field | Rule |
 |---|---|
-| `sizing` | `fixed_notional` or `equity_fraction`; positive values |
-| `risk.per_trade_risk` | Positive finite fraction |
+| `sizing.mode` | `fixed_notional` or `equity_fraction` |
+| `sizing.notional` | Positive finite; required for `fixed_notional` |
+| `sizing.fraction` | `(0, 1]`; required for `equity_fraction` |
+| `sizing.quantity_step` | Positive finite |
+| `risk.per_trade_risk` | `(0, 1]` |
 | `risk.max_exposure` | `(0, 1]` |
 | `risk.max_open_positions` | Positive integer |
-| `drawdown.limit` | `(0, 1]`; action `halt` |
-| `rebalance` | `none` or a deterministic rule |
-| `constraints` | Declarative, rule-based only |
+| `drawdown.limit` | `(0, 1]`; `action` is `halt` |
+| `rebalance` | `none`, or `{"mode": "bar_interval", "bars": N}` with positive `N` |
+| `constraints` | Strictly ascending by `kind`, no duplicates |
 
-Initial cash and currency are not in this pack; they are account-specific run
-inputs. No correlation, covariance, optimisation or fitted statistic is allowed.
+Constraint kinds in v1:
+
+| `kind` | Value | Rule |
+|---|---|---|
+| `max_positions_per_instrument` | Positive integer | At most `risk.max_open_positions` |
+| `min_holding_bars` | Positive integer | Minimum execution bars in a position |
+
+`rebalance` and `constraints` are optional; their defaults are `none` and an
+empty list. Initial cash and currency are not in this pack; they are
+account-specific run inputs. The closed schema rejects `initial_cash`,
+`currency`, `leverage`, correlation, covariance, optimisation and every other
+statistical or fitted field.
 
 ## 5. Execution-simulation pack payload
 

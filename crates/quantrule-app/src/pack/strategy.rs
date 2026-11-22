@@ -18,7 +18,7 @@ use serde_json::{Map, Value};
 use crate::config::read;
 use crate::config::{ConfigError, StrategyConfig, StrategyEngine, parse_risk, parse_timeframe};
 
-use super::canonical::canonical_json;
+use super::core::PackCore;
 use super::envelope::{PackEnvelope, PackKind, PackMetadata};
 use super::error::PackError;
 use super::lifecycle::{PackState, PackStateError};
@@ -195,11 +195,8 @@ impl StrategyPackPayload {
 /// A strategy pack with its canonical identity and lifecycle state.
 #[derive(Debug, Clone)]
 pub struct StrategyPack {
-    metadata: PackMetadata,
+    core: PackCore,
     payload: StrategyPackPayload,
-    canonical: String,
-    id: Digest,
-    state: PackState,
 }
 
 impl StrategyPack {
@@ -214,6 +211,17 @@ impl StrategyPack {
     /// Returns [`PackError`] when the envelope is invalid, the kind is not
     /// `strategy`, or the payload disagrees with the strategy schema.
     pub fn parse(value: &Value, file: &str) -> Result<Self, PackError> {
+        let (envelope, payload) = Self::parse_parts(value, file)?;
+        Ok(Self {
+            core: PackCore::new(value, envelope.metadata()),
+            payload,
+        })
+    }
+
+    fn parse_parts(
+        value: &Value,
+        file: &str,
+    ) -> Result<(PackEnvelope, StrategyPackPayload), PackError> {
         let envelope = PackEnvelope::parse(value, file)?;
         if envelope.metadata().kind() != PackKind::Strategy {
             return Err(PackError::WrongKind {
@@ -222,15 +230,7 @@ impl StrategyPack {
             });
         }
         let payload = StrategyPackPayload::parse(file, "$.payload", envelope.payload())?;
-        let canonical = canonical_json(value);
-        let id = Digest::sha256(canonical.as_bytes());
-        Ok(Self {
-            metadata: envelope.metadata().clone(),
-            payload,
-            canonical,
-            id,
-            state: PackState::Draft,
-        })
+        Ok((envelope, payload))
     }
 
     /// Parses a JSON text document.
@@ -259,20 +259,15 @@ impl StrategyPack {
         let text = std::str::from_utf8(bytes)
             .map_err(|_| ConfigError::invalid_json(file, "the stored pack is not UTF-8"))?;
         let mut pack = Self::parse_json(text, file)?;
-        if pack.canonical.as_bytes() != bytes {
-            return Err(PackError::NonCanonical {
-                file: file.to_owned(),
-            });
-        }
         // The stored bytes are the identity, not a fresh serialisation of them.
-        pack.id = Digest::sha256(bytes);
+        pack.core.reidentify(bytes, file)?;
         Ok(pack)
     }
 
     /// The immutable envelope metadata.
     #[must_use]
     pub fn metadata(&self) -> &PackMetadata {
-        &self.metadata
+        self.core.metadata()
     }
 
     /// The validated payload.
@@ -284,25 +279,25 @@ impl StrategyPack {
     /// The content hash of the canonical bytes.
     #[must_use]
     pub fn id(&self) -> &Digest {
-        &self.id
+        self.core.id()
     }
 
     /// The canonical bytes the identity covers.
     #[must_use]
     pub fn canonical_bytes(&self) -> &[u8] {
-        self.canonical.as_bytes()
+        self.core.canonical_bytes()
     }
 
     /// The canonical JSON text, including its trailing newline.
     #[must_use]
     pub fn canonical_text(&self) -> &str {
-        &self.canonical
+        self.core.canonical_text()
     }
 
     /// The lifecycle state.
     #[must_use]
     pub const fn state(&self) -> PackState {
-        self.state
+        self.core.state()
     }
 
     /// Marks the pack validated after the schema check.
@@ -311,7 +306,7 @@ impl StrategyPack {
     ///
     /// Returns [`PackStateError`] unless the pack is a draft.
     pub fn validate(&mut self) -> Result<(), PackStateError> {
-        self.transition(PackState::Validated)
+        self.core.validate()
     }
 
     /// Rejects a validated pack and returns it to draft for editing.
@@ -320,7 +315,7 @@ impl StrategyPack {
     ///
     /// Returns [`PackStateError`] unless the pack is validated.
     pub fn reject(&mut self) -> Result<(), PackStateError> {
-        self.transition(PackState::Draft)
+        self.core.reject()
     }
 
     /// Freezes a validated pack.
@@ -332,7 +327,7 @@ impl StrategyPack {
     ///
     /// Returns [`PackStateError`] unless the pack is validated.
     pub fn freeze(&mut self) -> Result<(), PackStateError> {
-        self.transition(PackState::Frozen)
+        self.core.freeze()
     }
 
     /// Retires a frozen pack from new runs.
@@ -341,17 +336,7 @@ impl StrategyPack {
     ///
     /// Returns [`PackStateError`] unless the pack is frozen.
     pub fn retire(&mut self) -> Result<(), PackStateError> {
-        self.transition(PackState::Retired)
-    }
-
-    fn transition(&mut self, to: PackState) -> Result<(), PackStateError> {
-        let from = self.state;
-        if from.can_transition_to(to) {
-            self.state = to;
-            Ok(())
-        } else {
-            Err(PackStateError::new(from, to))
-        }
+        self.core.retire()
     }
 }
 
