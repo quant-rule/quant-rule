@@ -66,9 +66,32 @@ async fn fake_health(State(identity): State<Identity>) -> Json<serde_json::Value
     }))
 }
 
+async fn fake_ready(State(identity): State<Identity>) -> (StatusCode, Json<serde_json::Value>) {
+    (StatusCode::OK, fake_health(State(identity)).await)
+}
+
+#[derive(Clone)]
+struct Draining(&'static str);
+
+async fn draining_ready(State(identity): State<Draining>) -> (StatusCode, Json<serde_json::Value>) {
+    (
+        StatusCode::SERVICE_UNAVAILABLE,
+        Json(serde_json::json!({
+            "v": "quantrule.api/v1",
+            "service": identity.0,
+            "state": "down",
+            "services": [{"name": "drain", "state": "down", "detail": "draining"}],
+            "queue_depth": 0,
+            "workers": 0,
+            "image_digest": null
+        })),
+    )
+}
+
 async fn fake_service(service: &'static str) -> (SocketAddr, tokio::task::JoinHandle<()>) {
     let app = Router::new()
         .route("/health", get(fake_health))
+        .route("/ready", get(fake_ready))
         .with_state(Identity(service));
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
@@ -76,6 +99,20 @@ async fn fake_service(service: &'static str) -> (SocketAddr, tokio::task::JoinHa
     let address = listener.local_addr().expect("address");
     let handle = tokio::spawn(async move {
         axum::serve(listener, app).await.expect("health upstream");
+    });
+    (address, handle)
+}
+
+async fn fake_draining_service(service: &'static str) -> (SocketAddr, tokio::task::JoinHandle<()>) {
+    let app = Router::new()
+        .route("/ready", get(draining_ready))
+        .with_state(Draining(service));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("listener");
+    let address = listener.local_addr().expect("address");
+    let handle = tokio::spawn(async move {
+        axum::serve(listener, app).await.expect("draining upstream");
     });
     (address, handle)
 }
@@ -117,6 +154,88 @@ async fn ready_accepts_matching_service_identities() {
     model_handle.abort();
     evidence_handle.abort();
     simulation_handle.abort();
+}
+
+#[tokio::test]
+async fn a_draining_upstream_is_down_for_routing_but_the_gateway_health_stays_up() {
+    let (data, data_handle) = fake_draining_service("data").await;
+    let (model, model_handle) = fake_service("model").await;
+    let (evidence, evidence_handle) = fake_service("evidence").await;
+    let (simulation, simulation_handle) = fake_service("simulation").await;
+    let state = ready_state([data, model, evidence, simulation]);
+
+    let response = router(Arc::clone(&state))
+        .oneshot(Request::get("/ready").body(Body::empty()).expect("request"))
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    let report: HealthReport =
+        serde_json::from_slice(&body_bytes(response).await).expect("health report");
+    let entry = report
+        .services
+        .iter()
+        .find(|entry| entry.name == "data")
+        .expect("data entry");
+    assert_eq!(entry.state, ServiceState::Down);
+    assert_eq!(entry.detail.as_deref(), Some("draining"));
+
+    let response = router(state)
+        .oneshot(
+            Request::get("/health")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+
+    data_handle.abort();
+    model_handle.abort();
+    evidence_handle.abort();
+    simulation_handle.abort();
+}
+
+#[tokio::test]
+async fn a_draining_gateway_answers_ready_with_503_without_probing() {
+    use quantrule_runtime::request_id::RequestIds;
+    use quantrule_runtime::{Drain, Shutdown};
+
+    let (trigger, shutdown) = Shutdown::channel();
+    let metrics = quantrule_runtime::metrics::Metrics::new("gateway", "1.5.2", None);
+    let drain = Drain::new(
+        shutdown.clone(),
+        Some(metrics.clone()),
+        std::time::Duration::from_secs(20),
+    );
+    let health = HealthRegistry::named("gateway");
+    let state = Arc::new(AppState::with_observability(
+        &Config::default(),
+        health,
+        metrics,
+        RequestIds::new("gateway"),
+        Services::default(),
+        drain,
+    ));
+    trigger.trigger();
+
+    let response = router(Arc::clone(&state))
+        .oneshot(Request::get("/ready").body(Body::empty()).expect("request"))
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    let report: HealthReport =
+        serde_json::from_slice(&body_bytes(response).await).expect("health report");
+    assert_eq!(report.services[0].detail.as_deref(), Some("draining"));
+
+    let response = router(state)
+        .oneshot(
+            Request::get("/health")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
 }
 
 #[tokio::test]

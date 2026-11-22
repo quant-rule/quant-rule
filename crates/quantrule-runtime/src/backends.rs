@@ -199,6 +199,15 @@ impl ControlQueue {
     pub async fn check(&self) -> Result<(), QueueError> {
         self.queue.check()
     }
+
+    /// Read one declared queue's depth for the internal metric.
+    ///
+    /// # Errors
+    ///
+    /// Returns the adapter's message when the passive declare fails.
+    pub async fn depth(&self, queue: &str) -> Result<u64, QueueError> {
+        self.queue.depth(queue).await
+    }
 }
 
 impl Queue for ControlQueue {
@@ -218,6 +227,15 @@ impl QueueConsumer for ControlQueue {
 
     fn consume(&self, name: &str, handler: MessageHandler) -> BoxFuture<Result<(), QueueError>> {
         self.queue.consume(name, handler)
+    }
+
+    fn consume_until(
+        &self,
+        name: &str,
+        handler: MessageHandler,
+        shutdown: crate::shutdown::Shutdown,
+    ) -> BoxFuture<Result<(), QueueError>> {
+        self.queue.consume_until(name, handler, shutdown)
     }
 }
 

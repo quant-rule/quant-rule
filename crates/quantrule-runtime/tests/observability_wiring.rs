@@ -61,8 +61,10 @@ fn every_service_starts_metrics_and_structured_logging() {
             text.contains(&format!("logging::init(\"{service}\"")),
             "{path} does not initialize structured logging for {service}"
         );
+        let starts_listener = text.contains("metrics::start(&config, &metrics)")
+            || text.contains("metrics::start_router(&config");
         assert!(
-            text.contains("metrics::start(&config, &metrics)"),
+            starts_listener,
             "{path} does not start the internal metrics listener"
         );
         assert!(
@@ -106,6 +108,62 @@ fn compose_enables_json_logs_and_the_internal_metrics_bind() {
     assert!(
         !compose.contains("prometheus"),
         "Compose adds a Prometheus service; PLAT-006 owns it"
+    );
+}
+
+#[test]
+fn every_service_serves_a_readiness_route() {
+    for (service, path) in [
+        ("gateway", "crates/quantrule-gateway/src/server.rs"),
+        ("data", "crates/quantrule-data-service/src/routes.rs"),
+        ("model", "crates/quantrule-model-service/src/routes.rs"),
+        (
+            "evidence",
+            "crates/quantrule-evidence-service/src/routes/mod.rs",
+        ),
+        (
+            "simulation",
+            "crates/quantrule-simulation-service/src/routes/mod.rs",
+        ),
+        (
+            "strategy",
+            "crates/quantrule-strategy-service/src/routes.rs",
+        ),
+        ("backtest", "crates/quantrule-backtest-service/src/main.rs"),
+    ] {
+        let text = read(path);
+        assert!(
+            text.contains(".route(\"/ready\""),
+            "{path} does not serve /ready for {service}"
+        );
+    }
+    let backtest = read("crates/quantrule-backtest-service/src/main.rs");
+    assert!(
+        backtest.contains(".route(\"/health\"") && backtest.contains(".route(\"/ready\""),
+        "the backtest internal listener does not serve /health and /ready"
+    );
+}
+
+#[test]
+fn the_drain_deadlines_fit_the_stop_grace_period() {
+    let compose = read("compose.yaml");
+    assert!(
+        compose.contains("stop_grace_period: 40s"),
+        "Compose does not keep a 40 s stop grace period"
+    );
+    for file in [
+        "deploy/multi-host/compose.core.yaml",
+        "deploy/multi-host/compose.compute.yaml",
+        "deploy/multi-host/compose.gateway.yaml",
+    ] {
+        assert!(
+            read(file).contains("stop_grace_period: 40s"),
+            "{file} does not keep a 40 s stop grace period"
+        );
+    }
+    assert!(
+        read("Dockerfile").contains("STOPSIGNAL SIGTERM"),
+        "the image does not declare SIGTERM as its stop signal"
     );
 }
 

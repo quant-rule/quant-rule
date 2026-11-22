@@ -11,6 +11,7 @@ name: quantrule-compute
 
 services:
   model:
+    stop_grace_period: 40s
     image: ${QR_IMAGE}
     pull_policy: never
     command: ["qr-model"]
@@ -28,6 +29,7 @@ services:
       start_period: 10s
 
   backtest:
+    stop_grace_period: 40s
     image: ${QR_IMAGE}
     pull_policy: never
     command: ["qr-backtest"]

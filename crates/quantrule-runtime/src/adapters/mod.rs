@@ -13,6 +13,7 @@ pub mod s3;
 
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::Arc;
 
 /// A boxed future, so a trait stays usable behind `dyn`.
 pub type BoxFuture<T> = Pin<Box<dyn Future<Output = T> + Send + 'static>>;
@@ -118,7 +119,10 @@ pub struct Message {
 }
 
 /// A queue message handler: one message to an acknowledged outcome.
-pub type MessageHandler = Box<dyn Fn(Message) -> BoxFuture<Result<(), QueueError>> + Send + Sync>;
+///
+/// The handler is shared rather than boxed so a reconnect can reuse it without
+/// rebuilding the service graph.
+pub type MessageHandler = Arc<dyn Fn(Message) -> BoxFuture<Result<(), QueueError>> + Send + Sync>;
 
 /// A consumer that delivers queued messages to a handler.
 pub trait QueueConsumer: Send + Sync {
@@ -133,6 +137,28 @@ pub trait QueueConsumer: Send + Sync {
     /// one with immediate requeue. A handler that wants backoff holds the
     /// delivery and retries in place.
     fn consume(&self, queue: &str, handler: MessageHandler) -> BoxFuture<Result<(), QueueError>>;
+
+    /// Consume until a drain signal arrives.
+    ///
+    /// The default stops at the next message boundary by dropping the consumer
+    /// future. The RabbitMQ adapter overrides it so an in-flight handler finishes
+    /// and no new delivery is accepted after the signal.
+    fn consume_until(
+        &self,
+        queue: &str,
+        handler: MessageHandler,
+        shutdown: crate::shutdown::Shutdown,
+    ) -> BoxFuture<Result<(), QueueError>> {
+        let consuming = self.consume(queue, handler);
+        Box::pin(async move {
+            let mut shutdown = shutdown;
+            tokio::select! {
+                biased;
+                () = shutdown.wait() => Ok(()),
+                result = consuming => result,
+            }
+        })
+    }
 }
 
 /// A content-addressed object store.

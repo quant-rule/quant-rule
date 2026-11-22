@@ -166,14 +166,14 @@ async fn run(publish_url: &str, consume_url: &str, names: &QueueNames) -> Result
 }
 
 fn capture_handler(captured: Arc<Mutex<Option<Message>>>) -> MessageHandler {
-    Box::new(move |message: Message| {
+    Arc::new(move |message: Message| {
         *captured.lock().expect("the capture lock is poisoned") = Some(message);
         Box::pin(async { Ok(()) })
     })
 }
 
 fn failing_handler() -> MessageHandler {
-    Box::new(|_message: Message| Box::pin(async { Err(QueueError("poison".to_owned())) }))
+    Arc::new(|_message: Message| Box::pin(async { Err(QueueError("poison".to_owned())) }))
 }
 
 async fn wait_for_message(

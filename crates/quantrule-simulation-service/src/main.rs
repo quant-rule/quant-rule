@@ -14,7 +14,9 @@ use quantrule_runtime::backends::{Objects, migrate_owner_database, open_service_
 use quantrule_runtime::config::migrate_only_requested;
 use quantrule_runtime::metrics::{self, Metrics};
 use quantrule_runtime::request_id::RequestIds;
-use quantrule_runtime::{Config, HealthRegistry, RuntimeError, logging, observability};
+use quantrule_runtime::{
+    Config, Drain, HealthRegistry, RuntimeError, Shutdown, logging, observability, watch_signal,
+};
 use quantrule_simulation_service::postgres::PgSimulationStore;
 use quantrule_simulation_service::store::SimulationStore;
 use quantrule_simulation_service::{SimulationServices, SimulationState, router};
@@ -34,13 +36,21 @@ async fn main() -> Result<(), RuntimeError> {
         .await;
     }
 
+    let (trigger, shutdown) = Shutdown::channel();
     let metrics = Metrics::new(
         "simulation",
         env!("CARGO_PKG_VERSION"),
         config.image_digest.as_ref().map(ToString::to_string),
     );
+    let drain = Drain::new(
+        shutdown.clone(),
+        Some(metrics.clone()),
+        config.drain_timeout_http,
+    );
     metrics::start(&config, &metrics).await?;
-    let mut health = HealthRegistry::named("simulation").with_metrics(metrics.clone());
+    let mut health = HealthRegistry::named("simulation")
+        .with_metrics(metrics.clone())
+        .with_shutdown(shutdown);
     let opened = open_service_database(&config, &mut health).await?;
     let store: Option<Arc<dyn SimulationStore>> = opened.map(|database| {
         Arc::new(PgSimulationStore::new(database.pool().clone())) as Arc<dyn SimulationStore>
@@ -62,9 +72,11 @@ async fn main() -> Result<(), RuntimeError> {
         },
     ));
     tracing::info!(bind = %config.bind, "starting simulation service");
+    std::mem::drop(watch_signal(trigger));
     quantrule_runtime::serve_config(
         &config,
         observability::instrument(router(state), metrics, RequestIds::from_env("simulation")),
+        &drain,
     )
     .await
 }

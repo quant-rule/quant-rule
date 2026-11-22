@@ -21,7 +21,9 @@ use quantrule_api::{
 use quantrule_evidence_service::evidence::{
     EvidenceError, EvidenceServices as FinalizerServices, FinalizeOutcome, RunManifest, finalize,
 };
-use quantrule_evidence_service::leader::{LeaderConsumer, LeaderLease, Leadership};
+use quantrule_evidence_service::leader::{
+    LeaderConsumer, LeaderLease, Leadership, release_leadership, spawn_leader_election,
+};
 use quantrule_evidence_service::migrations;
 use quantrule_evidence_service::postgres::PgRunStore;
 use quantrule_evidence_service::postgres_leader::PgLeaderLease;
@@ -213,7 +215,7 @@ async fn only_the_leader_finalizes_and_a_duplicate_delivery_is_idempotent() {
             "runs.evidence.g1".to_owned(),
             Arc::clone(&services),
         )
-        .run(receiver_a),
+        .run(receiver_a, quantrule_runtime::Shutdown::channel().1),
     );
     let task_b = tokio::spawn(
         LeaderConsumer::new(
@@ -221,7 +223,7 @@ async fn only_the_leader_finalizes_and_a_duplicate_delivery_is_idempotent() {
             "runs.evidence.g1".to_owned(),
             Arc::clone(&services),
         )
-        .run(receiver_b),
+        .run(receiver_b, quantrule_runtime::Shutdown::channel().1),
     );
 
     wait_for(&consumer_a.handled, 1).await;
@@ -327,6 +329,73 @@ async fn a_stale_leader_cannot_finalize_and_the_new_term_can() {
             .expect("record")
             .status,
         RunState::Succeeded
+    );
+}
+
+#[tokio::test]
+async fn a_draining_leader_releases_its_lease_for_a_standby() {
+    let runs = MemoryRuns::default();
+    let lease = runs.leader_lease();
+    let (sender, receiver) = tokio::sync::watch::channel(Leadership::Standby);
+    let (_, shutdown) = quantrule_runtime::Shutdown::channel();
+    let task = spawn_leader_election(
+        Arc::new(lease.clone()) as Arc<dyn LeaderLease>,
+        "replica-a".to_owned(),
+        sender,
+        shutdown,
+    );
+    for _ in 0..100 {
+        if matches!(*receiver.borrow(), Leadership::Leader(_)) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    assert!(matches!(*receiver.borrow(), Leadership::Leader(_)));
+
+    release_leadership(&lease, "replica-a", &receiver)
+        .await
+        .expect("release");
+    let status = lease.current().await.expect("current").expect("row");
+    assert!(!status.live, "the released lease is still live");
+    assert_eq!(
+        lease
+            .acquire("replica-b".to_owned())
+            .await
+            .expect("acquire b"),
+        Some(2),
+        "a standby cannot take over immediately"
+    );
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_shutdown_releases_the_election_lease_for_a_standby() {
+    let runs = MemoryRuns::default();
+    let lease = runs.leader_lease();
+    let (sender, receiver) = tokio::sync::watch::channel(Leadership::Standby);
+    let (trigger, shutdown) = quantrule_runtime::Shutdown::channel();
+    let task = spawn_leader_election(
+        Arc::new(lease.clone()) as Arc<dyn LeaderLease>,
+        "replica-a".to_owned(),
+        sender,
+        shutdown,
+    );
+    for _ in 0..100 {
+        if matches!(*receiver.borrow(), Leadership::Leader(_)) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    assert!(matches!(*receiver.borrow(), Leadership::Leader(_)));
+    trigger.trigger();
+    task.await.expect("election task");
+    assert!(!lease.current().await.expect("current").expect("row").live);
+    assert_eq!(
+        lease
+            .acquire("replica-b".to_owned())
+            .await
+            .expect("acquire b"),
+        Some(2)
     );
 }
 

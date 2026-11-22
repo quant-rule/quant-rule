@@ -29,6 +29,7 @@ tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["fmt", "env-filter", "json"] }
 
 [dev-dependencies]
+tokio = { version = "1.54.1", features = ["test-util", "macros", "rt-multi-thread", "time", "net", "io-util"] }
 tower = { version = "0.5.3", features = ["util"] }
 
 [lints]

@@ -2682,6 +2682,7 @@ dependencies = [
 name = "quantrule-backtest-service"
 version = "1.5.2"
 dependencies = [
+ "axum",
  "quantrule-api",
  "quantrule-app",
  "quantrule-data",

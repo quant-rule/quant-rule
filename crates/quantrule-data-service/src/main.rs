@@ -14,7 +14,8 @@ use quantrule_runtime::config::migrate_only_requested;
 use quantrule_runtime::metrics::{self, Metrics};
 use quantrule_runtime::request_id::RequestIds;
 use quantrule_runtime::{
-    Config, HealthRegistry, RuntimeError, logging, observability, serve_config,
+    Config, Drain, HealthRegistry, RuntimeError, Shutdown, logging, observability, serve_config,
+    watch_signal,
 };
 
 use quantrule_data_service::artifacts::PgArtifacts;
@@ -46,13 +47,21 @@ async fn main() -> Result<(), RuntimeError> {
         .await;
     }
 
+    let (trigger, shutdown) = Shutdown::channel();
     let metrics = Metrics::new(
         "data",
         env!("CARGO_PKG_VERSION"),
         config.image_digest.as_ref().map(ToString::to_string),
     );
+    let drain = Drain::new(
+        shutdown.clone(),
+        Some(metrics.clone()),
+        config.drain_timeout_http,
+    );
     metrics::start(&config, &metrics).await?;
-    let mut health = HealthRegistry::named("data").with_metrics(metrics.clone());
+    let mut health = HealthRegistry::named("data")
+        .with_metrics(metrics.clone())
+        .with_shutdown(shutdown);
     let opened = open_service_database(&config, &mut health).await?;
     let (catalog, configs, packs, artifacts): (
         Option<CatalogHandle>,
@@ -91,6 +100,7 @@ async fn main() -> Result<(), RuntimeError> {
         },
     ));
     tracing::info!(bind = %config.bind, "starting data service");
+    std::mem::drop(watch_signal(trigger));
     serve_config(
         &config,
         observability::instrument(
@@ -98,6 +108,7 @@ async fn main() -> Result<(), RuntimeError> {
             metrics,
             RequestIds::from_env("data"),
         ),
+        &drain,
     )
     .await
 }

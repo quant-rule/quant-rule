@@ -43,6 +43,41 @@ async fn health_answers_with_the_contract_report() {
 }
 
 #[tokio::test]
+async fn readiness_is_healthy_and_then_draining() {
+    let (trigger, shutdown) = quantrule_runtime::Shutdown::channel();
+    let state = std::sync::Arc::new(quantrule_data_service::DataState::with_services(
+        &Config::default(),
+        HealthRegistry::new().with_shutdown(shutdown),
+        DataServices::default(),
+    ));
+    let response = router(std::sync::Arc::clone(&state))
+        .oneshot(Request::get("/ready").body(Body::empty()).expect("request"))
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+
+    trigger.trigger();
+    let response = router(std::sync::Arc::clone(&state))
+        .oneshot(Request::get("/ready").body(Body::empty()).expect("request"))
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    let report: HealthReport = serde_json::from_slice(&body(response).await).expect("report");
+    assert_eq!(report.services[0].detail.as_deref(), Some("draining"));
+
+    // Liveness still answers while the process drains.
+    let response = router(state)
+        .oneshot(
+            Request::get("/health")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+}
+
+#[tokio::test]
 async fn version_reports_the_contract() {
     let response = router(state())
         .oneshot(

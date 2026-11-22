@@ -9,7 +9,7 @@
 # `evidence`, and `simulation` serve the catalog, model compute, runs/research,
 # and the research plane; the gateway proxies all four. `strategy` serves the
 # internal signal route, and the backtest worker serves only an internal
-# metrics listener, never a public API.
+# metrics/health/readiness listener, never a public API.
 #
 # Windows and macOS run this file through Docker Desktop's Linux backend
 # (WSL2 on Windows). The image is linux/amd64.
@@ -22,6 +22,9 @@ x-server: &server
     context: .
     dockerfile: Dockerfile
   restart: unless-stopped
+  # The worker deadline is 25 s and the HTTP deadline is 20 s. Docker waits 15 s
+  # more than the longest deadline before it force-kills a task.
+  stop_grace_period: 40s
   networks:
     - quantrule
   # Keep service-name resolution inside the compose network. The engine
@@ -63,6 +66,11 @@ x-server: &server
     # only and is never published to the host. Unset disables it; the gateway
     # does not proxy it. PLAT-006 owns the scrape configuration.
     QR_METRICS_BIND: 0.0.0.0:9090
+    # SIGTERM drains instead of killing in-flight work. The HTTP deadline bounds
+    # a request and the worker deadline bounds a run or stage; both are below
+    # the 40 s stop grace period.
+    QR_DRAIN_TIMEOUT_HTTP: "20"
+    QR_DRAIN_TIMEOUT_WORK: "25"
     # Diagnostic stage rows and their object-store blobs expire after this many
     # days. Evidence applies the cleanup at startup and hourly; a run and its
     # artifacts are never touched.
@@ -190,6 +198,7 @@ services:
       QR_MIGRATE: "0"
       QR_LOG_FORMAT: json
       QR_METRICS_BIND: 0.0.0.0:9090
+      QR_DRAIN_TIMEOUT_HTTP: "20"
       QR_IMAGE_DIGEST:
       AWS_ACCESS_KEY_ID: quantrule
       AWS_SECRET_ACCESS_KEY: ${QR_OBJECT_STORE_PASSWORD:-quantrule}
@@ -225,11 +234,18 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-    # A worker serves no public HTTP API and publishes no liveness probe, so it
-    # has no healthcheck. It does bind the internal metrics listener from the
-    # shared environment; that port is never published. Docker reports the
-    # process state; /health reports the dependencies. A worker probe is part of
-    # the drain and readiness slice.
+    # A worker serves no public HTTP API. Its internal listener carries
+    # `/metrics`, `/health` and `/ready` on the private container network; that
+    # port is never published. The probe reads the worker's own dependency
+    # report, not just whether the process is running.
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - curl -fsS http://127.0.0.1:9090/health | grep -q '"state":"healthy"'
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
 
   evidence:
     <<: *server

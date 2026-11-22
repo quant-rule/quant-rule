@@ -68,13 +68,19 @@ submissions, drain the old generation with its consumers, stop them, then unbind
 or delete the empty queues before the new generation publishes. Export the broker
 definitions before an upgrade; the backup archive does not contain the broker.
 
+Every long-running role sets `stop_grace_period: 40s`, and the image declares
+`STOPSIGNAL SIGTERM`. A rolling restart flips `/ready` to `503` at once; the
+gateway routes to another replica while the old one drains HTTP (20 s) and a
+worker (25 s). An aborted run keeps its lease and is recovered by expiry, not by
+a `failed` write.
+
 ## What you see
 
 | Field | Meaning |
 |---|---|
 | `qr-deploy validate` | Host count, service count, image digest, network gate |
 | `qr-deploy check` | Service, URL, state, image digest, or the failure |
-| `/ready` | Gateway plus data, model, evidence, and simulation states |
+| `/ready` | Gateway plus data, model, evidence, and simulation `/ready` states; a draining service is down for routing |
 | `QR_INTERNAL_ONLY` | Internal services refuse a public bind |
 | Canonical digest | The same value as the single-host verification run |
 

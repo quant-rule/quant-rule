@@ -172,8 +172,8 @@ qr-deploy check "$DESCRIPTOR" --secrets deploy/multi-host/secrets.env
 Run this on the gateway host or another host on the private overlay; it needs
 the full secrets file and probes the internal services directly. It does not
 send the bearer token on the open `/version` and `/health` paths. The backtest
-worker has no HTTP surface, so the row is printed as `SKIP`; check it on the
-compute host with `docker ps --filter name=backtest`. The tool asserts that
+worker has no public HTTP surface, so the row is printed as `SKIP`; check it on
+the compute host with `docker ps --filter name=backtest`. The tool asserts that
 every probed service reports the descriptor's image digest, but it does not
 inspect the running image on a remote host. Then, by hand:
 

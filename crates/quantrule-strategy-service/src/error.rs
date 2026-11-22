@@ -66,6 +66,7 @@ pub fn client_failure(error: ClientError) -> SignalServiceError {
         ClientError::Unreachable { .. }
         | ClientError::Timeout { .. }
         | ClientError::Unconfigured { .. }
+        | ClientError::Interrupted { .. }
         | ClientError::Status { .. } => SignalServiceError::Unavailable(error.to_string()),
         ClientError::InvalidResponse { .. } | ClientError::InvalidBase { .. } => {
             SignalServiceError::Internal(error.to_string())

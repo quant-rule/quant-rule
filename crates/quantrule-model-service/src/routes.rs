@@ -52,6 +52,7 @@ fn data_failure(error: ClientError) -> ApiFailure {
         ClientError::Unreachable { .. }
         | ClientError::Timeout { .. }
         | ClientError::Unconfigured { .. }
+        | ClientError::Interrupted { .. }
         | ClientError::Status { .. } => failure(ErrorCode::ServiceUnavailable, error.to_string()),
     }
 }
@@ -60,6 +61,7 @@ fn data_failure(error: ClientError) -> ApiFailure {
 fn routes() -> Router<Arc<ModelState>> {
     Router::new()
         .route("/health", get(health))
+        .route("/ready", get(ready))
         .route("/version", get(version))
         .route("/model/compute", post(compute_model))
         .route("/internal/v1/events", get(event_batch))
@@ -81,6 +83,17 @@ pub fn router(state: Arc<ModelState>) -> Router {
 async fn health(State(state): State<Arc<ModelState>>) -> Json<HealthReport> {
     let digest = state.version.image_digest.clone();
     Json(state.health.report(digest).await)
+}
+
+async fn ready(State(state): State<Arc<ModelState>>) -> (StatusCode, Json<HealthReport>) {
+    let digest = state.version.image_digest.clone();
+    let (ready, report) = state.health.readiness(digest).await;
+    let status = if ready {
+        StatusCode::OK
+    } else {
+        StatusCode::SERVICE_UNAVAILABLE
+    };
+    (status, Json(report))
 }
 
 async fn version(State(state): State<Arc<ModelState>>) -> Json<VersionInfo> {

@@ -14,4 +14,5 @@
 #![forbid(unsafe_code)]
 
 pub mod backtest;
+pub mod drain;
 pub mod stage;

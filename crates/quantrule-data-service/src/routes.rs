@@ -57,6 +57,7 @@ fn failure_with_status(
 fn routes() -> Router<Arc<DataState>> {
     Router::new()
         .route("/health", get(health))
+        .route("/ready", get(ready))
         .route("/version", get(version))
         .route("/catalog/datasets", get(list_datasets).post(create_dataset))
         .route("/catalog/datasets/tolerant", post(create_dataset_tolerant))
@@ -107,6 +108,17 @@ pub fn router(state: Arc<DataState>) -> Router {
 async fn health(State(state): State<Arc<DataState>>) -> Json<HealthReport> {
     let digest = state.version.image_digest.clone();
     Json(state.health.report(digest).await)
+}
+
+async fn ready(State(state): State<Arc<DataState>>) -> (StatusCode, Json<HealthReport>) {
+    let digest = state.version.image_digest.clone();
+    let (ready, report) = state.health.readiness(digest).await;
+    let status = if ready {
+        StatusCode::OK
+    } else {
+        StatusCode::SERVICE_UNAVAILABLE
+    };
+    (status, Json(report))
 }
 
 async fn version(State(state): State<Arc<DataState>>) -> Json<VersionInfo> {

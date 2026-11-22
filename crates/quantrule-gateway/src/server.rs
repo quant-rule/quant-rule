@@ -32,6 +32,7 @@ use quantrule_api::{
     ErrorCode, ErrorEnvelope, HealthReport, PROFILE_HEADER, ProfileId, ServiceHealth, ServiceState,
     VersionInfo,
 };
+use quantrule_runtime::Drain;
 use quantrule_runtime::client::{
     ClientError, DataClient, HttpServiceClient, REQUEST_TIMEOUT, RunCounter, Service,
     SimulationCounter,
@@ -43,6 +44,7 @@ use quantrule_runtime::metrics::Metrics;
 use quantrule_runtime::request_id::{
     REQUEST_ID_HEADER, RequestIds, TRACEPARENT_HEADER, is_valid_request_id, parse_traceparent,
 };
+use quantrule_runtime::shutdown::Shutdown;
 
 use crate::profile::{ProfileStore, create_profile, list_profiles};
 
@@ -101,6 +103,8 @@ pub struct AppState {
     pub metrics: Metrics,
     /// The gateway's request identifier source.
     pub request_ids: RequestIds,
+    /// The gateway's drain state, shared with `/ready` and the server.
+    pub drain: Drain,
 }
 
 impl std::fmt::Debug for AppState {
@@ -122,6 +126,7 @@ impl std::fmt::Debug for AppState {
             .field("bearer_token", &self.bearer_token.is_some())
             .field("metrics", &self.metrics)
             .field("request_ids", &self.request_ids)
+            .field("drain", &self.drain)
             .finish()
     }
 }
@@ -141,16 +146,19 @@ impl AppState {
             env!("CARGO_PKG_VERSION"),
             config.image_digest.as_ref().map(ToString::to_string),
         );
+        let (_, shutdown) = Shutdown::channel();
+        let drain = Drain::new(shutdown, Some(metrics.clone()), config.drain_timeout_http);
         Self::with_observability(
             config,
             health,
             metrics,
             RequestIds::new("gateway"),
             services,
+            drain,
         )
     }
 
-    /// Build the state with an explicit registry and identifier source.
+    /// Build the state with an explicit registry, identifier source and drain.
     ///
     /// The gateway binary supplies the process instance and starts the internal
     /// listener from the same registry. Tests use the deterministic default from
@@ -162,8 +170,11 @@ impl AppState {
         metrics: Metrics,
         request_ids: RequestIds,
         services: Services,
+        drain: Drain,
     ) -> Self {
-        let health = health.with_metrics(metrics.clone());
+        let health = health
+            .with_metrics(metrics.clone())
+            .with_shutdown(drain.shutdown());
         Self {
             version: VersionInfo::current(env!("CARGO_PKG_VERSION"), config.image_digest.clone()),
             health,
@@ -180,6 +191,7 @@ impl AppState {
             bearer_token: config.bearer_token.as_deref().map(Arc::<str>::from),
             metrics,
             request_ids,
+            drain,
         }
     }
 }
@@ -243,6 +255,7 @@ pub(crate) fn service_failure(error: ClientError) -> ApiFailure {
         ClientError::Unreachable { .. }
         | ClientError::Timeout { .. }
         | ClientError::Unconfigured { .. }
+        | ClientError::Interrupted { .. }
         | ClientError::Status { .. } => failure(ErrorCode::ServiceUnavailable, error.to_string()),
     }
 }
@@ -325,12 +338,17 @@ async fn health(State(state): State<Arc<AppState>>) -> Json<HealthReport> {
     Json(state.health.report(digest).await)
 }
 
-/// The readiness probe: local checks plus every configured upstream's `/health`.
+/// The readiness probe: local checks plus every configured upstream's `/ready`.
 ///
 /// `/health` is the local liveness probe; `/ready` is the dependency authority
-/// and returns `503` when a required service is down or unreachable.
+/// and returns `503` when a required service is down, draining or unreachable.
+/// A drain answers immediately without probing an upstream.
 async fn ready(State(state): State<Arc<AppState>>) -> (StatusCode, Json<HealthReport>) {
     let digest = state.version.image_digest.clone();
+    if state.health.is_draining() {
+        let (_, report) = state.health.readiness(digest).await;
+        return (StatusCode::SERVICE_UNAVAILABLE, Json(report));
+    }
     let mut report = state.health.report(digest).await;
     for (name, client, service) in [
         ("data", state.upstream.as_ref(), Service::Data),
@@ -373,25 +391,42 @@ async fn ready(State(state): State<Arc<AppState>>) -> (StatusCode, Json<HealthRe
     (status, Json(report))
 }
 
-/// Probe one upstream and return its queue depth, worker count and health entry.
+/// Probe one upstream's `/ready` and return its queue depth, worker count and
+/// health entry. A draining service answers `503` and is down for routing.
 async fn probe(
     name: &str,
     client: Option<&Arc<HttpServiceClient>>,
     service: Service,
 ) -> (u64, u64, ServiceHealth) {
     match client {
-        Some(client) => match client.health(service).await {
-            Ok(remote) if remote.service == name => (
-                remote.queue_depth,
-                remote.workers,
-                ServiceHealth {
-                    name: name.to_owned(),
-                    state: remote.state,
-                    detail: (remote.state == ServiceState::Down)
-                        .then(|| "the service reports down".to_owned()),
-                },
-            ),
-            Ok(remote) => (
+        Some(client) => match client.ready(service).await {
+            Ok((status, remote)) if remote.service == name => {
+                let down = status == StatusCode::SERVICE_UNAVAILABLE.as_u16()
+                    || remote.state == ServiceState::Down;
+                let detail = if down {
+                    remote
+                        .services
+                        .iter()
+                        .find_map(|entry| entry.detail.clone())
+                        .or_else(|| Some("the service is not ready".to_owned()))
+                } else {
+                    None
+                };
+                (
+                    remote.queue_depth,
+                    remote.workers,
+                    ServiceHealth {
+                        name: name.to_owned(),
+                        state: if down {
+                            ServiceState::Down
+                        } else {
+                            remote.state
+                        },
+                        detail,
+                    },
+                )
+            }
+            Ok((_, remote)) => (
                 0,
                 0,
                 ServiceHealth {
@@ -925,53 +960,8 @@ pub(crate) fn proxy_response(response: Response<axum::body::Body>) -> Response {
 /// Returns [`RuntimeError::Serve`] when the address cannot be bound or the
 /// server fails.
 pub async fn serve(config: &Config, state: Arc<AppState>) -> Result<(), RuntimeError> {
-    quantrule_runtime::serve(&config.bind, router(state)).await
+    quantrule_runtime::serve(&config.bind, router(Arc::clone(&state)), &state.drain).await
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn long_routes_get_the_transfer_deadline() {
-        assert_eq!(
-            proxy_deadline(&Method::POST, "/catalog/datasets"),
-            LONG_REQUEST_TIMEOUT
-        );
-        assert_eq!(
-            proxy_deadline(&Method::POST, "/model/compute"),
-            LONG_REQUEST_TIMEOUT
-        );
-        assert_eq!(
-            proxy_deadline(&Method::GET, "/datasets/sha256:abc/candles"),
-            LONG_REQUEST_TIMEOUT
-        );
-        assert_eq!(
-            proxy_deadline(&Method::GET, "/runs/sha256:abc/artifacts/results.json"),
-            LONG_REQUEST_TIMEOUT
-        );
-        assert_eq!(
-            proxy_deadline(&Method::GET, "/stages/runs/abc/artifacts/results.json"),
-            LONG_REQUEST_TIMEOUT
-        );
-        assert_eq!(
-            proxy_deadline(&Method::GET, "/signals/sha256:abc/bytes"),
-            LONG_REQUEST_TIMEOUT
-        );
-        assert_eq!(
-            proxy_deadline(&Method::POST, "/signals"),
-            LONG_REQUEST_TIMEOUT
-        );
-        assert_eq!(proxy_deadline(&Method::GET, "/signals"), REQUEST_TIMEOUT);
-        assert_eq!(
-            proxy_deadline(&Method::GET, "/signals/sha256:abc"),
-            REQUEST_TIMEOUT
-        );
-        assert_eq!(proxy_deadline(&Method::GET, "/runs"), REQUEST_TIMEOUT);
-        assert_eq!(proxy_deadline(&Method::POST, "/runs"), REQUEST_TIMEOUT);
-        assert_eq!(
-            proxy_deadline(&Method::GET, "/inspect/candles"),
-            REQUEST_TIMEOUT
-        );
-    }
-}
+mod tests;

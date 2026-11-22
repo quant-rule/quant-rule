@@ -47,6 +47,14 @@ const DEPENDENCY_UP: &str = "quantrule_dependency_up";
 const REQUESTS_TOTAL: &str = "quantrule_http_requests_total";
 const REQUEST_DURATION: &str = "quantrule_http_request_duration_seconds";
 const REQUESTS_IN_FLIGHT: &str = "quantrule_http_requests_in_flight";
+const HTTP_RETRIES: &str = "quantrule_http_retries_total";
+const CONSUMER_RECONNECTS: &str = "quantrule_consumer_reconnects_total";
+const QUEUE_DEPTH: &str = "quantrule_queue_depth";
+const WORKERS: &str = "quantrule_workers";
+const RUNS_TOTAL: &str = "quantrule_runs_total";
+const STAGES_TOTAL: &str = "quantrule_stages_total";
+const LEADER: &str = "quantrule_leader";
+const OUTBOX_PENDING: &str = "quantrule_outbox_pending";
 
 /// The static identity a process publishes at `/metrics`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -93,6 +101,14 @@ struct Inner {
     in_flight: AtomicU64,
     requests: Mutex<BTreeMap<RequestKey, u64>>,
     durations: Mutex<BTreeMap<RouteKey, Histogram>>,
+    retries: Mutex<BTreeMap<(String, String), u64>>,
+    reconnects: Mutex<BTreeMap<(String, String), u64>>,
+    queue_depth: Mutex<BTreeMap<String, u64>>,
+    workers: AtomicU64,
+    runs: Mutex<BTreeMap<String, u64>>,
+    stages: Mutex<BTreeMap<String, u64>>,
+    leader: AtomicBool,
+    outbox_pending: AtomicU64,
 }
 
 impl std::fmt::Debug for Metrics {
@@ -166,6 +182,14 @@ impl Metrics {
                 in_flight: AtomicU64::new(0),
                 requests: Mutex::new(BTreeMap::new()),
                 durations: Mutex::new(BTreeMap::new()),
+                retries: Mutex::new(BTreeMap::new()),
+                reconnects: Mutex::new(BTreeMap::new()),
+                queue_depth: Mutex::new(BTreeMap::new()),
+                workers: AtomicU64::new(0),
+                runs: Mutex::new(BTreeMap::new()),
+                stages: Mutex::new(BTreeMap::new()),
+                leader: AtomicBool::new(false),
+                outbox_pending: AtomicU64::new(0),
             }),
         }
     }
@@ -221,6 +245,59 @@ impl Metrics {
     /// Count one finished HTTP request without observing a duration.
     pub fn http_request_finished(&self) {
         self.inner.in_flight.fetch_sub(1, Ordering::Relaxed);
+    }
+
+    /// Count one retried internal HTTP request.
+    ///
+    /// `reason` is a fixed class such as `unreachable`, `timeout` or
+    /// `status_503`; it is never an upstream body or a path.
+    pub fn http_retry(&self, service: &str, reason: &str) {
+        let key = (service.to_owned(), reason.to_owned());
+        let mut retries = lock(&self.inner.retries);
+        let entry = retries.entry(key).or_insert(0);
+        *entry = entry.saturating_add(1);
+    }
+
+    /// Count one consumer reconnect.
+    pub fn consumer_reconnect(&self, service: &str, consumer: &str) {
+        let key = (service.to_owned(), consumer.to_owned());
+        let mut reconnects = lock(&self.inner.reconnects);
+        let entry = reconnects.entry(key).or_insert(0);
+        *entry = entry.saturating_add(1);
+    }
+
+    /// Set the depth of one declared queue.
+    pub fn set_queue_depth(&self, queue: &str, depth: u64) {
+        lock(&self.inner.queue_depth).insert(queue.to_owned(), depth);
+    }
+
+    /// Set the number of workers this process runs.
+    pub fn set_workers(&self, workers: u64) {
+        self.inner.workers.store(workers, Ordering::Relaxed);
+    }
+
+    /// Count one run outcome.
+    pub fn record_run(&self, state: &str) {
+        let mut runs = lock(&self.inner.runs);
+        let entry = runs.entry(state.to_owned()).or_insert(0);
+        *entry = entry.saturating_add(1);
+    }
+
+    /// Count one diagnostic stage outcome.
+    pub fn record_stage(&self, state: &str) {
+        let mut stages = lock(&self.inner.stages);
+        let entry = stages.entry(state.to_owned()).or_insert(0);
+        *entry = entry.saturating_add(1);
+    }
+
+    /// Set whether this replica currently holds the evidence leader lease.
+    pub fn set_leader(&self, leader: bool) {
+        self.inner.leader.store(leader, Ordering::Relaxed);
+    }
+
+    /// Set the number of outbox notifications still pending.
+    pub fn set_outbox_pending(&self, pending: u64) {
+        self.inner.outbox_pending.store(pending, Ordering::Relaxed);
     }
 
     /// Encode every family in the Prometheus text 0.0.4 format.
@@ -313,7 +390,119 @@ impl Metrics {
             &[],
             self.inner.in_flight.load(Ordering::Relaxed),
         );
+        self.write_retries(&mut output);
+        self.write_reconnects(&mut output);
+        write_header(
+            &mut output,
+            QUEUE_DEPTH,
+            "gauge",
+            "Messages waiting in a declared queue.",
+        );
+        for (queue, depth) in lock(&self.inner.queue_depth).iter() {
+            write_sample(
+                &mut output,
+                QUEUE_DEPTH,
+                &[("queue", queue.as_str())],
+                *depth,
+            );
+        }
+        write_header(&mut output, WORKERS, "gauge", "Workers this process runs.");
+        write_sample(
+            &mut output,
+            WORKERS,
+            &[("service", self.inner.build.service.as_str())],
+            self.inner.workers.load(Ordering::Relaxed),
+        );
+        write_header(
+            &mut output,
+            RUNS_TOTAL,
+            "counter",
+            "Run outcomes recorded by the worker.",
+        );
+        for (state, count) in lock(&self.inner.runs).iter() {
+            write_sample(
+                &mut output,
+                RUNS_TOTAL,
+                &[("state", state.as_str())],
+                *count,
+            );
+        }
+        write_header(
+            &mut output,
+            STAGES_TOTAL,
+            "counter",
+            "Diagnostic stage outcomes recorded by the worker.",
+        );
+        for (state, count) in lock(&self.inner.stages).iter() {
+            write_sample(
+                &mut output,
+                STAGES_TOTAL,
+                &[("state", state.as_str())],
+                *count,
+            );
+        }
+        write_header(
+            &mut output,
+            LEADER,
+            "gauge",
+            "Whether this replica holds the evidence leader lease.",
+        );
+        write_sample(
+            &mut output,
+            LEADER,
+            &[("service", self.inner.build.service.as_str())],
+            u64::from(self.inner.leader.load(Ordering::Relaxed)),
+        );
+        write_header(
+            &mut output,
+            OUTBOX_PENDING,
+            "gauge",
+            "Run notifications waiting to be published.",
+        );
+        write_sample(
+            &mut output,
+            OUTBOX_PENDING,
+            &[],
+            self.inner.outbox_pending.load(Ordering::Relaxed),
+        );
         output
+    }
+
+    fn write_retries(&self, output: &mut String) {
+        write_header(
+            output,
+            HTTP_RETRIES,
+            "counter",
+            "Retried internal HTTP requests by target service and retry reason.",
+        );
+        for ((service, reason), count) in lock(&self.inner.retries).iter() {
+            write_sample(
+                output,
+                HTTP_RETRIES,
+                &[("reason", reason.as_str()), ("service", service.as_str())],
+                *count,
+            );
+        }
+    }
+
+    fn write_reconnects(&self, output: &mut String) {
+        write_header(
+            output,
+            CONSUMER_RECONNECTS,
+            "counter",
+            "Queue consumer reconnects by service and consumer kind.",
+        );
+        for ((service, consumer), count) in lock(&self.inner.reconnects).iter() {
+            write_sample(
+                output,
+                CONSUMER_RECONNECTS,
+                &[
+                    ("consumer", consumer.as_str()),
+                    ("service", service.as_str()),
+                ],
+                *count,
+            );
+        }
     }
 
     fn write_build(&self, output: &mut String) {
@@ -504,6 +693,23 @@ async fn render(State(metrics): State<Metrics>) -> Response {
 /// Returns [`RuntimeError::Serve`] when the configured address is invalid for
 /// the internal profile or cannot be bound.
 pub async fn start(config: &Config, metrics: &Metrics) -> Result<Option<SocketAddr>, RuntimeError> {
+    start_router(config, router(metrics.clone())).await
+}
+
+/// Bind and start the internal listener with an explicit router.
+///
+/// The backtest worker composes `/metrics` with its own `/health` and `/ready`
+/// through this seam. The caller keeps the process alive; the listener task
+/// stops with it.
+///
+/// # Errors
+///
+/// Returns [`RuntimeError::Serve`] when the configured address is invalid for
+/// the internal profile or cannot be bound.
+pub async fn start_router(
+    config: &Config,
+    router: Router,
+) -> Result<Option<SocketAddr>, RuntimeError> {
     let Some(bind) = config.metrics_bind else {
         return Ok(None);
     };
@@ -516,10 +722,8 @@ pub async fn start(config: &Config, metrics: &Metrics) -> Result<Option<SocketAd
     let address = listener
         .local_addr()
         .map_err(|error| RuntimeError::Serve(format!("metrics address: {error}")))?;
-    metrics.set_ready(true);
-    let task_metrics = metrics.clone();
     tokio::spawn(async move {
-        if let Err(error) = axum::serve(listener, router(task_metrics)).await {
+        if let Err(error) = axum::serve(listener, router).await {
             tracing::error!(%error, "metrics listener stopped");
         }
     });
@@ -563,6 +767,14 @@ mod tests {
             REQUESTS_TOTAL,
             REQUEST_DURATION,
             REQUESTS_IN_FLIGHT,
+            HTTP_RETRIES,
+            CONSUMER_RECONNECTS,
+            QUEUE_DEPTH,
+            WORKERS,
+            RUNS_TOTAL,
+            STAGES_TOTAL,
+            LEADER,
+            OUTBOX_PENDING,
         ];
         let mut last = 0;
         for family in families {
@@ -704,7 +916,58 @@ mod tests {
             address.ip(),
             std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST)
         );
-        assert!(metrics.encode().contains("quantrule_ready 1"));
+        assert!(metrics.encode().contains("quantrule_ready"));
+    }
+
+    #[test]
+    fn worker_and_retry_families_are_deterministic() {
+        let metrics = metrics();
+        metrics.http_retry("data", "unreachable");
+        metrics.http_retry("data", "unreachable");
+        metrics.consumer_reconnect("backtest", "run");
+        metrics.set_queue_depth("run", 3);
+        metrics.set_queue_depth("stage", 1);
+        metrics.set_workers(2);
+        metrics.record_run("computed");
+        metrics.record_run("failed");
+        metrics.record_stage("computed");
+        metrics.set_leader(true);
+        metrics.set_outbox_pending(4);
+        let first = metrics.encode();
+        assert_eq!(first, metrics.encode());
+        assert!(
+            first.contains(
+                "quantrule_http_retries_total{reason=\"unreachable\",service=\"data\"} 2"
+            ),
+            "{first}"
+        );
+        assert!(
+            first.contains(
+                "quantrule_consumer_reconnects_total{consumer=\"run\",service=\"backtest\"} 1"
+            ),
+            "{first}"
+        );
+        assert!(
+            first.contains("quantrule_queue_depth{queue=\"run\"} 3"),
+            "{first}"
+        );
+        assert!(
+            first.contains("quantrule_workers{service=\"data\"} 2"),
+            "{first}"
+        );
+        assert!(
+            first.contains("quantrule_runs_total{state=\"computed\"} 1"),
+            "{first}"
+        );
+        assert!(
+            first.contains("quantrule_stages_total{state=\"computed\"} 1"),
+            "{first}"
+        );
+        assert!(
+            first.contains("quantrule_leader{service=\"data\"} 1"),
+            "{first}"
+        );
+        assert!(first.contains("quantrule_outbox_pending 4"), "{first}");
     }
 
     #[tokio::test]

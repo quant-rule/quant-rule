@@ -105,10 +105,15 @@ pub async fn sweep(
     gate: Arc<tokio::sync::Mutex<()>>,
     days: u64,
     period: Duration,
+    mut shutdown: quantrule_runtime::shutdown::Shutdown,
 ) {
     let mut interval = tokio::time::interval(period.max(Duration::from_millis(1)));
     loop {
-        interval.tick().await;
+        tokio::select! {
+            biased;
+            () = shutdown.wait() => return,
+            _ = interval.tick() => {}
+        }
         let _guard = gate.lock().await;
         let report = run_cleanup(stages.as_ref(), objects.as_ref(), SystemTime::now(), days).await;
         if let Some(error) = report.error.as_deref() {

@@ -23,8 +23,6 @@ pub const LEADER_LEASE_SECONDS: u64 = 30;
 pub const LEADER_RENEW_INTERVAL: Duration = Duration::from_secs(10);
 /// How often a standby retries acquisition or a leader retries a failed renewal.
 pub const LEADER_RETRY_INTERVAL: Duration = Duration::from_secs(5);
-/// How long a stopped consumer waits before restarting while still leader.
-const CONSUMER_RESTART_DELAY: Duration = Duration::from_secs(1);
 /// How long a fenced delivery waits for the election loop to publish the loss.
 const FENCE_RELEASE_WAIT: Duration = Duration::from_secs(5);
 
@@ -207,10 +205,15 @@ pub fn spawn_leader_election(
     lease: Arc<dyn LeaderLease>,
     holder: String,
     sender: tokio::sync::watch::Sender<Leadership>,
+    shutdown: quantrule_runtime::shutdown::Shutdown,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         let mut term: Option<u64> = None;
         loop {
+            if shutdown.is_requested() {
+                release_term(lease.as_ref(), &holder, term).await;
+                return;
+            }
             let (next, wait) = match term {
                 Some(current) => match lease.renew(holder.clone(), current).await {
                     Ok(Some(renewed)) => {
@@ -244,9 +247,49 @@ pub fn spawn_leader_election(
                 },
             };
             term = next;
-            tokio::time::sleep(wait).await;
+            let mut drain = shutdown.clone();
+            tokio::select! {
+                biased;
+                () = drain.wait() => {
+                    release_term(lease.as_ref(), &holder, term).await;
+                    return;
+                }
+                () = tokio::time::sleep(wait) => {}
+            }
         }
     })
+}
+
+/// Release a live term during a drain, and log the outcome.
+async fn release_term(lease: &dyn LeaderLease, holder: &str, term: Option<u64>) {
+    let Some(term) = term else {
+        return;
+    };
+    match lease.release(holder.to_owned(), term).await {
+        Ok(()) => tracing::info!(term, "the draining evidence leader released its lease"),
+        Err(error) => tracing::warn!(%error, term, "the draining leader lease was not released"),
+    }
+}
+
+/// Release the live lease this replica owns so a standby takes over at once.
+///
+/// The caller stops the election task first; reading the watch afterward is the
+/// last published term. A release by a stale holder or term is a no-op in the
+/// lease implementation, so a race cannot clear the new leader's row.
+///
+/// # Errors
+///
+/// Returns [`LeaderLeaseError`] when the database refuses the release.
+pub async fn release_leadership(
+    lease: &dyn LeaderLease,
+    holder: &str,
+    leadership: &tokio::sync::watch::Receiver<Leadership>,
+) -> Result<(), LeaderLeaseError> {
+    if let Leadership::Leader(term) = *leadership.borrow() {
+        lease.release(holder.to_owned(), term).await?;
+        tracing::info!(term, "the evidence leader released its lease");
+    }
+    Ok(())
 }
 
 /// The leader-only `run.computed` consumer.
@@ -258,6 +301,7 @@ pub struct LeaderConsumer {
     consumer: Arc<dyn QueueConsumer>,
     queue: String,
     services: Arc<EvidenceServices>,
+    metrics: Option<quantrule_runtime::metrics::Metrics>,
 }
 
 impl LeaderConsumer {
@@ -272,36 +316,68 @@ impl LeaderConsumer {
             consumer,
             queue,
             services,
+            metrics: None,
         }
     }
 
-    /// Consume while this replica is the leader, until the watch closes.
-    pub async fn run(self, mut leadership: tokio::sync::watch::Receiver<Leadership>) {
+    /// Attach the process metrics for reconnect counts.
+    #[must_use]
+    pub fn with_metrics(mut self, metrics: quantrule_runtime::metrics::Metrics) -> Self {
+        self.metrics = Some(metrics);
+        self
+    }
+
+    /// Consume while this replica is the leader, until shutdown or an exhausted
+    /// reconnect budget.
+    ///
+    /// A leadership loss drops the consumer without a reconnect: the replica is
+    /// a standby, and the new leader re-arms the outbox. A consumer failure
+    /// inside a live term reconnects with the shared backoff.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`quantrule_runtime::reconnect::ReconnectError`] when the
+    /// consumer fails past its reconnect budget, so the container restarts.
+    pub async fn run(
+        self,
+        mut leadership: tokio::sync::watch::Receiver<Leadership>,
+        shutdown: quantrule_runtime::shutdown::Shutdown,
+    ) -> Result<(), quantrule_runtime::reconnect::ReconnectError> {
         loop {
-            let Some(term) = next_leader_term(&mut leadership).await else {
-                return;
+            let Some(term) = next_leader_term(&mut leadership, &shutdown).await else {
+                return Ok(());
             };
             tracing::info!(term, queue = %self.queue, "the evidence leader is consuming run.computed");
             let services = Arc::clone(&self.services);
             let handler_leadership = leadership.clone();
-            let handler: MessageHandler = Box::new(move |message: Message| {
+            let handler: MessageHandler = Arc::new(move |message: Message| {
                 let services = Arc::clone(&services);
                 let handler_leadership = handler_leadership.clone();
                 Box::pin(
                     async move { handle_computed(message, services, handler_leadership).await },
                 )
             });
-            let consuming = self.consumer.consume(&self.queue, handler);
+            let consuming = quantrule_runtime::reconnect::consume(
+                Arc::clone(&self.consumer),
+                self.queue.clone(),
+                handler,
+                shutdown.clone(),
+                "evidence",
+                "evidence",
+                self.metrics.clone(),
+            );
+            let mut drain = shutdown.clone();
             tokio::select! {
-                result = consuming => {
-                    match result {
-                        Ok(()) => tracing::warn!(queue = %self.queue, "the run.computed consumer ended"),
-                        Err(error) => tracing::error!(%error, queue = %self.queue, "the run.computed consumer failed"),
-                    }
-                    tokio::time::sleep(CONSUMER_RESTART_DELAY).await;
+                biased;
+                () = drain.wait() => {
+                    tracing::info!(term, "the evidence leader stopped the run.computed consumer for drain");
+                    return Ok(());
                 }
                 () = wait_until_term_ends(leadership.clone(), term) => {
                     tracing::warn!(term, "the evidence leader stopped the run.computed consumer");
+                }
+                result = consuming => {
+                    return result;
                 }
             }
         }
@@ -356,17 +432,26 @@ async fn handle_computed(
     }
 }
 
-/// Wait for a live leader term, or `None` when the watch closes.
+/// Wait for a live leader term, or `None` when the watch closes or the process
+/// drains.
 async fn next_leader_term(
     leadership: &mut tokio::sync::watch::Receiver<Leadership>,
+    shutdown: &quantrule_runtime::shutdown::Shutdown,
 ) -> Option<u64> {
     loop {
         let current = *leadership.borrow_and_update();
         if let Leadership::Leader(term) = current {
             return Some(term);
         }
-        if leadership.changed().await.is_err() {
-            return None;
+        let mut drain = shutdown.clone();
+        tokio::select! {
+            biased;
+            () = drain.wait() => return None,
+            changed = leadership.changed() => {
+                if changed.is_err() {
+                    return None;
+                }
+            }
         }
     }
 }

@@ -46,6 +46,7 @@ services:
       - env/simulation-migrate.env
 
   data:
+    stop_grace_period: 40s
     image: ${QR_IMAGE}
     pull_policy: never
     command: ["qr-data"]
@@ -72,6 +73,7 @@ services:
       start_period: 10s
 
   evidence:
+    stop_grace_period: 40s
     image: ${QR_IMAGE}
     pull_policy: never
     command: ["qr-evidence"]
@@ -92,6 +94,7 @@ services:
       start_period: 10s
 
   simulation:
+    stop_grace_period: 40s
     image: ${QR_IMAGE}
     pull_policy: never
     command: ["qr-simulation"]

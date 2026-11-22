@@ -3,6 +3,7 @@
 //! The cases are split by concern so no test file outgrows the file-size rule.
 
 mod cancel;
+mod drain;
 mod failure;
 mod path;
 mod portfolio_stage;

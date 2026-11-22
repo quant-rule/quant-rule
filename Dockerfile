@@ -105,5 +105,8 @@ USER 10001:10001
 WORKDIR /srv/quantrule
 EXPOSE 8080
 
+# Every binary drains on SIGTERM; the orchestrator waits for the worker and HTTP
+# deadlines before a forced kill.
+STOPSIGNAL SIGTERM
 ENTRYPOINT ["/usr/local/bin/quantrule-entry"]
 CMD ["qr-gateway"]

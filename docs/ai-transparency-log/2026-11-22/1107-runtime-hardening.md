@@ -1,6 +1,6 @@
-# AI Transparency Log — HA-009 slice 1: runtime metrics, logs and IDs
+# AI Transparency Log — HA-009 slices 1–2: runtime metrics, logs, IDs, drain, retries and reconnect
 
-- Date: 2026-11-22 (UTC)
+- Date: 2026-11-22 (UTC); slice 2 verified 2026-11-23 (UTC)
 - Work item: [#1107](https://github.com/quant-rule/quant-rule/issues/1107) — HA-009
 - Tool: OpenCode, DeepSeek V4.1 Flash
 - Plan: [`docs/execution-plans/2026-11-22/1107-runtime-hardening.md`](../../execution-plans/2026-11-22/1107-runtime-hardening.md)
@@ -102,3 +102,97 @@ no infrastructure behavior.
 - No independent model or agent review is claimed. This was one implementation
   pass with the project gate as the mechanical verifier; human review is still
   required.
+
+## Slice 2 — drain, readiness, retries and consumer reconnect
+
+### Intent and boundary
+
+Implement only the second approved slice: SIGTERM drain and readiness on every
+service, the backtest internal health listener, bounded retries for audited
+idempotent calls, and the consumer reconnect fix. Not in this slice: `*_FILE`
+secrets, explicit S3 credentials, token rotation, a migration, a public API or
+command change, or a composed/HA evidence claim.
+
+### Proposed work
+
+- Add a `Drain` that owns the shutdown channel, the readiness gauges and the
+  HTTP deadline; make it the real signal path in `serve`.
+- Add `QR_DRAIN_TIMEOUT_HTTP` and `QR_DRAIN_TIMEOUT_WORK`, `/ready` on every
+  service, and the backtest internal `/health` and `/ready`.
+- Probe upstream `/ready` from the gateway and mark a draining upstream down.
+- Add `quantrule_runtime::retry` and opt only audited idempotent calls in.
+- Add `quantrule_runtime::reconnect` and wire it into the backtest and evidence
+  consumers; make the evidence background loops and lease stop on drain.
+- Add the retry/reconnect/queue/worker/run/stage/leader/outbox metrics that are
+  feasible without a new dependency, plus Compose and Dockerfile stop settings.
+- Test every seam with in-memory stores, a scripted transport and paused time.
+
+### Implemented work
+
+- `shutdown::Drain` flips `quantrule_ready` and `quantrule_draining` from the
+  same channel `/ready` reads; `serve_on` bounds a graceful HTTP drain by the
+  configured deadline and logs `drain.deadline_exceeded` before an `Ok` exit.
+- `HealthRegistry` carries the drain channel and returns a `503` `draining`
+  report without running probes; every service and the gateway serve `/ready`.
+- The gateway probes each upstream `/ready` and treats `503` as down for
+  routing; `/health` stays local. The backtest internal listener composes
+  `/metrics`, `/health` and `/ready`.
+- The backtest worker stops claiming at the signal, waits with
+  `drain::drain_consumers` up to `QR_DRAIN_TIMEOUT_WORK`, aborts at the deadline,
+  and never writes `failed` for a shutdown. The evidence main stops the leader
+  consumer, outbox, reconcile, retention, leader election and metric loops,
+  releases the lease and waits for the HTTP drain.
+- `retry` implements the approved deterministic policy, classifies statuses and
+  transport errors, stops on shutdown and counts `quantrule_http_retries_total`.
+  `HttpServiceClient` keeps one attempt by default; `with_retry` opts in and
+  only GET reads plus the two dataset-reference writes use the retryable path.
+- `reconnect` implements the 1–30 s backoff, clean shutdown, exhausted-budget
+  error and `quantrule_consumer_reconnects_total`; both workers use it.
+- The registry adds queue depth, worker, run/stage outcome, leader, outbox,
+  retry and reconnect families. Queue depth uses a passive declare on the
+  existing channel, so no management API or new dependency was added.
+- Compose sets the two deadlines and `stop_grace_period: 40s`; the multi-host
+  long-running roles set the grace period; the image declares
+  `STOPSIGNAL SIGTERM`.
+- Docs, the HA-009 plan, this log and the changelog are updated. The architecture
+  docs were net-compressed to stay within their caps.
+
+### Verification and evidence
+
+| Check | Result |
+|---|---|
+| `cargo fmt --all -- --check` | pass |
+| clippy on the runtime, gateway, five HTTP services and backtest with `-D warnings` | pass |
+| runtime, gateway, data, backtest and evidence fast tests | pass |
+| `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps` | pass |
+| `cargo run -q -p quantrule-governance -- check --all` | pass |
+| `docker compose config -q` | pass |
+| `tools/gate.sh` | `gate passed: full` (2026-11-23) |
+| `git diff --stat -- '**/migrations/**'` | empty |
+
+No composed, HA or DR tier was run or claimed. No secret delivery, S3
+credential source or token rotation was changed.
+
+### Learning and rejected suggestions
+
+- Kept the retry policy out of the RabbitMQ consumer budget: the run retry
+  budget is a per-run attempt count, while the HTTP policy is per idempotent
+  call. Combining them would make one run's retries depend on the other's.
+- Rejected retrying a POST in `HttpServiceClient` by default: the default stays
+  one attempt and only the two reference writes opt in, because a model compute,
+  signal create, stage create, decision and cancel are not idempotent.
+- Rejected marking a drained run `failed`: the lease expiry plus the outbox is
+  the recovery path, and a shutdown is not a run failure.
+- Treated a dropped shutdown trigger as “not a signal” so a test or helper that
+  discards the sender cannot look like a drain.
+- No independent model or agent review is claimed; human review is still
+  required.
+
+### Review correction
+
+- The first slice-2 gateway test attached the drain channel to the health
+  registry by hand. That made the test pass while the production
+  `AppState::with_observability` constructor did not attach it, so the binary
+  `/ready` would not flip on SIGTERM. The constructor now attaches
+  `drain.shutdown()` and the test builds the registry without the manual
+  wiring. The gateway suite and the full gate were rerun after the correction.

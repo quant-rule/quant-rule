@@ -12,6 +12,7 @@ name = "qr-backtest"
 path = "src/main.rs"
 
 [dependencies]
+axum = "0.8.9"
 quantrule-api = { path = "../quantrule-api" }
 quantrule-app = { path = "../quantrule-app" }
 quantrule-data = { path = "../quantrule-data" }
