@@ -10,7 +10,8 @@
 use std::sync::Arc;
 
 use quantrule_runtime::adapters::ObjectStore;
-use quantrule_runtime::backends::{Objects, open_service_database};
+use quantrule_runtime::backends::{Objects, migrate_owner_database, open_service_database};
+use quantrule_runtime::config::migrate_only_requested;
 use quantrule_runtime::{Config, HealthRegistry, RuntimeError, logging};
 use quantrule_simulation_service::postgres::PgSimulationStore;
 use quantrule_simulation_service::store::SimulationStore;
@@ -21,15 +22,18 @@ async fn main() -> Result<(), RuntimeError> {
     let config = Config::from_env()?;
     logging::init("info")?;
 
+    if migrate_only_requested() {
+        return migrate_owner_database(
+            &config,
+            "simulation",
+            "simulation",
+            &quantrule_simulation_service::migrations::available(),
+        )
+        .await;
+    }
+
     let mut health = HealthRegistry::named("simulation");
-    let opened = open_service_database(
-        &config,
-        "simulation",
-        "simulation",
-        &quantrule_simulation_service::migrations::available(),
-        &mut health,
-    )
-    .await?;
+    let opened = open_service_database(&config, &mut health).await?;
     let store: Option<Arc<dyn SimulationStore>> = opened.map(|database| {
         Arc::new(PgSimulationStore::new(database.pool().clone())) as Arc<dyn SimulationStore>
     });

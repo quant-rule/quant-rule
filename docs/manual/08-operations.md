@@ -92,6 +92,12 @@ The queue is not archived; messages are rebuilt from run rows. Restore writes
 objects before rows, so an interrupted copy leaves unreferenced blobs rather
 than a run that looks present but cannot verify.
 
+The stack now stores evidence in four logical databases. `tools/backup.sh` and
+`tools/restore.sh` still dump and restore one database, so they do not yet
+cover all four; treat a backup as incomplete until the four-database archive
+change lands. The database and role contract is
+[`docs/config/2026-11-22/four-databases.md`](../config/2026-11-22/four-databases.md).
+
 ## What you see
 
 The Operations screen shows connection, product, API, image digest, health,

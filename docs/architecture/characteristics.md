@@ -78,10 +78,10 @@ and an event-driven control plane. Each service is coarse-grained and owns its
 data. The data plane is synchronous and deterministic; the control plane is
 asynchronous.
 
-**Quantum.** Six services, one database instance with schema-per-service, one
-object store. The set is one quantum for the operator because it deploys
-together and shares one image; each service is a separate failure and scaling
-unit.
+**Quantum.** Six services, one PostgreSQL instance holding four logical
+databases with per-service owner/app roles, one object store. The set is one
+quantum for the operator because it deploys together and shares one image; each
+service is a separate failure and scaling unit.
 
 ```text
 browser ── HTTP ── gateway ── postgres

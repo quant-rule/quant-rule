@@ -25,8 +25,14 @@ history is in Git and the pull requests.
 - ADR-RA accepts the research artifact layer, model artifact input, strategy/portfolio/execution packs, signal artifacts and the seventh strategy service.
 - ADR-HA accepts the Swarm HA profile, one Patroni cluster with four logical databases, quorum queues, distributed MinIO and the `quantrule.deploy/v3` descriptor.
 - The `v1.6.0` execution plan, issue tree, research-artifacts architecture and HA architecture are recorded as the plan of record.
+- The local and multi-host stacks use four logical PostgreSQL databases (`qr_gateway`, `qr_catalog`, `qr_evidence`, `qr_simulation`), each with a per-service owner role that migrates and an application role with DML only.
+- `deploy/postgres/bootstrap.sh` and the one-shot `db-bootstrap` service create the four databases and eight roles idempotently; four one-shot `<service>-migrate` jobs run the service binary with `--migrate-only` and hold the owner URL.
 
 ### Changed
+
+- Each database-owning service receives only its own `QR_DATABASE_URL` and `QR_MIGRATE=0`; model and backtest receive no database URL. The long-running process never receives `QR_DATABASE_OWNER_URL`, so a compromised service cannot reconnect with DDL rights.
+- No role is granted connect on another service's database.
+- The multi-host `qr-deploy render` derives the four application URLs, the four migration owner URLs, and the eight role names from the v2 Postgres endpoint, so v2 remains readable.
 
 - The pull-request CI gate is scope-aware: docs, governance, and web scopes skip Rust or web work they cannot observe, and a `gate` aggregator fails when a needed job failed or was wrongly skipped.
 - The policy is now “No Python” repository-wide; current docs, the manual, the registry, and the verification evidence name `qr-governance` checkers instead of the deleted Python scripts.

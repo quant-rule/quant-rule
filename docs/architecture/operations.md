@@ -84,11 +84,18 @@ The object mirror uses the `mc` bundled in the pinned MinIO image. A replacement
 The archive contains candle data and is handled as sensitive; see
 [`data-lifecycle.md`](../workflows/data-lifecycle.md).
 
-The default stack starts all nine containers: the six services and the three
-stores (see [`deployment.md`](deployment.md) section 2.1). Backup covers the
-durable stores; it cannot contain state that a missing `data`, `model`, or
-`simulation` binary never produced. The scripts stop every non-store service in
-the project.
+The default stack starts all six services, three stores, one-shot database
+bootstrap, and four one-shot migration jobs (see
+[`deployment.md`](deployment.md) section 2.1). The four logical databases are a
+current deployment contract
+([`docs/config/2026-11-22/four-databases.md`](../config/2026-11-22/four-databases.md)).
+Backup covers the durable stores; it cannot contain state that a missing
+`data`, `model`, or `simulation` binary never produced. The scripts stop every
+non-store service in the project.
+
+The current backup tools dump one database. Until the four-database archive
+lands, a backup after the split is incomplete and a restore drill must be
+re-run; do not claim evidence preservation from a single dump.
 
 Round trip: `tools/test_backup.sh` is opt-in and uses an isolated
 `quantrule-backup-test` project, so it needs port 8080 free and never touches

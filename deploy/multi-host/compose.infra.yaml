@@ -14,6 +14,30 @@
 name: quantrule-infra
 
 services:
+  # One-shot schema bootstrap. It creates the four logical databases and the
+  # owner/app roles before the core, compute, and gateway hosts start. The
+  # script is idempotent, so a re-run on an existing volume converges the roles
+  # and grants instead of failing.
+  db-bootstrap:
+    image: ${QR_POSTGRES_IMAGE:-postgres@sha256:846a7ddaa67a4b354ae1d21087b683901aa6113a4ed626d3787cfbf6c85e3e07}
+    restart: "no"
+    networks:
+      - quantrule
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGUSER: ${QR_POSTGRES_USER:?QR_POSTGRES_USER must be set}
+      PGPASSWORD: ${QR_POSTGRES_PASSWORD:?QR_POSTGRES_PASSWORD must be set}
+      PGDATABASE: ${QR_POSTGRES_DB:?QR_POSTGRES_DB must be set}
+      QR_DB_ROLE_PASSWORD: ${QR_POSTGRES_PASSWORD:?QR_POSTGRES_PASSWORD must be set}
+    volumes:
+      # Relative to this Compose file, not the caller's working directory.
+      - ../../deploy/postgres/bootstrap.sh:/bootstrap/bootstrap.sh:ro
+    entrypoint: ["/bin/sh", "/bootstrap/bootstrap.sh"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   postgres:
     # Same pin and override as the single-host stack.
     image: ${QR_POSTGRES_IMAGE:-postgres@sha256:846a7ddaa67a4b354ae1d21087b683901aa6113a4ed626d3787cfbf6c85e3e07}

@@ -58,7 +58,6 @@ common_env() {
   cat <<EOF
 QR_PROFILE=server
 QR_IMAGE_DIGEST=$digest
-QR_DATABASE_URL=postgres://quantrule:$db_password@172.31.238.20:5432/quantrule
 QR_OBJECT_STORE_URL=http://172.31.238.21:9000
 QR_OBJECT_BUCKET=quantrule
 QR_QUEUE_URL=amqp://quantrule:$queue_password@172.31.238.22:5672/%2f
@@ -66,6 +65,21 @@ AWS_ACCESS_KEY_ID=quantrule
 AWS_SECRET_ACCESS_KEY=$object_password
 AWS_REGION=us-east-1
 EOF
+}
+
+database_url() {
+  local role=$1 database=$2
+  printf 'postgres://%s:%s@172.31.238.20:5432/%s' "$role" "$db_password" "$database"
+}
+
+database_env() {
+  local database=$1
+  printf 'QR_DATABASE_URL=%s\n' "$(database_url "${database}_app" "$database")"
+}
+
+database_owner_env() {
+  local database=$1
+  printf 'QR_DATABASE_OWNER_URL=%s\n' "$(database_url "${database}_owner" "$database")"
 }
 
 write_env() {
@@ -77,8 +91,9 @@ write_env() {
         cat <<EOF
 QR_BIND=172.31.238.11:18081
 QR_INTERNAL_ONLY=1
-QR_MIGRATE=1
+QR_MIGRATE=0
 QR_CONFIG_ROOT=/srv/config
+$(database_env qr_catalog)
 EOF
         ;;
       model)
@@ -93,15 +108,17 @@ EOF
         cat <<EOF
 QR_BIND=172.31.238.14:18083
 QR_INTERNAL_ONLY=1
-QR_MIGRATE=1
+QR_MIGRATE=0
 QR_DATA_URL=http://172.31.238.11:18081
+$(database_env qr_evidence)
 EOF
         ;;
       simulation)
         cat <<EOF
 QR_BIND=172.31.238.15:18084
 QR_INTERNAL_ONLY=1
-QR_MIGRATE=1
+QR_MIGRATE=0
+$(database_env qr_simulation)
 EOF
         ;;
       backtest)
@@ -117,12 +134,13 @@ EOF
         cat <<EOF
 QR_BIND=0.0.0.0:$gateway_port
 QR_INTERNAL_ONLY=0
-QR_MIGRATE=1
+QR_MIGRATE=0
 QR_STATIC_DIR=/srv/static
 QR_DATA_URL=http://172.31.238.11:18081
 QR_MODEL_URL=http://172.31.238.12:18082
 QR_EVIDENCE_URL=http://172.31.238.14:18083
 QR_SIMULATION_URL=http://172.31.238.15:18084
+$(database_env qr_gateway)
 EOF
         ;;
       *)
@@ -132,11 +150,26 @@ EOF
   } > "$work/$name.env"
 }
 
+write_migrate_env() {
+  local name=$1 database=$2
+  {
+    printf 'QR_PROFILE=server\n'
+    printf 'QR_MIGRATE=0\n'
+    database_owner_env "$database"
+  } > "$work/$name-migrate.env"
+}
+
 run_service() {
   local name=$1 ip=$2 binary=$3
   shift 3
   docker run -d --name "$prefix-$name" --network "$network" --ip "$ip" \
     --env-file "$work/$name.env" "$@" "$image" "$binary" >/dev/null
+}
+
+run_migration() {
+  local name=$1 binary=$2
+  docker run --rm --network "$network" \
+    --env-file "$work/$name-migrate.env" "$image" "$binary" --migrate-only
 }
 
 wait_exec() {
@@ -167,6 +200,15 @@ wait_http() {
 for name in data model evidence simulation backtest gateway; do
   write_env "$name"
 done
+write_migrate_env data qr_catalog
+write_migrate_env evidence qr_evidence
+write_migrate_env simulation qr_simulation
+write_migrate_env gateway qr_gateway
+for name in data evidence simulation gateway; do
+  if grep -q '^QR_DATABASE_OWNER_URL=' "$work/$name.env"; then
+    fail "$name.env carries the owner credential"
+  fi
+done
 cp "$work/backtest.env" "$work/backtest-2.env"
 
 echo 'multi-host test: infrastructure'
@@ -184,6 +226,37 @@ docker run -d --name "$prefix-rabbitmq" --network "$network" --ip 172.31.238.22 
 wait_exec postgres pg_isready -U quantrule -d quantrule
 wait_exec minio curl -fsS http://127.0.0.1:9000/minio/health/ready
 wait_exec rabbitmq rabbitmq-diagnostics -q ping
+
+echo 'multi-host test: database bootstrap and role isolation'
+postgres_image=${QR_POSTGRES_IMAGE:-postgres@sha256:846a7ddaa67a4b354ae1d21087b683901aa6113a4ed626d3787cfbf6c85e3e07}
+docker run --rm --network "$network" \
+  -e PGHOST=172.31.238.20 -e PGPORT=5432 \
+  -e PGUSER=quantrule -e PGPASSWORD="$db_password" -e PGDATABASE=quantrule \
+  -e QR_DB_ROLE_PASSWORD="$db_password" \
+  -v "$root/deploy/postgres/bootstrap.sh:/bootstrap/bootstrap.sh:ro" \
+  --entrypoint /bin/sh "$postgres_image" /bootstrap/bootstrap.sh
+for spec in \
+  "qr_gateway_app qr_catalog" \
+  "qr_catalog_app qr_evidence" \
+  "qr_evidence_app qr_simulation" \
+  "qr_simulation_app qr_gateway"; do
+  set -- $spec
+  if docker exec -e PGPASSWORD="$db_password" "$prefix-postgres" \
+    psql -U "$1" -d "$2" -c 'SELECT 1' >/dev/null 2>&1; then
+    fail "$1 reached $2 across databases"
+  fi
+done
+if docker exec -e PGPASSWORD="$db_password" "$prefix-postgres" \
+  psql -U qr_catalog_app -d qr_catalog -v ON_ERROR_STOP=1 \
+  -c 'CREATE TABLE catalog.role_probe (id integer)' >/dev/null 2>&1; then
+  fail 'qr_catalog_app created a table; the application role has DDL'
+fi
+
+echo 'multi-host test: one-shot owner migrations'
+run_migration data qr-data
+run_migration evidence qr-evidence
+run_migration simulation qr-simulation
+run_migration gateway qr-gateway
 
 echo 'multi-host test: core and compute'
 run_service data 172.31.238.11 qr-data -v "$root/config:/srv/config:ro"

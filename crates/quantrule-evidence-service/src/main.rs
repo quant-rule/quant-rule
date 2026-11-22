@@ -14,9 +14,11 @@ use std::time::Duration;
 use quantrule_runtime::adapters::{
     Message, MessageHandler, ObjectStore, Queue, QueueConsumer, QueueError,
 };
-use quantrule_runtime::backends::{ControlQueue, Objects, open_service_database};
+use quantrule_runtime::backends::{
+    ControlQueue, Objects, migrate_owner_database, open_service_database,
+};
 use quantrule_runtime::client::{ClientError, DataClient, HttpServiceClient, Service};
-use quantrule_runtime::config::ConfigError;
+use quantrule_runtime::config::{ConfigError, migrate_only_requested};
 use quantrule_runtime::queue::{QUEUE_EVIDENCE, ROUTING_COMPUTED};
 use quantrule_runtime::{Config, HealthRegistry, RuntimeError, logging};
 use quantrule_service_api::INTERNAL_API_VERSION;
@@ -42,15 +44,18 @@ async fn main() -> Result<(), RuntimeError> {
     let config = Config::from_env()?;
     logging::init("info")?;
 
+    if migrate_only_requested() {
+        return migrate_owner_database(
+            &config,
+            "runs",
+            "run and research",
+            &quantrule_evidence_service::migrations::available(),
+        )
+        .await;
+    }
+
     let mut health = HealthRegistry::named("evidence");
-    let opened = open_service_database(
-        &config,
-        "runs",
-        "run and research",
-        &quantrule_evidence_service::migrations::available(),
-        &mut health,
-    )
-    .await?;
+    let opened = open_service_database(&config, &mut health).await?;
     let (runs, stages, hypotheses, improvements): (
         Option<RunHandle>,
         Option<StageHandle>,

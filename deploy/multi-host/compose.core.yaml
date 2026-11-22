@@ -2,17 +2,49 @@
 #
 # `data`, `evidence`, and `simulation` own separate schemas and failure units,
 # so they are separate services, but they share one host and one private
-# overlay address with a distinct port each. There is no depends_on: the
-# dependency is a host or a container on another machine, and `restart:
-# unless-stopped` plus the service's own startup retry is what recovers an
-# order mistake. Start the infrastructure role first.
+# overlay address with a distinct port each. There is no cross-host depends_on:
+# the dependency is on another machine, and `restart: unless-stopped` plus the
+# service's own startup retry recovers an order mistake. The one local
+# depends_on waits for that service's one-shot migration job. Start the
+# infrastructure role first.
 #
-# `qr-deploy render` writes env/data.env, env/evidence.env, and
-# env/simulation.env. The `--env-file` passed to Compose is only needed for the
-# shared QR_IMAGE; each service reads its own file through env_file.
+# `qr-deploy render` writes env/data.env, env/evidence.env,
+# env/simulation.env, and the matching `<service>-migrate.env` files. The
+# `--env-file` passed to Compose is only needed for the shared QR_IMAGE; each
+# service reads its own files through env_file.
 name: quantrule-core
 
 services:
+  # One-shot owner migrations. They run on the core host after the
+  # infrastructure db-bootstrap has created the databases and roles. Each
+  # receives only its owner URL and exits before its service starts.
+  data-migrate:
+    image: ${QR_IMAGE}
+    pull_policy: never
+    command: ["qr-data", "--migrate-only"]
+    network_mode: host
+    restart: "no"
+    env_file:
+      - env/data-migrate.env
+
+  evidence-migrate:
+    image: ${QR_IMAGE}
+    pull_policy: never
+    command: ["qr-evidence", "--migrate-only"]
+    network_mode: host
+    restart: "no"
+    env_file:
+      - env/evidence-migrate.env
+
+  simulation-migrate:
+    image: ${QR_IMAGE}
+    pull_policy: never
+    command: ["qr-simulation", "--migrate-only"]
+    network_mode: host
+    restart: "no"
+    env_file:
+      - env/simulation-migrate.env
+
   data:
     image: ${QR_IMAGE}
     pull_policy: never
@@ -23,6 +55,9 @@ services:
     env_file:
       - env/data.env
     restart: unless-stopped
+    depends_on:
+      data-migrate:
+        condition: service_completed_successfully
     volumes:
       # The repository config/ is the read-only catalog source, exactly as on
       # the single-host stack. A host that carries only the deploy bundle
@@ -46,6 +81,9 @@ services:
     env_file:
       - env/evidence.env
     restart: unless-stopped
+    depends_on:
+      evidence-migrate:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://$${QR_BIND_IP}:$${QR_BIND_PORT}/health | grep -q '\"state\":\"healthy\"'"]
       interval: 10s
@@ -63,6 +101,9 @@ services:
     env_file:
       - env/simulation.env
     restart: unless-stopped
+    depends_on:
+      simulation-migrate:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://$${QR_BIND_IP}:$${QR_BIND_PORT}/health | grep -q '\"state\":\"healthy\"'"]
       interval: 10s

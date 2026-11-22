@@ -64,4 +64,61 @@ for target in "${targets[@]}"; do
   fi
 done
 
+# The four-database bootstrap is a deployment contract, not a Rust unit test:
+# run the checked-in script against this disposable server and exercise the
+# role boundary it installs.
+echo 'postgres tier: four databases, owner/app roles, and no cross-database access'
+docker cp deploy/postgres/bootstrap.sh "$container":/tmp/bootstrap.sh
+if ! docker exec \
+  -e PGHOST=127.0.0.1 -e PGPORT=5432 \
+  -e PGUSER=quantrule -e PGPASSWORD=quantrule -e PGDATABASE=postgres \
+  -e QR_DB_ROLE_PASSWORD=quantrule \
+  "$container" sh /tmp/bootstrap.sh >/dev/null; then
+  echo "postgres tier: the database bootstrap failed" >&2
+  exit 1
+fi
+
+for database in qr_gateway qr_catalog qr_evidence qr_simulation; do
+  if ! docker exec -e PGPASSWORD=quantrule "$container" \
+    psql -U "${database}_app" -d "$database" -c 'SELECT 1' >/dev/null 2>&1; then
+    echo "postgres tier: ${database}_app cannot connect to $database" >&2
+    exit 1
+  fi
+  if ! docker exec -e PGPASSWORD=quantrule "$container" \
+    psql -U "${database}_owner" -d "$database" -c 'SELECT 1' >/dev/null 2>&1; then
+    echo "postgres tier: ${database}_owner cannot connect to $database" >&2
+    exit 1
+  fi
+done
+
+if docker exec -e PGPASSWORD=quantrule "$container" \
+  psql -U qr_catalog_app -d qr_evidence -c 'SELECT 1' >/dev/null 2>&1; then
+  echo "postgres tier: an application role reached another database" >&2
+  exit 1
+fi
+if docker exec -e PGPASSWORD=quantrule "$container" \
+  psql -U qr_catalog_owner -d qr_evidence -c 'SELECT 1' >/dev/null 2>&1; then
+  echo "postgres tier: an owner role reached another database" >&2
+  exit 1
+fi
+if docker exec -e PGPASSWORD=quantrule "$container" \
+  psql -U qr_catalog_app -d qr_catalog -v ON_ERROR_STOP=1 \
+  -c 'CREATE TABLE catalog.role_probe (id integer)' >/dev/null 2>&1; then
+  echo "postgres tier: the application role created a table" >&2
+  exit 1
+fi
+if ! docker exec -e PGPASSWORD=quantrule "$container" \
+  psql -U qr_catalog_owner -d qr_catalog -v ON_ERROR_STOP=1 \
+  -c 'CREATE TABLE catalog.role_probe (id bigserial PRIMARY KEY, note text)' >/dev/null; then
+  echo "postgres tier: the owner role cannot create a table" >&2
+  exit 1
+fi
+if ! docker exec -e PGPASSWORD=quantrule "$container" \
+  psql -U qr_catalog_app -d qr_catalog -v ON_ERROR_STOP=1 \
+  -c "INSERT INTO catalog.role_probe (note) VALUES ('app-write'); SELECT count(*) FROM catalog.role_probe" \
+  >/dev/null; then
+  echo "postgres tier: the application role cannot write a grant-covered table" >&2
+  exit 1
+fi
+
 echo "postgres tier: $index targets passed against a disposable Postgres"

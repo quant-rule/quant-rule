@@ -93,8 +93,12 @@ use non-default credentials.
 
 Residual risks accepted for v1:
 
-- Every service receives the same Postgres role, MinIO root credentials, and
-  queue user. A compromised service host can read all schemas and the bucket.
+- Each database-owning service has its own Postgres owner and application role
+  and cannot connect to another service's database. The owner URL is confined
+  to the one-shot migration job. The v2 profile still uses one Postgres
+  password for every role, and every service shares the MinIO root credentials
+  and queue user; a compromised service host can reach the other databases
+  with that password and read the bucket.
 - The overlay provides transport encryption and host authentication, not
   service-to-service authentication. A client VPN peer must be routed to the
   gateway only; an overlay peer can call every internal service.

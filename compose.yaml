@@ -1,10 +1,14 @@
 # QuantRule deployment — quantrule.deploy/v1
 #
 # One bridge network, one published port, three named volumes. The default
-# topology is nine containers: the six service binaries from one image plus
-# Postgres, the object store, and the broker. `data`, `model`, `evidence`, and
-# `simulation` serve the catalog, model compute, runs/research, and the research
-# plane; the gateway proxies all four. Only the backtest worker serves no HTTP.
+# topology is nine long-running containers: the six service binaries from one
+# image plus Postgres, the object store, and the broker. A one-shot db-bootstrap
+# container creates the four logical databases and their owner/app roles, then
+# four one-shot migration jobs apply each owner ledger. The database-owning
+# services start with only their application credential. `data`, `model`,
+# `evidence`, and `simulation` serve the catalog, model compute, runs/research,
+# and the research plane; the gateway proxies all four. Only the backtest worker
+# serves no HTTP.
 #
 # Windows and macOS run this file through Docker Desktop's Linux backend
 # (WSL2 on Windows). The image is linux/amd64.
@@ -25,7 +29,8 @@ x-server: &server
   dns_search:
     - .
   environment: &server-environment
-    QR_DATABASE_URL: postgres://quantrule:${QR_POSTGRES_PASSWORD:-quantrule}@postgres:5432/quantrule
+    # Each database-owning service receives its own application URL below.
+    # Model and backtest own no database and receive no URL.
     # The gateway and the backtest worker reach qr-data through this URL; both
     # refuse to start without it. Data is not published on the host.
     QR_DATA_URL: http://data:8080
@@ -47,12 +52,11 @@ x-server: &server
     # days. Evidence applies the cleanup at startup and hourly; a run and its
     # artifacts are never touched.
     QR_STAGE_RETENTION_DAYS: "30"
-    # Each schema owner migrates its own ledger: the gateway applies the gateway
-    # ledger, data applies catalog, evidence applies runs and research, and
-    # simulation applies its own simulation ledger. The runtime pins the
-    # session-level advisory lock to one connection, so the four migrate at once
-    # without the old sole-migrator workaround. The backtest worker and model
-    # keep this at 0.
+    # The long-running services never migrate. A one-shot `<service>-migrate`
+    # job applies each database owner's ledger with --migrate-only before the
+    # service starts. The runtime pins the session-level advisory lock to one
+    # connection, so the four jobs may run at once. Every long-running service
+    # keeps this at 0; the backtest worker and model have no database.
     QR_MIGRATE: "0"
     # Set at release time to the image digest. An empty value would be rejected
     # by the runtime, so the key is a pass-through: unset stays unset.
@@ -87,7 +91,11 @@ services:
     command: ["qr-gateway"]
     environment:
       <<: *server-environment
-      QR_MIGRATE: "1"
+      # The gateway owns the profiles database. The long-running process has
+      # the application role only; the one-shot gateway-migrate job below has
+      # the owner URL and applies the ledger.
+      QR_DATABASE_URL: postgres://qr_gateway_app:${QR_POSTGRES_PASSWORD:-quantrule}@postgres:5432/qr_gateway
+      QR_MIGRATE: "0"
       # `make remote` exports this before Compose runs. The empty default keeps
       # the local stack unauthenticated; the runtime treats an empty value as
       # unset, so `make up` behaves exactly as before.
@@ -109,6 +117,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      gateway-migrate:
+        condition: service_completed_successfully
     healthcheck: *gateway-healthcheck
 
   data:
@@ -116,10 +126,10 @@ services:
     command: ["qr-data"]
     environment:
       <<: *server-environment
-      # qr-data owns the catalog schema and applies its own ledger. The gateway
-      # no longer migrates the catalog; P1's pinned lock lets the two run at
-      # once.
-      QR_MIGRATE: "1"
+      # qr-data owns the catalog database. The long-running process has the
+      # application role only; data-migrate has the owner URL.
+      QR_DATABASE_URL: postgres://qr_catalog_app:${QR_POSTGRES_PASSWORD:-quantrule}@postgres:5432/qr_catalog
+      QR_MIGRATE: "0"
     volumes:
       # The repository config/ is the read-only catalog source. qr-data owns it
       # now; the gateway proxies the public config routes.
@@ -129,6 +139,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      data-migrate:
+        condition: service_completed_successfully
     healthcheck: *http-healthcheck
 
   model:
@@ -136,7 +148,7 @@ services:
     command: ["qr-model"]
     environment:
       <<: *server-environment
-      # qr-model owns no database schema and applies no migration; it reads the
+      # qr-model owns no database and applies no migration; it reads the
       # catalog through qr-data and the dataset objects from the object store.
       QR_MIGRATE: "0"
     depends_on:
@@ -151,6 +163,9 @@ services:
     command: ["qr-backtest"]
     environment:
       <<: *server-environment
+      # qr-backtest owns no database and needs no database URL; it loads the
+      # dataset and config from data, the model bundle from model, and records
+      # the run through evidence.
       # Each run consumer owns a channel and one prefetch slot; the stage
       # consumer always keeps its own slot.
       QR_BACKTEST_CONCURRENCY: ${QR_BACKTEST_CONCURRENCY:-1}
@@ -174,10 +189,11 @@ services:
     command: ["qr-evidence"]
     environment:
       <<: *server-environment
-      # qr-evidence owns the runs and research schemas, including the run
-      # attempts ledger (0013), and applies them on start. The gateway migrates
-      # only its own gateway ledger.
-      QR_MIGRATE: "1"
+      # qr-evidence owns the evidence database: runs, research, and stage,
+      # including the run-attempts ledger (0013). The long-running process has
+      # the application role only; evidence-migrate has the owner URL.
+      QR_DATABASE_URL: postgres://qr_evidence_app:${QR_POSTGRES_PASSWORD:-quantrule}@postgres:5432/qr_evidence
+      QR_MIGRATE: "0"
     depends_on:
       data:
         condition: service_healthy
@@ -187,6 +203,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      evidence-migrate:
+        condition: service_completed_successfully
     healthcheck: *http-healthcheck
 
   simulation:
@@ -194,16 +212,94 @@ services:
     command: ["qr-simulation"]
     environment:
       <<: *server-environment
-      # qr-simulation owns the simulation schema and applies its own ledger. It
-      # reads a recorded model bundle from the object store, not a run or a
-      # config mount.
-      QR_MIGRATE: "1"
+      # qr-simulation owns the simulation database. The long-running process
+      # has the application role only; simulation-migrate has the owner URL.
+      QR_DATABASE_URL: postgres://qr_simulation_app:${QR_POSTGRES_PASSWORD:-quantrule}@postgres:5432/qr_simulation
+      QR_MIGRATE: "0"
     depends_on:
       postgres:
         condition: service_healthy
       minio:
         condition: service_healthy
+      simulation-migrate:
+        condition: service_completed_successfully
     healthcheck: *http-healthcheck
+
+  # One-shot bootstrap for the four logical databases and their owner/app
+  # roles. It runs after Postgres is healthy and before every migration job.
+  db-bootstrap:
+    image: ${QR_POSTGRES_IMAGE:-postgres@sha256:846a7ddaa67a4b354ae1d21087b683901aa6113a4ed626d3787cfbf6c85e3e07}
+    restart: "no"
+    networks:
+      - quantrule
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGUSER: quantrule
+      PGPASSWORD: ${QR_POSTGRES_PASSWORD:-quantrule}
+      PGDATABASE: quantrule
+      QR_DB_ROLE_PASSWORD: ${QR_POSTGRES_PASSWORD:-quantrule}
+    volumes:
+      - ./deploy/postgres/bootstrap.sh:/bootstrap/bootstrap.sh:ro
+    entrypoint: ["/bin/sh", "/bootstrap/bootstrap.sh"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # One-shot owner migration jobs. Each receives only its owner URL, applies
+  # one ledger through --migrate-only, and exits. The long-running service that
+  # follows never sees the owner credential.
+  gateway-migrate:
+    <<: *server
+    command: ["qr-gateway", "--migrate-only"]
+    restart: "no"
+    environment:
+      QR_DATABASE_OWNER_URL: postgres://qr_gateway_owner:${QR_POSTGRES_PASSWORD:-quantrule}@postgres:5432/qr_gateway
+      QR_MIGRATE: "0"
+    depends_on:
+      db-bootstrap:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+
+  data-migrate:
+    <<: *server
+    command: ["qr-data", "--migrate-only"]
+    restart: "no"
+    environment:
+      QR_DATABASE_OWNER_URL: postgres://qr_catalog_owner:${QR_POSTGRES_PASSWORD:-quantrule}@postgres:5432/qr_catalog
+      QR_MIGRATE: "0"
+    depends_on:
+      db-bootstrap:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+
+  evidence-migrate:
+    <<: *server
+    command: ["qr-evidence", "--migrate-only"]
+    restart: "no"
+    environment:
+      QR_DATABASE_OWNER_URL: postgres://qr_evidence_owner:${QR_POSTGRES_PASSWORD:-quantrule}@postgres:5432/qr_evidence
+      QR_MIGRATE: "0"
+    depends_on:
+      db-bootstrap:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+
+  simulation-migrate:
+    <<: *server
+    command: ["qr-simulation", "--migrate-only"]
+    restart: "no"
+    environment:
+      QR_DATABASE_OWNER_URL: postgres://qr_simulation_owner:${QR_POSTGRES_PASSWORD:-quantrule}@postgres:5432/qr_simulation
+      QR_MIGRATE: "0"
+    depends_on:
+      db-bootstrap:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
 
   postgres:
     # Pinned so a fresh `make up` resolves the same database image; override

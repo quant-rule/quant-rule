@@ -11,29 +11,34 @@ use std::sync::Arc;
 use quantrule_gateway::adapters::postgres::PgProfileStore;
 use quantrule_gateway::profile::ProfileStore;
 use quantrule_gateway::server::{self, AppState, Services};
-use quantrule_runtime::backends::open_service_database;
+use quantrule_runtime::backends::{migrate_owner_database, open_service_database};
 use quantrule_runtime::client::{ClientError, DataClient, HttpServiceClient, Service};
-use quantrule_runtime::config::ConfigError;
+use quantrule_runtime::config::{ConfigError, migrate_only_requested};
 use quantrule_runtime::{Config, HealthRegistry, RuntimeError, logging};
 
 #[tokio::main]
 async fn main() -> Result<(), RuntimeError> {
     let config = Config::from_env()?;
     logging::init("info")?;
+
+    if migrate_only_requested() {
+        return migrate_owner_database(
+            &config,
+            "gateway",
+            "gateway",
+            &quantrule_gateway::migrations::gateway(),
+        )
+        .await;
+    }
+
     tracing::info!("starting gateway");
 
     let mut health = HealthRegistry::named("gateway");
-    let profiles: Option<Arc<dyn ProfileStore>> = open_service_database(
-        &config,
-        "gateway",
-        "gateway",
-        &quantrule_gateway::migrations::gateway(),
-        &mut health,
-    )
-    .await?
-    .map(|database| {
-        Arc::new(PgProfileStore::new(database.pool().clone())) as Arc<dyn ProfileStore>
-    });
+    let profiles: Option<Arc<dyn ProfileStore>> = open_service_database(&config, &mut health)
+        .await?
+        .map(|database| {
+            Arc::new(PgProfileStore::new(database.pool().clone())) as Arc<dyn ProfileStore>
+        });
 
     let data_upstream = HttpServiceClient::from_env(Service::Data)
         .map_err(|error| service_config_error(Service::Data, error))?;
