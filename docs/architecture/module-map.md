@@ -57,7 +57,7 @@ cannot read a strategy, write a run, publish to the queue, or compute a model.
 
 | Crate | Read first |
 |---|---|
-| `quantrule-gateway` | `src/server.rs` for the route and proxy table; `src/profile/` for `gateway.profiles`; `src/static_files.rs` for the SPA |
+| `quantrule-gateway` | `src/server.rs` for the route and proxy table, `src/signal_proxy.rs` for the rewritten create; `src/profile/` for `gateway.profiles`; `src/static_files.rs` for the SPA |
 | `quantrule-data-service` | `src/routes.rs`, `src/ingest.rs`, `src/catalog.rs`, `src/packs/`, `src/artifacts/`, `src/postgres.rs` |
 | `quantrule-model-service` | `src/routes.rs`, `src/bundle.rs`, `src/state.rs` |
 | `quantrule-backtest-service` | `src/backtest/worker.rs`, `src/backtest/workspace.rs`, `src/backtest/retry.rs`, `src/stage/` |
@@ -72,7 +72,7 @@ cannot read a strategy, write a run, publish to the queue, or compute a model.
 |---|---|---|
 | Base reading | `model/src/readings/<family>.rs` | registry, config parser, writer, golden test |
 | Event | `model/src/events/<family>.rs` | codes, registry, dispatch, writer, test |
-| Endpoint | `gateway/src/server.rs` | owner service, `quantrule-api`, `http-api.md`, client store, test |
+| Endpoint | `gateway/src/server.rs`, or `gateway/src/signal_proxy.rs` for a rewritten internal route | owner service, `quantrule-api`, `http-api.md`, client store, test |
 | Service responsibility | the owning `*-service` crate | `services.md`, `service_boundary.rs` |
 | Migration | the owning service's `src/migrations.rs` and `migrations/*.sql` | `deploy/postgres/migration-ledger.json`, [`migrations.md`](migrations.md) |
 | Dataset upload or erase | `data-service/src/routes.rs`, `catalog.rs`, `postgres.rs`; migration `0009_object_indexes.sql` | [`data-active-active.md`](data-active-active.md), object guard and concurrency test |
@@ -80,13 +80,13 @@ cannot read a strategy, write a run, publish to the queue, or compute a model.
 | Stage endpoint | `evidence-service/src/stage/` | `gateway/src/server.rs`, `quantrule-api`, `stage-surface.md`, test |
 | Stage execution | `backtest-service/src/stage/` | `quantrule-service-api`, retention, no-partial-publish test |
 | Client screen | `apps/web/src/lib/<Name>Panel.svelte` | store, `client.md`, Playwright test |
-| Command | `shell/src/command/parse/<family>.rs`, `dispatch/<family>.rs`, `src/output/<family>.rs` | `command-surface.md`, help, tutorial, `tests/cases/`, checker |
+| Command | `shell/src/command/parse/<family>.rs`, `dispatch/<family>.rs`, `src/output/<family>.rs`; pack, signal and lineage use `command/artifact_commands.rs` | `command-surface.md`, help, tutorial, `tests/cases/`, checker |
 | Config field | `app/src/config/<file>.rs` | input type, provenance, docs, registry |
 | Pack field | `app/src/pack/<kind>.rs`; shared envelope, identity and lifecycle in `pack/envelope.rs`, `pack/core.rs`, `pack/identity.rs` | config contract, canonical hash, lifecycle test |
 | Pack registry | `data-service/src/packs/`; migration `0007_packs.sql` stores metadata only, the object store holds the bytes; routes under `/catalog/packs` and `/internal/v1/packs` | config contract, migration ledger, route and conformance tests |
 | Artifact retention | `data-service/src/artifacts/`; migration `0008_artifacts.sql`; internal routes under `/internal/v1/artifacts` | history retention, cross-database consistency, tombstone test |
-| Run lineage | `evidence-service/src/lineage/`; migration `0020_run_lineage.sql`; internal route under `/internal/v1/runs/{id}/lineage` | research artifacts, retention, lineage test |
-| Signal service | `strategy-service/src/resolve.rs`, `src/routes.rs`; `app/src/signal/`; data metadata route under `/internal/v1/artifacts/{kind}/{id}` | signal contract, research artifacts, runtime client, topology tests |
+| Run lineage | `evidence-service/src/lineage/`; migration `0020_run_lineage.sql`; internal write and public read under `/internal/v1/runs/{id}/lineage` and `/runs/{id}/lineage` | research artifacts, retention, lineage test |
+| Signal service | `strategy-service/src/resolve.rs`, `src/routes.rs`; `app/src/signal/`; data metadata route under `/internal/v1/artifacts/{kind}/{id}`; public reads under `/signals` | signal contract, research artifacts, runtime client, topology tests |
 | Evidence finalisation | `evidence-service/src/leader.rs`, `src/evidence/finalize.rs` and `src/postgres_finalize.rs`; migration `0021_leader_lease.sql` | control plane, cross-database consistency, leader test |
 | Artifact field | `evidence-service/src/` | artifact contract, golden bundle |
 

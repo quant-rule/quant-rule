@@ -1,6 +1,6 @@
 # Research Artifacts
 
-- Status: Strategy, portfolio policy and execution-simulation packs current (RA-002–RA-004); the run-v5 reference and identity contract current (RA-005); the persistent pack registry, run lineage and artifact retention current (RA-006); the signal artifact contract and pure reference computation current (RA-007); the seventh strategy service and its metadata registration current (RA-008); run-v5 catalog/worker reachability and the client surface target later work; accepted by [ADR-RA](../adr/2026-11-22/1082-research-artifact-layer.md)
+- Status: The strategy, portfolio and execution-simulation packs (RA-002–RA-004), run-v5 reference and identity (RA-005), pack registry, lineage and retention (RA-006), signal artifact and reference computation (RA-007), seventh strategy service (RA-008), and the additive pack/signal client surface (RA-009) are current; accepted by [ADR-RA](../adr/2026-11-22/1082-research-artifact-layer.md)
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 
@@ -25,43 +25,32 @@ use the pack-freeze lifecycle.
 
 ## 2. Strategy pack
 
-The strategy pack contains the human-owned alpha definition:
-
-- pack ID, version, schema, name and owner label;
-- execution and context timeframes;
-- universe constraint;
-- mode: `signal` or `fold`;
-- entry and exit rules over registered events and states;
-- filters and arithmetic parameters;
-- risk: ATR stop, reward-to-risk, time stop;
-- validation status and lifecycle.
+The strategy pack contains the human-owned alpha definition: pack ID, version,
+schema, name and owner; execution and context timeframes; universe constraint;
+mode `signal` or `fold`; entry and exit rules over registered events and states;
+filters and arithmetic parameters; ATR stop, reward-to-risk and time stop;
+validation status and lifecycle.
 
 A pack is `draft`, `validated`, `frozen` or `retired`. Freeze is a human decision
-backed by a Quant Validator record; a frozen pack is immutable, a change is a new pack.
+backed by a Quant Validator record; a frozen pack is immutable, a change is a new
+pack.
 
 ## 3. Signal artifact
 
 The signal artifact is the computed output of a model artifact and a signal-mode
-strategy pack. It carries one row per execution bar:
+strategy pack. It carries one row per execution bar with `bar_index`,
+`open_time`, the first knowable `available_bar_index`, `action`, `side`,
+`intent`, a stable `reason`, and numeric event and state `evidence`. It carries
+no fill, quantity, fee, cash, equity, P&L, return or edge metric.
 
-| Field | Meaning |
-|---|---|
-| `bar_index`, `open_time` | Published execution bar identity |
-| `available_bar_index` | First bar on which the row was knowable |
-| `action`, `side` | Hold, enter, exit or bracket, and the side |
-| `intent` | Next-bar market entry, two-sided bracket, or flat exit |
-| `reason` | Stable action code |
-| `evidence` | Event and state references |
-
-It carries no fill, quantity, fee, cash, equity, P&L or edge metric. A later bar
-cannot change an earlier row, and the same model artifact, pack and schema
-produce the same bytes. Signal mode uses a deterministic reference position:
-market entries fill at the next open, a two-sided bracket chooses its side at
-the first boundary, ATR stop/target and the time stop close the reference
+A later bar cannot change an earlier row, and the same model artifact, pack and
+schema produce the same bytes. Signal mode uses a deterministic reference
+position: market entries fill at the next open, a two-sided bracket chooses its
+side at the first boundary, ATR stop/target and the time stop close the reference
 position, and giveback stays fold-mode unless candles become an explicit input.
 The contract is [`docs/config/2026-11-22/signal-artifact.md`](../config/2026-11-22/signal-artifact.md).
 
-## 4. Portfolio policy pack
+## 4. Portfolio and execution packs
 
 The portfolio policy pack owns reusable sizing, risk, exposure, maximum positions,
 drawdown action, rebalance and constraint rules. Constraints are a strictly
@@ -69,14 +58,12 @@ ascending, duplicate-free list of closed rule kinds. It does not own initial cas
 or currency; those are account-specific run inputs. Its closed schema contains no
 correlation, covariance, optimisation, fitted or statistical field.
 
-## 5. Execution-simulation pack
-
 The execution-simulation pack owns the fill timeframe, the market-next-open order
 and stop-first tie rule, fee and slippage, commission, funding, zero-volume
 rejection and end-of-data leave-open. It is not a broker connection: its closed
 schema has no venue, order-routing, latency, participation or live-market field.
 
-## 6. Run v5
+## 5. Run v5
 
 `quantrule.run/v5` references the model artifact, strategy pack, signal artifact,
 portfolio policy pack and execution-simulation pack by ID and hash. It carries
@@ -93,7 +80,7 @@ The signal artifact must exist before `run submit`; otherwise the run identity
 cannot be known at submission. A v5 config is loaded with a supplied reference
 resolver; the catalog scan and worker do not yet resolve one.
 
-## 7. Services and flow
+## 6. Services and flow
 
 ```text
 Model artifact + Strategy pack
@@ -108,10 +95,7 @@ Model artifact + Strategy pack
 Run v5 + Execution pack + Portfolio pack
               │
               ▼
-       backtest fold
-              │
-              ▼
-       Run artifacts → evidence → research → human
+       backtest fold → run artifacts → evidence → research → human
 ```
 
 - `strategy` is the seventh service: stateless, no database or queue, idempotent
@@ -121,7 +105,7 @@ Run v5 + Execution pack + Portfolio pack
   service's metadata-only registration; signal bytes never travel over HTTP.
 - Research stays inside `evidence`; `simulation` is a separate hindsight plane.
 
-## 8. Registry and lineage
+## 7. Registry and lineage
 
 `qr_catalog` stores pack metadata, validation records and lifecycle events;
 MinIO is the sole byte authority under `packs/<hash>`. Registration writes the
@@ -140,7 +124,7 @@ A registered reference protects an artifact; retention removes only an
 unreferenced artifact older than 30 days, writes a tombstone in the same
 transaction, and deletes an unshared object after the commit.
 
-## 9. Alpha and edge
+## 8. Alpha and edge
 
 | Layer | Question | Statistics |
 |---|---|---|
@@ -154,13 +138,20 @@ transaction, and deletes an unshared object after the commit.
 Statistics never enter the signal path. Research cannot write a pack or signal. A
 change to alpha is a new pack and a new hypothesis.
 
-## 10. Client surface
+## 9. Client surface
 
-The 49 existing commands and screens remain unchanged. Additive pack and signal
-commands and a browser Packs surface are a later client slice; RA-008 adds none
-and exposes only the internal signal route.
+The pack, signal and lineage surface is additive. The shell adds `pack
+create/list/show/validate/freeze/retire/fetch`, `signal create/list/show/fetch`,
+and `run lineage`; the browser adds a Packs screen with Packs and Signals tabs
+and a lineage block on run detail. The 49 commands that existed before the change
+keep their name, arguments, output fields, errors and renderer.
 
-## 11. Non-goals
+The browser lists and shows signal metadata only and downloads the document
+after verifying its hash. No client parses a signal row, computes a signal, or
+renders a statistic. A deployment without the strategy service answers signal
+create with `503 service.unavailable`; pack and signal reads still work.
+
+## 10. Non-goals
 
 - No live trading, broker, OMS, real-time risk or regulatory scope.
 - No statistical or fitted signal parameter.

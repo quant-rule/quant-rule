@@ -2,9 +2,11 @@
 //!
 //! This crate defines what one service sends another: the run lifecycle, the
 //! config bundle, the dataset object reference, the model bundle manifest, the
-//! signal request and artifact registration, the diagnostics stage lifecycle and
-//! manifest, and the canonical digest over a run's artifacts. It carries
-//! references, never a candle, a reading, or a payment payload.
+//! signal artifact registration, the diagnostics stage lifecycle and manifest,
+//! and the canonical digest over a run's artifacts. The signal request and
+//! response are shared with the clients through [`quantrule_api`] and re-exported
+//! here. The crate carries references, never a candle, a reading, or a payment
+//! payload.
 //!
 //! The crate depends on [`quantrule_api`] for the shared digest and run
 //! vocabulary and on no engine, no runtime, and no service crate. A service

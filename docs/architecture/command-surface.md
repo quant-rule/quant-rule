@@ -1,6 +1,6 @@
 # Command Surface — the Gateway Client
 
-- Status: Current; 49 commands, released as v1.4.2; the gateway-client surface was formerly released as v0.9.0 (prepared as v1.0.0), and the stage, research, and operations slices were added through #858
+- Status: Current; 61 commands (the last published command surface was v1.4.2; RA-009 adds the pack, signal, and lineage commands); the gateway-client surface was formerly released as v0.9.0 (prepared as v1.0.0), and the stage, research, operations, and research-artifact slices were added through #858 and RA-009
 - Owner: Human
 - Part of: [`docs/architecture/README.md`](README.md)
 - Claim type: Behaviour Claim
@@ -118,6 +118,18 @@ enforces the distinction.
 | `baseline list` | Implemented | — | accepted baselines |
 | `baseline show` | Implemented | tier | one baseline |
 | `invalidation list` | Implemented | — | invalidation tombstones |
+| `pack create` | Implemented | local pack JSON | pack record |
+| `pack list` | Implemented | `kind`, `state` | pack summaries |
+| `pack show` | Implemented | `pack_id` | one pack record and lifecycle |
+| `pack validate` | Implemented | `pack_id` | updated pack record |
+| `pack freeze` | Implemented | `pack_id` | updated pack record |
+| `pack retire` | Implemented | `pack_id` | updated pack record |
+| `pack fetch` | Implemented | `pack_id`, file | verified pack bytes |
+| `signal create` | Implemented | model artifact, data version, config, strategy pack | signal record and `created` |
+| `signal list` | Implemented | `limit` | signal metadata |
+| `signal show` | Implemented | `signal_id` | one signal record |
+| `signal fetch` | Implemented | `signal_id`, file | verified signal document |
+| `run lineage` | Implemented | `run_id` | recorded reference set |
 
 The research commands are the governed improvement surface. An improvement run is a
 coupled pipeline run: the config must carry a strategy, and a model-tier run still freezes
@@ -217,6 +229,7 @@ contract change reserved to the human.
 | 7 | Analytics evaluation command | Merged |
 | 8 | Independent stage verification and closure | Merged and verified locally; human acceptance pending |
 | 9 | Gateway client released as v1.4.2; the gateway-client surface was first released as v0.9.0 (prepared as v1.0.0) | Implemented; parity and server dependencies tracked |
+| 10 | Research artifact pack, signal and lineage surface (RA-009) | Implemented; additive to the 49-command contract |
 
 ## 9. Removed in the distributed release (v0.9.0, prepared as v1.0.0)
 

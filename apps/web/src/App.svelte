@@ -7,6 +7,7 @@
   import HistoryPanel from "./lib/HistoryPanel.svelte";
   import InspectPanel from "./lib/InspectPanel.svelte";
   import OperationsPanel from "./lib/OperationsPanel.svelte";
+  import PacksPanel from "./lib/PacksPanel.svelte";
   import ProfilesPanel from "./lib/ProfilesPanel.svelte";
   import ResearchPanel from "./lib/ResearchPanel.svelte";
   import RunsPanel from "./lib/RunsPanel.svelte";
@@ -85,6 +86,8 @@
         <ConfigsPanel onOpenRuns={() => (section = "runs")} />
       {:else if section === "runs"}
         <RunsPanel />
+      {:else if section === "packs"}
+        <PacksPanel />
       {:else if section === "research"}
         <ResearchPanel />
       {:else if section === "operations"}

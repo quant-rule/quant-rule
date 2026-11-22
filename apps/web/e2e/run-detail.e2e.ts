@@ -85,6 +85,7 @@ async function mockDetail(
   page: Page,
   status: string,
   artifactBody = ARTIFACT_BODY,
+  lineage = true,
 ): Promise<void> {
   await page.route("**/api/v1/**", async (route) => {
     if (await shell(route)) {
@@ -94,6 +95,42 @@ async function mockDetail(
     const path = decodeURIComponent(new URL(request.url()).pathname).replace("/api/v1", "");
     if (path === "/runs") {
       return route.fulfill({ json: list(status) });
+    }
+    if (path === `/runs/${RUN}/lineage`) {
+      if (!lineage) {
+        return route.fulfill({
+          status: 404,
+          json: {
+            v: "quantrule.api/v1",
+            error: {
+              code: "run.lineage_not_found",
+              message: `run ${RUN} has no recorded lineage`,
+            },
+          },
+        });
+      }
+      return route.fulfill({
+        json: {
+          run_id: RUN,
+          references: [
+            { kind: "model_artifact", id: FROZEN, hash: FROZEN },
+            {
+              kind: "strategy_pack",
+              id: "sha256:" + "1".repeat(64),
+              hash: "sha256:" + "1".repeat(64),
+              pack: {
+                kind: "strategy",
+                name: "compression-fade-5m",
+                version: "1.0.0",
+                owner: "operator",
+                state: "frozen",
+              },
+            },
+            { kind: "signal_artifact", id: "sha256:" + "2".repeat(64), hash: "sha256:" + "2".repeat(64) },
+          ],
+          recorded_at: "2026-11-22T00:05:00Z",
+        },
+      });
     }
     if (path === `/runs/${RUN}/digest`) {
       return route.fulfill({ json: { run_id: RUN, digest: DIGEST } });
@@ -116,6 +153,7 @@ async function openDetail(
   page: Page,
   status: string,
   artifactBody = ARTIFACT_BODY,
+  lineage = true,
 ): Promise<void> {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, "clipboard", {
@@ -127,7 +165,7 @@ async function openDetail(
       },
     });
   });
-  await mockDetail(page, status, artifactBody);
+  await mockDetail(page, status, artifactBody, lineage);
   await page.goto("/");
   await page.getByRole("button", { name: /Runs/ }).click();
   await page.getByRole("button", { name: `Open ${RUN}` }).click();
@@ -186,4 +224,23 @@ test("a substituted artifact is refused", async ({ page }) => {
   await page.getByRole("button", { name: "Download results.json" }).click();
   await expect(page.getByRole("alert")).toContainText("does not match the run record");
   await expect(page.getByText(/matched the record and was saved/)).toHaveCount(0);
+});
+
+test("the lineage block shows the recorded references", async ({ page }) => {
+  await openDetail(page, "succeeded");
+
+  const lineage = page.getByTestId("run-lineage");
+  await expect(lineage).toContainText("model_artifact");
+  await expect(lineage).toContainText("strategy_pack");
+  await expect(lineage).toContainText("compression-fade-5m");
+  await expect(lineage).toContainText("signal_artifact");
+  await expect(lineage).toContainText("recorded references");
+});
+
+test("a run without lineage shows an empty state, not a run error", async ({ page }) => {
+  await openDetail(page, "succeeded", ARTIFACT_BODY, false);
+
+  await expect(page.getByText("No recorded lineage")).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(page.getByText("Run detail")).toBeVisible();
 });

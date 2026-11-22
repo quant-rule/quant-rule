@@ -7,6 +7,10 @@
 use std::io::Write;
 
 use self::history::{history_archive, history_erase, history_list};
+use super::artifact_commands::{
+    pack_create, pack_fetch, pack_freeze, pack_list, pack_retire, pack_show, pack_validate,
+    run_lineage, signal_create, signal_fetch, signal_list, signal_show,
+};
 use super::help::run_help;
 use super::research_commands::{
     baseline_list, baseline_show, invalidation_list, research_compare, research_create,
@@ -87,6 +91,7 @@ fn run(
             run_fetch(&client, globals, stdout, &run_id, &directory)
         }
         Command::RunCancel { run_id } => run_cancel(&client, globals, stdout, &run_id),
+        Command::RunLineage { run_id } => run_lineage(&client, globals, stdout, &run_id),
         Command::StageRunModel {
             data_version,
             config_id,
@@ -272,6 +277,34 @@ fn run(
             decision,
             note,
         } => simulation_decide(&client, globals, stdout, &sim_id, &decision, &note),
+        Command::PackCreate { path } => pack_create(&client, globals, stdout, &path),
+        Command::PackList { kind, state } => pack_list(&client, globals, stdout, kind, state),
+        Command::PackShow { pack_id } => pack_show(&client, globals, stdout, &pack_id),
+        Command::PackValidate { pack_id } => pack_validate(&client, globals, stdout, &pack_id),
+        Command::PackFreeze { pack_id } => pack_freeze(&client, globals, stdout, &pack_id),
+        Command::PackRetire { pack_id } => pack_retire(&client, globals, stdout, &pack_id),
+        Command::PackFetch { pack_id, file } => {
+            pack_fetch(&client, globals, stdout, &pack_id, &file)
+        }
+        Command::SignalCreate {
+            model_artifact_id,
+            data_version,
+            config_id,
+            strategy_pack_id,
+        } => signal_create(
+            &client,
+            globals,
+            stdout,
+            &model_artifact_id,
+            &data_version,
+            &config_id,
+            &strategy_pack_id,
+        ),
+        Command::SignalList { limit } => signal_list(&client, globals, stdout, limit),
+        Command::SignalShow { signal_id } => signal_show(&client, globals, stdout, &signal_id),
+        Command::SignalFetch { signal_id, file } => {
+            signal_fetch(&client, globals, stdout, &signal_id, &file)
+        }
         Command::Help(_) | Command::Quit => Ok(()),
     }
 }

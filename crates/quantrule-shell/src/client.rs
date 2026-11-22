@@ -80,10 +80,35 @@ impl Client {
     ///
     /// Returns the same failures as [`Client::get`].
     pub(crate) fn post_json(&self, path: &str, body: &str) -> Result<Response, RunError> {
+        self.post_bytes(path, "application/json", body.as_bytes().to_vec())
+    }
+
+    /// POST a JSON body read from a local file.
+    ///
+    /// The bytes are sent unchanged; the server canonicalizes and hashes them.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same failures as [`Client::get`].
+    pub(crate) fn post_json_bytes(&self, path: &str, body: Vec<u8>) -> Result<Response, RunError> {
+        self.post_bytes(path, "application/json", body)
+    }
+
+    /// POST one body with an explicit content type.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same failures as [`Client::get`].
+    pub(crate) fn post_bytes(
+        &self,
+        path: &str,
+        content_type: &str,
+        body: Vec<u8>,
+    ) -> Result<Response, RunError> {
         let url = self.url(path);
         let response = self
             .common_headers(self.agent.post(&url))
-            .header("content-type", "application/json")
+            .header("content-type", content_type)
             .send(body)
             .map_err(|error| RunError::Transport(error.to_string()))?;
         read(response, path)
@@ -95,13 +120,7 @@ impl Client {
     ///
     /// Returns the same failures as [`Client::get`].
     pub(crate) fn post_csv(&self, path: &str, body: Vec<u8>) -> Result<Response, RunError> {
-        let url = self.url(path);
-        let response = self
-            .common_headers(self.agent.post(&url))
-            .header("content-type", "text/csv")
-            .send(body)
-            .map_err(|error| RunError::Transport(error.to_string()))?;
-        read(response, path)
+        self.post_bytes(path, "text/csv", body)
     }
 
     /// POST an empty body.

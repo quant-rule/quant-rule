@@ -1,9 +1,10 @@
-//! The internal run-lineage surface.
+//! The run-lineage surface.
 //!
-//! A run's reference set is recorded by the path that resolved it. This route
-//! is service-to-service only; the client command and run detail that will show
-//! the values are a later work item. The write is idempotent for the same set
-//! and refuses a different set, so a retry cannot rewrite what a run cited.
+//! A run's reference set is recorded by the path that resolved it. The public
+//! read at `/runs/{id}/lineage` serves the run detail; the internal write at
+//! `/internal/v1/runs/{id}/lineage` remains the service-to-service seam. The
+//! set is idempotent for the same references and refuses a different set, so a
+//! retry cannot rewrite what a run cited.
 
 use std::sync::Arc;
 

@@ -20,14 +20,15 @@ a defect.
 | Datasets | `DatasetsPanel.svelte` | Dataset table, upload, record detail | `dataset-table`; `dataset-detail`; `dataset-upload` | None; data identity and quality only | `dataset list`, `dataset show`, `dataset upload` |
 | Configs | `ConfigsPanel.svelte` | Config table, validity, parser message, submit, detail | `config-table`; `config-detail-open`; `config-detail`; `run-submit` | `valid` or `invalid` badge; a frozen model artifact is marked `diagnostic input` on the run detail | `config list`, `config show`, `run submit` |
 | Runs | `RunsPanel.svelte` | Run rows, status, cancel | `run-table`; `run-cancel`; open a run by its id | Run status badge: `queued`, `running`, `succeeded`, `failed`, `cancelled` | `run list`, `run cancel` |
-| Run detail | `RunDetail.svelte` | Stages, provenance, frozen model artifact, digest, verified downloads | `run-status`; `run-verify`; `run-fetch` | Run status badge; `diagnostic input` badge on a frozen model artifact | `run status`, `run fetch`, `verify` |
+| Run detail | `RunDetail.svelte` | Stages, provenance, lineage references, frozen model artifact, digest, verified downloads | `run-status`; `run-lineage`; `run-verify`; `run-fetch` | Run status badge; `recorded references · not evidence` on lineage; `diagnostic input` badge on a frozen model artifact | `run status`, `run lineage`, `run fetch`, `verify` |
+| Packs | `PacksPanel.svelte` | Packs/Signals tabs, filters, create, lifecycle, detail, download, signal create | `packs-table`; `pack-detail`; `pack-create`; `pack-validate`; `pack-freeze`; `pack-retire`; `pack-fetch`; `signal-table`; `signal-detail`; `signal-create`; `signal-fetch` | `definition · not evidence` on packs; `computed alpha · not evidence` on signals; a v2 create gap is stated | `pack create`, `pack list`, `pack show`, `pack validate`, `pack freeze`, `pack retire`, `pack fetch`, `signal create`, `signal list`, `signal show`, `signal fetch` |
 | Research | `ResearchPanel.svelte` | Create form, improvement table, detail, submit, comparison, decision, baselines, invalidations | `research-create`; `research-table`; `research-detail`; `research-submit`; `research-compare`; `research-decide`; `baseline-table`; `baseline-detail`; `invalidation-list` | State and decision labels; the record is governed evidence; the human decision is explicit | `research create`, `research submit`, `research list`, `research show`, `research compare`, `research decide`, `baseline list`, `baseline show`, `invalidation list` |
 | Operations | `OperationsPanel.svelte` | Health, product, API, image digest, profile, token presence, retention, run verification | `operations-health`; `operations-profile`; `operations-retention`; `operations-verify`; `operations-verify-digest` | None; it states that only diagnostic stages expire and runs, research records, and evidence are permanent | `health`, `verify`; active profile shown read-only |
 | Inspect | `InspectPanel.svelte` | Candles, timeframe ladder, event batch | `inspect-candles`; `inspect-timeframes`; `inspect-events` | `read-only` badge; never evidence | `inspect candles`, `inspect timeframes`, `inspect events` |
 | Simulation | `SimulationRunsPanel.svelte` | Simulation rows, create form, status, retry | `simulation-table`; `simulation-create`; `simulation-refresh`; `simulation-retry`; `simulation-empty` | Simulation status badge; research plane, never evidence | `simulation list`, `simulation create` |
 | Simulation run | `SimulationRunDetail.svelte` | Meta, windows, chart, marks, oracle, check, decision | `simulation-run`; `sim-back`; `sim-status`; `sim-run-meta`; `sim-windows`; `sim-window-<n>`; `sim-mark`; `sim-marks`; `sim-oracle`; `sim-review`; `sim-check`; `sim-decision`; `sim-lock` | Status badge; locking notice after a decision; never evidence | `simulation windows`, `simulation mark`, `simulation marks`, `simulation oracle`, `simulation check`, `simulation decide` |
 | History | `HistoryPanel.svelte` | Five kind tabs, archived filter, archive, typed-confirmation erase | `history-table`; `history-tab-<kind>`; `history-include-archived`; `history-archive`; `history-erase`; `history-confirm-input`; `history-confirm-erase` | Active or archived state; a protected record refuses erase | `history list`, `history archive`, `history erase` |
-| Help | `HelpPanel.svelte` | Every command and the screen that reaches it | `help-table` | `49 commands` badge; no evidence badge | `help` |
+| Help | `HelpPanel.svelte` | Every command and the screen that reaches it | `help-table` | `61 commands` badge; no evidence badge | `help` |
 
 ## Screen rules
 
@@ -38,7 +39,7 @@ a defect.
 | Stable ids | A control that mirrors a command carries the test id in this table |
 | No stale rows | A profile switch or disconnection clears profile-scoped rows |
 | Numbers, then labels | The gateway returns codes; the client maps them in one generated table |
-| Evidence boundary | A diagnostic stage never renders as evidence, a baseline, or a canonical digest |
+| Evidence boundary | A diagnostic stage never renders as evidence, a baseline, or a canonical digest; a pack is a definition, a signal is computed alpha, and lineage is a reference set, never evidence |
 
 ## Workbench tab behavior
 
@@ -56,7 +57,7 @@ Strategy tab, and a portfolio detail cannot appear under Model.
 
 | Event | Browser behavior |
 |---|---|
-| Profile switch | Clears datasets, configs, runs, simulations, stages, research, and history rows before the next read |
+| Profile switch | Clears datasets, configs, runs, simulations, stages, research, history, packs, and signal rows before the next read |
 | Gateway unreachable | Shows `disconnected` or `unreachable`; does not show the previous profile's rows |
 | Token required | Shows `token required`; submission is disabled |
 | Version mismatch | Shows the expected and observed API versions; does not use the connection |

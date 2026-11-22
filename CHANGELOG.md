@@ -20,6 +20,12 @@ history is in Git and the pull requests.
 
 ### Added
 
+- The command shell and browser surface the research artifact layer additively: `pack create/list/show/validate/freeze/retire/fetch`, `signal create/list/show/fetch`, and `run lineage`; the 49 earlier command contracts keep their name, arguments, output fields, errors and renderer.
+- The gateway exposes `POST /signals` through the optional strategy service (`503 service.unavailable` when absent), `GET /signals`, `GET /signals/{id}`, `GET /signals/{id}/bytes`, and `GET /runs/{id}/lineage`; signal reads go to data, lineage to evidence, and the gateway decodes neither.
+- The data service serves public signal aliases with profile scope, a fixed signal kind, a content ETag, and hash verification; the evidence service serves the public lineage read with the existing run-visibility rule.
+- The browser adds a Packs screen with Packs and Signals tabs (list, filter, create, lifecycle, verified download, signal metadata and create) and a lineage block on run detail; a missing lineage is an empty state.
+- `SignalRequest` and `SignalResponse` move to `quantrule-api`; `quantrule-service-api` re-exports them with identical wire bytes so the shell and browser name the public contract without a service crate.
+- The pre-change command contracts and parity requests are pinned in `tests/fixtures/command-surface/help-49.json` and `tests/fixtures/client-parity/view-49.json`.
 - `qr-governance gate plan` and `tools/gate.sh --changed` classify a change as docs, governance, web, or full; engine/shared changes, `main`, and releases keep the full gate.
 - Historical research programs carry `retired` and are refused by `research batch` and `research cell`.
 - ADR-RA accepts the research artifact layer, model artifact input, strategy/portfolio/execution packs, signal artifacts and the seventh strategy service.
@@ -64,6 +70,8 @@ history is in Git and the pull requests.
 
 ### Changed
 
+- The command surface grows to 61 commands; `help`, the README and manual command tables, the Help screen badge, and the command-surface registry list the new commands while every earlier row stays byte-identical.
+- `docs/architecture/http-api.md`, `research-artifacts.md`, the pack and signal contracts, the client and architecture indexes, the manual and the multi-host guide describe the public signal routes, the Packs screen, run lineage, and the v2 signal-create gap.
 - A simulation decision is terminal: the first decision wins and every later decision, including an identical retry, returns `simulation.locked`. A duplicate mark identity remains an idempotent upsert that keeps its stored id and creation time.
 - Queue names now end in `.g<generation>`; the pre-generation classic queues are drained or retired by the operator instead of being redeclared with new arguments.
 - A failed handler uses `basic.reject` rather than `basic.nack`, because RabbitMQ 4.3 and later count only a rejected delivery toward the quorum delivery limit.

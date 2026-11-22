@@ -173,6 +173,12 @@ async function install(page: Page, server: Server): Promise<void> {
     if (path === "/catalog/configs") {
       return route.fulfill({ json: [config(profile)] });
     }
+    if (path === "/catalog/packs") {
+      return route.fulfill({ json: [] });
+    }
+    if (path === "/signals") {
+      return route.fulfill({ json: [] });
+    }
     if (path === "/runs") {
       return route.fulfill({
         json: [

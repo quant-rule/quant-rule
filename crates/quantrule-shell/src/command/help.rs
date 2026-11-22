@@ -451,6 +451,101 @@ const COMMANDS: &[CommandHelp] = &[
             "help all prints every contract; help glossary and help workflows print static topics.",
         ],
     },
+    CommandHelp {
+        name: "pack create",
+        usage: "pack create <pack.json>",
+        summary: "Register one local pack document.",
+        output: "the pack record with its content id, lifecycle state, object key, and hash",
+        notes: &[
+            "The file body is the request; the server canonicalizes it and owns the content id.",
+            "An identical document returns the existing pack with created behavior unchanged.",
+        ],
+    },
+    CommandHelp {
+        name: "pack list",
+        usage: "pack list [--kind strategy|portfolio|execution] [--state draft|validated|frozen|retired]",
+        summary: "List the packs in the active profile.",
+        output: "one line per pack: pack_id, kind, state, name, version, owner, bytes, created_at",
+        notes: &["Rows are sorted by pack_id."],
+    },
+    CommandHelp {
+        name: "pack show",
+        usage: "pack show <pack_id>",
+        summary: "Read one pack record and its lifecycle history.",
+        output: "pack identity, object key, hash, validation attempts, lifecycle events",
+        notes: &["The server re-reads the stored object and verifies its hash before answering."],
+    },
+    CommandHelp {
+        name: "pack validate",
+        usage: "pack validate <pack_id>",
+        summary: "Re-validate one draft pack.",
+        output: "the updated pack record",
+        notes: &[
+            "Only a draft pack can be validated; a frozen pack is refused with pack.conflict.",
+        ],
+    },
+    CommandHelp {
+        name: "pack freeze",
+        usage: "pack freeze <pack_id>",
+        summary: "Freeze one validated pack.",
+        output: "the updated pack record",
+        notes: &[
+            "Freeze is a human decision backed by a Quant Validator record.",
+            "A frozen pack is immutable; a change is a new pack.",
+        ],
+    },
+    CommandHelp {
+        name: "pack retire",
+        usage: "pack retire <pack_id>",
+        summary: "Retire one frozen pack for new runs.",
+        output: "the updated pack record",
+        notes: &["A retired pack stays readable and is never deleted."],
+    },
+    CommandHelp {
+        name: "pack fetch",
+        usage: "pack fetch <pack_id> <file>",
+        summary: "Download one pack's canonical bytes into a local file.",
+        output: "the pack id, target file, byte count, and verified hash",
+        notes: &["The bytes are verified against the content id before the file is written."],
+    },
+    CommandHelp {
+        name: "signal create",
+        usage: "signal create --model-artifact <id> --data-version <digest> --config <config_id> --strategy-pack <pack_id>",
+        summary: "Compute one signal artifact from a frozen model artifact and strategy pack.",
+        output: "the response schema, signal_id, artifact metadata, and created",
+        notes: &[
+            "The strategy service refuses a fold-mode pack before any model call or write.",
+            "A deployment without the strategy service answers 503 service.unavailable.",
+        ],
+    },
+    CommandHelp {
+        name: "signal list",
+        usage: "signal list [--limit <n>]",
+        summary: "List signal artifact metadata in the active profile.",
+        output: "one line per signal: signal_id, bytes, created_at",
+        notes: &["The list carries metadata only; signal fetch reads the document."],
+    },
+    CommandHelp {
+        name: "signal show",
+        usage: "signal show <signal_id>",
+        summary: "Read one signal artifact record.",
+        output: "signal_id, kind, bytes, created_at, object_key, sha256",
+        notes: &["The record carries no signal row, fill, or evaluation metric."],
+    },
+    CommandHelp {
+        name: "signal fetch",
+        usage: "signal fetch <signal_id> <file>",
+        summary: "Download one signal document into a local file.",
+        output: "the signal id, target file, byte count, and verified hash",
+        notes: &["The bytes are verified against the content id before the file is written."],
+    },
+    CommandHelp {
+        name: "run lineage",
+        usage: "run lineage <run_id>",
+        summary: "Read the research artifact references a run recorded.",
+        output: "run_id, recorded_at, and one line per reference with kind, id, hash, and pack provenance",
+        notes: &["A run with no recorded lineage is refused with run.lineage_not_found."],
+    },
 ];
 
 /// Whether `name` names a documented command.
@@ -621,10 +716,22 @@ mod tests {
             "history archive",
             "history erase",
             "help",
+            "pack create",
+            "pack list",
+            "pack show",
+            "pack validate",
+            "pack freeze",
+            "pack retire",
+            "pack fetch",
+            "signal create",
+            "signal list",
+            "signal show",
+            "signal fetch",
+            "run lineage",
         ] {
             assert!(is_command(name), "{name} must be documented");
         }
-        assert_eq!(COMMANDS.len(), 49);
+        assert_eq!(COMMANDS.len(), 61);
     }
 
     #[test]

@@ -10,10 +10,14 @@ use super::help::{is_command, usage as registered_usage};
 use super::types::{Command, GlobalOptions, HelpTopic, Invocation, ParseError};
 
 mod history;
+mod parse_pack;
 mod parse_research;
+mod parse_signal;
 mod parse_stage;
 use self::history::parse_history;
+use self::parse_pack::parse_pack;
 use self::parse_research::{parse_baseline, parse_invalidation, parse_research};
+use self::parse_signal::parse_signal;
 use self::parse_stage::parse_stage;
 use crate::token::BearerToken;
 
@@ -285,6 +289,8 @@ fn parse_command(rest: &[String]) -> Result<Command, ParseError> {
         "config" => parse_config(args),
         "run" => parse_run(args),
         "stage" => parse_stage(args),
+        "pack" => parse_pack(args),
+        "signal" => parse_signal(args),
         "research" => parse_research(args),
         "baseline" => parse_baseline(args),
         "invalidation" => parse_invalidation(args),
@@ -389,6 +395,16 @@ fn parse_limit(value: &str, usage: &str) -> Result<usize, ParseError> {
         )));
     }
     Ok(limit)
+}
+
+/// Parse one content id before any gateway call.
+fn parse_digest(
+    value: &str,
+    label: &str,
+    usage: &str,
+) -> Result<quantrule_api::Digest, ParseError> {
+    quantrule_api::Digest::parse(value)
+        .map_err(|error| ParseError::Usage(format!("{label} {error}\n{usage}")))
 }
 
 #[cfg(test)]

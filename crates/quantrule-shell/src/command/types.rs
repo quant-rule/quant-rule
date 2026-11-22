@@ -9,7 +9,7 @@ use std::path::PathBuf;
 
 use quantrule_api::{
     Digest, ImprovementDecision, ImprovementPartition, ImprovementRunState, ImprovementTier,
-    MarkAction, MarkOrigin, MarkQuality, RunState, Side, SimulationStatus,
+    MarkAction, MarkOrigin, MarkQuality, PackKind, PackState, RunState, Side, SimulationStatus,
 };
 
 use crate::token::BearerToken;
@@ -139,6 +139,78 @@ pub(crate) enum Command {
     RunCancel {
         /// The run id.
         run_id: String,
+    },
+    /// Read one run's recorded research artifact lineage.
+    RunLineage {
+        /// The run id.
+        run_id: String,
+    },
+    /// Register one local pack document.
+    PackCreate {
+        /// The local pack JSON file.
+        path: PathBuf,
+    },
+    /// List the pack registry.
+    PackList {
+        /// Only this pack kind.
+        kind: Option<PackKind>,
+        /// Only this lifecycle state.
+        state: Option<PackState>,
+    },
+    /// Read one pack record.
+    PackShow {
+        /// The content id.
+        pack_id: Digest,
+    },
+    /// Re-validate one draft pack.
+    PackValidate {
+        /// The content id.
+        pack_id: Digest,
+    },
+    /// Freeze one validated pack.
+    PackFreeze {
+        /// The content id.
+        pack_id: Digest,
+    },
+    /// Retire one frozen pack.
+    PackRetire {
+        /// The content id.
+        pack_id: Digest,
+    },
+    /// Write one pack's canonical bytes to a local file.
+    PackFetch {
+        /// The content id.
+        pack_id: Digest,
+        /// The local target file.
+        file: PathBuf,
+    },
+    /// Compute one signal artifact.
+    SignalCreate {
+        /// The frozen model artifact the signal reads.
+        model_artifact_id: Digest,
+        /// The dataset the model was computed from.
+        data_version: Digest,
+        /// The configuration the model was computed from.
+        config_id: String,
+        /// The frozen signal-mode strategy pack.
+        strategy_pack_id: Digest,
+    },
+    /// List signal artifact metadata.
+    SignalList {
+        /// At most this many rows.
+        limit: Option<usize>,
+    },
+    /// Read one signal artifact record.
+    SignalShow {
+        /// The content id.
+        signal_id: Digest,
+    },
+    /// Write one signal's document to a local file.
+    SignalFetch {
+        /// The content id.
+        signal_id: Digest,
+        /// The local target file.
+        file: PathBuf,
     },
     /// Submit a model stage run.
     StageRunModel {

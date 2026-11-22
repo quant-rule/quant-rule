@@ -88,9 +88,11 @@ mod health;
 mod history;
 mod inspect;
 mod json;
+mod pack;
 mod profile;
 mod research;
 mod run;
+mod signal;
 mod simulation;
 mod stage;
 mod verify;
@@ -101,12 +103,14 @@ pub(crate) use self::health::health;
 pub(crate) use self::history::{archived, dry_run, erased, history};
 pub(crate) use self::inspect::timeframes;
 pub(crate) use self::json::{write_json_line, write_records};
+pub(crate) use self::pack::{pack_fetched, pack_list, pack_record};
 pub(crate) use self::profile::{active_profile, profile, profiles};
 pub(crate) use self::research::{
     baseline_detail, baseline_list, improvement_comparison, improvement_detail, improvement_list,
     invalidation_list,
 };
-pub(crate) use self::run::{fetched, run_detail, run_list, run_submit};
+pub(crate) use self::run::{fetched, run_detail, run_lineage, run_list, run_submit};
+pub(crate) use self::signal::{signal_created, signal_fetched, signal_list, signal_record};
 pub(crate) use self::simulation::{simulation_check, simulation_list};
 pub(crate) use self::stage::{
     stage_deleted, stage_detail, stage_events, stage_explain, stage_fetched, stage_list,

@@ -2,7 +2,7 @@
 
 use std::io::{self, Write};
 
-use quantrule_api::{RunDetail, RunState, RunSummary};
+use quantrule_api::{RunDetail, RunLineage, RunState, RunSummary};
 
 use super::stage::stage_status;
 
@@ -65,6 +65,29 @@ pub(crate) fn run_detail(writer: &mut dyn Write, detail: &RunDetail) -> io::Resu
         "error: {}",
         detail.error.as_deref().unwrap_or("none")
     )
+}
+
+/// Render a run's recorded research artifact lineage.
+pub(crate) fn run_lineage(writer: &mut dyn Write, lineage: &RunLineage) -> io::Result<()> {
+    writeln!(writer, "run_id: {}", lineage.run_id)?;
+    writeln!(writer, "recorded_at: {}", lineage.recorded_at)?;
+    writeln!(writer, "references: {}", lineage.references.len())?;
+    for (index, reference) in lineage.references.iter().enumerate() {
+        write!(
+            writer,
+            "reference {index}: kind={} id={} hash={}",
+            reference.kind, reference.id, reference.hash
+        )?;
+        if let Some(pack) = &reference.pack {
+            write!(
+                writer,
+                " pack_kind={} pack_name={} pack_version={} pack_owner={} pack_state={}",
+                pack.kind, pack.name, pack.version, pack.owner, pack.state
+            )?;
+        }
+        writeln!(writer)?;
+    }
+    Ok(())
 }
 
 /// Render the run table.
