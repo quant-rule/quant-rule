@@ -27,6 +27,8 @@ change.
 - `tools/gate.sh --explain` on docs/governance/web/full ranges.
 - CI shadow run before conditional jobs.
 - Full gate on `main` and release unchanged.
+- CI-only `CARGO_INCREMENTAL=0` and `CARGO_PROFILE_DEV_DEBUG=0` are enabled and
+  measured on the next full and scoped runs.
 
 ## Learning
 

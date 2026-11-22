@@ -25,6 +25,7 @@ history is in Git and the pull requests.
 
 ### Changed
 
+- The pull-request CI gate is scope-aware: docs, governance, and web scopes skip Rust or web work they cannot observe, and a `gate` aggregator fails when a needed job failed or was wrongly skipped.
 - The policy is now “No Python” repository-wide; current docs, the manual, the registry, and the verification evidence name `qr-governance` checkers instead of the deleted Python scripts.
 
 ## [1.5.2] - 2026-11-21
