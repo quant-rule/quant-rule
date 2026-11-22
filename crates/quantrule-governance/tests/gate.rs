@@ -49,6 +49,23 @@ fn files_mode_reports_json() {
 }
 
 #[test]
+fn files_mode_reports_the_governance_checks() {
+    let output = run(&[
+        "gate",
+        "plan",
+        "--files",
+        "crates/quantrule-governance/src/gate.rs",
+        "--field",
+        "checks",
+    ]);
+    assert!(output.status.success());
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout).trim(),
+        "docs,governance"
+    );
+}
+
+#[test]
 fn an_unknown_path_is_full() {
     let output = run(&[
         "gate",
