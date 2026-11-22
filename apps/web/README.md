@@ -48,3 +48,10 @@ Bun runtime exists in the image.
 
 Screens arrive with their issues; the connection and datasets screens are
 implemented.
+
+## Development gate
+
+`apps/web/**` is the `web` change scope: the pull-request gate runs the Bun
+type check, unit tests, build, Chromium e2e, and Firefox e2e, and skips the Rust
+engine gate. The governance checker still runs. See
+[`docs/workflows/change-scope.md`](../../docs/workflows/change-scope.md).
