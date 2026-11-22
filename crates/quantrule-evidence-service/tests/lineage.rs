@@ -1,8 +1,8 @@
-//! The run lineage store and internal route contracts.
+//! The run lineage store, public read and internal write route contracts.
 //!
-//! The route is service-to-service only. The test records what a run cited,
-//! repeats the same set idempotently, refuses a different set, and proves an
-//! unknown or not-yet-recorded run is a clean 404.
+//! The public read serves the run detail; the write stays service-to-service. The
+//! test records what a run cited, repeats the same set idempotently, refuses a
+//! different set, and proves an unknown or not-yet-recorded run is a clean 404.
 
 mod common;
 
@@ -154,6 +154,19 @@ async fn a_runs_lineage_is_recorded_read_and_kept_immutable() {
 
     let response = router(Arc::clone(&state))
         .oneshot(
+            Request::get(format!("/runs/{id}/lineage"))
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let public: RunLineage = serde_json::from_slice(&body_bytes(response).await).expect("lineage");
+    assert_eq!(public, recorded);
+
+    let response = router(Arc::clone(&state))
+        .oneshot(
             Request::put(format!("/internal/v1/runs/{id}/lineage"))
                 .header(PROFILE_HEADER, "default")
                 .header("content-type", "application/json")
@@ -209,6 +222,21 @@ async fn an_unknown_run_or_an_unrecorded_lineage_is_not_found() {
     );
 
     let missing = Digest::sha256(b"missing");
+    let response = router(Arc::clone(&state))
+        .oneshot(
+            Request::get(format!("/runs/{missing}/lineage"))
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    assert_eq!(
+        read_error(&body_bytes(response).await).error.code,
+        ErrorCode::RunNotFound
+    );
+
     let response = router(Arc::clone(&state))
         .oneshot(
             Request::get(format!("/internal/v1/runs/{missing}/lineage"))

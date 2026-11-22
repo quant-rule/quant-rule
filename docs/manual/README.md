@@ -46,7 +46,7 @@ Chapters 1–8 and 13–14 are runnable procedures, not a reference dump:
 
 Chapters 9–12 are reference tables. A table carries the same information more
 clearly than prose, and `qr-governance check --checker manual` enforces the chapter table, the
-46 command rows, the screen and tab rows, and the six-section shape.
+61 command rows, the screen and tab rows, and the six-section shape.
 
 ## 4. Evidence labels
 
@@ -63,7 +63,7 @@ artifact and recomputes the rest.
 
 ## 5. Journey tutorials
 
-These tutorials show the same product from four entry points:
+These tutorials show the same product from five entry points:
 
 | Tutorial | Teaches |
 |---|---|
@@ -71,6 +71,7 @@ These tutorials show the same product from four entry points:
 | [Stage to backtest](../tutorials/2026-11-17/stage-to-backtest.md) | Model stage → strategy stage → portfolio stage → promoted run |
 | [Run a backtest](../tutorials/2026-11-12/01-run-a-backtest.md) | The browser journey from upload to digest |
 | [End-to-end verification](../tutorials/2026-11-17/end-to-end-verification.md) | `make up`, `make verify`, and the two-run digest |
+| [Research artifacts from the client](../tutorials/2026-11-22/research-artifacts-client.md) | Pack lifecycle, signal compute/read, and run lineage |
 
 ## 6. Status
 

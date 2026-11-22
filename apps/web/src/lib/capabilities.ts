@@ -18,6 +18,7 @@ export const SECTIONS = [
   { id: "datasets", label: "Datasets", hint: "Candles by content" },
   { id: "configs", label: "Configs", hint: "Hypotheses and runs" },
   { id: "runs", label: "Runs", hint: "Queued and finished" },
+  { id: "packs", label: "Packs", hint: "Definitions and computed alpha" },
   { id: "research", label: "Research", hint: "Pre-registration and decisions" },
   { id: "operations", label: "Operations", hint: "Health, retention, verification" },
   { id: "inspect", label: "Inspect", hint: "Candles, ladders, events" },
@@ -94,6 +95,18 @@ export const COMMANDS: CommandCapability[] = [
   { command: "history archive", section: "history", control: "Archive action", component: "HistoryPanel.svelte", testId: "history-archive" },
   { command: "history erase", section: "history", control: "Typed-confirmation erase action", component: "HistoryPanel.svelte", testId: "history-erase" },
   { command: "help", section: "help", control: "Command reference table", component: "HelpPanel.svelte", testId: "help-table" },
+  { command: "pack create", section: "packs", control: "Register pack file", component: "PacksPanel.svelte", testId: "pack-create" },
+  { command: "pack list", section: "packs", control: "Pack table with filters", component: "PacksPanel.svelte", testId: "packs-table" },
+  { command: "pack show", section: "packs", control: "Pack record detail", component: "PacksPanel.svelte", testId: "pack-detail" },
+  { command: "pack validate", section: "packs", control: "Validate action", component: "PacksPanel.svelte", testId: "pack-validate" },
+  { command: "pack freeze", section: "packs", control: "Freeze action", component: "PacksPanel.svelte", testId: "pack-freeze" },
+  { command: "pack retire", section: "packs", control: "Retire action", component: "PacksPanel.svelte", testId: "pack-retire" },
+  { command: "pack fetch", section: "packs", control: "Verified pack download", component: "PacksPanel.svelte", testId: "pack-fetch" },
+  { command: "signal create", section: "packs", control: "Signal create form", component: "PacksPanel.svelte", testId: "signal-create" },
+  { command: "signal list", section: "packs", control: "Signal table", component: "PacksPanel.svelte", testId: "signal-table" },
+  { command: "signal show", section: "packs", control: "Signal record detail", component: "PacksPanel.svelte", testId: "signal-detail" },
+  { command: "signal fetch", section: "packs", control: "Verified signal download", component: "PacksPanel.svelte", testId: "signal-fetch" },
+  { command: "run lineage", section: "runs", control: "Run detail lineage block", component: "RunDetail.svelte", testId: "run-lineage" },
 ];
 
 /**

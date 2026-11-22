@@ -65,6 +65,7 @@ fn routes() -> Router<Arc<EvidenceState>> {
         .route("/runs/{id}/cancel", post(runs::cancel_run))
         .route("/runs/{id}/artifacts/{*name}", get(runs::get_run_artifact))
         .route("/runs/{id}/digest", get(runs::get_run_digest))
+        .route("/runs/{id}/lineage", get(lineage::get_lineage))
         .route("/hypotheses", post(hypotheses::create_hypothesis))
         .route("/hypotheses/{fingerprint}", get(hypotheses::get_hypothesis))
         .route("/stages/{kind}/runs", post(stages::submit_stage))

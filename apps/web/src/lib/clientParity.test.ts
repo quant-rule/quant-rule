@@ -12,6 +12,26 @@ import { readFileSync } from "node:fs";
 import { DEFAULT_PROFILE, call, callVoid, currentProfile, setProfile, uploadDataset } from "./api";
 import { downloadArtifact, sha256Hex } from "./artifacts";
 import { COMMANDS, SECTIONS, missingCommands } from "./capabilities";
+import { fetchRunLineage } from "./lineage";
+import {
+  createPack,
+  downloadPack,
+  fetchPack,
+  freezePack,
+  listPacks,
+  retirePack,
+  validatePack,
+  type PackRecord,
+  type PackSummary,
+} from "./packs";
+import {
+  createSignal,
+  downloadSignal,
+  fetchSignal,
+  listSignals,
+  type ArtifactRecord,
+  type SignalResponse,
+} from "./signals";
 import {
   archive as archiveHistory,
   erase as eraseHistory,
@@ -62,6 +82,7 @@ import type {
   ProfileSummary,
   RunDetail,
   RunDigest,
+  RunLineage,
   RunSummary,
   SubmitRunResponse,
   StageEventView,
@@ -104,6 +125,16 @@ interface ParityResponses {
   baselines: BaselineRecord[];
   baseline: BaselineRecord;
   invalidations: InvalidationRecord[];
+  packs: PackSummary[];
+  pack: PackRecord;
+  pack_create: PackRecord;
+  pack_validated: PackRecord;
+  pack_frozen: PackRecord;
+  pack_retired: PackRecord;
+  signal: ArtifactRecord;
+  signals: ArtifactRecord[];
+  signal_create: SignalResponse;
+  lineage: RunLineage;
 }
 
 interface ApiFixture {
@@ -119,6 +150,18 @@ interface ApiFixture {
   portfolio_stage_id: string;
   portfolio_decisions_artifact_id: string;
   research_id: string;
+  pack_id: string;
+  signal_id: string;
+  pack_artifact: {
+    body: string;
+    bytes: number;
+    sha256: string;
+  };
+  signal_artifact: {
+    body: string;
+    bytes: number;
+    sha256: string;
+  };
   commands: string[];
   artifact: {
     name: string;
@@ -265,6 +308,48 @@ function install(fixture: ApiFixture): Seen[] {
     }
     if (path === "/research/invalidations" && method === "GET") {
       return respond(fixture.responses.invalidations);
+    }
+    if (path === "/catalog/packs" && method === "GET") {
+      return respond(fixture.responses.packs);
+    }
+    if (path === "/catalog/packs" && method === "POST") {
+      return respond(fixture.responses.pack_create, 201);
+    }
+    if (path === `/catalog/packs/${fixture.pack_id}` && method === "GET") {
+      return respond(fixture.responses.pack);
+    }
+    if (path === `/catalog/packs/${fixture.pack_id}/validate` && method === "POST") {
+      return respond(fixture.responses.pack_validated);
+    }
+    if (path === `/catalog/packs/${fixture.pack_id}/freeze` && method === "POST") {
+      return respond(fixture.responses.pack_frozen);
+    }
+    if (path === `/catalog/packs/${fixture.pack_id}/retire` && method === "POST") {
+      return respond(fixture.responses.pack_retired);
+    }
+    if (path === `/catalog/packs/${fixture.pack_id}/bytes` && method === "GET") {
+      return new Response(new TextEncoder().encode(fixture.pack_artifact.body), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }
+    if (path === "/signals" && method === "GET") {
+      return respond(fixture.responses.signals);
+    }
+    if (path === "/signals" && method === "POST") {
+      return respond(fixture.responses.signal_create, 201);
+    }
+    if (path === `/signals/${fixture.signal_id}` && method === "GET") {
+      return respond(fixture.responses.signal);
+    }
+    if (path === `/signals/${fixture.signal_id}/bytes` && method === "GET") {
+      return new Response(new TextEncoder().encode(fixture.signal_artifact.body), {
+        status: 200,
+        headers: { "content-type": "application/octet-stream" },
+      });
+    }
+    if (path === `/runs/${fixture.run_id}/lineage` && method === "GET") {
+      return respond(fixture.responses.lineage);
     }
     if (path === "/health") {
       return respond(fixture.responses.health);
@@ -565,6 +650,38 @@ async function browserView(fixture: ApiFixture): Promise<View> {
   const baseline = await fetchBaseline("model");
   const invalidations = await listInvalidations();
 
+  const packFile = new File([fixture.pack_artifact.body], "parity-pack.json", {
+    type: "application/json",
+  });
+  const packCreated = await createPack(packFile);
+  const packs = await listPacks();
+  const pack = await fetchPack(fixture.pack_id);
+  const packValidated = await validatePack(fixture.pack_id);
+  const packFrozen = await freezePack(fixture.pack_id);
+  const packRetired = await retirePack(fixture.pack_id);
+  const packBytes = await downloadPack(pack);
+  const packFetch = {
+    pack_id: fixture.pack_id,
+    bytes: packBytes.byteLength,
+    sha256: await sha256Hex(packBytes),
+  };
+
+  const signalCreated = await createSignal({
+    model_artifact_id: fixture.strategy_model_artifact_id,
+    data_version: fixture.dataset_id,
+    config_id: fixture.config_id,
+    strategy_pack_id: fixture.pack_id,
+  });
+  const signals = await listSignals();
+  const signal = await fetchSignal(fixture.signal_id);
+  const signalBytes = await downloadSignal(signal);
+  const signalFetch = {
+    signal_id: fixture.signal_id,
+    bytes: signalBytes.byteLength,
+    sha256: await sha256Hex(signalBytes),
+  };
+  const lineage = await fetchRunLineage(fixture.run_id);
+
   return {
     profile: currentProfile(),
     commands,
@@ -602,6 +719,18 @@ async function browserView(fixture: ApiFixture): Promise<View> {
     baselines,
     baseline,
     invalidations,
+    packs,
+    pack,
+    pack_created: packCreated,
+    pack_validated: packValidated,
+    pack_frozen: packFrozen,
+    pack_retired: packRetired,
+    pack_fetch: packFetch,
+    signals,
+    signal,
+    signal_created: signalCreated,
+    signal_fetch: signalFetch,
+    lineage,
   };
 }
 
@@ -634,7 +763,7 @@ describe("client parity", () => {
     const view = await browserView(API);
 
     expect(difference(view, EXPECTED)).toBeNull();
-    expect(seen).toHaveLength(38);
+    expect(seen).toHaveLength(50);
     expect(seen.map((request) => request.path)).toEqual([
       "/health",
       "/catalog/datasets",
@@ -674,6 +803,18 @@ describe("client parity", () => {
       "/research/baselines",
       "/research/baselines/model",
       "/research/invalidations",
+      "/catalog/packs",
+      "/catalog/packs",
+      `/catalog/packs/${API.pack_id}`,
+      `/catalog/packs/${API.pack_id}/validate`,
+      `/catalog/packs/${API.pack_id}/freeze`,
+      `/catalog/packs/${API.pack_id}/retire`,
+      `/catalog/packs/${API.pack_id}/bytes`,
+      "/signals",
+      "/signals",
+      `/signals/${API.signal_id}`,
+      `/signals/${API.signal_id}/bytes`,
+      `/runs/${API.run_id}/lineage`,
     ]);
     for (const request of seen) {
       expect(request.profile).toBe(API.profile);
@@ -743,7 +884,7 @@ describe("client parity", () => {
     await eraseHistory("run", API.run_id, API.run_id);
 
     expect(currentProfile()).toBe("parity");
-    expect(COMMANDS.length).toBe(49);
+    expect(COMMANDS.length).toBe(61);
     expect(seen.map((request) => request.path)).toEqual(
       expect.arrayContaining([
         "/catalog/datasets",

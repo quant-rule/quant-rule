@@ -28,32 +28,25 @@ never renders a label, and never returns a raw engine type.
 
 | Method | Path | Request | Response |
 |---|---|---|---|
-| GET | `/health` | — | local liveness: this service's dependency states |
-| GET | `/ready` | — | readiness: local and upstream service states; `503` when a required service is down |
-| GET | `/profiles` | — | profiles with dataset, run, and simulation counts |
+| GET | `/health`, `/ready` | — | local liveness; readiness aggregates upstreams and answers `503` when required |
+| GET | `/profiles`, `/version` | — | profiles with counts; product and contract versions |
 | POST | `/profiles` | `profile_id`, `name` | `201` new, `200` existing, with the summary |
-| GET | `/version` | — | product version, image digest, contract versions |
-| GET | `/operations` | profile and token | diagnostic stage retention, stage-store presence, last cleanup instant, removed counts, optional error; requires the profile header and the bearer gate |
-| GET | `/hypotheses/{fingerprint}` | — | one sealed hypothesis in the profile |
-| POST | `/hypotheses` | hypothesis JSON | `201` with the sealed record |
-| GET | `/catalog/datasets` | — | list with `data_version`, candles, coverage |
-| POST | `/catalog/datasets` | CSV bytes, `name` query | `201` new, `200` existing, with the record |
+| GET | `/operations` | profile and token | diagnostic stage retention, store presence, last cleanup; bearer gate |
+| GET, POST | `/hypotheses`, `/hypotheses/{fingerprint}` | hypothesis JSON | one sealed hypothesis in the profile |
+| GET, POST | `/catalog/datasets` | `name` query; CSV bytes | list, or `201` new / `200` existing |
 | POST | `/catalog/datasets/tolerant` | CSV bytes, `name` query | the record plus the quality report |
 | GET | `/catalog/datasets/{version}` | — | one dataset record |
-| GET | `/datasets/{version}/candles` | — | canonical CSV bytes, with an ETag; `If-None-Match` returns `304` |
-| GET | `/datasets/{version}/ladder/{timeframe}` | — | canonical CSV for one timeframe, built once and reused; ETag and `304` |
-| GET | `/catalog/configs` | — | run configs with validity and origin |
-| POST | `/catalog/configs` | run-config bundle | `201` new, `200` existing, with the summary |
-| POST | `/model/compute` | `{data_version, config_id, timeframes?}` | model object with registry version, timeframes, CAS key, hash, and bytes |
-| GET | `/runs` | `status`, `limit` | run summaries |
-| POST | `/runs` | `{data_version, config_id, model_artifact_id?}` | `202` new, `200` existing, with `run_id` |
-| GET | `/runs/{id}` | — | status, stages, provenance, artifacts |
+| GET | `/datasets/{version}/candles`, `/datasets/{version}/ladder/{timeframe}` | — | canonical CSV bytes with an ETag; `304` on `If-None-Match` |
+| GET, POST | `/catalog/configs` | run-config bundle | configs with validity; `201` new or `200` existing |
+| POST | `/model/compute` | `{data_version, config_id, timeframes?}` | model object with registry version, CAS key, hash, and bytes |
+| GET, POST | `/runs` | `status`, `limit`; submission | run summaries; `202`/`200` with `run_id` |
+| GET | `/runs/{id}`, `/runs/{id}/digest`, `/runs/{id}/artifacts/{*name}` | — | run detail; canonical digest; nested artifact bytes |
+| GET | `/runs/{id}/lineage` | — | recorded references; `404 run.lineage_not_found` |
 | POST | `/runs/{id}/cancel` | — | `202` or `409` |
-| GET | `/runs/{id}/artifacts/{*name}` | — | bytes; a nested relative name such as `execution/fills.csv` |
-| GET | `/runs/{id}/digest` | — | canonical digest |
-| GET | `/inspect/candles` | `data_version` | counts and coverage |
-| GET | `/inspect/timeframes` | `data_version` | bars and partial buckets per timeframe |
-| GET | `/inspect/events` | `data_version`, `timeframe` | event batch |
+| GET | `/signals` | `limit` | signal metadata only |
+| POST | `/signals` | frozen model artifact, data version, config, strategy pack | `201`/`200` signal record; `503` without the strategy service |
+| GET | `/signals/{id}`, `/signals/{id}/bytes` | — | one signal record; document bytes with an ETag and a verified hash |
+| GET | `/inspect/candles`, `/inspect/timeframes`, `/inspect/events` | `data_version`, `timeframe` | counts and coverage; ladder; event batch |
 | `GET/POST` | `/research/runs`, `/research/runs/{id}`, `/research/runs/{id}/submit`, `/research/runs/{id}/compare`, `/research/runs/{id}/decision`, `/research/baselines`, `/research/baselines/{tier}`, `/research/invalidations` | v3 pre-registration, coupled submit, compare, decision, registries | records; `accepted` requires a succeeded run and digest |
 
 ### 2.1 Diagnostic stage extension
@@ -75,11 +68,13 @@ it is diagnostic only and never evidence.
 upstream reports and returns `503` when one is unreachable or misidentified.
 
 The gateway owns `/profiles` and proxies `/catalog/*`, `/datasets/*`,
-`/inspect/*`, `/model/compute`, `/runs/*`, `/stages/*`, `/research/*`, and
-`/operations` to their services with the injected profile. A proxied response
-keeps its status, body, content type, and ETag; a closed upstream is
-`503 service.unavailable`. `/inspect/events` goes to `qr-model`; the data
-service never runs a model. `/operations` is operational metadata: retention
+`/inspect/*`, `/model/compute`, `/runs/*`, `/stages/*`, `/research/*`,
+`/signals*`, and `/operations` to their services with the injected profile. A
+signal read goes to `data`; signal create is rewritten to the strategy service's
+internal route, and an absent strategy service is `503 service.unavailable`. A
+proxied response keeps its status, body, content type, and ETag; a closed
+upstream is `503 service.unavailable`. `/inspect/events` goes to `qr-model`; the
+data service never runs a model. `/operations` is operational metadata: retention
 days and the last cleanup; an unrun cleanup is `null`.
 
 The browser checks `/version` and `/health` and reports `connected`, `degraded`,
@@ -109,7 +104,8 @@ after a lost publish can recover; the worker treats it as a lookup.
 
 A proxied timeout is `503 service.unavailable`; retry it, because uploads and
 run submissions are content-addressed and return the existing record. Upload,
-artifact download, and model compute get 15 minutes; other calls get 30 seconds.
+artifact download, model compute, signal create, and signal bytes get 15 minutes;
+other calls get 30 seconds.
 
 ## 4. Run detail
 
@@ -149,6 +145,7 @@ bundle manifest records the registry version (`2026-11-10.2`), and
 | `hypothesis.not_found` | 404 | Unknown hypothesis fingerprint |
 | `hypothesis.invalid` | 400 | A hypothesis failed validation |
 | `run.not_found` | 404 | Unknown run id |
+| `run.lineage_not_found` | 404 | The run has no recorded research artifact lineage |
 | `run.invalid` | 400 | Malformed run id or submission |
 | `run.model_artifact_invalid` | 400 | Unknown, non-succeeded, or mismatched frozen model artifact |
 | `run.conflict` | 409 | Cancel after completion |

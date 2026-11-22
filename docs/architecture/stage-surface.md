@@ -67,13 +67,12 @@ provenance; an unknown or non-strategy artifact returns `stage.not_found`, and a
 The gateway proxies `/stages/*`, `/research/*`, and `/operations` with the same profile header, bearer token, path allowlist, and error envelope; it never reaches an engine.
 ## 4. Command surface
 
-The current 46 commands are in [`command-surface.md`](command-surface.md). The
-model stage commands (`stage run model`, `stage list`, `stage show`, `stage
-events`, `stage fetch`, `stage cancel`, and `stage delete`) are implemented
-(#852); `stage run strategy`, `stage explain`, and `stage run portfolio` are
-implemented (#853–#854). Promotion is implemented (#855), the research commands
-and Research screen are implemented (#857), and the operations surface is
-implemented (#858):
+The current 61 commands are in [`command-surface.md`](command-surface.md); pack,
+signal and lineage are in [`research-artifacts.md`](research-artifacts.md). The
+model, strategy and portfolio stage commands (`stage run model`, `stage list`,
+`stage show`, `stage events`, `stage fetch`, `stage cancel`, `stage delete`,
+`stage run strategy`, `stage explain`, `stage run portfolio`) are implemented
+(#852–#854); promotion (#855), research (#857) and operations (#858) are too:
 
 | Command | Purpose |
 |---|---|

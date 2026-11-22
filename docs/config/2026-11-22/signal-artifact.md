@@ -1,7 +1,7 @@
 # Signal Artifact and Reference Position
 
 - Date: 2026-11-22 (UTC)
-- Status: Signal artifact contract, pure reference computation and the stateless strategy service implemented (RA-007, RA-008); the client surface (RA-009) and run-v5 catalog/worker reachability target later work items; accepted by [ADR-RA](../../adr/2026-11-22/1082-research-artifact-layer.md)
+- Status: Signal artifact contract, pure reference computation and the stateless strategy service implemented (RA-007, RA-008); the additive public signal surface and clients implemented (RA-009); run-v5 catalog/worker reachability remains later work; accepted by [ADR-RA](../../adr/2026-11-22/1082-research-artifact-layer.md)
 - Claim type: Behaviour Claim
 - Related: [Research packs and run v5](research-artifact-packs.md), [Research artifacts](../../architecture/research-artifacts.md)
 
@@ -217,19 +217,20 @@ the id against the frozen manifest before it writes the artifact.
    `catalog.artifacts` row idempotently. A duplicate returns the stored row with
    `created: false`.
 
-The signal bytes never travel over HTTP, so the 64 MiB PUT body cap is
-unchanged. The service is stateless: no database, queue, migration or config
-root, and one pack plus one model resolution per request rather than per bar.
-The catalog row is the pre-run record. Evidence `runs.run_lineage` is recorded
-at run submission, not here, because the signal must exist first; that path adds
-the `run:<id>` reference. A new signal may stay unreferenced for the 30-day
-retention window.
+The signal bytes never travel in the create request, so the 64 MiB PUT body cap is
+unchanged. Clients read the stored document from `GET /signals/{id}/bytes`; the
+data service verifies its hash and serves metadata from `GET /signals` and
+`/signals/{id}`. The service is stateless: no database, queue, migration or
+config root, and one pack plus one model resolution per request rather than per
+bar. The catalog row is the pre-run record. Evidence `runs.run_lineage` is
+recorded at run submission, not here, because the signal must exist first; that
+path adds the `run:<id>` reference. A new signal may stay unreferenced for the
+30-day retention window.
 
 ## 8. Non-goals
 
 - No fill, quantity, fee, cash, equity or P&L record.
 - No edge, return, confidence or statistical metric.
 - No fold-mode execution, position-aware giveback, or per-bar network call.
-- No public route, shell command or browser screen in this contract.
-- No signal bytes over HTTP and no new reference kind.
+- No signal bytes in the create request and no new reference kind.
 - No `runs.run_lineage` write by the strategy service.

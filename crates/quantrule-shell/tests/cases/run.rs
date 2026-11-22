@@ -127,3 +127,30 @@ fn run_cancel_prints_the_new_state() {
         format!("/runs/{}/cancel", run_id())
     );
 }
+
+#[test]
+fn run_lineage_prints_the_recorded_reference_set() {
+    let fixture = Fixture::start();
+    let output = fixture.run(&["run", "lineage", &run_id()]);
+    assert_success(&output);
+    let text = stdout(&output);
+    assert!(text.contains(&format!("run_id: {}\n", run_id())), "{text}");
+    assert!(text.contains("references: 3\n"), "{text}");
+    assert!(
+        text.contains("reference 0: kind=model_artifact id="),
+        "{text}"
+    );
+    assert!(
+        text.contains("reference 1: kind=strategy_pack id="),
+        "{text}"
+    );
+    assert!(text.contains("pack_name=parity-pack"), "{text}");
+    assert!(
+        text.contains("reference 2: kind=signal_artifact id="),
+        "{text}"
+    );
+    assert_eq!(
+        fixture.last_request().path,
+        format!("/runs/{}/lineage", run_id())
+    );
+}

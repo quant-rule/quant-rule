@@ -73,6 +73,23 @@ usage drifts from the registry.
 | `baseline show` | `baseline show <model\|strategy\|portfolio>` | tier | — | One baseline row | `research.not_found` | Research → baseline detail | `quantrule baseline show model` |
 | `invalidation list` | `invalidation list` | — | — | One line per tombstone | `profile.not_found` | Research → invalidation list | `quantrule invalidation list` |
 
+## Research artifacts
+
+| Command | Usage | Required | Optional | Output | Stable errors | Browser | Example |
+|---|---|---|---|---|---|---|---|---|
+| `pack create` | `pack create <pack.json>` | pack file | — | Pack record with content id, state, object key, hash | `pack.invalid`, `upload.too_large` | Packs → Register pack | `quantrule pack create ./packs/strategy.json` |
+| `pack list` | `pack list [--kind strategy\|portfolio\|execution] [--state draft\|validated\|frozen\|retired]` | — | `--kind`, `--state` | One line per pack with kind, state, name, version, owner, bytes | `pack.invalid`, `profile.not_found` | Packs → table and filters | `quantrule pack list --kind strategy --state frozen` |
+| `pack show` | `pack show <pack_id>` | pack id | — | Pack identity, object key, hash, validations, events | `pack.not_found`, `pack.invalid` | Packs → pack detail | `quantrule pack show <pack_id>` |
+| `pack validate` | `pack validate <pack_id>` | pack id | — | Updated pack record | `pack.not_found`, `pack.conflict` | Packs → Validate | `quantrule pack validate <pack_id>` |
+| `pack freeze` | `pack freeze <pack_id>` | pack id | — | Updated pack record | `pack.not_found`, `pack.conflict` | Packs → Freeze | `quantrule pack freeze <pack_id>` |
+| `pack retire` | `pack retire <pack_id>` | pack id | — | Updated pack record | `pack.not_found`, `pack.conflict` | Packs → Retire | `quantrule pack retire <pack_id>` |
+| `pack fetch` | `pack fetch <pack_id> <file>` | pack id, file | — | Pack id, file, bytes, verified hash | `pack.not_found`, `internal` | Packs → Download | `quantrule pack fetch <pack_id> ./packs/out.json` |
+| `signal create` | `signal create --model-artifact <id> --data-version <digest> --config <config_id> --strategy-pack <pack_id>` | model artifact, data version, config, strategy pack | — | Response schema, signal id, artifact metadata, created | `signal.invalid`, `pack.not_found`, `artifact.not_found`, `service.unavailable` | Packs → Signals → create form | `quantrule signal create --model-artifact <id> --data-version <digest> --config <config_id> --strategy-pack <pack_id>` |
+| `signal list` | `signal list [--limit <n>]` | — | `--limit` | One line per signal with id, bytes, created time | `artifact.invalid`, `profile.not_found` | Packs → Signals → table | `quantrule signal list --limit 20` |
+| `signal show` | `signal show <signal_id>` | signal id | — | Signal id, kind, bytes, created, object key, hash | `artifact.not_found`, `artifact.invalid` | Packs → Signals → detail | `quantrule signal show <signal_id>` |
+| `signal fetch` | `signal fetch <signal_id> <file>` | signal id, file | — | Signal id, file, bytes, verified hash | `artifact.not_found`, `internal` | Packs → Signals → Download | `quantrule signal fetch <signal_id> ./signals/out.json` |
+| `run lineage` | `run lineage <run_id>` | run id | — | Run id, recorded time, one line per reference with kind, id, hash, pack provenance | `run.not_found`, `run.lineage_not_found` | Run detail → lineage block | `quantrule run lineage <run_id>` |
+
 ## Inspect
 
 | Command | Usage | Required | Optional | Output | Stable errors | Browser | Example |

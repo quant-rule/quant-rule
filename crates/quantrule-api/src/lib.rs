@@ -25,6 +25,7 @@ pub mod profile;
 pub mod research;
 pub mod run;
 pub mod sha256;
+pub mod signal;
 pub mod simulation;
 pub mod stage;
 pub mod version;
@@ -68,6 +69,7 @@ pub use run::{
     StageProgress, StageStatus, SubmitRunRequest, SubmitRunResponse,
 };
 pub use sha256::{sha256, sha256_hex};
+pub use signal::{SIGNAL_REQUEST_SCHEMA, SIGNAL_RESPONSE_SCHEMA, SignalRequest, SignalResponse};
 pub use simulation::{
     CreateSimulationRequest, Mark, MarkAction, MarkOrigin, MarkQuality, Side,
     SimulationEraseResponse, SimulationId, SimulationStatus, SimulationSummary,

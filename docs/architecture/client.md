@@ -21,14 +21,15 @@ path never falls back to the client.
 | Datasets | `DatasetsPanel.svelte` | `data_version`, candles, first and last bar, upload, record detail with object key, hash, quality, and created time | "No datasets. Upload a CSV." |
 | Configs | `ConfigsPanel.svelte` | Name, origin (repo or uploaded), validity, parser message, optional frozen model artifact, submit, record detail with config id and hash | "No configs on the server." |
 | Runs | `RunsPanel.svelte` | Status, id, config, data version, submitted, duration, cancel | "No runs. Submit one from Configs." |
-| Run detail | `RunDetail.svelte` | Stages, provenance, the frozen model artifact input, canonical digest with Verify, artifacts with verified download | Only for a known run |
+| Run detail | `RunDetail.svelte` | Stages, provenance, lineage references, the frozen model artifact input, canonical digest with Verify, artifacts with verified download | Only for a known run |
+| Packs | `PacksPanel.svelte` | Packs and Signals tabs: pack list/filter/create/validate/freeze/retire/download, signal metadata/create/download, and the v2 create gap | "No packs. Register one above." / "No signals. Create one above." |
 | Research | `ResearchPanel.svelte` | Improvement-run table, v3 create form, detail, submit, comparison, explicit decision, baseline table/detail, and invalidation list | "No improvement runs." |
 | Operations | `OperationsPanel.svelte` | Connection, product, API, health, image digest, active profile, token presence, retention days, last cleanup counts and error, and the run verification form | "Retention status is unavailable." |
 | Inspect | `InspectPanel.svelte` | Candles, timeframe ladder, and event batch for one dataset; read-only | "No datasets to inspect." |
 | Simulation | `SimulationRunsPanel.svelte` | `sim_id`, premise, bundle, windows, marked/unmarked, status | "No simulation runs." |
 | Simulation run | `SimulationRunDetail.svelte` | Run state and requests from `simulationRun.svelte.ts`; window navigator, chart, review, and the marks, check, and decision panels | Only for a known run |
 | History | `HistoryPanel.svelte` | Kind tabs, archived filter, archive, and typed-confirmation erase | "No run records." |
-| Help | `HelpPanel.svelte` | The 49 registered commands and the screen that reaches each use case | — |
+| Help | `HelpPanel.svelte` | The 61 registered commands and the screen that reaches each use case | — |
 
 Every screen is owned by one component. The browser and the command shell reach one HTTP
 contract; the shared fixture and both parity tests enforce one browser control per command.
@@ -41,6 +42,8 @@ contract; the shared fixture and both parity tests enforce one browser control p
 | `datasets.svelte.ts` | profile datasets | on demand |
 | `configs.svelte.ts` | profile configs and the last submission | on demand |
 | `runs.svelte.ts` | profile run list, selected run, and detail | 2 s active, 30 s idle |
+| `packs.svelte.ts` | profile pack list, filter, selected pack, and the last registration | on demand |
+| `signals.svelte.ts` | profile signal metadata, selected signal, and the last computation | on demand |
 | `simulation.svelte.ts` | profile simulation summaries | on demand |
 | `simulationRun.svelte.ts` | one run's windows, series, marks, and action state | on demand |
 | `stages.svelte.ts` | profile stage list, selected stage detail, the event/coverage view, the strategy decision explain view, and the published portfolio bundles | on demand |
@@ -67,7 +70,8 @@ same error-envelope check. The profile header is attached in one place.
 ## 4. Disconnection and profile scope
 
 Selecting a profile, or losing the gateway, clears every profile-scoped row
-before the next read: datasets, configs, runs, simulations, stages, and research.
+before the next read: datasets, configs, runs, simulations, stages, research,
+packs, and signal artifacts.
 
 - The connection pill turns red on `unreachable`, `unauthorized`, or `mismatch`.
 - The runs list shows `disconnected`, not stale rows.

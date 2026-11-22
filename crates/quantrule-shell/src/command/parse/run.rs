@@ -6,7 +6,7 @@ use super::{pair, parse_limit, parse_options, single, usage};
 use crate::command::types::{Command, ParseError};
 
 pub(super) fn parse_run(args: &[String]) -> Result<Command, ParseError> {
-    const FAMILY: &str = "usage: run submit <data_version> <config_id> [--model-artifact <id>]|status <run_id>|list|cancel <run_id>|fetch <run_id> <directory>";
+    const FAMILY: &str = "usage: run submit <data_version> <config_id> [--model-artifact <id>]|status <run_id>|list|cancel <run_id>|fetch <run_id> <directory>|lineage <run_id>";
     let (name, rest) = args
         .split_first()
         .ok_or_else(|| ParseError::Usage(String::from(FAMILY)))?;
@@ -54,6 +54,11 @@ pub(super) fn parse_run(args: &[String]) -> Result<Command, ParseError> {
             let line = usage("run cancel");
             let usage = line.as_str();
             single(rest, usage).map(|run_id| Command::RunCancel { run_id })
+        }
+        "lineage" => {
+            let line = usage("run lineage");
+            let usage = line.as_str();
+            single(rest, usage).map(|run_id| Command::RunLineage { run_id })
         }
         other => Err(ParseError::Usage(format!(
             "unknown run command '{other}'\n{FAMILY}"

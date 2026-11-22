@@ -222,3 +222,87 @@ fn history_erase_requires_the_exact_confirmation() {
 fn history_rejects_an_unknown_kind() {
     assert!(parse_line("history list --kind config").is_err());
 }
+
+const PACK_ID: &str = "sha256:1111111111111111111111111111111111111111111111111111111111111111";
+const SIGNAL_ID: &str = "sha256:2222222222222222222222222222222222222222222222222222222222222222";
+const MODEL_ID: &str = "sha256:3333333333333333333333333333333333333333333333333333333333333333";
+const DATA_ID: &str = "sha256:4444444444444444444444444444444444444444444444444444444444444444";
+
+#[test]
+fn pack_family_parses_every_leaf() {
+    for line in [
+        "pack create ./packs/strategy.json",
+        "pack list --kind strategy --state frozen",
+        &format!("pack show {PACK_ID}"),
+        &format!("pack validate {PACK_ID}"),
+        &format!("pack freeze {PACK_ID}"),
+        &format!("pack retire {PACK_ID}"),
+        &format!("pack fetch {PACK_ID} ./packs/out.json"),
+    ] {
+        assert!(
+            parse_line(line).expect("the line parses").is_some(),
+            "{line}"
+        );
+    }
+}
+
+#[test]
+fn signal_family_parses_every_leaf() {
+    let create = format!(
+        "signal create --model-artifact {MODEL_ID} --data-version {DATA_ID} --config cfg_abc --strategy-pack {PACK_ID}"
+    );
+    for line in [
+        create.as_str(),
+        "signal list --limit 5",
+        &format!("signal show {SIGNAL_ID}"),
+        &format!("signal fetch {SIGNAL_ID} ./signals/out.json"),
+    ] {
+        assert!(
+            parse_line(line).expect("the line parses").is_some(),
+            "{line}"
+        );
+    }
+    assert!(matches!(
+        parse_line(&create).expect("parses").expect("command").command,
+        Command::SignalCreate { ref config_id, .. } if config_id == "cfg_abc"
+    ));
+}
+
+#[test]
+fn a_bad_pack_kind_state_or_digest_is_a_usage_error() {
+    for line in [
+        "pack list --kind book",
+        "pack list --state deleted",
+        &format!("pack show sha256:{}", "z".repeat(64)),
+        &format!("pack fetch {PACK_ID} ./out.json --extra"),
+    ] {
+        assert!(parse_line(line).is_err(), "{line}");
+    }
+}
+
+#[test]
+fn signal_create_requires_every_reference() {
+    assert!(parse_line("signal create --config cfg_abc").is_err());
+    assert!(
+        parse_line(&format!(
+            "signal create --model-artifact {MODEL_ID} --data-version {DATA_ID} --config cfg_abc"
+        ))
+        .is_err(),
+        "the strategy pack is required"
+    );
+    assert!(
+        parse_line(&format!(
+            "signal create --model-artifact not-a-digest --data-version {DATA_ID} --config cfg_abc --strategy-pack {PACK_ID}"
+        ))
+        .is_err()
+    );
+}
+
+#[test]
+fn run_lineage_parses_one_run_id() {
+    assert!(matches!(
+        parse_line("run lineage run-1").expect("parses").expect("command").command,
+        Command::RunLineage { ref run_id } if run_id == "run-1"
+    ));
+    assert!(parse_line("run lineage").is_err());
+}

@@ -4,6 +4,18 @@
   "config_id": "cfg_abc",
   "run_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
   "timeframe": "5m",
+  "pack_id": "sha256:a2a38d6480ae7aa9c6ad0cda40924f8035e0aa923c9320ce1e8fae6fcae8c258",
+  "signal_id": "sha256:fe70ed6c23be2efa8f23b79a9be789e1908bd705b9db9a07aeda66511126baa9",
+  "pack_artifact": {
+    "body": "{\"kind\":\"strategy\",\"name\":\"parity-pack\",\"owner\":\"operator\",\"payload\":{},\"schema\":\"quantrule.pack/v1\",\"version\":\"1.0.0\"}\n",
+    "bytes": 120,
+    "sha256": "sha256:a2a38d6480ae7aa9c6ad0cda40924f8035e0aa923c9320ce1e8fae6fcae8c258"
+  },
+  "signal_artifact": {
+    "body": "{\"schema\":\"quantrule.signal-artifact/v1\",\"rows\":[]}\n",
+    "bytes": 52,
+    "sha256": "sha256:fe70ed6c23be2efa8f23b79a9be789e1908bd705b9db9a07aeda66511126baa9"
+  },
   "commands": [
     "health",
     "dataset list",
@@ -53,7 +65,19 @@
     "history list",
     "history archive",
     "history erase",
-    "help"
+    "help",
+    "pack create",
+    "pack list",
+    "pack show",
+    "pack validate",
+    "pack freeze",
+    "pack retire",
+    "pack fetch",
+    "signal create",
+    "signal list",
+    "signal show",
+    "signal fetch",
+    "run lineage"
   ],
   "artifact": {
     "name": "results.json",
@@ -750,7 +774,275 @@
         "superseded_by": null,
         "created_at": "2026-11-10T00:00:00Z"
       }
-    ]
+    ],
+    "packs": [
+      {
+        "pack_id": "sha256:a2a38d6480ae7aa9c6ad0cda40924f8035e0aa923c9320ce1e8fae6fcae8c258",
+        "kind": "strategy",
+        "name": "parity-pack",
+        "version": "1.0.0",
+        "owner": "operator",
+        "state": "frozen",
+        "bytes": 120,
+        "created_at": "2026-11-22T00:00:00Z",
+        "validated_at": "2026-11-22T00:01:00Z",
+        "frozen_at": "2026-11-22T00:02:00Z"
+      }
+    ],
+    "pack": {
+      "summary": {
+        "pack_id": "sha256:a2a38d6480ae7aa9c6ad0cda40924f8035e0aa923c9320ce1e8fae6fcae8c258",
+        "kind": "strategy",
+        "name": "parity-pack",
+        "version": "1.0.0",
+        "owner": "operator",
+        "state": "frozen",
+        "bytes": 120,
+        "created_at": "2026-11-22T00:00:00Z",
+        "validated_at": "2026-11-22T00:01:00Z",
+        "frozen_at": "2026-11-22T00:02:00Z"
+      },
+      "object_key": "packs/a2a38d6480ae7aa9c6ad0cda40924f8035e0aa923c9320ce1e8fae6fcae8c258",
+      "sha256": "sha256:a2a38d6480ae7aa9c6ad0cda40924f8035e0aa923c9320ce1e8fae6fcae8c258",
+      "validations": [
+        {
+          "validator": "pack.schema/v1",
+          "valid": true,
+          "created_at": "2026-11-22T00:01:00Z"
+        }
+      ],
+      "events": [
+        {
+          "to": "draft",
+          "action": "create",
+          "created_at": "2026-11-22T00:00:00Z"
+        },
+        {
+          "from": "draft",
+          "to": "validated",
+          "action": "validate",
+          "created_at": "2026-11-22T00:01:00Z"
+        },
+        {
+          "from": "validated",
+          "to": "frozen",
+          "action": "freeze",
+          "created_at": "2026-11-22T00:02:00Z"
+        }
+      ]
+    },
+    "pack_create": {
+      "summary": {
+        "pack_id": "sha256:a2a38d6480ae7aa9c6ad0cda40924f8035e0aa923c9320ce1e8fae6fcae8c258",
+        "kind": "strategy",
+        "name": "parity-pack",
+        "version": "1.0.0",
+        "owner": "operator",
+        "state": "draft",
+        "bytes": 120,
+        "created_at": "2026-11-22T00:00:00Z"
+      },
+      "object_key": "packs/a2a38d6480ae7aa9c6ad0cda40924f8035e0aa923c9320ce1e8fae6fcae8c258",
+      "sha256": "sha256:a2a38d6480ae7aa9c6ad0cda40924f8035e0aa923c9320ce1e8fae6fcae8c258",
+      "validations": [],
+      "events": [
+        {
+          "to": "draft",
+          "action": "create",
+          "created_at": "2026-11-22T00:00:00Z"
+        }
+      ]
+    },
+    "pack_validated": {
+      "summary": {
+        "pack_id": "sha256:a2a38d6480ae7aa9c6ad0cda40924f8035e0aa923c9320ce1e8fae6fcae8c258",
+        "kind": "strategy",
+        "name": "parity-pack",
+        "version": "1.0.0",
+        "owner": "operator",
+        "state": "validated",
+        "bytes": 120,
+        "created_at": "2026-11-22T00:00:00Z",
+        "validated_at": "2026-11-22T00:01:00Z"
+      },
+      "object_key": "packs/a2a38d6480ae7aa9c6ad0cda40924f8035e0aa923c9320ce1e8fae6fcae8c258",
+      "sha256": "sha256:a2a38d6480ae7aa9c6ad0cda40924f8035e0aa923c9320ce1e8fae6fcae8c258",
+      "validations": [
+        {
+          "validator": "pack.schema/v1",
+          "valid": true,
+          "created_at": "2026-11-22T00:01:00Z"
+        }
+      ],
+      "events": [
+        {
+          "to": "draft",
+          "action": "create",
+          "created_at": "2026-11-22T00:00:00Z"
+        },
+        {
+          "from": "draft",
+          "to": "validated",
+          "action": "validate",
+          "created_at": "2026-11-22T00:01:00Z"
+        }
+      ]
+    },
+    "pack_frozen": {
+      "summary": {
+        "pack_id": "sha256:a2a38d6480ae7aa9c6ad0cda40924f8035e0aa923c9320ce1e8fae6fcae8c258",
+        "kind": "strategy",
+        "name": "parity-pack",
+        "version": "1.0.0",
+        "owner": "operator",
+        "state": "frozen",
+        "bytes": 120,
+        "created_at": "2026-11-22T00:00:00Z",
+        "validated_at": "2026-11-22T00:01:00Z",
+        "frozen_at": "2026-11-22T00:02:00Z"
+      },
+      "object_key": "packs/a2a38d6480ae7aa9c6ad0cda40924f8035e0aa923c9320ce1e8fae6fcae8c258",
+      "sha256": "sha256:a2a38d6480ae7aa9c6ad0cda40924f8035e0aa923c9320ce1e8fae6fcae8c258",
+      "validations": [
+        {
+          "validator": "pack.schema/v1",
+          "valid": true,
+          "created_at": "2026-11-22T00:01:00Z"
+        }
+      ],
+      "events": [
+        {
+          "to": "draft",
+          "action": "create",
+          "created_at": "2026-11-22T00:00:00Z"
+        },
+        {
+          "from": "draft",
+          "to": "validated",
+          "action": "validate",
+          "created_at": "2026-11-22T00:01:00Z"
+        },
+        {
+          "from": "validated",
+          "to": "frozen",
+          "action": "freeze",
+          "created_at": "2026-11-22T00:02:00Z"
+        }
+      ]
+    },
+    "pack_retired": {
+      "summary": {
+        "pack_id": "sha256:a2a38d6480ae7aa9c6ad0cda40924f8035e0aa923c9320ce1e8fae6fcae8c258",
+        "kind": "strategy",
+        "name": "parity-pack",
+        "version": "1.0.0",
+        "owner": "operator",
+        "state": "retired",
+        "bytes": 120,
+        "created_at": "2026-11-22T00:00:00Z",
+        "validated_at": "2026-11-22T00:01:00Z",
+        "frozen_at": "2026-11-22T00:02:00Z",
+        "retired_at": "2026-11-22T00:03:00Z"
+      },
+      "object_key": "packs/a2a38d6480ae7aa9c6ad0cda40924f8035e0aa923c9320ce1e8fae6fcae8c258",
+      "sha256": "sha256:a2a38d6480ae7aa9c6ad0cda40924f8035e0aa923c9320ce1e8fae6fcae8c258",
+      "validations": [
+        {
+          "validator": "pack.schema/v1",
+          "valid": true,
+          "created_at": "2026-11-22T00:01:00Z"
+        }
+      ],
+      "events": [
+        {
+          "to": "draft",
+          "action": "create",
+          "created_at": "2026-11-22T00:00:00Z"
+        },
+        {
+          "from": "draft",
+          "to": "validated",
+          "action": "validate",
+          "created_at": "2026-11-22T00:01:00Z"
+        },
+        {
+          "from": "validated",
+          "to": "frozen",
+          "action": "freeze",
+          "created_at": "2026-11-22T00:02:00Z"
+        },
+        {
+          "from": "frozen",
+          "to": "retired",
+          "action": "retire",
+          "created_at": "2026-11-22T00:03:00Z"
+        }
+      ]
+    },
+    "signal": {
+      "summary": {
+        "artifact_id": "sha256:fe70ed6c23be2efa8f23b79a9be789e1908bd705b9db9a07aeda66511126baa9",
+        "kind": "signal",
+        "bytes": 52,
+        "created_at": "2026-11-22T00:04:00Z"
+      },
+      "object_key": "artifacts/fe70ed6c23be2efa8f23b79a9be789e1908bd705b9db9a07aeda66511126baa9",
+      "sha256": "sha256:fe70ed6c23be2efa8f23b79a9be789e1908bd705b9db9a07aeda66511126baa9"
+    },
+    "signals": [
+      {
+        "summary": {
+          "artifact_id": "sha256:fe70ed6c23be2efa8f23b79a9be789e1908bd705b9db9a07aeda66511126baa9",
+          "kind": "signal",
+          "bytes": 52,
+          "created_at": "2026-11-22T00:04:00Z"
+        },
+        "object_key": "artifacts/fe70ed6c23be2efa8f23b79a9be789e1908bd705b9db9a07aeda66511126baa9",
+        "sha256": "sha256:fe70ed6c23be2efa8f23b79a9be789e1908bd705b9db9a07aeda66511126baa9"
+      }
+    ],
+    "signal_create": {
+      "schema": "quantrule.signal-response/v1",
+      "artifact": {
+        "summary": {
+          "artifact_id": "sha256:fe70ed6c23be2efa8f23b79a9be789e1908bd705b9db9a07aeda66511126baa9",
+          "kind": "signal",
+          "bytes": 52,
+          "created_at": "2026-11-22T00:04:00Z"
+        },
+        "object_key": "artifacts/fe70ed6c23be2efa8f23b79a9be789e1908bd705b9db9a07aeda66511126baa9",
+        "sha256": "sha256:fe70ed6c23be2efa8f23b79a9be789e1908bd705b9db9a07aeda66511126baa9"
+      },
+      "created": true
+    },
+    "lineage": {
+      "run_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "references": [
+        {
+          "kind": "model_artifact",
+          "id": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+          "hash": "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+        },
+        {
+          "kind": "strategy_pack",
+          "id": "sha256:a2a38d6480ae7aa9c6ad0cda40924f8035e0aa923c9320ce1e8fae6fcae8c258",
+          "hash": "sha256:a2a38d6480ae7aa9c6ad0cda40924f8035e0aa923c9320ce1e8fae6fcae8c258",
+          "pack": {
+            "kind": "strategy",
+            "name": "parity-pack",
+            "version": "1.0.0",
+            "owner": "operator",
+            "state": "frozen"
+          }
+        },
+        {
+          "kind": "signal_artifact",
+          "id": "sha256:fe70ed6c23be2efa8f23b79a9be789e1908bd705b9db9a07aeda66511126baa9",
+          "hash": "sha256:fe70ed6c23be2efa8f23b79a9be789e1908bd705b9db9a07aeda66511126baa9"
+        }
+      ],
+      "recorded_at": "2026-11-22T00:05:00Z"
+    }
   },
   "stage_id": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
   "stage_timeframe": "5m",

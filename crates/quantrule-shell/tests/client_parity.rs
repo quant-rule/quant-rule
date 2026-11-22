@@ -8,6 +8,8 @@
 //!
 //! No test starts a gateway, reads the network, or depends on wall-clock time.
 
+#![recursion_limit = "256"]
+
 mod support;
 
 use serde_json::{Value, json};
@@ -215,6 +217,67 @@ fn shell_view(fixture: &Fixture) -> Value {
     let baseline = command(fixture, &["baseline", "show", "model"]);
     let invalidations = command(fixture, &["invalidation", "list"]);
 
+    let pack_id = api["pack_id"].as_str().expect("the fixture pack id");
+    let signal_id = api["signal_id"].as_str().expect("the fixture signal id");
+    std::fs::create_dir_all(fixture.home()).expect("the fixture home");
+    let pack_file = fixture.home().join("parity-pack.json");
+    std::fs::write(
+        &pack_file,
+        api["pack_artifact"]["body"]
+            .as_str()
+            .expect("the fixture pack body"),
+    )
+    .expect("the pack file");
+    let pack_created = command(
+        fixture,
+        &["pack", "create", pack_file.to_str().expect("the pack path")],
+    );
+    let packs = command(fixture, &["pack", "list"]);
+    let pack = command(fixture, &["pack", "show", pack_id]);
+    let pack_validated = command(fixture, &["pack", "validate", pack_id]);
+    let pack_frozen = command(fixture, &["pack", "freeze", pack_id]);
+    let pack_retired = command(fixture, &["pack", "retire", pack_id]);
+    let pack_download = fixture.home().join("parity-pack-download.json");
+    let fetched_pack = command(
+        fixture,
+        &[
+            "pack",
+            "fetch",
+            pack_id,
+            pack_download.to_str().expect("the pack download path"),
+        ],
+    );
+    let signal_created = command(
+        fixture,
+        &[
+            "signal",
+            "create",
+            "--model-artifact",
+            api["strategy_model_artifact_id"]
+                .as_str()
+                .expect("the fixture model artifact id"),
+            "--data-version",
+            dataset_id,
+            "--config",
+            config_id,
+            "--strategy-pack",
+            pack_id,
+        ],
+    );
+    let signals = command(fixture, &["signal", "list"]);
+    let signal = command(fixture, &["signal", "show", signal_id]);
+    let signal_download = fixture.home().join("parity-signal-download.json");
+    let fetched_signal = command(
+        fixture,
+        &[
+            "signal",
+            "fetch",
+            signal_id,
+            signal_download.to_str().expect("the signal download path"),
+        ],
+    );
+    let lineage = command(fixture, &["run", "lineage", run_id]);
+
     json!({
         "profile": PROFILE,
         "commands": commands,
@@ -259,6 +322,26 @@ fn shell_view(fixture: &Fixture) -> Value {
         "baselines": baselines,
         "baseline": baseline,
         "invalidations": invalidations,
+        "packs": packs,
+        "pack": pack,
+        "pack_created": pack_created,
+        "pack_validated": pack_validated,
+        "pack_frozen": pack_frozen,
+        "pack_retired": pack_retired,
+        "pack_fetch": {
+            "pack_id": fetched_pack["pack_id"],
+            "bytes": fetched_pack["bytes"],
+            "sha256": fetched_pack["sha256"],
+        },
+        "signals": signals,
+        "signal": signal,
+        "signal_created": signal_created,
+        "signal_fetch": {
+            "signal_id": fetched_signal["signal_id"],
+            "bytes": fetched_signal["bytes"],
+            "sha256": fetched_signal["sha256"],
+        },
+        "lineage": lineage,
     })
 }
 
@@ -277,7 +360,7 @@ fn difference(left: &Value, right: &Value) -> Option<String> {
 #[test]
 fn every_command_is_exercised() {
     // The view covers the shared normalized fields; these commands only need
-    // to reach the gateway once, so the union is the full 46-command surface.
+    // to reach the gateway once, so the union is the full 61-command surface.
     let fixture = Fixture::start();
     let api = client_parity_api();
     let dataset_id = api["dataset_id"].as_str().expect("the fixture dataset id");
@@ -386,7 +469,7 @@ fn every_command_is_exercised() {
         ],
     );
 
-    assert_eq!(shell_commands(&fixture).len(), 49);
+    assert_eq!(shell_commands(&fixture).len(), 61);
 }
 
 #[test]
@@ -398,7 +481,31 @@ fn the_shell_view_matches_the_shared_client_parity_view() {
     }
 
     let requests = fixture.requests();
-    assert_eq!(requests.len(), 40, "one request per parity operation");
+    assert_eq!(requests.len(), 52, "one request per parity operation");
+    let snapshot: Value = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/client-parity/view-49.json"
+    ))
+    .expect("the pre-change parity snapshot is JSON");
+    let commands = view["commands"]
+        .as_array()
+        .expect("the view carries the command list");
+    assert_eq!(
+        &commands[..49],
+        snapshot["commands"]
+            .as_array()
+            .expect("the snapshot carries the command list")
+            .as_slice(),
+        "the first 49 commands keep their order"
+    );
+    let observed_requests: Vec<Value> = requests[..40]
+        .iter()
+        .map(|request| json!({ "method": request.method, "path": request.path }))
+        .collect();
+    assert_eq!(
+        Value::Array(observed_requests),
+        snapshot["requests"],
+        "the first 40 requests keep their order, method, and path"
+    );
     let api = client_parity_api();
     let dataset_id = api["dataset_id"].as_str().expect("the fixture dataset id");
     let run_id = api["run_id"].as_str().expect("the fixture run id");
@@ -459,6 +566,36 @@ fn the_shell_view_matches_the_shared_client_parity_view() {
             String::from("/research/baselines"),
             String::from("/research/baselines/model"),
             String::from("/research/invalidations"),
+            String::from("/catalog/packs"),
+            String::from("/catalog/packs"),
+            format!(
+                "/catalog/packs/{}",
+                api["pack_id"].as_str().expect("pack id")
+            ),
+            format!(
+                "/catalog/packs/{}/validate",
+                api["pack_id"].as_str().expect("pack id")
+            ),
+            format!(
+                "/catalog/packs/{}/freeze",
+                api["pack_id"].as_str().expect("pack id")
+            ),
+            format!(
+                "/catalog/packs/{}/retire",
+                api["pack_id"].as_str().expect("pack id")
+            ),
+            format!(
+                "/catalog/packs/{}/bytes",
+                api["pack_id"].as_str().expect("pack id")
+            ),
+            String::from("/signals"),
+            String::from("/signals"),
+            format!("/signals/{}", api["signal_id"].as_str().expect("signal id")),
+            format!(
+                "/signals/{}/bytes",
+                api["signal_id"].as_str().expect("signal id")
+            ),
+            format!("/runs/{run_id}/lineage"),
         ]
     );
     let methods: Vec<&str> = requests
@@ -471,7 +608,8 @@ fn the_shell_view_matches_the_shared_client_parity_view() {
             "GET", "GET", "GET", "GET", "GET", "GET", "GET", "GET", "GET", "GET", "GET", "GET",
             "GET", "GET", "POST", "GET", "GET", "GET", "GET", "GET", "GET", "GET", "GET", "POST",
             "DELETE", "POST", "GET", "GET", "GET", "POST", "GET", "POST", "POST", "GET", "GET",
-            "GET", "POST", "GET", "GET", "GET",
+            "GET", "POST", "GET", "GET", "GET", "POST", "GET", "GET", "POST", "POST", "POST",
+            "GET", "POST", "GET", "GET", "GET", "GET",
         ]
     );
     for request in &requests {

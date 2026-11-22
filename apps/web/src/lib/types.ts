@@ -158,6 +158,38 @@ export interface RunDetail {
   error: string | null;
 }
 
+/** The role one cited object plays in a run. */
+export type ReferenceKind =
+  | "model_artifact"
+  | "strategy_pack"
+  | "signal_artifact"
+  | "portfolio_policy"
+  | "execution_model";
+
+/** The pack metadata a lineage record keeps as provenance. */
+export interface PackProvenance {
+  kind: "strategy" | "portfolio" | "execution";
+  name: string;
+  version: string;
+  owner: string;
+  state: "draft" | "validated" | "frozen" | "retired";
+}
+
+/** One object a run cited, with pack provenance when it names a pack. */
+export interface RunArtifactReference {
+  kind: ReferenceKind;
+  id: Digest;
+  hash: Digest;
+  pack?: PackProvenance;
+}
+
+/** The research artifact references a run recorded. */
+export interface RunLineage {
+  run_id: Digest;
+  references: RunArtifactReference[];
+  recorded_at: string;
+}
+
 /** One timeframe's bars and coverage in an inspection. */
 export interface TimeframeBars {
   timeframe: string;

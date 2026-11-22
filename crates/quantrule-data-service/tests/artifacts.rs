@@ -8,7 +8,7 @@
 mod common;
 
 use axum::body::Body;
-use axum::http::{Request, StatusCode};
+use axum::http::{Request, StatusCode, header};
 use common::{body_bytes, state_with_research_artifacts};
 use quantrule_api::{
     ArtifactKind, ArtifactRecord, ArtifactReferenceCount, CollectArtifactsResponse,
@@ -438,4 +438,189 @@ async fn a_reference_needs_a_known_artifact_and_a_known_consumer_kind() {
         .await
         .expect("response");
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
+async fn register_signal(
+    state: &std::sync::Arc<quantrule_data_service::DataState>,
+    bytes: &[u8],
+) -> ArtifactRecord {
+    let response = router(std::sync::Arc::clone(state))
+        .oneshot(
+            Request::put("/internal/v1/artifacts/signal")
+                .header(PROFILE_HEADER, "default")
+                .body(Body::from(bytes.to_vec()))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::CREATED);
+    serde_json::from_slice(&body_bytes(response).await).expect("record")
+}
+
+#[tokio::test]
+async fn public_signal_routes_list_show_and_fetch_verified_bytes() {
+    let (state, _objects, _packs, _artifacts) = state_with_research_artifacts().await;
+    let bytes = b"{\"schema\":\"quantrule.signal-artifact/v1\",\"rows\":[]}\n";
+    let record = register_signal(&state, bytes).await;
+    let id = record.summary.artifact_id.to_string();
+
+    let response = router(std::sync::Arc::clone(&state))
+        .oneshot(
+            Request::get("/signals")
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let rows: Vec<ArtifactRecord> =
+        serde_json::from_slice(&body_bytes(response).await).expect("list");
+    assert_eq!(rows, vec![record.clone()]);
+
+    let response = router(std::sync::Arc::clone(&state))
+        .oneshot(
+            Request::get(format!("/signals/{id}"))
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let shown: ArtifactRecord = serde_json::from_slice(&body_bytes(response).await).expect("show");
+    assert_eq!(shown, record);
+
+    let response = router(std::sync::Arc::clone(&state))
+        .oneshot(
+            Request::get(format!("/signals/{id}/bytes"))
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let etag = format!("\"{id}\"");
+    assert_eq!(
+        response
+            .headers()
+            .get(header::ETAG)
+            .and_then(|value| value.to_str().ok()),
+        Some(etag.as_str())
+    );
+    assert_eq!(body_bytes(response).await, bytes);
+
+    let response = router(std::sync::Arc::clone(&state))
+        .oneshot(
+            Request::get(format!("/signals/{id}/bytes"))
+                .header(PROFILE_HEADER, "default")
+                .header(header::IF_NONE_MATCH, etag)
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::NOT_MODIFIED);
+    assert!(body_bytes(response).await.is_empty());
+
+    let response = router(std::sync::Arc::clone(&state))
+        .oneshot(
+            Request::get("/signals?limit=1")
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let capped: Vec<ArtifactRecord> =
+        serde_json::from_slice(&body_bytes(response).await).expect("list");
+    assert_eq!(capped.len(), 1);
+
+    let response = router(std::sync::Arc::clone(&state))
+        .oneshot(
+            Request::get("/signals?limit=0")
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        read_error(&body_bytes(response).await).error.code,
+        ErrorCode::ArtifactInvalid
+    );
+
+    let response = router(state)
+        .oneshot(
+            Request::get("/signals")
+                .header(PROFILE_HEADER, "alpha")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let other: Vec<ArtifactRecord> =
+        serde_json::from_slice(&body_bytes(response).await).expect("list");
+    assert!(other.is_empty(), "signal rows are profile-scoped");
+}
+
+#[tokio::test]
+async fn a_public_signal_read_fails_closed_for_an_unknown_id_or_bytes() {
+    let (state, objects, _packs, _artifacts) = state_with_research_artifacts().await;
+    let missing = Digest::sha256(b"missing-signal");
+    let response = router(std::sync::Arc::clone(&state))
+        .oneshot(
+            Request::get(format!("/signals/{missing}"))
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    assert_eq!(
+        read_error(&body_bytes(response).await).error.code,
+        ErrorCode::ArtifactNotFound
+    );
+
+    let response = router(std::sync::Arc::clone(&state))
+        .oneshot(
+            Request::get("/signals/not-a-digest")
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        read_error(&body_bytes(response).await).error.code,
+        ErrorCode::ArtifactInvalid
+    );
+
+    let bytes = b"the original signal";
+    let record = register_signal(&state, bytes).await;
+    let id = record.summary.artifact_id.to_string();
+    objects
+        .store(&record.object_key, b"substituted signal".to_vec())
+        .await
+        .expect("substituted object");
+    let response = router(state)
+        .oneshot(
+            Request::get(format!("/signals/{id}/bytes"))
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(
+        read_error(&body_bytes(response).await).error.code,
+        ErrorCode::Internal
+    );
 }

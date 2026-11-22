@@ -1,7 +1,7 @@
 # Research Artifact Packs and Run v5
 
 - Date: 2026-11-22 (UTC)
-- Status: Strategy, portfolio policy and execution-simulation pack schemas implemented (RA-002, RA-003, RA-004); the run-v5 reference contract and config identity implemented (RA-005); the persistent pack registry, run lineage and artifact retention implemented (RA-006); the signal artifact contract and pure reference computation implemented (RA-007); the stateless strategy service and metadata-only registration implemented (RA-008); run-v5 catalog/worker reachability and the client surface target later work; accepted by [ADR-RA](../../adr/2026-11-22/1082-research-artifact-layer.md)
+- Status: Strategy, portfolio policy and execution-simulation pack schemas implemented (RA-002, RA-003, RA-004); the run-v5 reference contract and config identity implemented (RA-005); the persistent pack registry, run lineage and artifact retention implemented (RA-006); the signal artifact contract and pure reference computation implemented (RA-007); the stateless strategy service and metadata-only registration implemented (RA-008); the additive pack/signal client surface implemented (RA-009); run-v5 catalog/worker reachability remains later work; accepted by [ADR-RA](../../adr/2026-11-22/1082-research-artifact-layer.md)
 - Claim type: Behaviour Claim
 - Related: [Research artifacts](../../architecture/research-artifacts.md), [Run v4](../2026-11-13/run-v4-strategy.md)
 
@@ -253,10 +253,11 @@ stores and serves the pack bytes, RA-007 provides the pure signal computation,
 and the RA-008 strategy service writes the signal artifact and registers its
 catalog row. Run submission, the catalog scan and the worker do not yet resolve
 a v5 config or add the run lineage and `run:<id>` reference. Those integrations
-are later work items; no client command is added here. The current fold
-materializes strategy, execution, commission,
-funding, sizing, drawdown and position limits; `per_trade_risk`, `max_exposure`,
-`rebalance` and `constraints` are retained in `RunV5` but not applied yet.
+are later work items; RA-009 adds the client surface that reads the registry,
+signals and recorded lineage, not the run-v5 submission path. The current fold
+materializes strategy, execution, commission, funding, sizing, drawdown and
+position limits; `per_trade_risk`, `max_exposure`, `rebalance` and `constraints`
+are retained in `RunV5` but not applied yet.
 
 ## 8. Lifecycle and validation
 
@@ -294,18 +295,20 @@ cannot be re-validated and a retired pack is never deleted.
 | `POST` | `/catalog/packs/{id}/validate` | Re-validate a draft |
 | `POST` | `/catalog/packs/{id}/freeze` | Freeze a validated pack |
 | `POST` | `/catalog/packs/{id}/retire` | Retire a frozen pack |
+| `GET` | `/signals`, `/signals/{id}`, `/signals/{id}/bytes` | Public signal metadata and verified bytes |
+| `GET` | `/runs/{id}/lineage` | Public run reference set |
 | `GET` | `/internal/v1/packs/{id}`, `.../bytes` | Service-to-service read |
-
-No shell command and no browser screen is added. The routes take a profile
-header and an identifier, never a client path.
+The shell reaches the pack routes with `pack create/list/show/validate/freeze/
+retire/fetch`; the browser reaches them from the Packs tab. The routes take a
+profile header and an identifier, never a client path.
 
 ### Signal artifacts, lineage and retention
 
 Evidence adds `runs.run_lineage` and `runs.run_lineage_references` (migration
-20): a run's model, strategy, signal, portfolio and execution references by id
-and hash with pack provenance. A repeated set is idempotent; a different set is
-refused. `PUT`/`GET /internal/v1/runs/{id}/lineage` is the run-v5 integration
-seam; no submission or worker path reaches it yet.
+20): a run's references by id and hash with pack provenance. The set is immutable;
+`PUT`/`GET /internal/v1/runs/{id}/lineage` is the write seam and
+`GET /runs/{id}/lineage` the public read. Run submission and the worker do not
+record lineage yet.
 
 The data service adds `catalog.artifacts` and `catalog.artifact_references`
 (migration 8) as the signal-artifact seam. The catalog row is the pre-run signal
@@ -317,12 +320,11 @@ pass collects an unreferenced signal artifact at least 30 days old, writes a
 `catalog.retention_events` tombstone, then deletes an unshared object.
 
 ## 9. Compatibility and clients
-
-- The 49 existing commands and screens are unchanged; RA-006 adds none.
-- Planned additive commands: `pack create/list/show/validate/freeze/retire` and
-  `signal create/list/show/fetch`; a run detail will show the hashes.
+- The 49 commands that existed before RA-009 keep their contract; the surface is now 61.
+- Implemented additive commands: `pack create/list/show/validate/freeze/retire/fetch`,
+  `signal create/list/show/fetch`, and `run lineage`; `run status` is unchanged
+  and the browser run detail adds a lineage block.
 - No client computes a signal or a statistic; the server owns computation.
 
 ## 10. Non-goals
-
 No live trading, broker, OMS, real-time risk, regulatory scope, statistical signal parameter, per-bar network fold or fifth database.

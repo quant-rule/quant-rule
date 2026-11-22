@@ -4,6 +4,7 @@
 //! and renders the contract type the gateway returns. It opens no engine, reads
 //! no local database, and computes no measurement.
 
+mod artifact_commands;
 mod dispatch;
 pub(crate) mod help;
 mod parse;

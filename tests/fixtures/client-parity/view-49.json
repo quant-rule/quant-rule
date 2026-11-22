@@ -1,0 +1,215 @@
+{
+  "commands": [
+    "health",
+    "dataset list",
+    "dataset show",
+    "dataset upload",
+    "config list",
+    "config show",
+    "run submit",
+    "run status",
+    "run list",
+    "run fetch",
+    "run cancel",
+    "stage run model",
+    "stage run strategy",
+    "stage run portfolio",
+    "stage explain",
+    "stage list",
+    "stage show",
+    "stage events",
+    "stage fetch",
+    "stage cancel",
+    "stage delete",
+    "research create",
+    "research submit",
+    "research list",
+    "research show",
+    "research compare",
+    "research decide",
+    "baseline list",
+    "baseline show",
+    "invalidation list",
+    "inspect candles",
+    "inspect timeframes",
+    "inspect events",
+    "verify",
+    "profile list",
+    "profile create",
+    "profile use",
+    "simulation list",
+    "simulation create",
+    "simulation windows",
+    "simulation mark",
+    "simulation marks",
+    "simulation oracle",
+    "simulation check",
+    "simulation decide",
+    "history list",
+    "history archive",
+    "history erase",
+    "help"
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/health"
+    },
+    {
+      "method": "GET",
+      "path": "/catalog/datasets"
+    },
+    {
+      "method": "GET",
+      "path": "/catalog/datasets/sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    },
+    {
+      "method": "GET",
+      "path": "/catalog/configs"
+    },
+    {
+      "method": "GET",
+      "path": "/catalog/configs"
+    },
+    {
+      "method": "GET",
+      "path": "/runs"
+    },
+    {
+      "method": "GET",
+      "path": "/runs/sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    {
+      "method": "GET",
+      "path": "/profiles"
+    },
+    {
+      "method": "GET",
+      "path": "/inspect/candles"
+    },
+    {
+      "method": "GET",
+      "path": "/inspect/timeframes"
+    },
+    {
+      "method": "GET",
+      "path": "/inspect/events"
+    },
+    {
+      "method": "GET",
+      "path": "/runs/sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/digest"
+    },
+    {
+      "method": "GET",
+      "path": "/runs/sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    {
+      "method": "GET",
+      "path": "/runs/sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/artifacts/results.json"
+    },
+    {
+      "method": "POST",
+      "path": "/stages/model/runs"
+    },
+    {
+      "method": "GET",
+      "path": "/stages/runs"
+    },
+    {
+      "method": "GET",
+      "path": "/stages/runs/sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    },
+    {
+      "method": "GET",
+      "path": "/stages/runs/sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    },
+    {
+      "method": "GET",
+      "path": "/stages/runs/sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff/artifacts/events.csv"
+    },
+    {
+      "method": "GET",
+      "path": "/stages/runs/sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff/artifacts/report.json"
+    },
+    {
+      "method": "GET",
+      "path": "/stages/runs/sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    },
+    {
+      "method": "GET",
+      "path": "/stages/runs/sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff/artifacts/events.csv"
+    },
+    {
+      "method": "GET",
+      "path": "/stages/runs/sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff/artifacts/report.json"
+    },
+    {
+      "method": "POST",
+      "path": "/stages/runs/sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff/cancel"
+    },
+    {
+      "method": "DELETE",
+      "path": "/stages/runs/sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    },
+    {
+      "method": "POST",
+      "path": "/stages/strategy/runs"
+    },
+    {
+      "method": "GET",
+      "path": "/stages/runs/sha256:8888888888888888888888888888888888888888888888888888888888888888"
+    },
+    {
+      "method": "GET",
+      "path": "/stages/runs/sha256:8888888888888888888888888888888888888888888888888888888888888888"
+    },
+    {
+      "method": "GET",
+      "path": "/stages/runs/sha256:8888888888888888888888888888888888888888888888888888888888888888/artifacts/decisions.ndjson"
+    },
+    {
+      "method": "POST",
+      "path": "/stages/portfolio/runs"
+    },
+    {
+      "method": "GET",
+      "path": "/stages/runs/sha256:6666666666666666666666666666666666666666666666666666666666666666"
+    },
+    {
+      "method": "POST",
+      "path": "/research/runs"
+    },
+    {
+      "method": "POST",
+      "path": "/research/runs/MODEL-2026-11-17-01/submit"
+    },
+    {
+      "method": "GET",
+      "path": "/research/runs"
+    },
+    {
+      "method": "GET",
+      "path": "/research/runs/MODEL-2026-11-17-01"
+    },
+    {
+      "method": "GET",
+      "path": "/research/runs/MODEL-2026-11-17-01/compare"
+    },
+    {
+      "method": "POST",
+      "path": "/research/runs/MODEL-2026-11-17-01/decision"
+    },
+    {
+      "method": "GET",
+      "path": "/research/baselines"
+    },
+    {
+      "method": "GET",
+      "path": "/research/baselines/model"
+    },
+    {
+      "method": "GET",
+      "path": "/research/invalidations"
+    }
+  ]
+}

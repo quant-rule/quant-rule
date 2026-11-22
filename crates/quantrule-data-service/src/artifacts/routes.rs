@@ -1,9 +1,11 @@
 //! The computed-artifact routes.
 //!
-//! These routes are service-to-service only. The strategy service registers an
-//! artifact whose bytes it wrote itself; this surface owns the metadata-only
-//! registration, the compatibility body upload, references and retention. No
-//! client path and no shell command reaches them.
+//! The strategy service registers an artifact whose bytes it wrote itself; this
+//! surface owns the metadata-only registration, the compatibility body upload,
+//! references and retention. The internal `/internal/v1/artifacts` routes stay
+//! service-to-service. The public `/signals` aliases expose only the fixed
+//! signal kind to the clients: metadata for a list and a show, and verified
+//! bytes for a download.
 
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
@@ -38,6 +40,9 @@ const MAX_ARTIFACT_BYTES: usize = 64 * 1024 * 1024;
 /// The artifact routes before state is attached.
 pub fn routes() -> Router<Arc<DataState>> {
     Router::new()
+        .route("/signals", get(list_signals))
+        .route("/signals/{id}", get(get_signal))
+        .route("/signals/{id}/bytes", get(get_signal_bytes))
         .route("/internal/v1/artifacts", get(list_artifacts))
         .route(
             "/internal/v1/artifacts/{kind}",
@@ -250,6 +255,135 @@ async fn list_artifacts(
     Ok(Json(rows))
 }
 
+/// One optional signal list cap.
+#[derive(Debug, Deserialize)]
+struct SignalListQuery {
+    limit: Option<usize>,
+}
+
+/// List the profile's signal artifacts.
+///
+/// The public route fixes the kind, so a client cannot use it to browse another
+/// computed-artifact family. An optional limit caps the id-ordered list.
+async fn list_signals(
+    State(state): State<Arc<DataState>>,
+    headers: HeaderMap,
+    query: Result<Query<SignalListQuery>, QueryRejection>,
+) -> Result<Json<Vec<ArtifactRecord>>, ApiFailure> {
+    let profile = request_profile(&headers)?;
+    let Query(query) =
+        query.map_err(|_| failure(ErrorCode::ArtifactInvalid, "the signal filter is invalid"))?;
+    if let Some(limit) = query.limit
+        && !(1..=200).contains(&limit)
+    {
+        return Err(failure(
+            ErrorCode::ArtifactInvalid,
+            "the signal limit must be between 1 and 200",
+        ));
+    }
+    let mut rows = catalog(&state)?
+        .list(profile, ArtifactKind::Signal)
+        .await
+        .map_err(store_failure)?;
+    if let Some(limit) = query.limit {
+        rows.truncate(limit);
+    }
+    Ok(Json(rows))
+}
+
+/// Read one signal's metadata.
+async fn get_signal(
+    State(state): State<Arc<DataState>>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> Result<Json<ArtifactRecord>, ApiFailure> {
+    let profile = request_profile(&headers)?;
+    let id = parse_id(&id)?;
+    let record = find_artifact(&state, profile, ArtifactKind::Signal, &id).await?;
+    Ok(Json(record))
+}
+
+/// Read one signal's bytes after verifying the stored hash.
+async fn get_signal_bytes(
+    State(state): State<Arc<DataState>>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> Result<Response, ApiFailure> {
+    let profile = request_profile(&headers)?;
+    let id = parse_id(&id)?;
+    let record = find_artifact(&state, profile, ArtifactKind::Signal, &id).await?;
+    let bytes = stored_bytes(&state, &record, &id).await?;
+    let etag = format!("\"{id}\"");
+    if if_none_match(&headers, &etag) {
+        return Ok((StatusCode::NOT_MODIFIED, [(header::ETAG, etag)]).into_response());
+    }
+    Ok((
+        StatusCode::OK,
+        [
+            (header::CONTENT_TYPE, "application/octet-stream".to_owned()),
+            (header::ETAG, etag),
+        ],
+        bytes,
+    )
+        .into_response())
+}
+
+/// Resolve one artifact in a profile or return the public not-found envelope.
+async fn find_artifact(
+    state: &DataState,
+    profile: quantrule_api::ProfileId,
+    kind: ArtifactKind,
+    id: &str,
+) -> Result<ArtifactRecord, ApiFailure> {
+    catalog(state)?
+        .get(profile, kind, id.to_owned())
+        .await
+        .map_err(store_failure)?
+        .ok_or_else(|| {
+            failure(
+                ErrorCode::ArtifactNotFound,
+                format!("artifact {id} is unknown"),
+            )
+        })
+}
+
+/// Read an artifact object and verify it still hashes to its content id.
+async fn stored_bytes(
+    state: &DataState,
+    record: &ArtifactRecord,
+    id: &str,
+) -> Result<Vec<u8>, ApiFailure> {
+    let objects = state
+        .objects
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no object store is configured"))?;
+    let bytes = objects
+        .get(&record.object_key)
+        .await
+        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
+    let expected =
+        Digest::parse(id).map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
+    if Digest::sha256(&bytes) != expected {
+        return Err(failure(
+            ErrorCode::Internal,
+            "the stored artifact bytes do not match the catalog",
+        ));
+    }
+    Ok(bytes)
+}
+
+fn if_none_match(headers: &HeaderMap, etag: &str) -> bool {
+    headers
+        .get(header::IF_NONE_MATCH)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| {
+            value.split(',').any(|candidate| {
+                let candidate = candidate.trim();
+                candidate == "*" || candidate == etag
+            })
+        })
+}
+
 async fn get_artifact(
     State(state): State<Arc<DataState>>,
     headers: HeaderMap,
@@ -258,16 +392,7 @@ async fn get_artifact(
     let profile = request_profile(&headers)?;
     let kind = parse_kind(&kind)?;
     let id = parse_id(&id)?;
-    let record = catalog(&state)?
-        .get(profile, kind, id.clone())
-        .await
-        .map_err(store_failure)?
-        .ok_or_else(|| {
-            failure(
-                ErrorCode::ArtifactNotFound,
-                format!("artifact {id} is unknown"),
-            )
-        })?;
+    let record = find_artifact(&state, profile, kind, &id).await?;
     Ok(Json(record))
 }
 
@@ -279,32 +404,8 @@ async fn get_artifact_bytes(
     let profile = request_profile(&headers)?;
     let kind = parse_kind(&kind)?;
     let id = parse_id(&id)?;
-    let record = catalog(&state)?
-        .get(profile, kind, id.clone())
-        .await
-        .map_err(store_failure)?
-        .ok_or_else(|| {
-            failure(
-                ErrorCode::ArtifactNotFound,
-                format!("artifact {id} is unknown"),
-            )
-        })?;
-    let objects = state
-        .objects
-        .as_ref()
-        .ok_or_else(|| failure(ErrorCode::Internal, "no object store is configured"))?;
-    let bytes = objects
-        .get(&record.object_key)
-        .await
-        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
-    let expected =
-        Digest::parse(&id).map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
-    if Digest::sha256(&bytes) != expected {
-        return Err(failure(
-            ErrorCode::Internal,
-            "the stored artifact bytes do not match the catalog",
-        ));
-    }
+    let record = find_artifact(&state, profile, kind, &id).await?;
+    let bytes = stored_bytes(&state, &record, &id).await?;
     let etag = format!("\"{id}\"");
     Ok((
         StatusCode::OK,

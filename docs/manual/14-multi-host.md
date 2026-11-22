@@ -4,7 +4,9 @@
 - Audience: operator placing the six services on more than one Linux host
 - Boundary: the v2 descriptor places six services; the seventh `strategy`
   service is single-host Compose only, and its v3 placement is HA-012. The
-  gateway accepts an absent `QR_STRATEGY_URL`, so v2 still starts.
+  gateway accepts an absent `QR_STRATEGY_URL`, so v2 still starts. Pack
+  lifecycle, signal reads, and run lineage work on v2; `signal create` answers
+  `503 service.unavailable` until the strategy service is deployed.
 
 ## Goal
 
@@ -101,6 +103,7 @@ availability.
 | Gateway `degraded` | An upstream is down | Start the missing service; `/ready` names it |
 | Run stays `queued` | No backtest worker is consuming | Start a worker on the compute host |
 | `simulation.locked` on decide | Another replica already recorded the terminal decision | Read the simulation; the first decision is final |
+| `service.unavailable` on signal create | The v2 profile has no strategy service | Read or download an existing signal; deploy the strategy service for a new computation |
 | 401 | The gateway token is missing or wrong | Enter the token in the client |
 | Port already allocated | Another stack owns `8080` | Stop the other stack; do not change the descriptor to hide the conflict |
 

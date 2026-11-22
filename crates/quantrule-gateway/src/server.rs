@@ -1,16 +1,19 @@
 //! The gateway HTTP surface.
 //!
 //! The gateway serves `/health`, `/version`, and profiles. The data, model,
-//! evidence, and simulation surfaces are proxied: `/catalog/*`, `/datasets/*`,
-//! `/inspect/*`, `/model/*`, `/runs/*`, `/stages/*`, `/hypotheses/*`,
-//! `/research/*`, `/operations`, and `/simulation/*` are forwarded to their
-//! service with the validated profile header, the method, the path, the query,
-//! and a streamed body. The one rewritten route is `/inspect/events`: inspection
-//! computes a model, so the gateway forwards it to the model service's internal
-//! event-batch route instead of the data service. The gateway has no dataset,
-//! config, inspection, model, run, stage, research, operations, or simulation
-//! handler. `/stages` is a distinct prefix from `/runs`: a diagnostic stage path
-//! is forwarded unchanged and is never rewritten into a run path.
+//! evidence, simulation, and strategy surfaces are proxied: `/catalog/*`,
+//! `/datasets/*`, `/inspect/*`, `/model/*`, `/runs/*`, `/signals`,
+//! `/stages/*`, `/hypotheses/*`, `/research/*`, `/operations`, and
+//! `/simulation/*` are forwarded to their service with the validated profile
+//! header, the method, the path, the query, and a streamed body. The one
+//! rewritten route is `/inspect/events`: inspection computes a model, so the
+//! gateway forwards it to the model service's internal event-batch route instead
+//! of the data service. `/signals` splits by method: a read goes to data, and a
+//! create is rewritten to the strategy service's internal signal route.
+//! The gateway has no dataset, config, inspection, model, run, stage, research,
+//! operations, signal, or simulation handler. `/stages` is a distinct prefix from
+//! `/runs`: a diagnostic stage path is forwarded unchanged and is never
+//! rewritten into a run path.
 //!
 //! Every API route passes through the bearer seam when `QR_BEARER_TOKEN` is set;
 //! the static client is served by the fallback outside that layer.
@@ -23,7 +26,7 @@ use axum::extract::State;
 use axum::http::{HeaderMap, Method, Request, StatusCode, Uri, header};
 use axum::middleware;
 use axum::response::{IntoResponse, Response};
-use axum::routing::{any, get};
+use axum::routing::{any, get, post};
 use axum::{Json, Router};
 use quantrule_api::{
     ErrorCode, ErrorEnvelope, HealthReport, PROFILE_HEADER, ProfileId, ServiceHealth, ServiceState,
@@ -141,21 +144,25 @@ impl AppState {
     }
 }
 
-/// A streaming upload/download or a model compute gets a transfer deadline.
-const LONG_REQUEST_TIMEOUT: Duration = Duration::from_secs(15 * 60);
+/// A streaming upload/download, a model compute, or a signal create gets a
+/// transfer deadline.
+pub(crate) const LONG_REQUEST_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 
 /// The deadline for one proxied request.
 ///
-/// A candle download, an artifact download, a dataset upload, or a model
-/// compute can outlive the default read deadline; every other call keeps it.
-fn proxy_deadline(method: &Method, path: &str) -> Duration {
+/// A candle download, an artifact download, a dataset upload, a model compute,
+/// a signal create, or a signal-byte download can outlive the default read
+/// deadline; every other call keeps it.
+pub(crate) fn proxy_deadline(method: &Method, path: &str) -> Duration {
     let long = (method == Method::POST
         && matches!(
             path,
-            "/catalog/datasets" | "/catalog/datasets/tolerant" | "/model/compute"
+            "/catalog/datasets" | "/catalog/datasets/tolerant" | "/model/compute" | "/signals"
         ))
         || (method == Method::GET
-            && (path.starts_with("/datasets/") || path.contains("/artifacts/")));
+            && (path.starts_with("/datasets/")
+                || path.contains("/artifacts/")
+                || (path.starts_with("/signals/") && path.ends_with("/bytes"))));
     if long {
         LONG_REQUEST_TIMEOUT
     } else {
@@ -212,6 +219,7 @@ fn routes() -> Router<Arc<AppState>> {
         .route("/runs/{id}/archive", any(proxy_evidence))
         .route("/runs/{id}/cancel", any(proxy_evidence))
         .route("/runs/{id}/digest", any(proxy_evidence))
+        .route("/runs/{id}/lineage", any(proxy_evidence))
         .route("/runs/{id}/artifacts/{*name}", any(proxy_evidence))
         .route("/hypotheses", any(proxy_evidence))
         .route("/hypotheses/{*rest}", any(proxy_evidence))
@@ -224,6 +232,12 @@ fn routes() -> Router<Arc<AppState>> {
         .route("/catalog", any(proxy_data))
         .route("/catalog/{*rest}", any(proxy_data))
         .route("/datasets/{*rest}", any(proxy_data))
+        .route(
+            "/signals",
+            post(crate::signal_proxy::proxy_signal_create).get(proxy_data),
+        )
+        .route("/signals/{id}", get(proxy_data))
+        .route("/signals/{id}/bytes", get(proxy_data))
         .route("/inspect/events", get(proxy_events))
         .route("/inspect/{*rest}", any(proxy_data))
         .route("/model", any(proxy_model))
@@ -461,7 +475,7 @@ async fn forward_data(
 
 /// A path the data proxy owns. `/internal/v1` is never in this set.
 fn data_path_allowed(path: &str) -> bool {
-    const PREFIXES: [&str; 3] = ["/catalog", "/datasets", "/inspect"];
+    const PREFIXES: [&str; 4] = ["/catalog", "/datasets", "/inspect", "/signals"];
     let lowered = path.to_ascii_lowercase();
     if lowered.contains("%2e") || lowered.contains("%2f") || lowered.contains("%5c") {
         return false;
@@ -794,7 +808,7 @@ fn artifact_name(path: &str) -> Option<&str> {
 
 /// The request headers the gateway forwards. Everything else, including a
 /// client-set profile, host, authorization, and internal headers, is dropped.
-fn proxy_request_headers(source: &HeaderMap, profile: &ProfileId) -> HeaderMap {
+pub(crate) fn proxy_request_headers(source: &HeaderMap, profile: &ProfileId) -> HeaderMap {
     const ALLOWED: [&str; 4] = ["content-type", "accept", "if-none-match", "content-length"];
     let mut headers = HeaderMap::new();
     for name in ALLOWED {
@@ -812,7 +826,7 @@ fn proxy_request_headers(source: &HeaderMap, profile: &ProfileId) -> HeaderMap {
 }
 
 /// The response headers the gateway forwards. A hop-by-hop header is dropped.
-fn proxy_response(response: Response<axum::body::Body>) -> Response {
+pub(crate) fn proxy_response(response: Response<axum::body::Body>) -> Response {
     const ALLOWED: [&str; 5] = [
         "content-type",
         "etag",
@@ -869,6 +883,19 @@ mod tests {
         assert_eq!(
             proxy_deadline(&Method::GET, "/stages/runs/abc/artifacts/results.json"),
             LONG_REQUEST_TIMEOUT
+        );
+        assert_eq!(
+            proxy_deadline(&Method::GET, "/signals/sha256:abc/bytes"),
+            LONG_REQUEST_TIMEOUT
+        );
+        assert_eq!(
+            proxy_deadline(&Method::POST, "/signals"),
+            LONG_REQUEST_TIMEOUT
+        );
+        assert_eq!(proxy_deadline(&Method::GET, "/signals"), REQUEST_TIMEOUT);
+        assert_eq!(
+            proxy_deadline(&Method::GET, "/signals/sha256:abc"),
+            REQUEST_TIMEOUT
         );
         assert_eq!(proxy_deadline(&Method::GET, "/runs"), REQUEST_TIMEOUT);
         assert_eq!(proxy_deadline(&Method::POST, "/runs"), REQUEST_TIMEOUT);

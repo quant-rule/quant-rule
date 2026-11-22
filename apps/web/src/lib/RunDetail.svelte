@@ -2,8 +2,16 @@
   import { errorText } from "./api";
   import { downloadArtifact, saveArtifact } from "./artifacts";
   import { verifyRun } from "./inspect";
+  import { fetchRunLineage } from "./lineage";
   import { bytes, elapsed, isActive, shortId } from "./runs";
-  import type { ArtifactRef, RunDetail, RunDigest, RunState, StageStatus } from "./types";
+  import type {
+    ArtifactRef,
+    RunDetail,
+    RunDigest,
+    RunLineage,
+    RunState,
+    StageStatus,
+  } from "./types";
 
   let {
     detail,
@@ -25,6 +33,44 @@
   let downloading = $state<string | null>(null);
   let downloadError = $state<string | null>(null);
   let saved = $state<string | null>(null);
+  let lineage = $state<RunLineage | null>(null);
+  let lineageLoaded = $state(false);
+  let lineageError = $state<string | null>(null);
+  let lineageRunId: string | null = null;
+
+  // A run record is the run; its lineage is a separate read. A recorded absence
+  // is an empty state, so it must not turn the run into an error.
+  $effect(() => {
+    const runId = detail?.run_id ?? null;
+    if (runId === null) {
+      lineageRunId = null;
+      lineage = null;
+      lineageLoaded = false;
+      lineageError = null;
+      return;
+    }
+    if (lineageRunId === runId) {
+      return;
+    }
+    lineageRunId = runId;
+    lineage = null;
+    lineageLoaded = false;
+    lineageError = null;
+    void (async () => {
+      try {
+        const value = await fetchRunLineage(runId);
+        if (lineageRunId === runId) {
+          lineage = value;
+          lineageLoaded = true;
+        }
+      } catch (error) {
+        if (lineageRunId === runId) {
+          lineageError = errorText(error);
+          lineageLoaded = true;
+        }
+      }
+    })();
+  });
 
   async function copy(): Promise<void> {
     if (!detail?.digest) {
@@ -181,6 +227,47 @@
         </tr>
       </tbody>
     </table>
+
+    <div class="stack" data-testid="run-lineage">
+      <div class="row">
+        <h3>Lineage</h3>
+        <span class="badge">recorded references · not evidence</span>
+      </div>
+      {#if lineageError}
+        <div class="notice error" role="alert">{lineageError}</div>
+      {:else if !lineageLoaded}
+        <div class="notice small">Loading lineage…</div>
+      {:else if lineage === null}
+        <div class="notice">No recorded lineage</div>
+      {:else}
+        <p class="muted small">
+          Recorded {lineage.recorded_at}. The set is immutable; a later pack retire
+          does not rewrite what this run cited.
+        </p>
+        <table>
+          <thead>
+            <tr><th>Kind</th><th>Id</th><th>Hash</th><th>Pack</th></tr>
+          </thead>
+          <tbody>
+            {#each lineage.references as reference}
+              <tr>
+                <td>{reference.kind}</td>
+                <td class="mono" title={reference.id}>{shortId(reference.id)}</td>
+                <td class="mono" title={reference.hash}>{shortId(reference.hash)}</td>
+                <td>
+                  {#if reference.pack}
+                    {reference.pack.name} {reference.pack.version}
+                    <span class="badge">{reference.pack.state}</span>
+                  {:else}
+                    none
+                  {/if}
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      {/if}
+    </div>
 
     {#if detail.digest}
       <div class="row">

@@ -248,13 +248,28 @@ browser control for every command; the table below is the command index.
 | `history archive` | History | Archive one run, research record, simulation, or dataset |
 | `history erase` | History | Erase one archived record after typed confirmation |
 | `help` | Shell | Show the command map and contracts |
+| `pack create` | Research artifacts | Register a local pack document and print its record |
+| `pack list` | Research artifacts | List packs with an optional kind and lifecycle filter |
+| `pack show` | Research artifacts | Read one pack record and its lifecycle history |
+| `pack validate` | Research artifacts | Re-validate one draft pack |
+| `pack freeze` | Research artifacts | Freeze one validated pack |
+| `pack retire` | Research artifacts | Retire one frozen pack |
+| `pack fetch` | Research artifacts | Download one pack's verified bytes |
+| `signal create` | Research artifacts | Compute a signal from a frozen model artifact and strategy pack |
+| `signal list` | Research artifacts | List signal metadata in the active profile |
+| `signal show` | Research artifacts | Read one signal artifact record |
+| `signal fetch` | Research artifacts | Download one signal's verified document |
+| `run lineage` | Research artifacts | Read the references a run recorded |
 
 ### Stage, research, and operations surface
 
 The stage and research surface is implemented: diagnostic stage runs, the
 coupled `run submit --model-artifact` path, and the research records, baselines,
 and invalidations. The operations surface adds `GET /operations` for retention
-and cleanup status and the browser Operations screen. The contract is
+and cleanup status and the browser Operations screen. The research artifact
+surface adds pack lifecycle, signal metadata and verified downloads, and run
+lineage in both clients; the browser reaches them on the Packs screen and the
+run detail. The contract is
 [`docs/architecture/stage-surface.md`](docs/architecture/stage-surface.md).
 
 ## Principles
