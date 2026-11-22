@@ -10,8 +10,8 @@ document states which schema and run version it applies to.
 
 | Contract | Status | Path |
 |---|---|---|
-| Run v4 and the strategy | Current; `run v4` binds the strategy to the run; data schema 3, model schema 4, `execution v2`, `portfolio v2` | `docs/config/2026-11-13/run-v4-strategy.md` |
-| Research packs and run v5 | Strategy, portfolio policy and execution-simulation packs implemented (RA-002–RA-004); signal artifacts and run v5 target the next release | `docs/config/2026-11-22/research-artifact-packs.md` |
+| Run v4 and the strategy | Current for a file-based full run; `run v4` binds the strategy to the run; data schema 3, model schema 4, `execution v2`, `portfolio v2` | `docs/config/2026-11-13/run-v4-strategy.md` |
+| Research packs and run v5 | Strategy, portfolio policy and execution-simulation packs and the run-v5 reference contract implemented (RA-002–RA-005); signal computation, the persistent registry and the client surface target the next release | `docs/config/2026-11-22/research-artifact-packs.md` |
 | Deployment v3 | Target for the next release; Swarm HA descriptor, four databases, ingress and stateful placement | `docs/config/2026-11-22/deploy-v3.md` |
 | Four logical databases | Current for local Compose and v2 multi-host; owner/app roles, per-service app URLs, one-shot owner migration jobs | `docs/config/2026-11-22/four-databases.md` |
 | Schema migrations | Current; forward-only ledgers, checksum pin, expand/contract and rollback runbook | `docs/architecture/migrations.md` |
@@ -33,7 +33,11 @@ document states which schema and run version it applies to.
 | Strategy position excursions | Current; entry price/ATR, unrealized, MFE/MAE, giveback exit | `docs/config/2026-11-10/strategy-position-excursions.md` |
 | Improvement run contract | Current; `quantrule.improvement-run/v3` is current, v2 is historical | `docs/workflows/run-contract.md` |
 
-A current run uses `quantrule.run/v4`, which references the strategy alongside
+A file-based run uses `quantrule.run/v4`, which references the strategy alongside
 the four engine files. `quantrule.run/v3` remains accepted for a model-only run
-and must not carry a `strategy` field. `analytics` is still rejected; the
+and must not carry a `strategy` field. `quantrule.run/v5` is additive: it names
+the strategy pack, portfolio policy, execution-simulation pack, and the optional
+model and signal artifacts by content hash. A v5 config is loaded through a
+supplied reference resolver until the persistent registry lands; v3 and v4 keep
+their existing loaders and config hashes. `analytics` is still rejected; the
 qualification criteria remain explicit command arguments.

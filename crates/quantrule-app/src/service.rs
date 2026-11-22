@@ -23,6 +23,7 @@ use crate::csv::{SourceError, TolerantWindow};
 use crate::dataset::{Dataset, DatasetSummary};
 use crate::error::AppError;
 use crate::export;
+use crate::pack::RunReferenceResolver;
 use crate::pipeline::{self, WindowMode};
 use crate::stages::analytics::{self, AnalyticsOutcome, AnalyticsRequest, AnalyticsRunError};
 use crate::stages::backtest::{self, BacktestOutcome, BacktestRequest, BacktestRunError};
@@ -124,6 +125,24 @@ impl AppService {
     /// inconsistent with another file.
     pub fn load_run(&self, path: impl AsRef<Path>) -> Result<RunConfig, AppError> {
         Ok(RunConfig::load(path.as_ref())?)
+    }
+
+    /// Loads one run configuration, resolving v5 pack and artifact references.
+    ///
+    /// This is the use-case seam for a caller that holds the referenced bytes,
+    /// such as a config bundle or a test. The persistent registry that supplies
+    /// them in production is a later work item.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`AppError::Config`] when any file is missing, malformed, or
+    /// inconsistent, or when a v5 reference is missing or mismatched.
+    pub fn load_run_with(
+        &self,
+        path: impl AsRef<Path>,
+        references: &dyn RunReferenceResolver,
+    ) -> Result<RunConfig, AppError> {
+        Ok(RunConfig::load_with(path.as_ref(), references)?)
     }
 
     /// Loads one run and returns its validated summary.

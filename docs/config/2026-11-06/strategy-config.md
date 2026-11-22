@@ -19,8 +19,10 @@ reads the published model bars and writes decisions; execution and portfolio run
 in the same submitted pipeline. The research process is
 [`strategy-research.md`](../../workflows/strategy-research.md).
 
-A full run uses `quantrule.run/v4` and names `strategy.json` alongside the four
-engine files. `quantrule.run/v3` remains accepted for a model-only run and
+A file-based full run uses `quantrule.run/v4` and names `strategy.json` alongside
+the four engine files. A `quantrule.run/v5` run references a strategy pack whose
+payload carries the same strategy fields; the pack is validated by the same
+engine parser. `quantrule.run/v3` remains accepted for a model-only run and
 rejects a `strategy` field. The strategy file is not a separate command.
 
 ## 2. Schema
@@ -177,7 +179,10 @@ quantrule run fetch <run_id> <dir>
 ```
 
 `run submit` accepts a valid `quantrule.run/v4` config and returns the `run_id`.
-The run's strategy stage writes `<out>/strategy/` into the artifact set:
+A `quantrule.run/v5` config is validated through a supplied reference resolver
+until the persistent registry lands; the gateway submission path accepts it in a
+later release. The run's strategy stage writes `<out>/strategy/` into the
+artifact set:
 
 | File | Contents |
 |---|---|

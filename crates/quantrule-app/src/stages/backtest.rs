@@ -634,7 +634,7 @@ fn manifest_bytes(
     strategy_config_id: &str,
     stages: &[StageInfo],
 ) -> Result<Vec<u8>, BacktestRunError> {
-    let value = json!({
+    let mut value = json!({
         "schema": "quantrule.backtest-manifest/v1",
         "run": config.name,
         "data_version": config.data.data_version,
@@ -654,6 +654,9 @@ fn manifest_bytes(
             "provenance_hash": stage.hash,
         })).collect::<Vec<Value>>(),
     });
+    if let Some(references) = config.references_provenance() {
+        value["references"] = references;
+    }
     let mut bytes = serde_json::to_vec(&value).map_err(BacktestRunError::Json)?;
     bytes.push(b'\n');
     Ok(bytes)
@@ -663,7 +666,7 @@ fn backtest_provenance_bytes(
     config: &RunConfig,
     stages: &[StageInfo],
 ) -> Result<Vec<u8>, BacktestRunError> {
-    let value = json!({
+    let mut value = json!({
         "schema": "quantrule.stage-provenance/v1",
         "stage": "backtest",
         "artifact": "backtest",
@@ -684,6 +687,9 @@ fn backtest_provenance_bytes(
         },
         "artifacts": ["manifest.json", "model", "strategy", "execution", "portfolio", "provenance.json"],
     });
+    if let Some(references) = config.references_provenance() {
+        value["references"] = references;
+    }
     let mut bytes = serde_json::to_vec(&value).map_err(BacktestRunError::Json)?;
     bytes.push(b'\n');
     Ok(bytes)

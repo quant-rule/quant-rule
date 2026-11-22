@@ -246,12 +246,15 @@ mod tests {
         let value: Value = serde_json::from_str(&run_text).expect("run json");
         let mut files = BTreeMap::from([("run.json".to_owned(), run_text)]);
         let pairs = [
-            ("data", &config.paths.data),
-            ("model", &config.paths.model),
-            ("execution", &config.paths.execution),
-            ("portfolio", &config.paths.portfolio),
+            ("data", Some(&config.paths.data)),
+            ("model", Some(&config.paths.model)),
+            ("execution", config.paths.execution.as_ref()),
+            ("portfolio", config.paths.portfolio.as_ref()),
         ];
         for (key, path) in pairs {
+            let Some(path) = path else {
+                continue;
+            };
             let relative = value
                 .get(key)
                 .and_then(Value::as_str)
