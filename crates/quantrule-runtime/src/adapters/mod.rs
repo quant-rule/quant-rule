@@ -110,18 +110,14 @@ pub trait QueueConsumer: Send + Sync {
     /// Which implementation this is.
     fn backend(&self) -> Backend;
 
-    /// Consume one queue bound to `keys` until the handler fails or the stream
-    /// ends.
+    /// Consume one queue until the handler fails or the stream ends.
     ///
-    /// The adapter acknowledges a successful handler and negatively acknowledges
-    /// a failed one with immediate requeue. A handler that wants backoff holds
-    /// the delivery and retries in place.
-    fn consume(
-        &self,
-        queue: &str,
-        keys: &[&str],
-        handler: MessageHandler,
-    ) -> BoxFuture<Result<(), QueueError>>;
+    /// The adapter declares and binds the queue's routing keys from the queue
+    /// contract; the caller names only the generated queue. The adapter
+    /// acknowledges a successful handler and negatively acknowledges a failed
+    /// one with immediate requeue. A handler that wants backoff holds the
+    /// delivery and retries in place.
+    fn consume(&self, queue: &str, handler: MessageHandler) -> BoxFuture<Result<(), QueueError>>;
 }
 
 /// A content-addressed object store.

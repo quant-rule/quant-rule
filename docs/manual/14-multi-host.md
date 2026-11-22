@@ -48,6 +48,13 @@ Each host needs only the files for the services it runs. The image is already
 loaded; the Compose files use `network_mode: host` and the env file's
 `QR_BIND_IP`/`QR_BIND_PORT`.
 
+The rendered service env files carry `QR_QUEUE_GENERATION=1`; every queue name
+ends in `.g1`. The work queues are quorum with a delivery limit and a dead-letter
+queue. A release that changes the topology uses a new generation: stop new
+submissions, drain the old generation with its consumers, stop them, then unbind
+or delete the empty queues before the new generation publishes. Export the broker
+definitions before an upgrade; the backup archive does not contain the broker.
+
 ## What you see
 
 | Field | Meaning |

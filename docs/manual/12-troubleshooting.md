@@ -48,6 +48,7 @@ stale data. The token code is `auth.unauthorized`; there is no `token.invalid`.
 | `degraded` | A dependency is down but the gateway answers | Read the service table; stop before submitting |
 | Rows disappear after a profile switch | The scope was cleared, not a data loss | Re-read under the new profile |
 | A run stays `queued` | No worker is consuming the queue | Check the backtest worker and queue; stop |
+| A message is in the dead-letter queue | The handler rejected it past the delivery limit | Read the queue name, `x-death`, and the run row; do not republish blindly |
 
 ## What a code does not mean
 

@@ -35,6 +35,8 @@ history is in Git and the pull requests.
 - The schema-migration contract is recorded in `docs/architecture/migrations.md`: forward-only ledgers, one owner per database, expand/contract release order, checksum pinning, rollback compatibility, and the four-job order.
 - `deploy/postgres/migration-ledger.json` pins every ledger version and SQL checksum; a fast test refuses a reordered ledger, an edited migration body, or a database-owning service without its `--migrate-only` entry point.
 - The operator runbook covers a failed migration, a stopped migration job, and a rollback to the previous image digest while the old stack stays available.
+- RabbitMQ run, evidence, and stage queues are durable quorum queues with a three-redelivery limit, a dead-letter exchange, a quorum dead-letter queue, and generated names (`QR_QUEUE_GENERATION`, default 1); a failed handler rejects so delivery-limit exhaustion is observable in the DLQ.
+- The operator runbook, manual, and deployment docs document queue-generation retirement and the separate definitions backup/restore, which records topology but not messages.
 - The evidence database adds `runs.outbox` (migration 18): a run row and its `run.requested` or `run.computed` notification commit in one transaction, and a publisher reconciles and drains the intents so a broker outage cannot lose a queued run.
 - The evidence database adds `runs.dataset_reference_releases` (migration 18): an erase records the dataset-reference release in the same transaction as the consumer delete, and a reconciler retries the data-service call until it is confirmed.
 - `docs/architecture/cross-database-consistency.md` records the outbox, reference, reconciliation, and tombstone contract, and the failure matrix for a crash after commit, a duplicate publish, a restart, and an erase.
@@ -42,6 +44,9 @@ history is in Git and the pull requests.
 
 ### Changed
 
+- Queue names now end in `.g<generation>`; the pre-generation classic queues are drained or retired by the operator instead of being redeclared with new arguments.
+- A failed handler uses `basic.reject` rather than `basic.nack`, because RabbitMQ 4.3 and later count only a rejected delivery toward the quorum delivery limit.
+- The multi-host renderer writes `QR_QUEUE_GENERATION=1`, and the composed queue check verifies the quorum type, delivery limit, dead-letter bindings, and generated names.
 - `run submit` is accepted when the run row and its outbox intent commit; a broker that is down delays the notification instead of returning `503 queue.unavailable`, and a repeated submission republishes the queued run while returning the same run record.
 - A run claim is lease-based: a queued run is claimable, a running run only when its lease is absent, expired, or continued by the same holder, and a live lease is never stolen. Cancellation increments the term and clears the lease; a terminal run releases it.
 - A run erase releases its dataset reference from the committed tombstone rather than a best-effort call, so a crash between the databases leaves a retry instead of a reference that blocks the dataset forever.

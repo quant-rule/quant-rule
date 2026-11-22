@@ -70,10 +70,10 @@ than silently degrade. This is a deliberate fail-closed choice.
 
 RabbitMQ:
 
-- Three nodes; quorum queues for runs and stages.
-- Publisher confirms, manual ack, delivery limit, DLQ, queue generation.
-- Definitions backup; queues are rebuilt from run and stage rows.
-- One broker loss loses no acknowledged message.
+- Three nodes; run, stage, evidence and dead-letter queues are quorum.
+- Publisher confirms, manual ack, `x-delivery-limit=3`, DLX and a quorum DLQ.
+- `QR_QUEUE_GENERATION` suffixes every queue; definitions export backs up topology, not messages.
+- One broker loss loses no acknowledged message; queues rebuild from run and stage rows.
 
 MinIO:
 

@@ -22,7 +22,7 @@ use quantrule_runtime::backends::{
 };
 use quantrule_runtime::client::{ClientError, DataClient, HttpServiceClient, Service};
 use quantrule_runtime::config::{ConfigError, migrate_only_requested};
-use quantrule_runtime::queue::{QUEUE_EVIDENCE, ROUTING_COMPUTED};
+use quantrule_runtime::queue::QueueKind;
 use quantrule_runtime::{Config, HealthRegistry, RuntimeError, logging};
 use quantrule_service_api::INTERNAL_API_VERSION;
 
@@ -96,6 +96,7 @@ async fn main() -> Result<(), RuntimeError> {
     });
 
     let queue = Arc::new(ControlQueue::open(&config).await?);
+    let evidence_queue = queue.names().name(QueueKind::Evidence).to_owned();
     health.register("queue", {
         let queue = Arc::clone(&queue);
         move || {
@@ -260,7 +261,7 @@ async fn main() -> Result<(), RuntimeError> {
             })
         });
         queue
-            .consume(QUEUE_EVIDENCE, &[ROUTING_COMPUTED], handler)
+            .consume(&evidence_queue, handler)
             .await
             .map_err(|error| RuntimeError::Queue(error.to_string()))
     };
