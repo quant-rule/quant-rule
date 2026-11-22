@@ -11,7 +11,11 @@ use std::sync::Arc;
 use quantrule_runtime::adapters::ObjectStore;
 use quantrule_runtime::backends::{Objects, migrate_owner_database, open_service_database};
 use quantrule_runtime::config::migrate_only_requested;
-use quantrule_runtime::{Config, HealthRegistry, RuntimeError, logging, serve_config};
+use quantrule_runtime::metrics::{self, Metrics};
+use quantrule_runtime::request_id::RequestIds;
+use quantrule_runtime::{
+    Config, HealthRegistry, RuntimeError, logging, observability, serve_config,
+};
 
 use quantrule_data_service::artifacts::PgArtifacts;
 use quantrule_data_service::packs::PgPacks;
@@ -30,7 +34,7 @@ type ArtifactHandle = Arc<dyn quantrule_data_service::ArtifactCatalog>;
 #[tokio::main]
 async fn main() -> Result<(), RuntimeError> {
     let config = Config::from_env()?;
-    logging::init("info")?;
+    logging::init("data", config.image_digest.as_ref())?;
 
     if migrate_only_requested() {
         return migrate_owner_database(
@@ -42,7 +46,13 @@ async fn main() -> Result<(), RuntimeError> {
         .await;
     }
 
-    let mut health = HealthRegistry::named("data");
+    let metrics = Metrics::new(
+        "data",
+        env!("CARGO_PKG_VERSION"),
+        config.image_digest.as_ref().map(ToString::to_string),
+    );
+    metrics::start(&config, &metrics).await?;
+    let mut health = HealthRegistry::named("data").with_metrics(metrics.clone());
     let opened = open_service_database(&config, &mut health).await?;
     let (catalog, configs, packs, artifacts): (
         Option<CatalogHandle>,
@@ -81,5 +91,13 @@ async fn main() -> Result<(), RuntimeError> {
         },
     ));
     tracing::info!(bind = %config.bind, "starting data service");
-    serve_config(&config, quantrule_data_service::router(state)).await
+    serve_config(
+        &config,
+        observability::instrument(
+            quantrule_data_service::router(state),
+            metrics,
+            RequestIds::from_env("data"),
+        ),
+    )
+    .await
 }

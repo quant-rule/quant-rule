@@ -12,16 +12,26 @@ use quantrule_runtime::adapters::ObjectStore;
 use quantrule_runtime::backends::Objects;
 use quantrule_runtime::client::{ClientError, DataClient, HttpServiceClient, Service};
 use quantrule_runtime::config::ConfigError;
-use quantrule_runtime::{Config, HealthRegistry, RuntimeError, logging, serve_config};
+use quantrule_runtime::metrics::{self, Metrics};
+use quantrule_runtime::request_id::RequestIds;
+use quantrule_runtime::{
+    Config, HealthRegistry, RuntimeError, logging, observability, serve_config,
+};
 
 use quantrule_model_service::{ModelServices, ModelState};
 
 #[tokio::main]
 async fn main() -> Result<(), RuntimeError> {
     let config = Config::from_env()?;
-    logging::init("info")?;
+    logging::init("model", config.image_digest.as_ref())?;
 
-    let mut health = HealthRegistry::named("model");
+    let metrics = Metrics::new(
+        "model",
+        env!("CARGO_PKG_VERSION"),
+        config.image_digest.as_ref().map(ToString::to_string),
+    );
+    metrics::start(&config, &metrics).await?;
+    let mut health = HealthRegistry::named("model").with_metrics(metrics.clone());
     let backend = Objects::open(&config).await?;
     let objects: Arc<dyn ObjectStore> = Arc::new(backend.clone());
     health.register("object-store", move || {
@@ -40,7 +50,15 @@ async fn main() -> Result<(), RuntimeError> {
         },
     ));
     tracing::info!(bind = %config.bind, "starting model service");
-    serve_config(&config, quantrule_model_service::router(state)).await
+    serve_config(
+        &config,
+        observability::instrument(
+            quantrule_model_service::router(state),
+            metrics,
+            RequestIds::from_env("model"),
+        ),
+    )
+    .await
 }
 
 /// Name the missing or invalid `QR_DATA_URL` at startup.

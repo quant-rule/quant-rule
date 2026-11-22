@@ -99,7 +99,7 @@ availability.
 | `qr-deploy: must target ... infrastructure host` | An endpoint points outside the infra host | Fix the endpoint or the infra address |
 | `qr-deploy check` digest mismatch | A host runs a different image | Load the same image and confirm `docker image inspect` |
 | `qr-deploy check` connection refused | The service is down or the overlay is down | Read the host logs and `/health` |
-| `SKIP backtest` | The worker has no HTTP surface | Check the container on the compute host |
+| `SKIP backtest` | The worker has no public HTTP surface | Check the container on the compute host |
 | Gateway `degraded` | An upstream is down | Start the missing service; `/ready` names it |
 | Run stays `queued` | No backtest worker is consuming | Start a worker on the compute host |
 | `simulation.locked` on decide | Another replica already recorded the terminal decision | Read the simulation; the first decision is final |

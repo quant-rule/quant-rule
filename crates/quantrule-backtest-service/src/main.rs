@@ -36,6 +36,7 @@ use quantrule_runtime::client::{
     ClientError, DataClient, EvidenceClient, HttpServiceClient, ModelClient, Service, StageClient,
 };
 use quantrule_runtime::config::ConfigError;
+use quantrule_runtime::metrics::{self, Metrics};
 use quantrule_runtime::queue::{
     QueueKind, ROUTING_CANCELLED, ROUTING_REQUESTED, ROUTING_STAGE_CANCELLED,
     ROUTING_STAGE_REQUESTED,
@@ -46,7 +47,16 @@ use serde_json::Value;
 #[tokio::main]
 async fn main() -> Result<(), RuntimeError> {
     let config = Config::from_env()?;
-    logging::init("info")?;
+    logging::init("backtest", config.image_digest.as_ref())?;
+
+    // The worker serves no public HTTP API. The internal metrics listener is
+    // the only socket, and it is disabled unless QR_METRICS_BIND is set.
+    let metrics = Metrics::new(
+        "backtest",
+        env!("CARGO_PKG_VERSION"),
+        config.image_digest.as_ref().map(ToString::to_string),
+    );
+    metrics::start(&config, &metrics).await?;
 
     let objects: Arc<dyn ObjectStore> = Arc::new(Objects::open(&config).await?);
     let queue = Arc::new(ControlQueue::open(&config).await?);

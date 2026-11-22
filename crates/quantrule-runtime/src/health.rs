@@ -20,6 +20,7 @@ pub type Check = Arc<dyn Fn() -> CheckFuture + Send + Sync>;
 pub struct HealthRegistry {
     service: String,
     checks: Vec<(String, Check)>,
+    metrics: Option<crate::metrics::Metrics>,
 }
 
 impl std::fmt::Debug for HealthRegistry {
@@ -31,6 +32,7 @@ impl std::fmt::Debug for HealthRegistry {
                 "checks",
                 &self.checks.iter().map(|(name, _)| name).collect::<Vec<_>>(),
             )
+            .field("metrics", &self.metrics.is_some())
             .finish()
     }
 }
@@ -51,7 +53,16 @@ impl HealthRegistry {
         Self {
             service: service.into(),
             checks: Vec::new(),
+            metrics: None,
         }
+    }
+
+    /// Attach a metrics registry so each probe result updates
+    /// `quantrule_dependency_up`.
+    #[must_use]
+    pub fn with_metrics(mut self, metrics: crate::metrics::Metrics) -> Self {
+        self.metrics = Some(metrics);
+        self
     }
 
     /// Register one probe.
@@ -75,15 +86,23 @@ impl HealthRegistry {
         let mut services = Vec::with_capacity(self.checks.len());
         for (name, check) in &self.checks {
             let result = check().await;
+            let state = if result.is_ok() {
+                ServiceState::Healthy
+            } else {
+                ServiceState::Down
+            };
+            if let Some(metrics) = &self.metrics {
+                metrics.set_dependency(name.clone(), state.is_available());
+            }
             services.push(match result {
                 Ok(()) => ServiceHealth {
                     name: name.clone(),
-                    state: ServiceState::Healthy,
+                    state,
                     detail: None,
                 },
                 Err(detail) => ServiceHealth {
                     name: name.clone(),
-                    state: ServiceState::Down,
+                    state,
                     detail: Some(detail),
                 },
             });
@@ -143,5 +162,23 @@ mod tests {
     async fn a_named_registry_reports_its_service() {
         let report = HealthRegistry::named("data").report(None).await;
         assert_eq!(report.service, "data");
+    }
+
+    #[tokio::test]
+    async fn a_report_updates_the_dependency_metrics() {
+        let metrics = crate::metrics::Metrics::new("data", "1.5.2", None);
+        let mut registry = HealthRegistry::named("data").with_metrics(metrics.clone());
+        registry.register("postgres", || async { Ok(()) });
+        registry.register("queue", || async { Err("down".to_owned()) });
+        registry.report(None).await;
+        let text = metrics.encode();
+        assert!(
+            text.contains("quantrule_dependency_up{name=\"postgres\"} 1"),
+            "{text}"
+        );
+        assert!(
+            text.contains("quantrule_dependency_up{name=\"queue\"} 0"),
+            "{text}"
+        );
     }
 }

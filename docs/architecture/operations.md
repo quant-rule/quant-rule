@@ -31,6 +31,19 @@ healthy when its check passes, not when its container is running.
 Queue depth and worker count remain in the report for the control plane; they
 are currently published as zero and are not an operational signal.
 
+### Metrics, logs and request ids
+
+Each service serves `/metrics` on `QR_METRICS_BIND`, on the internal network
+only; the gateway never proxies it and no host port is published. Logs are one
+JSON object per line on stderr unless `QR_LOG_FORMAT=text`. Every gateway
+response carries `x-request-id`, and a valid W3C `traceparent` is forwarded.
+These fields are observability, never evidence or a run identity.
+
+```bash
+docker compose exec -T gateway curl -fsS http://127.0.0.1:9090/metrics
+docker compose logs --tail 20 gateway
+```
+
 ### Queue generation and dead letters
 
 The work queues are generated quorum queues (`runs.backtest.g<n>`,
@@ -77,8 +90,7 @@ tools/backup.sh                  # optional --out DIR
 tools/restore.sh ARCHIVE --yes   # clean stack; --force replaces
 ```
 
-`make backup` and `make restore FILE=…` are the #644 shortcuts and call these
-scripts.
+`make backup` and `make restore FILE=…` call these scripts.
 
 | Piece | Where |
 |---|---|
@@ -88,47 +100,34 @@ scripts.
 | Manifest | `manifest.json` inside the archive: schema, one line per payload file with size and SHA-256, and the object key of each mirrored object |
 | Payload | `postgres/quantrule.dump` (custom format) and `objects/<key>` |
 
-The mirror is staged inside the object-store container and on the host, so the backup host needs room for the archive plus one mirror.
+The mirror is staged in the object-store container and on the host. Application
+services stop during the dump and mirror, so both stores describe one instant;
+Postgres, MinIO and the broker stay up, and the queue is rebuilt from run rows.
+The broker topology is exported separately with `rabbitmqctl export_definitions`;
+the file holds password hashes, so keep it mode 600 and out of Git. The command
+pair is in the [multi-host runbook](../../deploy/multi-host/README.md) §11.
 
-The application services are stopped while the dump and mirror run, so the two
-stores describe one instant; Postgres, the object store, and the broker stay
-up. The queue is not archived: a message is derived from a run row and is
-rebuilt. Backup briefly takes `/health` down and restarts the services that were
-running on exit, including after a failure.
+`restore.sh` verifies the sidecar, entry list and payload hashes before writing.
+It refuses a non-empty database or bucket without `--force` and a non-interactive
+run without `--yes`. Objects are written before rows, so an interrupted restore
+leaves unreferenced blobs rather than missing bytes; after `make reset`, restore
+before `make up`.
 
-The broker topology is exported separately with `rabbitmqctl export_definitions`.
-The file contains the broker users and password hashes, so keep it mode 600 and
-out of Git. It records exchanges, queues, and bindings, not messages; a restore
-rebuilds the topology and queued work is rebuilt from run rows. The command pair
-is in the [multi-host runbook](../../deploy/multi-host/README.md) §11.
+The object mirror uses the `mc` bundled in the pinned MinIO image; a replacement
+`QR_OBJECT_STORE_IMAGE` must provide `mc`, or backup stops. The archive contains
+candle data and is handled as sensitive ([data-lifecycle](../workflows/data-lifecycle.md)).
 
-`restore.sh` verifies the sidecar, entry list, and payload hashes before it
-writes. It refuses a non-empty database or bucket without `--force`, and a
-non-interactive run without `--yes`. Objects are written before rows, so an
-interrupted restore leaves unreferenced blobs rather than missing bytes. After a
-clean `make reset`, restore before `make up`; an already-migrated stack needs
-`--force` or a reset.
-
-The object mirror uses the `mc` bundled in the pinned MinIO image. A replacement
-`QR_OBJECT_STORE_IMAGE` must provide `mc`, or backup stops with a clear error.
-The archive contains candle data and is handled as sensitive; see
-[`data-lifecycle.md`](../workflows/data-lifecycle.md).
-
-The default stack starts all seven services, three stores, the database bootstrap,
-and four migration jobs ([deployment.md](deployment.md) §2.1). The four logical
-databases are a current deployment contract
-([four databases](../config/2026-11-22/four-databases.md)). Backup covers only
-what the durable stores contain; the scripts stop every non-store service.
+The default stack starts seven services, three stores, the bootstrap and four
+migration jobs ([deployment.md](deployment.md) §2.1). Backup covers only the
+durable stores; the four-database contract is [four databases](../config/2026-11-22/four-databases.md).
 
 The current tools dump one database; until the four-database archive lands a
-backup is incomplete and a restore drill must be re-run. Do not claim evidence
-preservation from a single dump.
+backup is incomplete. Do not claim evidence preservation from a single dump.
 
 Round trip: `tools/test_backup.sh` is opt-in, uses an isolated
-`quantrule-backup-test` project, needs port 8080 free, and never touches the
-default project. It creates a dataset, config, and hypothesis through the
-gateway, seeds a run, checks the refusals, wipes, restores, and compares every
-row digest and object hash. Record the archive digest in the long-campaign note.
+`quantrule-backup-test` project, and never touches the default project. It
+creates a dataset, config and hypothesis, seeds a run, checks refusals, wipes,
+restores, and compares row digests and object hashes.
 
 ## 5. Upgrade
 

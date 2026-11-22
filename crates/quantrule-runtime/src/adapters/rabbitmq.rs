@@ -37,8 +37,11 @@ use crate::queue::{
     ROUTING_STAGE_CANCELLED, ROUTING_STAGE_REQUESTED,
 };
 
-/// The control-plane exchange.
+/// The control-plane exchange every run and stage routing key belongs to.
 pub const EXCHANGE: &str = "quantrule.runs";
+
+/// The log filter directive for this driver.
+pub const LOG_FILTER_DIRECTIVE: &str = "lapin=warn";
 
 /// The dead-letter exchange for every queue generation.
 pub const DEAD_LETTER_EXCHANGE: &str = "quantrule.runs.dlx";

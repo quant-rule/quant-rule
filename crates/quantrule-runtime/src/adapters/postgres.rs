@@ -19,6 +19,9 @@ use crate::migrations::{self, Applied, Migration, MigrationError};
 /// The advisory lock key that serializes migration runs.
 pub const MIGRATION_LOCK: i64 = 0x5152_4d49_4752_4154;
 
+/// The log filter directive for this driver.
+pub const LOG_FILTER_DIRECTIVE: &str = "sqlx=warn";
+
 /// A Postgres handle.
 #[derive(Debug, Clone)]
 pub struct PgDatabase {

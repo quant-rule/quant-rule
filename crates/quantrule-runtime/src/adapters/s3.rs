@@ -9,6 +9,9 @@ use aws_sdk_s3::primitives::ByteStream;
 
 use crate::adapters::{Backend, BoxFuture, ObjectStore, StoreError};
 
+/// The log filter directives for these drivers.
+pub const LOG_FILTER_DIRECTIVE: &str = "aws_config=warn,aws_sdk_s3=warn,aws_smithy_runtime=warn,aws_smithy_runtime_api=warn,aws_smithy_types=warn";
+
 /// An S3-compatible bucket.
 #[derive(Debug, Clone)]
 pub struct S3Store {

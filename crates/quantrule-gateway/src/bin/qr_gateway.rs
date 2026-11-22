@@ -15,12 +15,14 @@ use quantrule_gateway::server::{self, AppState, Services};
 use quantrule_runtime::backends::{migrate_owner_database, open_service_database};
 use quantrule_runtime::client::{ClientError, DataClient, HttpServiceClient, Service};
 use quantrule_runtime::config::{ConfigError, migrate_only_requested};
+use quantrule_runtime::metrics::{self, Metrics};
+use quantrule_runtime::request_id::RequestIds;
 use quantrule_runtime::{Config, HealthRegistry, RuntimeError, logging};
 
 #[tokio::main]
 async fn main() -> Result<(), RuntimeError> {
     let config = Config::from_env()?;
-    logging::init("info")?;
+    logging::init("gateway", config.image_digest.as_ref())?;
 
     if migrate_only_requested() {
         return migrate_owner_database(
@@ -32,6 +34,12 @@ async fn main() -> Result<(), RuntimeError> {
         .await;
     }
 
+    let metrics = Metrics::new(
+        "gateway",
+        env!("CARGO_PKG_VERSION"),
+        config.image_digest.as_ref().map(ToString::to_string),
+    );
+    metrics::start(&config, &metrics).await?;
     tracing::info!("starting gateway");
 
     let mut health = HealthRegistry::named("gateway");
@@ -63,9 +71,11 @@ async fn main() -> Result<(), RuntimeError> {
         Err(error) => return Err(service_config_error(Service::Strategy, error)),
     };
 
-    let state = Arc::new(AppState::with_services(
+    let state = Arc::new(AppState::with_observability(
         &config,
         health,
+        metrics,
+        RequestIds::from_env("gateway"),
         Services {
             profiles,
             data: Some(data),

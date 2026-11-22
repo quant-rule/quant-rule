@@ -54,6 +54,7 @@ repeating a status.
 | Release tags | `v1.5.2` is the latest published release (2026-11-21), the Windows fixture recovery; `v1.5.0` and `v1.5.1` are withdrawn because their Windows CLI gate failed. `v1.4.2` is the second release recovery for the multi-host deployment; `v1.4.1` and `v1.4.0` are withdrawn because their workflows failed. `v1.3.0` is the stage execution surface (`sha256:d9b8daa1…`). `v1.2.0` is the version-alignment release (`sha256:26350916…`); `v1.1.0` is the 1.1.0 alignment release (`sha256:d5ce83da…`); `v1.0.0` is the desktop release, prepared as `v1.1.0` (`sha256:a133ff14…`); `v0.9.0` is the distributed platform (`sha256:1250438f…`). The tag mapping is in `docs/releases/README.md`. |
 | Changelog | Grouped release history; `1.5.2` is the current section, and the historical headings are normalized to the current tags. |
 | Tooling | The shell is the agent command path; it makes one gateway call per command. The improvement run store records evidence; the gateway `run submit` is the current execution path. `tools/gate.sh` runs the workspace gate. The distributed stack adds `make` targets and seven services, specified in [deployment.md](deployment.md). The `simulation` service and the browser client own chart-first research; the Python simulation, chart, oracle, and trade tools are retired by DIST-105. The repository and the product image carry no Python ([zero-Python ADR](../adr/2026-11-21/992-zero-python-governance.md)). |
+| Observability | Current for HA-009 slice 1: the in-house metric registry and internal `/metrics`, JSON logs, and request/trace ids; drain, readiness, retries, queue metrics and `*_FILE` secrets remain target for slices 2–3. [observability.md](observability.md). |
 | Manual | Current; 14 chapters, the command and GUI references, the glossary, troubleshooting, client access, and multi-host (#859, #965, #970). [docs/manual/README.md](../manual/README.md) |
 
 ## Status of each document
@@ -76,6 +77,7 @@ repeating a status.
 | [`user-journey.md`](user-journey.md) | Current; released as v1.0.0 (prepared as v1.1.0); current in v1.5.2 | How it is used and what it returns |
 | [`security.md`](security.md) | Current; released as v0.9.0 (prepared as v1.0.0); current in v1.5.2 | The trust boundary |
 | [`operations.md`](operations.md) | Current; released as v0.9.0 (prepared as v1.0.0); current in v1.5.2 | Running, backing up, recovering |
+| [`observability.md`](observability.md) | Current for HA-009 slice 1; target for slices 2–3 | Metrics, logs, request/trace ids and their non-goals |
 | [`module-map.md`](module-map.md) | Current; released as v0.9.0 (prepared as v1.0.0); current in v1.5.2 | Where code lives |
 | [`command-surface.md`](command-surface.md) | Current; 61 commands (v1.5.2 plus the additive RA-009 slice) | Implemented commands and the retirement record |
 | [`stage-surface.md`](stage-surface.md) | Current; released as v1.3.0; current in v1.5.2 | The stage, research, and operations API, commands, services, and client screens |

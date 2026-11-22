@@ -20,8 +20,10 @@ use quantrule_runtime::backends::{
 };
 use quantrule_runtime::client::{ClientError, DataClient, HttpServiceClient, Service};
 use quantrule_runtime::config::{ConfigError, migrate_only_requested};
+use quantrule_runtime::metrics::{self, Metrics};
 use quantrule_runtime::queue::QueueKind;
-use quantrule_runtime::{Config, HealthRegistry, RuntimeError, logging};
+use quantrule_runtime::request_id::RequestIds;
+use quantrule_runtime::{Config, HealthRegistry, RuntimeError, logging, observability};
 use quantrule_service_api::INTERNAL_API_VERSION;
 
 use quantrule_evidence_service::evidence::EvidenceServices;
@@ -52,7 +54,7 @@ type LineageHandle = Arc<dyn RunLineageStore>;
 #[tokio::main]
 async fn main() -> Result<(), RuntimeError> {
     let config = Config::from_env()?;
-    logging::init("info")?;
+    logging::init("evidence", config.image_digest.as_ref())?;
 
     if migrate_only_requested() {
         return migrate_owner_database(
@@ -64,7 +66,13 @@ async fn main() -> Result<(), RuntimeError> {
         .await;
     }
 
-    let mut health = HealthRegistry::named("evidence");
+    let metrics = Metrics::new(
+        "evidence",
+        env!("CARGO_PKG_VERSION"),
+        config.image_digest.as_ref().map(ToString::to_string),
+    );
+    metrics::start(&config, &metrics).await?;
+    let mut health = HealthRegistry::named("evidence").with_metrics(metrics.clone());
     let opened = open_service_database(&config, &mut health).await?;
     let pool = opened.as_ref().map(|database| database.pool().clone());
     // One store serves the run lifecycle, the notification outbox, and the
@@ -261,7 +269,10 @@ async fn main() -> Result<(), RuntimeError> {
         contract = INTERNAL_API_VERSION,
         "starting evidence service"
     );
-    let server = quantrule_runtime::serve_config(&config, router(state));
+    let server = quantrule_runtime::serve_config(
+        &config,
+        observability::instrument(router(state), metrics, RequestIds::from_env("evidence")),
+    );
     let consumer = async move {
         let (Some(evidence), Some(leadership)) = (evidence, leadership) else {
             return std::future::pending::<Result<(), RuntimeError>>().await;

@@ -17,6 +17,21 @@ use std::pin::Pin;
 /// A boxed future, so a trait stays usable behind `dyn`.
 pub type BoxFuture<T> = Pin<Box<dyn Future<Output = T> + Send + 'static>>;
 
+/// The `EnvFilter` directives that keep the driver crates at `warn`.
+///
+/// Each adapter owns its own directive because it is the only module allowed to
+/// name its client. Logging prepends the combined value to `QR_LOG` so a global
+/// `debug` cannot reveal a connection string merely by raising every target.
+#[must_use]
+pub fn log_driver_directives() -> String {
+    format!(
+        "{},{},{}",
+        postgres::LOG_FILTER_DIRECTIVE,
+        rabbitmq::LOG_FILTER_DIRECTIVE,
+        s3::LOG_FILTER_DIRECTIVE
+    )
+}
+
 /// Which implementation is behind a trait.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Backend {

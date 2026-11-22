@@ -20,6 +20,11 @@ history is in Git and the pull requests.
 
 ### Added
 
+- The runtime publishes a deterministic in-house Prometheus registry on an internal `QR_METRICS_BIND` listener for all seven services: build, process start, readiness, draining, dependency, HTTP counter, duration histogram, and in-flight families. Families and label sets are sorted; route labels come from the axum route template, never a raw path or identifier.
+- The gateway, data, model, evidence, simulation, and strategy routers gain request middleware that validates or mints `x-request-id`, accepts a valid W3C `traceparent`, opens one request span, and logs one completion event with method, route, status and duration. The gateway forwards only the two identifiers and returns `x-request-id`.
+- JSON logs are the server default through `QR_LOG_FORMAT=json` (with `text` as the local-debugging opt-in); `QR_LOG` sets the filter, the process identity is added to every record, and URL userinfo, `Bearer` values and `password=` values are redacted.
+- Compose sets JSON logs and the internal metrics bind on the private network, publishes no metrics port, and adds no Prometheus service (PLAT-006 owns it).
+- `docs/architecture/observability.md` records the metric, log, identifier, internal-listener and non-goal contract; the manual and a runtime-observability tutorial show the operator commands.
 - The command shell and browser surface the research artifact layer additively: `pack create/list/show/validate/freeze/retire/fetch`, `signal create/list/show/fetch`, and `run lineage`; the 49 earlier command contracts keep their name, arguments, output fields, errors and renderer.
 - The gateway exposes `POST /signals` through the optional strategy service (`503 service.unavailable` when absent), `GET /signals`, `GET /signals/{id}`, `GET /signals/{id}/bytes`, and `GET /runs/{id}/lineage`; signal reads go to data, lineage to evidence, and the gateway decodes neither.
 - The data service serves public signal aliases with profile scope, a fixed signal kind, a content ETag, and hash verification; the evidence service serves the public lineage read with the existing run-visibility rule.
@@ -70,6 +75,7 @@ history is in Git and the pull requests.
 
 ### Changed
 
+- Runtime logs default to one JSON object per line; `QR_LOG_FORMAT=text` is the explicit local-debugging switch, and the driver crates stay at `warn` unless `QR_LOG` names them. Request and trace ids are observability data only and never enter an artifact or the canonical digest.
 - The command surface grows to 61 commands; `help`, the README and manual command tables, the Help screen badge, and the command-surface registry list the new commands while every earlier row stays byte-identical.
 - `docs/architecture/http-api.md`, `research-artifacts.md`, the pack and signal contracts, the client and architecture indexes, the manual and the multi-host guide describe the public signal routes, the Packs screen, run lineage, and the v2 signal-create gap.
 - A simulation decision is terminal: the first decision wins and every later decision, including an identical retry, returns `simulation.locked`. A duplicate mark identity remains an idempotent upsert that keeps its stored id and creation time.
