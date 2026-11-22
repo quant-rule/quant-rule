@@ -1,7 +1,7 @@
 # Run v3 and Portfolio Constraints
 
 - Date: 2026-11-11 (UTC)
-- Status: Current; `quantrule.run/v3` is accepted for a model-only run; `quantrule.run/v4` is current for a full run
+- Status: Current; `quantrule.run/v3` is accepted for a model-only run; `quantrule.run/v4` is current for a file-based full run; `quantrule.run/v5` is additive for research-artifact references
 - Claim type: ADR (Architecture Decision)
 - Plan: [`docs/execution-plans/2026-11-11/588-tauri-platform.md`](../../execution-plans/2026-11-11/588-tauri-platform.md)
 

@@ -224,6 +224,21 @@ mod tests {
     }
 
     #[test]
+    fn research_references_and_input_payloads_are_not_in_the_digest() {
+        let results = artifact("results.json", b"a");
+        let provenance = artifact(
+            "provenance.json",
+            b"{\"references\":{\"strategy_pack\":\"sha256:aa\"}}",
+        );
+        let strategy_pack = artifact("inputs/strategy-pack.json", b"{\"kind\":\"strategy\"}");
+        let signal = artifact("inputs/signal-artifact.json", b"{\"rows\":[]}");
+        assert_eq!(
+            canonical_digest(std::slice::from_ref(&results)),
+            canonical_digest(&[results, provenance, strategy_pack, signal])
+        );
+    }
+
+    #[test]
     fn a_metrics_change_changes_the_digest() {
         let results = artifact("results.json", b"a");
         let metrics = artifact("portfolio/metrics.json", b"{}");

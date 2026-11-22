@@ -62,7 +62,7 @@ repeating a status.
 | [`kata.md`](kata.md) | Current | Why the product exists |
 | [`characteristics.md`](characteristics.md) | Current | Which qualities are measurable and how |
 | [`services.md`](services.md) | Current; released as v0.9.0 (prepared as v1.0.0); current in v1.5.2 | Who does what, and what each service owns |
-| [`research-artifacts.md`](research-artifacts.md) | Strategy, portfolio policy and execution-simulation packs current (RA-002–RA-004); signal artifacts and run v5 target the next release; accepted by ADR-RA | The model artifact, packs, signal artifacts, run v5 and lineage |
+| [`research-artifacts.md`](research-artifacts.md) | Strategy, portfolio policy and execution-simulation packs current (RA-002–RA-004); run-v5 reference and identity contract current (RA-005); signal computation, the persistent registry and the client surface target the next release; accepted by ADR-RA | The model artifact, packs, signal artifacts, run v5 and lineage |
 | [`ha.md`](ha.md) | Target for the next release; accepted by ADR-HA | Swarm HA, four databases, replication, failure and evidence boundary |
 | [`data-plane.md`](data-plane.md) | Current; released as v0.9.0 (prepared as v1.0.0); current in v1.5.2 | How one run stays deterministic |
 | [`control-plane.md`](control-plane.md) | Current; released as v0.9.0 (prepared as v1.0.0); current in v1.5.2 | How a run is submitted, retried, and cancelled |

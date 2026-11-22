@@ -8,8 +8,13 @@
 //! leaves the filesystem untouched.
 //!
 //! A `quantrule.run/v4` file names the strategy and the four engine files; a
-//! `quantrule.run/v3` file is model-only and must not carry a strategy. The
-//! qualification criteria remain explicit command arguments.
+//! `quantrule.run/v3` file is model-only and must not carry a strategy. A
+//! `quantrule.run/v5` file names packs and upstream artifacts by content hash
+//! instead of naming strategy, execution, and portfolio files. Because the
+//! persistent registry does not exist yet, a v5 run is loaded through
+//! [`RunConfig::load_with`] with a supplied [`RunReferenceResolver`]. The legacy
+//! [`RunConfig::load`] stays the v3/v4 path and rejects a v5 reference it was
+//! not given bytes for.
 
 use std::io;
 use std::path::{Component, Path, PathBuf};
@@ -26,12 +31,16 @@ use super::execution::{self, ExecutionRunConfig};
 use super::model;
 use super::portfolio;
 use super::read::{self, ROOT};
+use super::run_v5::{self, RunV5, V5RunFile};
 use super::strategy::StrategyConfig;
+use crate::pack::{ContentReference, ReferenceKind, RunReferenceResolver, RunReferences};
 
-/// The current run schema.
+/// The v4 run schema: the strategy is part of the run.
 pub const RUN_SCHEMA: &str = "quantrule.run/v4";
-/// The previous schema, accepted for a model-only run without a strategy.
+/// The model-only schema, accepted without a strategy.
 pub const RUN_SCHEMA_V3: &str = "quantrule.run/v3";
+/// The research-artifact schema, which references packs by content hash.
+pub const RUN_SCHEMA_V5: &str = "quantrule.run/v5";
 
 /// One validated run, ready for the pipeline.
 #[derive(Debug, Clone)]
@@ -42,13 +51,13 @@ pub struct RunConfig {
     pub output_root: PathBuf,
     /// The schema the run file declared.
     pub schema_version: String,
-    /// A stable fingerprint of the config files.
+    /// A stable fingerprint of the config files and content references.
     pub config_hash: String,
     /// The model-input identity: data version label, model config bytes, and
     /// the effective model ladder. It is invariant under a strategy-only
     /// change, so a model bundle can be reused across strategy cells.
     pub model_input_hash: String,
-    /// The resolved config paths.
+    /// The resolved config paths. The engine files are absent in a v5 run.
     pub paths: ConfigPaths,
     /// The optional model identity, such as `M1.0`.
     pub model_id: Option<String>,
@@ -68,6 +77,8 @@ pub struct RunConfig {
     pub execution: ExecutionRunConfig,
     /// The portfolio engine's configuration.
     pub portfolio: PortfolioConfig,
+    /// The resolved v5 packs and references, absent for v3 and v4.
+    pub v5: Option<RunV5>,
 }
 
 /// The resolved config files.
@@ -79,23 +90,42 @@ pub struct ConfigPaths {
     pub data: PathBuf,
     /// The model file.
     pub model: PathBuf,
-    /// The execution file.
-    pub execution: PathBuf,
-    /// The portfolio file.
-    pub portfolio: PathBuf,
-    /// The strategy file, when the run config names one.
+    /// The execution file, absent in a v5 run.
+    pub execution: Option<PathBuf>,
+    /// The portfolio file, absent in a v5 run.
+    pub portfolio: Option<PathBuf>,
+    /// The strategy file, absent in a v3 or v5 run.
     pub strategy: Option<PathBuf>,
 }
 
 impl RunConfig {
     /// Loads and validates a run from its `run.json`.
     ///
+    /// This is the v3/v4 path. A v5 run needs [`RunConfig::load_with`] and a
+    /// reference resolver, because the registry that would hold the pack bytes
+    /// is a later work item.
+    ///
     /// # Errors
     ///
     /// Returns a [`ConfigError`] naming the file and JSON path when a file is
-    /// missing or unreadable, is not JSON, disagrees with its schema, or fails
-    /// a cross-config check.
+    /// missing or unreadable, is not JSON, disagrees with its schema, fails a
+    /// cross-config check, or is a v5 run whose references were not supplied.
     pub fn load(path: &Path) -> Result<Self, ConfigError> {
+        Self::load_with(path, &NoReferences)
+    }
+
+    /// Loads and validates a run, resolving v5 pack and artifact references.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`ConfigError`] naming the file and JSON path when a file is
+    /// missing or unreadable, is not JSON, disagrees with its schema, fails a
+    /// cross-config check, or when a reference is missing, mismatched, or has
+    /// the wrong kind.
+    pub fn load_with(
+        path: &Path,
+        references: &dyn RunReferenceResolver,
+    ) -> Result<Self, ConfigError> {
         let run_name = file_name(path);
         let run = parse(&load_document(path, run_name)?, run_name)?;
         let base = path.parent().unwrap_or_else(|| Path::new("."));
@@ -104,8 +134,16 @@ impl RunConfig {
             run: path.to_path_buf(),
             data: referenced_path(base, &run.data, run_name, "$.data")?,
             model: referenced_path(base, &run.model, run_name, "$.model")?,
-            execution: referenced_path(base, &run.execution, run_name, "$.execution")?,
-            portfolio: referenced_path(base, &run.portfolio, run_name, "$.portfolio")?,
+            execution: run
+                .execution
+                .as_deref()
+                .map(|name| referenced_path(base, name, run_name, "$.execution"))
+                .transpose()?,
+            portfolio: run
+                .portfolio
+                .as_deref()
+                .map(|name| referenced_path(base, name, run_name, "$.portfolio"))
+                .transpose()?,
             strategy: run
                 .strategy
                 .as_deref()
@@ -122,20 +160,59 @@ impl RunConfig {
             &load_document(&paths.model, display(&run.model))?,
             display(&run.model),
         )?;
-        let execution = execution::parse(
-            &load_document(&paths.execution, display(&run.execution))?,
-            display(&run.execution),
-        )?;
-        let portfolio = portfolio::parse(
-            &load_document(&paths.portfolio, display(&run.portfolio))?,
-            display(&run.portfolio),
-        )?;
-        let strategy = match &paths.strategy {
-            Some(path) => Some(super::strategy::load(path)?.0),
-            None => None,
+
+        let (strategy, execution, portfolio, v5) = match &run.v5 {
+            Some(v5_file) => {
+                let ladder = run
+                    .model_timeframes
+                    .as_deref()
+                    .unwrap_or(&data.available_timeframes);
+                let resolved = run_v5::resolve(
+                    run_name,
+                    v5_file,
+                    &data,
+                    run.model_id.as_deref(),
+                    ladder,
+                    references,
+                )?;
+                (
+                    Some(resolved.strategy),
+                    resolved.execution,
+                    resolved.portfolio,
+                    Some(resolved.v5),
+                )
+            }
+            None => {
+                let execution_path = paths
+                    .execution
+                    .as_ref()
+                    .ok_or_else(|| ConfigError::missing_field(run_name, "$.execution"))?;
+                let portfolio_path = paths
+                    .portfolio
+                    .as_ref()
+                    .ok_or_else(|| ConfigError::missing_field(run_name, "$.portfolio"))?;
+                let execution_name = run.execution.as_deref().unwrap_or("execution.json");
+                let portfolio_name = run.portfolio.as_deref().unwrap_or("portfolio.json");
+                let execution = execution::parse(
+                    &load_document(execution_path, display(execution_name))?,
+                    display(execution_name),
+                )?;
+                let portfolio = portfolio::parse(
+                    &load_document(portfolio_path, display(portfolio_name))?,
+                    display(portfolio_name),
+                )?;
+                let strategy = match &paths.strategy {
+                    Some(path) => Some(super::strategy::load(path)?.0),
+                    None => None,
+                };
+                (strategy, execution, portfolio, None)
+            }
         };
 
-        let config_hash = fingerprint(&paths)?;
+        let config_hash = match &v5 {
+            Some(v5) => fingerprint_v5(&paths, &v5.references)?,
+            None => fingerprint_legacy(&paths)?,
+        };
         let model_input_hash = model_input_hash(&paths, &data, run.model_timeframes.as_deref())?;
         let config = Self {
             name: run.name,
@@ -153,10 +230,34 @@ impl RunConfig {
             strategy,
             execution,
             portfolio,
+            v5,
         };
         config.validate_cross()?;
         config.validate_identities()?;
         Ok(config)
+    }
+
+    /// The v5 references, when this is a v5 run.
+    #[must_use]
+    pub fn references(&self) -> Option<&RunReferences> {
+        self.v5.as_ref().map(|v5| &v5.references)
+    }
+
+    /// The v5 reference for one kind, when present.
+    #[must_use]
+    pub fn reference(&self, kind: ReferenceKind) -> Option<&ContentReference> {
+        self.references()
+            .and_then(|references| references.for_kind(kind))
+    }
+
+    /// The provenance value for the v5 references, when this is a v5 run.
+    ///
+    /// The backtest manifest and provenance record this value, and the
+    /// canonical digest excludes both files, so a reference never changes the
+    /// result digest.
+    #[must_use]
+    pub fn references_provenance(&self) -> Option<serde_json::Value> {
+        self.references().map(RunReferences::to_value)
     }
 
     pub(super) fn validate_identities(&self) -> Result<(), ConfigError> {
@@ -180,6 +281,18 @@ impl RunConfig {
     }
 
     pub(super) fn validate_cross(&self) -> Result<(), ConfigError> {
+        let run_file = file_name(&self.paths.run);
+        let execution_file = self
+            .paths
+            .execution
+            .as_ref()
+            .map_or(run_file, |path| file_name(path));
+        let execution_path = if self.v5.is_some() {
+            "$.execution_model"
+        } else {
+            "$.fill_timeframe"
+        };
+
         for timeframe in &self.data.available_timeframes {
             if u64::from(timeframe.seconds()) > self.model.max_timeframe_secs() {
                 return Err(ConfigError::range(
@@ -209,11 +322,16 @@ impl RunConfig {
                 .paths
                 .strategy
                 .as_ref()
-                .map_or("strategy.json", |path| file_name(path));
+                .map_or(run_file, |path| file_name(path));
+            let strategy_path = if self.v5.is_some() {
+                "$.strategy_pack"
+            } else {
+                "$.execution_timeframe"
+            };
             if strategy.execution_timeframe != self.execution.fill_timeframe {
                 return Err(ConfigError::inconsistent(
                     strategy_file,
-                    "$.execution_timeframe",
+                    strategy_path,
                     self.execution.fill_timeframe.code(),
                     strategy.execution_timeframe.code(),
                 ));
@@ -225,7 +343,7 @@ impl RunConfig {
             {
                 return Err(ConfigError::inconsistent(
                     strategy_file,
-                    "$.execution_timeframe",
+                    strategy_path,
                     "a timeframe from the available data ladder",
                     strategy.execution_timeframe.code(),
                 ));
@@ -234,7 +352,7 @@ impl RunConfig {
                 if !self.data.available_timeframes.contains(timeframe) {
                     return Err(ConfigError::inconsistent(
                         strategy_file,
-                        "$.context_timeframes",
+                        strategy_path,
                         "timeframes from the available data ladder",
                         timeframe.code(),
                     ));
@@ -246,7 +364,7 @@ impl RunConfig {
             for timeframe in ladder {
                 if !self.data.available_timeframes.contains(timeframe) {
                     return Err(ConfigError::inconsistent(
-                        file_name(&self.paths.run),
+                        run_file,
                         "$.model_timeframes",
                         "timeframes from the available data ladder",
                         timeframe.code(),
@@ -255,7 +373,7 @@ impl RunConfig {
             }
             if !ladder.contains(&self.execution.fill_timeframe) {
                 return Err(ConfigError::inconsistent(
-                    file_name(&self.paths.run),
+                    run_file,
                     "$.model_timeframes",
                     "a ladder that contains the execution fill timeframe",
                     self.execution.fill_timeframe.code(),
@@ -269,8 +387,8 @@ impl RunConfig {
             .contains(&self.execution.fill_timeframe)
         {
             return Err(ConfigError::inconsistent(
-                file_name(&self.paths.execution),
-                "$.fill_timeframe",
+                execution_file,
+                execution_path,
                 "a timeframe from the available data ladder",
                 self.execution.fill_timeframe.code(),
             ));
@@ -289,20 +407,40 @@ pub(super) struct RunFile {
     portfolio_id: Option<String>,
     data: String,
     model: String,
-    execution: String,
-    portfolio: String,
+    execution: Option<String>,
+    portfolio: Option<String>,
     pub(super) model_timeframes: Option<Vec<Timeframe>>,
     pub(super) output_root: String,
     pub(super) strategy: Option<String>,
+    pub(super) v5: Option<V5RunFile>,
 }
 
 pub(super) fn parse(value: &Value, file: &str) -> Result<RunFile, ConfigError> {
     let object = read::object(file, ROOT, value)?;
-    read::check_fields(
-        file,
-        ROOT,
-        object,
-        &[
+    let schema =
+        read::string(file, "$.schema", read::field(file, ROOT, object, "schema")?)?.to_owned();
+    let allowed: &[&str] = match schema.as_str() {
+        RUN_SCHEMA_V5 => &[
+            "schema",
+            "name",
+            "model_id",
+            "execution_id",
+            "portfolio_id",
+            "data",
+            "model",
+            "model_artifact",
+            "strategy_pack",
+            "signal_artifact",
+            "portfolio_policy",
+            "execution_model",
+            "account",
+            "execution",
+            "portfolio",
+            "strategy",
+            "model_timeframes",
+            "output_root",
+        ],
+        RUN_SCHEMA => &[
             "schema",
             "name",
             "model_id",
@@ -316,9 +454,53 @@ pub(super) fn parse(value: &Value, file: &str) -> Result<RunFile, ConfigError> {
             "output_root",
             "strategy",
         ],
-    )?;
-    let schema =
-        read::string(file, "$.schema", read::field(file, ROOT, object, "schema")?)?.to_owned();
+        RUN_SCHEMA_V3 => &[
+            "schema",
+            "name",
+            "model_id",
+            "execution_id",
+            "portfolio_id",
+            "data",
+            "model",
+            "execution",
+            "portfolio",
+            "model_timeframes",
+            "output_root",
+            "strategy",
+        ],
+        other => {
+            return Err(ConfigError::schema(
+                file,
+                "$.schema",
+                "quantrule.run/v5, quantrule.run/v4 or quantrule.run/v3",
+                other,
+            ));
+        }
+    };
+    read::check_fields(file, ROOT, object, allowed)?;
+
+    let v5 = if schema == RUN_SCHEMA_V5 {
+        for (field, replacement) in [
+            ("execution", "$.execution_model"),
+            ("portfolio", "$.portfolio_policy"),
+            ("strategy", "$.strategy_pack"),
+            ("execution_id", "$.execution_model"),
+            ("portfolio_id", "$.portfolio_policy"),
+        ] {
+            if object.contains_key(field) {
+                return Err(ConfigError::unsupported(
+                    file,
+                    &format!("$.{field}"),
+                    &format!("absent in quantrule.run/v5; use {replacement}"),
+                    "present",
+                ));
+            }
+        }
+        Some(V5RunFile::parse(file, object)?)
+    } else {
+        None
+    };
+
     let strategy = match schema.as_str() {
         RUN_SCHEMA => Some(
             read::non_empty_string(
@@ -339,14 +521,32 @@ pub(super) fn parse(value: &Value, file: &str) -> Result<RunFile, ConfigError> {
             }
             None
         }
-        other => {
-            return Err(ConfigError::schema(
+        RUN_SCHEMA_V5 => None,
+        _ => None,
+    };
+    let execution = if v5.is_some() {
+        None
+    } else {
+        Some(
+            read::non_empty_string(
                 file,
-                "$.schema",
-                "quantrule.run/v4 or quantrule.run/v3",
-                other,
-            ));
-        }
+                "$.execution",
+                read::field(file, ROOT, object, "execution")?,
+            )?
+            .to_owned(),
+        )
+    };
+    let portfolio = if v5.is_some() {
+        None
+    } else {
+        Some(
+            read::non_empty_string(
+                file,
+                "$.portfolio",
+                read::field(file, ROOT, object, "portfolio")?,
+            )?
+            .to_owned(),
+        )
     };
 
     Ok(RunFile {
@@ -360,18 +560,8 @@ pub(super) fn parse(value: &Value, file: &str) -> Result<RunFile, ConfigError> {
             .to_owned(),
         model: read::non_empty_string(file, "$.model", read::field(file, ROOT, object, "model")?)?
             .to_owned(),
-        execution: read::non_empty_string(
-            file,
-            "$.execution",
-            read::field(file, ROOT, object, "execution")?,
-        )?
-        .to_owned(),
-        portfolio: read::non_empty_string(
-            file,
-            "$.portfolio",
-            read::field(file, ROOT, object, "portfolio")?,
-        )?
-        .to_owned(),
+        execution,
+        portfolio,
         model_timeframes: object
             .get("model_timeframes")
             .map(|value| parse_model_timeframes(file, value))
@@ -383,6 +573,7 @@ pub(super) fn parse(value: &Value, file: &str) -> Result<RunFile, ConfigError> {
         )?
         .to_owned(),
         strategy,
+        v5,
     })
 }
 
@@ -436,23 +627,43 @@ fn load_document(path: &Path, file: &str) -> Result<Value, ConfigError> {
     serde_json::from_str(&text).map_err(|error| ConfigError::invalid_json(file, &error.to_string()))
 }
 
-/// The canonical SHA-256 identity of the config file bytes.
+/// The canonical SHA-256 identity of the legacy config file bytes.
 ///
 /// The data service hashes the same files with the same order and a NUL
 /// separator, so the catalog's `config_hash`, the run record, and the stage
 /// provenance name one value. The hash is an identity, not a security
 /// primitive; it is stable for the same bytes.
-fn fingerprint(paths: &ConfigPaths) -> Result<String, ConfigError> {
-    let mut files: Vec<&PathBuf> = vec![
-        &paths.run,
-        &paths.data,
-        &paths.model,
-        &paths.execution,
-        &paths.portfolio,
-    ];
+fn fingerprint_legacy(paths: &ConfigPaths) -> Result<String, ConfigError> {
+    let mut files: Vec<&PathBuf> = vec![&paths.run, &paths.data, &paths.model];
+    if let Some(execution) = &paths.execution {
+        files.push(execution);
+    }
+    if let Some(portfolio) = &paths.portfolio {
+        files.push(portfolio);
+    }
     if let Some(strategy) = &paths.strategy {
         files.push(strategy);
     }
+    Ok(Digest::sha256(&file_bytes(&files)?).to_string())
+}
+
+/// The v5 identity: the run, data, and model files, then every content hash.
+///
+/// The run file already carries the references, so changing any pack or signal
+/// changes the run bytes. The explicit tags keep the identity readable and make
+/// the contribution of each reference independent of the run file's key order.
+fn fingerprint_v5(paths: &ConfigPaths, references: &RunReferences) -> Result<String, ConfigError> {
+    let mut bytes = file_bytes(&[&paths.run, &paths.data, &paths.model])?;
+    for (kind, reference) in references.each() {
+        bytes.extend_from_slice(kind.code().as_bytes());
+        bytes.push(0);
+        bytes.extend_from_slice(reference.hash.to_string().as_bytes());
+        bytes.push(0);
+    }
+    Ok(Digest::sha256(&bytes).to_string())
+}
+
+fn file_bytes(files: &[&PathBuf]) -> Result<Vec<u8>, ConfigError> {
     let mut bytes = Vec::new();
     for path in files {
         let content = std::fs::read(path).map_err(|error| match error.kind() {
@@ -464,15 +675,15 @@ fn fingerprint(paths: &ConfigPaths) -> Result<String, ConfigError> {
         // with a different split. The data service uses the same byte.
         bytes.push(0);
     }
-    Ok(Digest::sha256(&bytes).to_string())
+    Ok(bytes)
 }
 
 /// The model-input identity: the data version label, the model config bytes,
 /// and the effective model ladder.
 ///
-/// The full [`fingerprint`] covers the strategy and every execution and
-/// portfolio file, so it changes when a strategy cell changes. The model
-/// artifact must survive that change; this hash covers only the inputs the
+/// The full [`fingerprint_legacy`] and [`fingerprint_v5`] identities cover the
+/// strategy and every pack, so they change when a research object changes. The
+/// model artifact must survive that change; this hash covers only the inputs the
 /// model consumes.
 fn model_input_hash(
     paths: &ConfigPaths,
@@ -545,4 +756,16 @@ fn display(name: &str) -> &str {
         .file_name()
         .and_then(|name| name.to_str())
         .unwrap_or(name)
+}
+
+/// The no-op resolver used by [`RunConfig::load`].
+///
+/// A v5 run loaded this way fails at its first reference with a missing-file
+/// error, which names the field a caller must supply bytes for.
+struct NoReferences;
+
+impl RunReferenceResolver for NoReferences {
+    fn resolve(&self, _kind: ReferenceKind, _reference: &ContentReference) -> Option<&[u8]> {
+        None
+    }
 }

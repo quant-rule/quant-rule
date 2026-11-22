@@ -11,6 +11,10 @@
 //! here. The signal artifact, persistent registry and client surface arrive
 //! with their own work items. A parser accepts only its own kind, so an
 //! envelope cannot stand in for a validated pack.
+//!
+//! [`references`] is the run-v5 seam: a run names a pack or upstream artifact by
+//! id and hash, and a supplied resolver provides the bytes. It is not a
+//! registry and stores nothing beyond the caller's own bytes.
 
 pub mod canonical;
 mod core;
@@ -20,6 +24,7 @@ pub mod execution;
 pub mod identity;
 pub mod lifecycle;
 pub mod portfolio;
+pub mod references;
 pub mod strategy;
 
 pub use canonical::canonical_json;
@@ -31,4 +36,8 @@ pub use execution::{
 pub use identity::{PackIdentity, PackIdentityConflict, PackIndex};
 pub use lifecycle::{PackState, PackStateError};
 pub use portfolio::{PortfolioConstraint, PortfolioPack, PortfolioPackPayload, RebalanceRule};
+pub use references::{
+    ContentReference, MemoryReferences, ModelArtifactHeader, ReferenceKind, RunReferenceResolver,
+    RunReferences, SignalArtifactHeader,
+};
 pub use strategy::{StrategyMode, StrategyPack, StrategyPackPayload};

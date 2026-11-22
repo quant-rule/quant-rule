@@ -21,6 +21,7 @@ mod portfolio;
 mod qualification;
 pub(crate) mod read;
 mod run;
+mod run_v5;
 pub mod spec;
 mod strategy;
 
@@ -35,7 +36,8 @@ pub use qualification::{Correction, CostModel, Dimension, MultipleTesting, Opera
 pub use qualification::{
     Criteria, Criterion, EvidenceArtifact, Partition, load as load_qualification,
 };
-pub use run::{RUN_SCHEMA, RUN_SCHEMA_V3, RunConfig};
+pub use run::{RUN_SCHEMA, RUN_SCHEMA_V3, RUN_SCHEMA_V5, RunConfig};
+pub use run_v5::{RunAccount, RunV5};
 pub use strategy::parse as parse_strategy;
 pub use strategy::{StrategyConfig, load as load_strategy};
 pub(crate) use strategy::{StrategyEngine, parse_risk, parse_timeframe};

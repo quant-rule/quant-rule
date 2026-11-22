@@ -106,16 +106,19 @@ pub(crate) fn record(
 fn bundle_files(body: &str, config: &RunConfig) -> BTreeMap<String, String> {
     let value: serde_json::Value = serde_json::from_str(body).unwrap_or(serde_json::Value::Null);
     let mut files = BTreeMap::from([("run.json".to_owned(), body.to_owned())]);
-    let mut pairs: Vec<(&str, &PathBuf)> = vec![
-        ("data", &config.paths.data),
-        ("model", &config.paths.model),
-        ("execution", &config.paths.execution),
-        ("portfolio", &config.paths.portfolio),
+    let mut pairs: Vec<(&str, Option<&PathBuf>)> = vec![
+        ("data", Some(&config.paths.data)),
+        ("model", Some(&config.paths.model)),
+        ("execution", config.paths.execution.as_ref()),
+        ("portfolio", config.paths.portfolio.as_ref()),
     ];
     if let Some(strategy) = &config.paths.strategy {
-        pairs.push(("strategy", strategy));
+        pairs.push(("strategy", Some(strategy)));
     }
     for (key, path) in pairs {
+        let Some(path) = path else {
+            continue;
+        };
         let Some(relative) = value.get(key).and_then(|value| value.as_str()) else {
             continue;
         };
@@ -126,24 +129,13 @@ fn bundle_files(body: &str, config: &RunConfig) -> BTreeMap<String, String> {
     files
 }
 
+/// The catalog's `config_hash` is the app loader's identity.
+///
+/// Recomputing the files here would be a second definition; a v5 identity also
+/// covers the pack and signal hashes, which this scanner does not hold. The
+/// loader has already read and validated every referenced file.
 fn hash_files(config: &RunConfig) -> Result<Digest, ScanError> {
-    let mut bytes = Vec::new();
-    let mut paths: Vec<&PathBuf> = vec![
-        &config.paths.run,
-        &config.paths.data,
-        &config.paths.model,
-        &config.paths.execution,
-        &config.paths.portfolio,
-    ];
-    if let Some(strategy) = &config.paths.strategy {
-        paths.push(strategy);
-    }
-    for path in paths {
-        let content = std::fs::read(path).map_err(|error| ScanError(error.to_string()))?;
-        bytes.extend_from_slice(&content);
-        bytes.push(0);
-    }
-    Ok(Digest::sha256(&bytes))
+    Digest::parse(&config.config_hash).map_err(|error| ScanError(error.to_string()))
 }
 
 fn id(digest: &Digest) -> String {

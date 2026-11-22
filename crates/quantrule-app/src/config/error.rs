@@ -81,6 +81,41 @@ impl ConfigError {
         )
     }
 
+    /// A referenced artifact could not be parsed as JSON.
+    pub fn invalid_json_at(file: &str, path: &str, message: &str) -> Self {
+        Self::new(
+            file,
+            path,
+            ConfigErrorKind::InvalidJson,
+            "valid JSON",
+            message,
+        )
+    }
+
+    /// A content reference could not be resolved to bytes.
+    pub fn missing_reference(file: &str, path: &str, expected: &str) -> Self {
+        Self::new(
+            file,
+            path,
+            ConfigErrorKind::MissingFile,
+            expected,
+            "missing",
+        )
+    }
+
+    /// Moves a nested parser's error under the field that named it.
+    ///
+    /// A pack parser always reports at `$`, or under `$.payload`. The run
+    /// reference that supplied the bytes is the real location a reader needs.
+    pub(crate) fn prefix_path(mut self, prefix: &str) -> Self {
+        if self.path == "$" {
+            self.path = prefix.to_owned();
+        } else if let Some(rest) = self.path.strip_prefix("$.") {
+            self.path = format!("{prefix}.{rest}");
+        }
+        self
+    }
+
     /// A referenced file exists but cannot be read.
     pub fn unreadable_file(file: &str) -> Self {
         Self::new(

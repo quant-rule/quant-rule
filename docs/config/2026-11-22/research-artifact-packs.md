@@ -1,7 +1,7 @@
 # Research Artifact Packs and Run v5
 
 - Date: 2026-11-22 (UTC)
-- Status: Strategy, portfolio policy and execution-simulation pack schemas implemented (RA-002, RA-003, RA-004); signal artifacts and run v5 target the next release; accepted by [ADR-RA](../../adr/2026-11-22/1082-research-artifact-layer.md)
+- Status: Strategy, portfolio policy and execution-simulation pack schemas implemented (RA-002, RA-003, RA-004); the run-v5 reference contract and config identity implemented (RA-005); signal computation, the persistent registry and the client surface target the next release; accepted by [ADR-RA](../../adr/2026-11-22/1082-research-artifact-layer.md)
 - Claim type: Behaviour Claim
 - Related: [Research artifacts](../../architecture/research-artifacts.md), [Run v4](../2026-11-13/run-v4-strategy.md)
 
@@ -227,21 +227,56 @@ produces the same signal ID.
   "model_id": "M1.3",
   "data": "data.json",
   "model": "model.json",
+  "model_artifact": { "id": "sha256:…", "hash": "sha256:…" },
   "strategy_pack": { "id": "sha256:…", "hash": "sha256:…" },
   "signal_artifact": { "id": "sha256:…", "hash": "sha256:…" },
   "portfolio_policy": { "id": "sha256:…", "hash": "sha256:…" },
   "execution_model": { "id": "sha256:…", "hash": "sha256:…" },
-  "account": { "initial_cash": 10000.0, "currency": "USD" }
+  "account": { "initial_cash": 10000.0, "currency": "USD" },
+  "output_root": "../../../data/labs/btcusd-2024-alpha"
 }
 ```
 
+| Field | Rule |
+|---|---|
+| `strategy_pack` | Required; must resolve to a `strategy` pack |
+| `portfolio_policy` | Required; must resolve to a `portfolio` pack |
+| `execution_model` | Required; must resolve to an `execution` pack |
+| `model_artifact` | Optional; required when `signal_artifact` is present |
+| `signal_artifact` | Required for a signal-mode strategy pack; absent for fold mode |
+| `account.initial_cash` | Finite and `> 0`; the run owns it |
+| `account.currency` | Exactly `USD` in v1; the run owns it |
+| `output_root` | A relative path inside the config directory |
+| Legacy fields | `strategy`, `execution`, `portfolio`, `execution_id` and `portfolio_id` are rejected in v5 |
+
+Each `{id, hash}` pair names one content-addressed object. The id and hash are
+the same value. A pack's id is the SHA-256 of its canonical bytes. A signal
+artifact's id is the SHA-256 of its stored bytes. A model artifact's id is the
+canonical digest over its `(name, sha256)` file entries, which is the same
+identity the diagnostic stage contract records. A strategy-only change leaves
+the model artifact bytes and content address unchanged; the model bundle never
+lists the strategy file.
+
+The loader verifies every content hash, rejects a wrong-kind pack, and checks
+the signal artifact's `strategy_pack_id`, `model_artifact_id` and `timeframe`.
 For fold mode, `signal_artifact` is absent. For signal mode it is required and
 must exist before submission. v3 and v4 configs remain readable; a v5 config is
 new.
 
-`RunId` remains `data_version ‖ config_hash ‖ model_version ‖ image_digest`. Pack
-and signal hashes enter through `config_hash` and provenance. The canonical digest
-is over result artifacts only.
+`RunId` remains `data_version ‖ config_hash ‖ model_version ‖ image_digest`.
+The config hash covers the run, data and model files and each reference tag and
+hash; changing any pack or signal hash therefore changes the run identity. The
+config hash for v3 and v4 is unchanged, so an old config reproduces its run.
+The canonical digest remains over result artifacts only and excludes
+`provenance.json` and input payloads.
+
+The persistent registry is not implemented yet. A v5 config is validated
+through a supplied reference resolver (`RunConfig::load_with`,
+`AppService::load_run_with`); the catalog and worker wiring arrives with RA-006.
+The current fold materializes strategy, execution, commission, funding, sizing,
+drawdown and position limits. `per_trade_risk`, `max_exposure`, `rebalance` and
+`constraints` are validated and retained in the resolved `RunV5`, but the
+portfolio engine does not read them yet.
 
 ## 8. Lifecycle and validation
 

@@ -13,6 +13,8 @@ mod simulation;
 
 pub use bundle::{BundleOutput, SpecRunArtifacts, model_bundle_from, model_bundle_with_spec};
 pub use error::ModelBundleError;
+#[cfg(test)]
+pub(crate) use provenance::config_files;
 pub use provenance::{panel_provenance, resolve_spec_path};
 
 use crate::config::RunConfig;

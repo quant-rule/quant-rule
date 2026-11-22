@@ -225,20 +225,28 @@ pub fn resolve_spec_path(spec_path: &Path, source: &str) -> PathBuf {
     }
 }
 
-pub(super) fn config_files(config: &RunConfig) -> Vec<String> {
-    [
-        &config.paths.run,
-        &config.paths.data,
-        &config.paths.model,
-        &config.paths.execution,
-        &config.paths.portfolio,
-    ]
-    .into_iter()
-    .map(|path| {
-        path.file_name()
-            .and_then(|name| name.to_str())
-            .unwrap_or("config.json")
-            .to_owned()
-    })
-    .collect()
+pub(crate) fn config_files(config: &RunConfig) -> Vec<String> {
+    // The model artifact is upstream of strategy. A strategy-only change must
+    // reuse the same model bundle, so the strategy file is never listed here
+    // even when the run names one. A v5 run has no execution or portfolio file
+    // path, so it lists only the files the model actually consumed.
+    let mut files: Vec<&PathBuf> = vec![&config.paths.run, &config.paths.data, &config.paths.model];
+    if let Some(execution) = &config.paths.execution {
+        files.push(execution);
+    }
+    if let Some(portfolio) = &config.paths.portfolio {
+        files.push(portfolio);
+    }
+    files
+        .into_iter()
+        .map(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("config.json")
+                .to_owned()
+        })
+        .collect()
 }
+
+#[cfg(test)]
+mod tests;

@@ -1,6 +1,6 @@
 # Research Artifacts
 
-- Status: Strategy, portfolio policy and execution-simulation packs current (RA-002–RA-004); signal artifacts and run v5 target the next release; accepted by [ADR-RA](../adr/2026-11-22/1082-research-artifact-layer.md)
+- Status: Strategy, portfolio policy and execution-simulation packs current (RA-002–RA-004); the run-v5 reference and identity contract current (RA-005); signal computation, the persistent registry and the client surface target the next release; accepted by [ADR-RA](../adr/2026-11-22/1082-research-artifact-layer.md)
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 
@@ -82,14 +82,21 @@ schema has no venue, order-routing, latency, participation or live-market field.
 
 `quantrule.run/v5` references the model artifact, strategy pack, signal artifact,
 portfolio policy pack and execution-simulation pack by ID and hash. It carries
-the account cash and currency. It does not inline pack bodies.
+the account cash and currency. It does not inline pack bodies. The model
+artifact and signal artifact are optional only for a fold-mode run that computes
+the model; a signal-mode run requires both.
 
-`RunId` remains `data_version ‖ config_hash ‖ model_version ‖ image_digest`. Pack
-and signal hashes enter through `config_hash` and provenance. The canonical digest
-remains over result artifacts only. v3 and v4 configs remain readable.
+`RunId` remains `data_version ‖ config_hash ‖ model_version ‖ image_digest`. The
+config hash covers every reference hash, so a pack change changes the run
+identity, while the model-input hash still covers only data and model. The
+canonical digest remains over result artifacts only; provenance and inputs are
+excluded. v3 and v4 configs remain readable and keep their config hash.
 
 The signal artifact must exist before `run submit`; otherwise the run identity
-cannot be known at submission.
+cannot be known at submission. Because the persistent registry is not
+implemented yet, a v5 config is loaded with a supplied reference resolver. The
+catalog and worker reach it when the registry lands; no client command or
+service boundary is added by this contract.
 
 ## 7. Services and flow
 

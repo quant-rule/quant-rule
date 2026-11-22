@@ -1,7 +1,7 @@
 # Run Config v4 — The Strategy Is Part of the Run
 
 - Date: 2026-11-13 (UTC)
-- Status: Current
+- Status: Current for a file-based full run; `quantrule.run/v5` is additive and v3 remains model-only
 - Claim type: Behaviour Claim
 
 A run config now names its human-owned strategy. The strategy is one of the
@@ -38,6 +38,7 @@ than only its data, model, execution, and portfolio inputs.
 |---|---|---|
 | `quantrule.run/v4` | Required | A full run, including strategy, execution, and portfolio |
 | `quantrule.run/v3` | Absent; a `strategy` field is rejected | A model-only run or a historical evidence config; the coupled `run submit` rejects it |
+| `quantrule.run/v5` | A strategy pack instead of a file | Additive; references packs and artifacts by content hash and keeps the v4 identity algorithm unchanged |
 
 The catalog and the model route accept both. A config that is missing a
 referenced file, including `strategy.json`, is catalogued as invalid with the
