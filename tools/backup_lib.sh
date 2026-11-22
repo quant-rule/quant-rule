@@ -109,7 +109,7 @@ backup_service_running() {
 # The application services that must be quiet for one consistent snapshot.
 # Anything not a durable store is an application process, including a future
 # data/model/simulation container, so the list stays correct when the split
-# lands without the script having to enumerate the six binaries.
+# lands without the script having to enumerate the seven binaries.
 backup_app_services() {
   local service
   local state_service

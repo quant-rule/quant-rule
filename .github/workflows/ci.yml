@@ -324,7 +324,7 @@ jobs:
           cache-bin: false
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      - name: Build the six service binaries
+      - name: Build the seven service binaries
         run: |
           cargo build --release --locked \
             -p quantrule-gateway \
@@ -333,6 +333,7 @@ jobs:
             -p quantrule-model-service \
             -p quantrule-evidence-service \
             -p quantrule-simulation-service \
+            -p quantrule-strategy-service \
             --bins
 
       - name: Write the release-binary manifest

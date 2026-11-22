@@ -1,14 +1,14 @@
 # QuantRule deployment — quantrule.deploy/v1
 #
 # One bridge network, one published port, three named volumes. The default
-# topology is nine long-running containers: the six service binaries from one
+# topology is ten long-running containers: the seven service binaries from one
 # image plus Postgres, the object store, and the broker. A one-shot db-bootstrap
 # container creates the four logical databases and their owner/app roles, then
 # four one-shot migration jobs apply each owner ledger. The database-owning
 # services start with only their application credential. `data`, `model`,
 # `evidence`, and `simulation` serve the catalog, model compute, runs/research,
-# and the research plane; the gateway proxies all four. Only the backtest worker
-# serves no HTTP.
+# and the research plane; the gateway proxies all four. `strategy` serves the
+# internal signal route, and the backtest worker serves no HTTP.
 #
 # Windows and macOS run this file through Docker Desktop's Linux backend
 # (WSL2 on Windows). The image is linux/amd64.
@@ -31,11 +31,11 @@ x-server: &server
   environment: &server-environment
     # Each database-owning service receives its own application URL below.
     # Model and backtest own no database and receive no URL.
-    # The gateway and the backtest worker reach qr-data through this URL; both
-    # refuse to start without it. Data is not published on the host.
+    # The gateway, backtest worker and strategy service reach qr-data through
+    # this URL; each refuses to start without it. Data is not on the host.
     QR_DATA_URL: http://data:8080
-    # The gateway proxies /model/compute to qr-model and refuses to start
-    # without this URL.
+    # The gateway proxies /model/compute and the strategy service resolves a
+    # frozen bundle; both refuse to start without this URL.
     QR_MODEL_URL: http://model:8080
     # The gateway proxies runs and hypotheses to qr-evidence, and the backtest
     # worker uses its internal lifecycle; both refuse to start without this URL.
@@ -43,6 +43,9 @@ x-server: &server
     # The gateway proxies the simulation research plane to qr-simulation and
     # refuses to start without this URL.
     QR_SIMULATION_URL: http://simulation:8080
+    # The gateway probes the seventh service only when this URL is set. The v2
+    # multi-host profile leaves it absent and still starts.
+    QR_STRATEGY_URL: http://strategy:8080
     QR_OBJECT_STORE_URL: http://minio:9000
     QR_OBJECT_BUCKET: quantrule
     QR_QUEUE_URL: amqp://quantrule:${QR_RABBITMQ_PASSWORD:-quantrule}@rabbitmq:5672/%2f
@@ -115,6 +118,8 @@ services:
         condition: service_healthy
       simulation:
         condition: service_healthy
+      strategy:
+        condition: service_healthy
       postgres:
         condition: service_healthy
       minio:
@@ -157,6 +162,31 @@ services:
       QR_MIGRATE: "0"
     depends_on:
       data:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck: *http-healthcheck
+
+  strategy:
+    <<: *server
+    command: ["qr-strategy"]
+    # The seventh service receives only its data, model, object-store and image
+    # identity. It owns no database, declares no queue, mounts no config, and
+    # applies no migration.
+    environment:
+      QR_DATA_URL: http://data:8080
+      QR_MODEL_URL: http://model:8080
+      QR_OBJECT_STORE_URL: http://minio:9000
+      QR_OBJECT_BUCKET: quantrule
+      QR_MIGRATE: "0"
+      QR_IMAGE_DIGEST:
+      AWS_ACCESS_KEY_ID: quantrule
+      AWS_SECRET_ACCESS_KEY: ${QR_OBJECT_STORE_PASSWORD:-quantrule}
+      AWS_REGION: us-east-1
+    depends_on:
+      data:
+        condition: service_healthy
+      model:
         condition: service_healthy
       minio:
         condition: service_healthy

@@ -11,8 +11,8 @@ document states which schema and run version it applies to.
 | Contract | Status | Path |
 |---|---|---|
 | Run v4 and the strategy | Current for a file-based full run; `run v4` binds the strategy to the run; data schema 3, model schema 4, `execution v2`, `portfolio v2` | `docs/config/2026-11-13/run-v4-strategy.md` |
-| Research packs and run v5 | Strategy, portfolio policy and execution-simulation packs, the run-v5 reference contract, the persistent pack registry, run lineage, artifact retention and the signal artifact reference computation implemented (RA-002–RA-007); the strategy service, run-v5 catalog/worker reachability and the client surface target the next release | `docs/config/2026-11-22/research-artifact-packs.md` |
-| Signal artifact | Current; `quantrule.signal-artifact/v1`, the reference position, causality, identity and fold rejection | `docs/config/2026-11-22/signal-artifact.md` |
+| Research packs and run v5 | Strategy, portfolio policy and execution-simulation packs, the run-v5 reference contract, the persistent pack registry, run lineage, artifact retention, the signal artifact reference computation and the stateless strategy service implemented (RA-002–RA-008); run-v5 catalog/worker reachability and the client surface target later work | `docs/config/2026-11-22/research-artifact-packs.md` |
+| Signal artifact | Current; `quantrule.signal-artifact/v1`, the reference position, causality, identity, fold rejection and the internal strategy service route | `docs/config/2026-11-22/signal-artifact.md` |
 | Deployment v3 | Target for the next release; Swarm HA descriptor, four databases, ingress and stateful placement | `docs/config/2026-11-22/deploy-v3.md` |
 | Four logical databases | Current for local Compose and v2 multi-host; owner/app roles, per-service app URLs, one-shot owner migration jobs | `docs/config/2026-11-22/four-databases.md` |
 | Schema migrations | Current; forward-only ledgers, checksum pin, expand/contract and rollback runbook | `docs/architecture/migrations.md` |

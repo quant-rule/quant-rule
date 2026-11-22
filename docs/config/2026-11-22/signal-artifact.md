@@ -1,7 +1,7 @@
 # Signal Artifact and Reference Position
 
 - Date: 2026-11-22 (UTC)
-- Status: Signal artifact contract and pure reference computation implemented (RA-007); the stateless strategy service (RA-008), the client surface (RA-009) and run-v5 catalog/worker reachability target later work items; accepted by [ADR-RA](../../adr/2026-11-22/1082-research-artifact-layer.md)
+- Status: Signal artifact contract, pure reference computation and the stateless strategy service implemented (RA-007, RA-008); the client surface (RA-009) and run-v5 catalog/worker reachability target later work items; accepted by [ADR-RA](../../adr/2026-11-22/1082-research-artifact-layer.md)
 - Claim type: Behaviour Claim
 - Related: [Research packs and run v5](research-artifact-packs.md), [Research artifacts](../../architecture/research-artifacts.md)
 
@@ -198,9 +198,38 @@ The model artifact id is the canonical digest over the manifest's
 other than the one the artifact was computed from. The strategy service verifies
 the id against the frozen manifest before it writes the artifact.
 
-## 7. Non-goals
+## 7. Strategy service
+
+`POST /internal/v1/signals` accepts `model_artifact_id`, `data_version`,
+`config_id` and `strategy_pack_id` plus the profile header. The service:
+
+1. Reads the pack record and canonical bytes from the data service and requires
+   `kind: strategy`, `state: frozen`, a matching id and `mode: signal`. A fold
+   pack is refused before any model call or write.
+2. Resolves the model with `data_version` + `config_id`, verifies the manifest
+   schema, dataset, config and canonical artifact id, then hash- and size-checks
+   every listed object and assembles the bundle in memory.
+3. Runs the pure computation, re-checks the pack, model id, timeframe, data
+   version and content id, and writes the canonical bytes directly under
+   `artifacts/<sha256 hex>`.
+4. Calls `POST /internal/v1/artifacts/signal/{id}` with `{"bytes": N}`. The data
+   service re-reads the object, checks its hash and size, and inserts the
+   `catalog.artifacts` row idempotently. A duplicate returns the stored row with
+   `created: false`.
+
+The signal bytes never travel over HTTP, so the 64 MiB PUT body cap is
+unchanged. The service is stateless: no database, queue, migration or config
+root, and one pack plus one model resolution per request rather than per bar.
+The catalog row is the pre-run record. Evidence `runs.run_lineage` is recorded
+at run submission, not here, because the signal must exist first; that path adds
+the `run:<id>` reference. A new signal may stay unreferenced for the 30-day
+retention window.
+
+## 8. Non-goals
 
 - No fill, quantity, fee, cash, equity or P&L record.
 - No edge, return, confidence or statistical metric.
 - No fold-mode execution, position-aware giveback, or per-bar network call.
-- No service, route, shell command or browser screen in this contract.
+- No public route, shell command or browser screen in this contract.
+- No signal bytes over HTTP and no new reference kind.
+- No `runs.run_lineage` write by the strategy service.

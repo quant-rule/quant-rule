@@ -5,8 +5,8 @@
 - Decision: [`ADR-2026-11-12-01`](../adr/2026-11-12/01-adopt-distributed-service-based-architecture.md)
 - Claim type: Behaviour Claim
 
-Six services, six binaries, one image. Each service owns one responsibility and
-one set of data. The catalog is the single authority for "who does what".
+Seven services, seven binaries, one image. Each service owns one responsibility
+and one set of data. The catalog is the single authority for "who does what".
 
 Every record is scoped by `profile_id`. Profiles are organisational, not a
 security boundary ([`ADR-11`](../adr/2026-11-12/11-profiles.md)).
@@ -21,12 +21,13 @@ security boundary ([`ADR-11`](../adr/2026-11-12/11-profiles.md)).
 | `backtest` | `qr-backtest` | Run orchestration, strategy, execution, portfolio, diagnostic stage execution | artifact objects, stage worker | own the final provenance, canonical digest, or run record |
 | `evidence` | `qr-evidence` | Provenance, canonical digest, run records, research memory, stage lifecycle, finalization | `runs`, `research`, and `stage` schemas in `qr_evidence`, bundle objects | compute a reading or decide a trade |
 | `simulation` | `qr-simulation` | Chart-first research: window selection, marks, oracle, review, check, decision | `simulation` schema in `qr_simulation`, research objects | compute a model, write a run artifact, publish to the queue |
+| `strategy` | `qr-strategy` | Signal-mode pack validation, signal computation, object-store write and metadata-only catalog registration | signal objects under `artifacts/` | own a database or queue, run a fold, read a run or research schema |
 
 Each database-owning service has a `<database>_owner` role used only by its
 one-shot migration job and a `<database>_app` role that serves requests with DML
 only. The long-running process never receives the owner URL. No role is granted
-connect on another service's database. Model and backtest have no database. The
-contract is
+connect on another service's database. Model, strategy and backtest have no
+database. The contract is
 [`docs/config/2026-11-22/four-databases.md`](../config/2026-11-22/four-databases.md).
 
 The worker builds the run manifest and proposes its canonical digest; evidence
@@ -41,7 +42,8 @@ gateway ──────────────┐
                       ├──> quantrule-service-api
                       └──> quantrule-runtime
 
-data, model, backtest ──> quantrule-app ──> quantrule-backtest ──> quantrule-model ──> quantrule-data
+data, model, backtest, strategy ──> quantrule-app ──> quantrule-backtest
+                                                       └──> quantrule-model ──> quantrule-data
 evidence ───────────────> quantrule-research
 simulation ─────────────> quantrule-simulation
 ```
@@ -73,9 +75,9 @@ gateway token, and let a client depend on another service's schema.
 
 | Topology | Status | Shape |
 |---|---|---|
-| Single host, Compose | Supported; default | Six services and three infrastructure containers on one host |
+| Single host, Compose | Supported; default | Seven services and three infrastructure containers on one host |
 | Split host, client/server | Supported | Full stack on one server; browser and shell on another machine |
-| Multi-host services | Supported; implemented, release pending | Six services across hosts, private overlay, one image digest |
+| Multi-host services | Supported; implemented, release pending | Six services across hosts; v3 (HA-012) adds `strategy` |
 | Cloud, HA, Kubernetes, mTLS | Not supported | A later decision with its own ADR |
 
 Distribution is about separate processes, failure units, and scaling units, not
@@ -93,6 +95,7 @@ only to the private overlay.
 | `backtest` | **N** | one run per worker; CPU-bound and sequential within a run |
 | `evidence` | 2 in HA; 1 in Compose and v2 | both serve reads; one leader finalises |
 | `simulation` | 2 in HA; 1 in Compose and v2 | interactive; per-run row locks coordinate marks and the terminal decision |
+| `strategy` | **N** | stateless and idempotent by model hash + pack hash |
 
 `backtest` is never sharded inside a run: strategy, fills, position, and cash are
 a fold over time. Claiming otherwise would be false.
@@ -114,6 +117,7 @@ a fold over time. Claiming otherwise would be false.
 | `model` down | The run fails at the model stage; no artifact is finalized |
 | `backtest` down mid-run | Message is redelivered; recomputation is idempotent |
 | `evidence` down after compute | Artifacts exist but the run stays `running`; finalization retries |
+| `strategy` down | New signals fail fast; existing signals and runs are unaffected |
 | object store down | The run fails; no partial bundle becomes visible |
 | queue down | Submission fails fast; nothing is silently dropped |
 
@@ -128,15 +132,8 @@ a fold over time. Claiming otherwise would be false.
 ## 7. Backend adapters
 
 Database, object store, and queue sit behind traits. The server ships one
-implementation of each: Postgres, S3, and RabbitMQ.
-
-| Trait | Server implementation |
-|---|---|
-| Database | Postgres |
-| Object store | S3 API |
-| Queue | RabbitMQ |
-
-A service calls the trait, never a client library directly.
+implementation of each: Postgres, the S3 API, and RabbitMQ. A service calls the
+trait, never a client library directly.
 
 ## 8. Stage diagnostics
 

@@ -114,7 +114,7 @@ The object mirror uses the `mc` bundled in the pinned MinIO image. A replacement
 The archive contains candle data and is handled as sensitive; see
 [`data-lifecycle.md`](../workflows/data-lifecycle.md).
 
-The default stack starts all six services, three stores, the database bootstrap,
+The default stack starts all seven services, three stores, the database bootstrap,
 and four migration jobs ([deployment.md](deployment.md) §2.1). The four logical
 databases are a current deployment contract
 ([four databases](../config/2026-11-22/four-databases.md)). Backup covers only

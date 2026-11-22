@@ -82,7 +82,25 @@ impl std::error::Error for ProvenanceError {
 /// Returns [`ProvenanceError`] when the file is missing, unreadable, not JSON,
 /// not an object, names another report, or omits an identity field.
 pub fn load_model(path: &Path) -> Result<StageProvenance, ProvenanceError> {
-    let object = read_object(path)?;
+    let bytes = fs::read(path).map_err(|source| ProvenanceError::Read {
+        path: path.to_path_buf(),
+        source,
+    })?;
+    load_model_bytes(&bytes, path)
+}
+
+/// Reads the model identity from already-read provenance bytes.
+///
+/// This is the in-memory form the strategy service uses after it verifies a
+/// model-bundle artifact; the file loader calls the same parser so both paths
+/// cannot drift. `path` is the artifact name used in an error message.
+///
+/// # Errors
+///
+/// Returns [`ProvenanceError::Invalid`] when the bytes are not UTF-8, not JSON,
+/// not an object, name another report, or omit an identity field.
+pub fn load_model_bytes(bytes: &[u8], path: &Path) -> Result<StageProvenance, ProvenanceError> {
+    let object = object_from_bytes(bytes, path)?;
     let report = object.get("report").and_then(Value::as_str).unwrap_or("");
     if report != "model" {
         return Err(invalid(
@@ -178,12 +196,28 @@ pub fn read_text(path: &Path) -> Result<String, ProvenanceError> {
 
 fn read_object(path: &Path) -> Result<serde_json::Map<String, Value>, ProvenanceError> {
     let text = read_text(path)?;
-    let value: Value = serde_json::from_str(&text)
-        .map_err(|error| invalid(path, &format!("not JSON: {error}")))?;
+    object_from_text(&text, path)
+}
+
+fn object_from_bytes(
+    bytes: &[u8],
+    file: &Path,
+) -> Result<serde_json::Map<String, Value>, ProvenanceError> {
+    let text = std::str::from_utf8(bytes)
+        .map_err(|error| invalid(file, &format!("not UTF-8: {error}")))?;
+    object_from_text(text, file)
+}
+
+fn object_from_text(
+    text: &str,
+    file: &Path,
+) -> Result<serde_json::Map<String, Value>, ProvenanceError> {
+    let value: Value =
+        serde_json::from_str(text).map_err(|error| invalid(file, &format!("not JSON: {error}")))?;
     value
         .as_object()
         .cloned()
-        .ok_or_else(|| invalid(path, "the provenance root is not an object"))
+        .ok_or_else(|| invalid(file, "the provenance root is not an object"))
 }
 
 fn required_non_empty(

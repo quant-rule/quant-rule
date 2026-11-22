@@ -1,10 +1,10 @@
-//! The six-binary inventory guard.
+//! The seven-binary inventory guard.
 //!
-//! Milestone M1 of the service split is exactly six service binaries: gateway,
-//! data, model, backtest, evidence, and simulation. The guard reads every
-//! service package's manifest and source entry points, so deleting a `[[bin]]`
-//! target, renaming a service binary, or adding a seventh fails here. The
-//! expected set is the contract; the actual set comes from the tree.
+//! The platform is exactly seven service binaries: gateway, data, model,
+//! backtest, evidence, simulation, and strategy. The guard reads every service
+//! package's manifest and source entry points, so deleting a `[[bin]]` target,
+//! renaming a service binary, or adding an eighth fails here. The expected set
+//! is the contract; the actual set comes from the tree.
 //!
 //! The `quantrule` binary from `quantrule-shell` is a client, not a service, and
 //! is outside this inventory. B edits no shell file and must not claim it as a
@@ -13,14 +13,15 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
-/// The six service binaries the image packages.
-const EXPECTED: [&str; 6] = [
+/// The seven service binaries the image packages.
+const EXPECTED: [&str; 7] = [
     "qr-backtest",
     "qr-data",
     "qr-evidence",
     "qr-gateway",
     "qr-model",
     "qr-simulation",
+    "qr-strategy",
 ];
 
 /// The package that ships each service binary.
@@ -30,13 +31,14 @@ const EXPECTED: [&str; 6] = [
 /// service package cannot quietly ship two targets or a non-service package
 /// cannot quietly ship a service binary. The shell, the library, and the engine
 /// crates are not part of the service inventory.
-const PACKAGES: [(&str, &str); 6] = [
+const PACKAGES: [(&str, &str); 7] = [
     ("quantrule-backtest-service", "qr-backtest"),
     ("quantrule-data-service", "qr-data"),
     ("quantrule-evidence-service", "qr-evidence"),
     ("quantrule-gateway", "qr-gateway"),
     ("quantrule-model-service", "qr-model"),
     ("quantrule-simulation-service", "qr-simulation"),
+    ("quantrule-strategy-service", "qr-strategy"),
 ];
 
 /// Whether a package ships a service binary.
@@ -215,12 +217,12 @@ fn mismatch(observed: &BTreeSet<String>) -> Option<String> {
 }
 
 #[test]
-fn the_workspace_builds_exactly_the_six_service_binaries() {
+fn the_workspace_builds_exactly_the_seven_service_binaries() {
     let observed = inventory(&workspace_root());
     assert_eq!(
         mismatch(&observed),
         None,
-        "the six-binary inventory changed: {observed:?}"
+        "the seven-binary inventory changed: {observed:?}"
     );
 }
 
@@ -264,4 +266,12 @@ fn an_extra_binary_fails_the_guard() {
     observed.insert("qr-extra".to_owned());
     let problem = mismatch(&observed).expect("an extra binary must be reported");
     assert!(problem.contains("qr-extra"), "{problem}");
+}
+
+#[test]
+fn a_missing_strategy_binary_fails_the_guard() {
+    let mut observed = expected();
+    observed.remove("qr-strategy");
+    let problem = mismatch(&observed).expect("a missing strategy binary must be reported");
+    assert!(problem.contains("qr-strategy"), "{problem}");
 }

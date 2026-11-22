@@ -78,9 +78,11 @@ command runs, so `QUANTRULE_TOKEN` is the better default on a shared host.
 
 ### 2.2 Multi-host overlay
 
-The multi-host profile keeps the same trust boundary. The six services run on
+The multi-host profile keeps the same trust boundary. Its six services run on
 several hosts, but `data`, `model`, `evidence`, `simulation`, and `backtest` are
-reachable only over WireGuard, Tailscale, or a dedicated private VLAN. They have
+reachable only over WireGuard, Tailscale, or a dedicated private VLAN. The
+single-host Compose stack adds `strategy` on the same container network, and v3
+(HA-012) places it in the multi-host profile. The services have
 no application authentication. The gateway remains the only public service and
 requires a bearer token when it is on a LAN or the public internet.
 

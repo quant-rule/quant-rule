@@ -43,6 +43,7 @@ see [`docker/README.md`](../../docker/README.md) §7.
 | `backtest` | `quantrule-server` | — | — |
 | `evidence` | `quantrule-server` | — | — |
 | `simulation` | `quantrule-server` | — | — |
+| `strategy` | `quantrule-server` | — | — |
 | `postgres` | `postgres@sha256:846a…` (`QR_POSTGRES_IMAGE` override) | — | `pgdata` |
 | `db-bootstrap` / `*-migrate` | the Postgres image / `quantrule-server`, one-shot | — | — |
 | `minio` | `bitnamilegacy/minio` (pinned digest; `QR_OBJECT_STORE_IMAGE` override) | — | `objects` |
@@ -51,18 +52,16 @@ see [`docker/README.md`](../../docker/README.md) §7.
 One bridge network. Services resolve each other by container name. Only the
 gateway is reachable from the host.
 
-The image also carries the static client, built with **Bun** (`bun install`,
-`bun run build`). No Bun runtime and no Python runtime are present at run time.
+The image also carries the static client built with **Bun**; no Bun or Python runtime is present at run time.
 
 ## 2.1 Current state
 
-All six binaries and nine long-running containers start; only `backtest` is
+All seven binaries and ten long-running containers start; only `backtest` is
 HTTP-less. `db-bootstrap` creates the four databases and roles, then four `*-migrate` jobs apply each ledger;
 long-running services hold the application URL with `QR_MIGRATE=0`. Compose and v2 run one data and one
 simulation replica; the HA profile's two require the [data active/active](data-active-active.md) and
 [simulation concurrency](simulation-concurrency.md) contracts.
-The MinIO image is pinned; the database contract is [four-databases](../config/2026-11-22/four-databases.md)
-and the migration contract is [migrations.md](migrations.md).
+The MinIO image is pinned; the database and migration contracts are [four-databases](../config/2026-11-22/four-databases.md) and [migrations.md](migrations.md).
 ## 3. Make targets
 
 | Target | Effect |
@@ -120,9 +119,10 @@ to start.
 | `QR_IMAGE_DIGEST` | image label; `make up` records the built image id | Required for a run/stage submission; reported by `/health` and written to provenance. A server without it refuses the submission. |
 | `QR_INTERNAL_ONLY` | unset | When `1`, an HTTP service refuses a public or unspecified bind; the multi-host profile sets it on the internal services. |
 | `QR_DATABASE_URL` / `QR_DATABASE_OWNER_URL` | compose value | The long-running service's `<database>_app` / the one-shot `<service>-migrate` job's `<database>_owner`; model and backtest receive neither; long-running services require `QR_MIGRATE=0` |
-| `QR_DATA_URL` | compose value | Data service, used by the gateway and the backtest worker |
+| `QR_DATA_URL` | compose value | Data service, used by the gateway, worker and strategy service |
 | `QR_MODEL_URL` / `QR_SIMULATION_URL` | compose value | Model service / simulation service, used by the gateway |
 | `QR_EVIDENCE_URL` | compose value | Evidence service, used by the gateway and the backtest worker |
+| `QR_STRATEGY_URL` | compose value | Optional strategy probe; v2 leaves it absent and still starts |
 | `QR_OBJECT_STORE_URL` | compose value | MinIO endpoint |
 | `QR_QUEUE_URL` / `QR_QUEUE_GENERATION` | compose value / `1` | RabbitMQ endpoint / queue-generation suffix; a changed queue declaration uses a new generation |
 | `QR_LEADER_ID` | hostname + process id | Evidence leader holder; a distinct value per replica makes logs clear, and the term, not the holder, is the fence |
@@ -146,7 +146,7 @@ Docker Desktop on Windows.
 
 ## 6. Split host
 
-The server runs the nine long-running containers and the bootstrap; the client
+The server runs the ten long-running containers and the bootstrap; the client
 runs none and points at `http://<server>:8080`. Scaling is configuration.
 
 ## 7. Upgrade and rollback

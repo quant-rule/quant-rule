@@ -1,8 +1,9 @@
 # The server image and the Compose stack
 
-- Status: Implements `DIST-022` (#643); six of six binaries exist and the default
-  stack starts nine long-running containers plus the one-shot database
-  bootstrap. The permanent object-store registry remains a human decision.
+- Status: Implements `DIST-022` (#643); seven of seven binaries exist and the
+  single-host default stack starts ten long-running containers plus the one-shot
+  database bootstrap. The v2 multi-host profile still places six services. The
+  permanent object-store registry remains a human decision.
 - Claim type: Behaviour Claim
 
 One image, one published port, one bridge network. The image is `linux/amd64`;
@@ -14,15 +15,16 @@ read-only `config/` mount that the target assigns to the `data` service.
 
 | Path | Contents |
 |---|---|
-| `/usr/local/bin` | `qr-gateway`, `qr-data`, `qr-model`, `qr-backtest`, `qr-evidence`, `qr-simulation` |
+| `/usr/local/bin` | `qr-gateway`, `qr-data`, `qr-model`, `qr-backtest`, `qr-evidence`, `qr-simulation`, `qr-strategy` |
 | `/srv/static` | The client built with Bun (`bun install --frozen-lockfile`, `bun run build`) |
 | `/etc/quantrule-version` | The workspace version, baked at build time |
 | `/usr/local/bin/quantrule-entry` | Selects the binary and answers `--version` |
 
-The six binaries come from six packages, one per service:
+The seven binaries come from seven packages, one per service:
 `quantrule-gateway`, `quantrule-backtest-service`,
 `quantrule-data-service`, `quantrule-model-service`,
-`quantrule-evidence-service`, and `quantrule-simulation-service`.
+`quantrule-evidence-service`, `quantrule-simulation-service`, and
+`quantrule-strategy-service`.
 
 The runtime is Debian slim with `ca-certificates` and `curl`, and it runs as
 UID 10001. It carries no Python interpreter, no Bun runtime, no Rust toolchain,
@@ -39,7 +41,7 @@ docker compose down
 ```
 
 `make up` is #644. `docker compose config` validates the default stack. There is
-no partial-stack profile: every one of the nine services starts by default.
+no partial-stack profile: every one of the ten services starts by default.
 
 | Container | Binary | Surface |
 |---|---|---|
@@ -49,13 +51,14 @@ no partial-stack profile: every one of the nine services starts by default.
 | `backtest` | `qr-backtest` | queue consumer; no HTTP |
 | `evidence` | `qr-evidence` | `/health`, `/version`, `/runs`, `/hypotheses`, and the internal worker lifecycle |
 | `simulation` | `qr-simulation` | `/health`, `/version`, and the eleven research-plane endpoints |
+| `strategy` | `qr-strategy` | `/health`, `/version`, and the internal signal route; no database or queue |
 | `postgres` | `postgres:17` | database cluster (four logical databases) |
 | `db-bootstrap` | `postgres:17` | one-shot databases and roles |
 | `*-migrate` | `quantrule-server` | four one-shot owner migrations |
 | `minio` | `bitnamilegacy/minio` | object store |
 | `rabbitmq` | `rabbitmq:4-management` | broker |
 
-Only `gateway` publishes a port. The five HTTP services carry a healthcheck that
+Only `gateway` publishes a port. The six HTTP services carry a healthcheck that
 reads their own `/health`; the three infrastructure containers carry their own
 probes. `backtest` serves no HTTP and publishes no liveness probe, so it has no
 healthcheck. Docker reports its process state; `/health` reports the
@@ -71,7 +74,9 @@ schema. `evidence` is complete for P5: it owns the `runs` and `research` schemas
 serves the run and hypothesis surface, and consumes `run.computed` to finalize.
 `simulation` is complete for P7: it owns the `simulation` schema, serves the
 eleven research-plane endpoints, and reads a recorded bundle from the object
-store. The gateway proxies all four surfaces and keeps no domain handler:
+store. `strategy` is complete for RA-008: it computes a signal-mode artifact,
+writes it to the object store, and registers the catalog row through `qr-data`.
+The gateway proxies the four public surfaces and keeps no domain handler:
 
 | Service | Route owner | Phase |
 |---|---|---|
@@ -84,15 +89,17 @@ Only `data` mounts `config/` read-only. `model` and `evidence` read the dataset
 object through data and the object store, and `simulation` reads its recorded
 bundle from the object store, so none needs a config mount. `backtest` loads the
 dataset and config from data, the model bundle from model, and records the run
-through evidence; it serves no HTTP.
+through evidence; it serves no HTTP. `strategy` reads packs through data,
+resolves a model bundle through model, and writes signal bytes and metadata; it
+has no config mount.
 
 Each database owner migrates its own ledger in its own database. The one-shot
 `db-bootstrap` service creates the four databases and the eight owner/app roles;
 four one-shot `*-migrate` services run the same binary with `--migrate-only`,
 apply one ledger with the owner URL, and exit. The long-running service starts
 afterwards with its `<database>_app` URL and `QR_MIGRATE=0`; it never receives
-the owner credential. `backtest` and `model` own no database and have no
-migration job.
+the owner credential. `backtest`, `model` and `strategy` own no database and
+have no migration job.
 
 ## 4. Object store source
 

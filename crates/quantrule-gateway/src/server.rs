@@ -54,6 +54,8 @@ pub struct Services {
     pub evidence_upstream: Option<Arc<HttpServiceClient>>,
     /// The simulation service's HTTP transport, for the proxy.
     pub simulation_upstream: Option<Arc<HttpServiceClient>>,
+    /// The strategy service's HTTP transport, for the readiness probe.
+    pub strategy_upstream: Option<Arc<HttpServiceClient>>,
     /// The evidence service's profile run count.
     pub runs: Option<Arc<dyn RunCounter>>,
     /// The simulation service's profile simulation count.
@@ -80,6 +82,8 @@ pub struct AppState {
     pub evidence_upstream: Option<Arc<HttpServiceClient>>,
     /// The simulation service's HTTP transport; absent in a test that does not proxy.
     pub simulation_upstream: Option<Arc<HttpServiceClient>>,
+    /// The strategy service's HTTP transport; optional so v2 starts without it.
+    pub strategy_upstream: Option<Arc<HttpServiceClient>>,
     /// The evidence service's profile run count; absent in a test that does not use it.
     pub runs: Option<Arc<dyn RunCounter>>,
     /// The simulation service's profile count; absent in a test that does not use it.
@@ -101,6 +105,7 @@ impl std::fmt::Debug for AppState {
             .field("model_upstream", &self.model_upstream.is_some())
             .field("evidence_upstream", &self.evidence_upstream.is_some())
             .field("simulation_upstream", &self.simulation_upstream.is_some())
+            .field("strategy_upstream", &self.strategy_upstream.is_some())
             .field("runs", &self.runs.is_some())
             .field("simulations", &self.simulations.is_some())
             .field("bearer_token", &self.bearer_token.is_some())
@@ -128,6 +133,7 @@ impl AppState {
             model_upstream: services.model_upstream,
             evidence_upstream: services.evidence_upstream,
             simulation_upstream: services.simulation_upstream,
+            strategy_upstream: services.strategy_upstream,
             runs: services.runs,
             simulations: services.simulations,
             bearer_token: config.bearer_token.as_deref().map(Arc::<str>::from),
@@ -267,7 +273,7 @@ async fn health(State(state): State<Arc<AppState>>) -> Json<HealthReport> {
 async fn ready(State(state): State<Arc<AppState>>) -> (StatusCode, Json<HealthReport>) {
     let digest = state.version.image_digest.clone();
     let mut report = state.health.report(digest).await;
-    let probes = [
+    for (name, client, service) in [
         ("data", state.upstream.as_ref(), Service::Data),
         ("model", state.model_upstream.as_ref(), Service::Model),
         (
@@ -280,41 +286,19 @@ async fn ready(State(state): State<Arc<AppState>>) -> (StatusCode, Json<HealthRe
             state.simulation_upstream.as_ref(),
             Service::Simulation,
         ),
-    ];
-    for (name, client, service) in probes {
-        let entry = match client {
-            Some(client) => match client.health(service).await {
-                Ok(remote) if remote.service == name => {
-                    report.queue_depth += remote.queue_depth;
-                    report.workers += remote.workers;
-                    ServiceHealth {
-                        name: name.to_owned(),
-                        state: remote.state,
-                        detail: (remote.state == ServiceState::Down)
-                            .then(|| "the service reports down".to_owned()),
-                    }
-                }
-                Ok(remote) => ServiceHealth {
-                    name: name.to_owned(),
-                    state: ServiceState::Down,
-                    detail: Some(format!(
-                        "the service that answered identifies itself as {:?}",
-                        remote.service
-                    )),
-                },
-                Err(error) => ServiceHealth {
-                    name: name.to_owned(),
-                    state: ServiceState::Down,
-                    detail: Some(error.to_string()),
-                },
-            },
-            None => ServiceHealth {
-                name: name.to_owned(),
-                state: ServiceState::Down,
-                detail: Some("not configured".to_owned()),
-            },
-        };
-        report.services.push(entry);
+    ] {
+        let probe = probe(name, client, service).await;
+        report.queue_depth += probe.0;
+        report.workers += probe.1;
+        report.services.push(probe.2);
+    }
+    // The seventh service is optional in v2. A missing URL means the profile
+    // does not deploy it, not that readiness is down.
+    if let Some(client) = state.strategy_upstream.as_ref() {
+        let probe = probe("strategy", Some(client), Service::Strategy).await;
+        report.queue_depth += probe.0;
+        report.workers += probe.1;
+        report.services.push(probe.2);
     }
     report.state = HealthReport::aggregate(report.services.clone());
     let status = if report.state == ServiceState::Down {
@@ -323,6 +307,58 @@ async fn ready(State(state): State<Arc<AppState>>) -> (StatusCode, Json<HealthRe
         StatusCode::OK
     };
     (status, Json(report))
+}
+
+/// Probe one upstream and return its queue depth, worker count and health entry.
+async fn probe(
+    name: &str,
+    client: Option<&Arc<HttpServiceClient>>,
+    service: Service,
+) -> (u64, u64, ServiceHealth) {
+    match client {
+        Some(client) => match client.health(service).await {
+            Ok(remote) if remote.service == name => (
+                remote.queue_depth,
+                remote.workers,
+                ServiceHealth {
+                    name: name.to_owned(),
+                    state: remote.state,
+                    detail: (remote.state == ServiceState::Down)
+                        .then(|| "the service reports down".to_owned()),
+                },
+            ),
+            Ok(remote) => (
+                0,
+                0,
+                ServiceHealth {
+                    name: name.to_owned(),
+                    state: ServiceState::Down,
+                    detail: Some(format!(
+                        "the service that answered identifies itself as {:?}",
+                        remote.service
+                    )),
+                },
+            ),
+            Err(error) => (
+                0,
+                0,
+                ServiceHealth {
+                    name: name.to_owned(),
+                    state: ServiceState::Down,
+                    detail: Some(error.to_string()),
+                },
+            ),
+        },
+        None => (
+            0,
+            0,
+            ServiceHealth {
+                name: name.to_owned(),
+                state: ServiceState::Down,
+                detail: Some("not configured".to_owned()),
+            },
+        ),
+    }
 }
 
 async fn version(State(state): State<Arc<AppState>>) -> Json<VersionInfo> {

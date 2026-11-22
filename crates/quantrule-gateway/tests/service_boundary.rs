@@ -5,7 +5,7 @@
 //!
 //! - the gateway reaches `quantrule-app`, an engine, or a domain service crate,
 //!   directly or through an intermediate dependency;
-//! - a service package ships anything other than its one binary, or the six
+//! - a service package ships anything other than its one binary, or the seven
 //!   service names change;
 //! - a service names a schema it does not own;
 //! - the simulation service reads a strategy, writes a run, publishes a queue
@@ -27,8 +27,8 @@ struct Service {
     imports: &'static [&'static str],
 }
 
-/// The six service packages and the one binary each ships.
-const SERVICES: [Service; 6] = [
+/// The seven service packages and the one binary each ships.
+const SERVICES: [Service; 7] = [
     Service {
         package: "quantrule-gateway",
         binary: "qr-gateway",
@@ -103,6 +103,18 @@ const SERVICES: [Service; 6] = [
             "quantrule_simulation_service",
         ],
     },
+    Service {
+        package: "quantrule-strategy-service",
+        binary: "qr-strategy",
+        schemas: &[],
+        imports: &[
+            "quantrule_api",
+            "quantrule_app",
+            "quantrule_runtime",
+            "quantrule_service_api",
+            "quantrule_strategy_service",
+        ],
+    },
 ];
 
 /// Every schema a service owns in v1.0.0.
@@ -116,7 +128,7 @@ const SCHEMAS: [&str; 6] = [
 ];
 
 /// The packages the gateway must never reach, directly or transitively.
-const GATEWAY_FORBIDDEN: [&str; 9] = [
+const GATEWAY_FORBIDDEN: [&str; 10] = [
     "quantrule-app",
     "quantrule-data",
     "quantrule-model",
@@ -126,6 +138,7 @@ const GATEWAY_FORBIDDEN: [&str; 9] = [
     "quantrule-backtest-service",
     "quantrule-evidence-service",
     "quantrule-simulation-service",
+    "quantrule-strategy-service",
 ];
 
 /// The simulation service's forbidden imports, writes, and model calls.
@@ -605,6 +618,7 @@ fn the_gateway_source_links_no_app_engine_or_service_crate() {
             "quantrule-backtest-service",
             "quantrule-evidence-service",
             "quantrule-simulation-service",
+            "quantrule-strategy-service",
         ],
     );
     assert!(violations.is_empty(), "{violations:#?}");
@@ -669,6 +683,21 @@ fn a_seeded_disallowed_import_fails_the_allowlist() {
 }
 
 #[test]
+fn a_seeded_strategy_service_import_fails_the_allowlist() {
+    let observed = BTreeMap::from([(
+        "quantrule-strategy-service".to_owned(),
+        BTreeSet::from(["quantrule_api".to_owned(), "quantrule_backtest".to_owned()]),
+    )]);
+    let problems = import_problems(&observed, &SERVICES[6..7]);
+    assert!(
+        problems
+            .iter()
+            .any(|problem| problem.contains("quantrule_backtest")),
+        "{problems:#?}"
+    );
+}
+
+#[test]
 fn each_service_names_only_its_own_schema() {
     let root = workspace_root();
     let mut violations = Vec::new();
@@ -697,6 +726,7 @@ fn simulation_is_isolated_from_runs_strategy_and_the_queue() {
         "quantrule-backtest-service",
         "quantrule-evidence-service",
         "quantrule-gateway",
+        "quantrule-strategy-service",
     ] {
         assert!(
             !linked.contains(forbidden),

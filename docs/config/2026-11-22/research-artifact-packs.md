@@ -1,7 +1,7 @@
 # Research Artifact Packs and Run v5
 
 - Date: 2026-11-22 (UTC)
-- Status: Strategy, portfolio policy and execution-simulation pack schemas implemented (RA-002, RA-003, RA-004); the run-v5 reference contract and config identity implemented (RA-005); the persistent pack registry, run lineage and artifact retention implemented (RA-006); the signal artifact contract and pure reference computation implemented (RA-007); the strategy service, run-v5 catalog/worker reachability and the client surface target the next release; accepted by [ADR-RA](../../adr/2026-11-22/1082-research-artifact-layer.md)
+- Status: Strategy, portfolio policy and execution-simulation pack schemas implemented (RA-002, RA-003, RA-004); the run-v5 reference contract and config identity implemented (RA-005); the persistent pack registry, run lineage and artifact retention implemented (RA-006); the signal artifact contract and pure reference computation implemented (RA-007); the stateless strategy service and metadata-only registration implemented (RA-008); run-v5 catalog/worker reachability and the client surface target later work; accepted by [ADR-RA](../../adr/2026-11-22/1082-research-artifact-layer.md)
 - Claim type: Behaviour Claim
 - Related: [Research artifacts](../../architecture/research-artifacts.md), [Run v4](../2026-11-13/run-v4-strategy.md)
 
@@ -194,6 +194,12 @@ is applied at the next open. Giveback is fold-mode only. The full row, action,
 intent and reference-position semantics are in
 [`signal-artifact.md`](signal-artifact.md).
 
+The strategy service resolves `data_version` + `config_id` once, verifies the
+manifest's canonical id and every object, refuses a fold pack before the model
+call, and writes the canonical bytes directly under `artifacts/<sha256 hex>`.
+It then registers the metadata with `POST /internal/v1/artifacts/signal/{id}`;
+signal bytes never travel over HTTP and the 64 MiB PUT cap is unchanged.
+
 ## 7. Run v5
 
 ```json
@@ -243,11 +249,12 @@ hash and the canonical digest still covers result artifacts only.
 
 A v5 config is validated through a supplied reference resolver
 (`RunConfig::load_with`, `AppService::load_run_with`). The pack registry now
-stores and serves the pack bytes, and RA-007 provides the pure signal
-computation, but run submission, the catalog scan and the worker do not yet
-resolve a v5 config, and the strategy service does not yet write the artifact to
-the object store. Those integrations are later work items; no client command is
-added here. The current fold materializes strategy, execution, commission,
+stores and serves the pack bytes, RA-007 provides the pure signal computation,
+and the RA-008 strategy service writes the signal artifact and registers its
+catalog row. Run submission, the catalog scan and the worker do not yet resolve
+a v5 config or add the run lineage and `run:<id>` reference. Those integrations
+are later work items; no client command is added here. The current fold
+materializes strategy, execution, commission,
 funding, sizing, drawdown and position limits; `per_trade_risk`, `max_exposure`,
 `rebalance` and `constraints` are retained in `RunV5` but not applied yet.
 
@@ -301,11 +308,13 @@ refused. `PUT`/`GET /internal/v1/runs/{id}/lineage` is the run-v5 integration
 seam; no submission or worker path reaches it yet.
 
 The data service adds `catalog.artifacts` and `catalog.artifact_references`
-(migration 8) as the signal-artifact seam. A referenced artifact is never
-collected. The internal pass collects an unreferenced signal artifact at least 30
-days old, writes a `catalog.retention_events` tombstone, then deletes an unshared
-object. Signal creation is the RA-007 pure computation; the strategy service
-(RA-008) owns the object-store write and lineage registration.
+(migration 8) as the signal-artifact seam. The catalog row is the pre-run signal
+record; the strategy service writes the bytes and registers it. Evidence
+`runs.run_lineage` is recorded at run submission, not by the strategy service,
+because the signal must exist first; that path adds `run:<id>`. No new reference
+kind is introduced. A referenced artifact is never collected, and the internal
+pass collects an unreferenced signal artifact at least 30 days old, writes a
+`catalog.retention_events` tombstone, then deletes an unshared object.
 
 ## 9. Compatibility and clients
 

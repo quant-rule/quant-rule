@@ -120,6 +120,62 @@ async fn ready_accepts_matching_service_identities() {
 }
 
 #[tokio::test]
+async fn ready_probes_the_strategy_service_only_when_it_is_configured() {
+    let (strategy, strategy_handle) = fake_service("strategy").await;
+    let fixture = ready_state([
+        zero_address(),
+        zero_address(),
+        zero_address(),
+        zero_address(),
+    ]);
+    let mut services = Services {
+        strategy_upstream: Some(Arc::new(
+            HttpServiceClient::new(Service::Strategy, &format!("http://{strategy}"))
+                .expect("client"),
+        )),
+        ..Services::default()
+    };
+    services.upstream = None;
+    let state = Arc::new(AppState::with_services(
+        &Config::default(),
+        HealthRegistry::named("gateway"),
+        services,
+    ));
+    let response = router(state)
+        .oneshot(Request::get("/ready").body(Body::empty()).expect("request"))
+        .await
+        .expect("response");
+    // The four default probes are unconfigured and down; the strategy probe
+    // must still be present, so this report has five entries.
+    let report: HealthReport =
+        serde_json::from_slice(&body_bytes(response).await).expect("health report");
+    assert_eq!(report.services.len(), 5);
+    let entry = report
+        .services
+        .iter()
+        .find(|entry| entry.name == "strategy")
+        .expect("strategy entry");
+    assert_eq!(entry.state, ServiceState::Healthy);
+
+    let response = router(fixture)
+        .oneshot(Request::get("/ready").body(Body::empty()).expect("request"))
+        .await
+        .expect("response");
+    let report: HealthReport =
+        serde_json::from_slice(&body_bytes(response).await).expect("health report");
+    assert_eq!(
+        report.services.len(),
+        4,
+        "an absent strategy URL adds no probe"
+    );
+    strategy_handle.abort();
+}
+
+fn zero_address() -> SocketAddr {
+    "127.0.0.1:9".parse().expect("address")
+}
+
+#[tokio::test]
 async fn ready_rejects_a_response_from_another_service() {
     let (data, data_handle) = fake_service("gateway").await;
     let (model, model_handle) = fake_service("model").await;

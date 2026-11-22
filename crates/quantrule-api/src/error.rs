@@ -44,6 +44,9 @@ pub enum ErrorCode {
     /// An artifact reference or retention request conflicts with the record.
     #[serde(rename = "artifact.conflict")]
     ArtifactConflict,
+    /// A signal request names a pack, model or source the service cannot use.
+    #[serde(rename = "signal.invalid")]
+    SignalInvalid,
     /// The hypothesis fingerprint is unknown.
     #[serde(rename = "hypothesis.not_found")]
     HypothesisNotFound,
@@ -134,6 +137,7 @@ impl ErrorCode {
             Self::ArtifactNotFound => "artifact.not_found",
             Self::ArtifactInvalid => "artifact.invalid",
             Self::ArtifactConflict => "artifact.conflict",
+            Self::SignalInvalid => "signal.invalid",
             Self::HypothesisNotFound => "hypothesis.not_found",
             Self::HypothesisInvalid => "hypothesis.invalid",
             Self::RunNotFound => "run.not_found",
@@ -172,6 +176,7 @@ impl ErrorCode {
             | Self::ConfigInvalid
             | Self::PackInvalid
             | Self::ArtifactInvalid
+            | Self::SignalInvalid
             | Self::HypothesisInvalid
             | Self::RunInvalid
             | Self::RunModelArtifactInvalid
@@ -255,7 +260,7 @@ impl ErrorEnvelope {
 mod tests {
     use super::*;
 
-    const ALL: [ErrorCode; 34] = [
+    const ALL: [ErrorCode; 35] = [
         ErrorCode::ProfileNotFound,
         ErrorCode::ProfileInvalid,
         ErrorCode::HypothesisNotFound,
@@ -269,6 +274,7 @@ mod tests {
         ErrorCode::ArtifactNotFound,
         ErrorCode::ArtifactInvalid,
         ErrorCode::ArtifactConflict,
+        ErrorCode::SignalInvalid,
         ErrorCode::RunNotFound,
         ErrorCode::LineageNotFound,
         ErrorCode::RunInvalid,

@@ -7,7 +7,7 @@ account, no cloud provider, and no live trading.
 
 > **Status.** The current release tag is **v1.5.2** (2026-11-21). The desktop
 > distribution is retired, Python is removed from the repository, and the browser
-> and headless CLI are the only clients. One image and six services serve the
+> and headless CLI are the only clients. One image and seven services serve the
 > server profile. Windows and Linux are the supported browser and CLI platforms;
 > macOS is unsupported. The browser client and command shell share one
 > `quantrule.api/v1` contract. **v1.5.0** and **v1.5.1** are withdrawn because
@@ -64,8 +64,8 @@ A direct Compose start must set `QR_IMAGE_DIGEST` to the built image id;
 stage submissions instead of inventing a build identity.
 
 Fedora may use Docker Engine or Podman: `make up COMPOSE="podman compose"`. The
-default stack starts nine long-running containers, a one-shot database
-bootstrap, and four one-shot migration jobs; see
+default stack starts ten long-running containers, a one-shot database bootstrap,
+and four one-shot migration jobs; see
 [`docs/architecture/deployment.md`](docs/architecture/deployment.md).
 
 | Target | Effect |
@@ -75,7 +75,7 @@ bootstrap, and four one-shot migration jobs; see
 | `make down` | Stop, keep data |
 | `make reset` | Stop and delete volumes, after confirmation |
 | `make logs` / `make ps` | Observe |
-| `make scale N=4` | Scale model and backtest when the six-binary profile is enabled |
+| `make scale N=4` | Scale model and backtest when the multi-worker profile is enabled |
 | `make verify` | Submit the two fixture configs through the gateway and print the canonical digest |
 | `make test` / `make gate` | Fast tier / full workspace gate |
 | `make remote` | Start with only `:8080` published and a bearer token |
@@ -166,7 +166,9 @@ browser ── HTTP ── gateway ── postgres
 
 - **Two planes.** A synchronous, deterministic data plane computes one run. An
   asynchronous control plane decides which run happens when.
-- **Six services.** `gateway`, `data`, `model`, `backtest`, `evidence`, `simulation`.
+- **Seven services.** `gateway`, `data`, `model`, `backtest`, `evidence`,
+  `simulation`, `strategy`; the v2 multi-host profile places six and v3 adds the
+  strategy service.
 - **One image.** One digest pins the whole compute stack, so version skew cannot
   occur.
 - **References, not payloads.** Stages exchange content hashes; bytes live in
@@ -277,7 +279,7 @@ and cleanup status and the browser Operations screen. The contract is
 | [`docs/architecture/kata.md`](docs/architecture/kata.md) | Why the product exists |
 | [`docs/architecture/characteristics.md`](docs/architecture/characteristics.md) | Measurable qualities and fitness functions |
 | [`docs/architecture/deployment.md`](docs/architecture/deployment.md) | How to run it |
-| [`docs/architecture/multi-host.md`](docs/architecture/multi-host.md) | How the six services run across hosts |
+| [`docs/architecture/multi-host.md`](docs/architecture/multi-host.md) | How the six services of the v2 profile run across hosts; v3 adds the seventh |
 | [`docs/architecture/cross-database-consistency.md`](docs/architecture/cross-database-consistency.md) | Outbox, dataset references, reconciliation and tombstones across four databases |
 | [User manual](docs/manual/README.md) | Every journey, command, screen, term, and error |
 | [Stage to backtest tutorial](docs/tutorials/2026-11-17/stage-to-backtest.md) | Diagnostic stages to a promoted evidence run |

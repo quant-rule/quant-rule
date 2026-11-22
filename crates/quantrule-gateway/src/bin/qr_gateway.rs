@@ -1,10 +1,11 @@
 //! The gateway binary.
 //!
 //! The gateway owns profiles, the static client, the proxy surface, and health.
-//! It reads no catalog, run, research, or model schema: data, model,
-//! evidence, and simulation calls go through the internal client, and the
+//! It reads no catalog, run, research, or model schema: data, model, evidence,
+//! simulation, and strategy calls go through the internal client, and the
 //! public routes are proxied to `qr-data`, `qr-model`, `qr-evidence`, and
-//! `qr-simulation`. The profile store is Postgres.
+//! `qr-simulation`. The strategy service is probed only when its optional URL is
+//! configured. The profile store is Postgres.
 
 use std::sync::Arc;
 
@@ -54,6 +55,13 @@ async fn main() -> Result<(), RuntimeError> {
         HttpServiceClient::from_env(Service::Simulation)
             .map_err(|error| service_config_error(Service::Simulation, error))?,
     );
+    // The strategy service is the seventh unit. A v2 profile does not deploy it
+    // and leaves the URL absent, so the gateway starts and skips its probe.
+    let strategy_upstream = match HttpServiceClient::from_env(Service::Strategy) {
+        Ok(client) => Some(Arc::new(client)),
+        Err(ClientError::Unconfigured { .. }) => None,
+        Err(error) => return Err(service_config_error(Service::Strategy, error)),
+    };
 
     let state = Arc::new(AppState::with_services(
         &config,
@@ -65,6 +73,7 @@ async fn main() -> Result<(), RuntimeError> {
             model_upstream: Some(Arc::new(model_upstream)),
             evidence_upstream: Some(evidence_upstream.clone()),
             simulation_upstream: Some(simulation_upstream.clone()),
+            strategy_upstream,
             runs: Some(evidence_upstream),
             simulations: Some(simulation_upstream),
         },
