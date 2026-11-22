@@ -35,6 +35,8 @@ history is in Git and the pull requests.
 - The schema-migration contract is recorded in `docs/architecture/migrations.md`: forward-only ledgers, one owner per database, expand/contract release order, checksum pinning, rollback compatibility, and the four-job order.
 - `deploy/postgres/migration-ledger.json` pins every ledger version and SQL checksum; a fast test refuses a reordered ledger, an edited migration body, or a database-owning service without its `--migrate-only` entry point.
 - The operator runbook covers a failed migration, a stopped migration job, and a rollback to the previous image digest while the old stack stays available.
+- RabbitMQ run, evidence, and stage queues are durable quorum queues with a three-redelivery limit, a dead-letter exchange, a quorum dead-letter queue, and generated names (`QR_QUEUE_GENERATION`, default 1); a failed handler rejects so delivery-limit exhaustion is observable in the DLQ.
+- The operator runbook, manual, and deployment docs document queue-generation retirement and the separate definitions backup/restore, which records topology but not messages.
 - The evidence database adds `runs.outbox` (migration 18): a run row and its `run.requested` or `run.computed` notification commit in one transaction, and a publisher reconciles and drains the intents so a broker outage cannot lose a queued run.
 - The evidence database adds `runs.dataset_reference_releases` (migration 18): an erase records the dataset-reference release in the same transaction as the consumer delete, and a reconciler retries the data-service call until it is confirmed.
 - `docs/architecture/cross-database-consistency.md` records the outbox, reference, reconciliation, and tombstone contract, and the failure matrix for a crash after commit, a duplicate publish, a restart, and an erase.
@@ -45,9 +47,15 @@ history is in Git and the pull requests.
 - The evidence database records a run's model, strategy, signal, portfolio and execution references with pack provenance (migration 20) through the internal lineage route; a repeated set is idempotent, a different set is refused, and the route is the run-v5 integration seam.
 - The data service owns the generic computed-artifact retention seam (migration 8): content-addressed artifact rows, consumer references that protect them, and an internal retention pass that collects only unreferenced signal artifacts older than 30 days, writes a tombstone in the same transaction, and deletes only an unshared object.
 - `deploy/postgres/migration-ledger.json` pins catalog migrations 7 and 8 and evidence migration 20; the composed Postgres tier now runs the pack, artifact and lineage conformance suites.
+- The simulation database adds migration 16: a decision-completeness constraint and a trigger that refuse a changed or cleared decision. The repository locks the run row for mark, check, decision, and erase transactions, so two simulation replicas cannot corrupt the mark set or overwrite a decision.
+- The simulation service supports two replicas only through the HA-008 row-lock concurrency contract; the v2 multi-host profile remains single-instance.
 
 ### Changed
 
+- A simulation decision is terminal: the first decision wins and every later decision, including an identical retry, returns `simulation.locked`. A duplicate mark identity remains an idempotent upsert that keeps its stored id and creation time.
+- Queue names now end in `.g<generation>`; the pre-generation classic queues are drained or retired by the operator instead of being redeclared with new arguments.
+- A failed handler uses `basic.reject` rather than `basic.nack`, because RabbitMQ 4.3 and later count only a rejected delivery toward the quorum delivery limit.
+- The multi-host renderer writes `QR_QUEUE_GENERATION=1`, and the composed queue check verifies the quorum type, delivery limit, dead-letter bindings, and generated names.
 - `run submit` is accepted when the run row and its outbox intent commit; a broker that is down delays the notification instead of returning `503 queue.unavailable`, and a repeated submission republishes the queued run while returning the same run record.
 - A run claim is lease-based: a queued run is claimable, a running run only when its lease is absent, expired, or continued by the same holder, and a live lease is never stolen. Cancellation increments the term and clears the lease; a terminal run releases it.
 - A run erase releases its dataset reference from the committed tombstone rather than a best-effort call, so a crash between the databases leaves a retry instead of a reference that blocks the dataset forever.
@@ -61,6 +69,7 @@ history is in Git and the pull requests.
 
 ### Fixed
 
+- Concurrent simulation marks and the terminal decision no longer race: a mark that loses to a decision is refused instead of inserted, an erase takes the same run lock as a decision, and a failed mark transaction leaves no mark and no status change.
 - The run outbox now re-arms a `running` run without a digest as `run.requested`; a startup reconciliation names every unfinished run even after its worker or delivery was lost, while a terminal run still deletes its intents and a retry cannot create a second run record.
 - A running run whose worker died is reclaimed after its lease expires and a stale term is refused, so a rebuilt queue recovers the run without a partial artifact set or a duplicate run record.
 

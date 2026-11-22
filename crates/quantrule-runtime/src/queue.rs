@@ -1,8 +1,8 @@
 //! The control-plane queue contract.
 //!
-//! The routing keys and queue names are shared by the gateway, both workers,
-//! and the adapter. They live here, not in the RabbitMQ module, so a service
-//! never names a client library just to publish a message.
+//! The routing keys and queue base names are shared by the gateway, both
+//! workers, and the adapter. They live here, not in the RabbitMQ module, so a
+//! service never names a client library just to publish a message.
 //!
 //! The module also names the two records a durable queue exchanges with its
 //! consumer: a [`Delivery`] is one claim and the lease that owns it, and a
@@ -13,21 +13,33 @@
 //! section 3); the queue records the visibility the caller asks for. A queue
 //! that invented a second policy would diverge from the RabbitMQ profile.
 //!
-//! # Stage topology
+//! # Queue topology
 //!
-//! Diagnostic stage work travels on its own queue:
+//! Diagnostic stage work travels on its own queue. Every queue name carries the
+//! configured [`QueueNames::generation`], so a topology change can declare a
+//! new generation beside the live one instead of redeclaring a name with new
+//! arguments:
 //!
 //! ```text
-//! exchange  quantrule.runs        (direct, durable)
-//! queue     runs.backtest         run.requested, run.cancelled
-//! queue     runs.evidence         run.computed
-//! queue     runs.dead-letter      run.dead
-//! queue     stages.worker         stage.requested, stage.cancelled
+//! exchange  quantrule.runs           (direct, durable)
+//! exchange  quantrule.runs.dlx       (direct, durable)
+//! queue     runs.backtest.g1         run.requested, run.cancelled
+//! queue     runs.evidence.g1         run.computed
+//! queue     runs.dead-letter.g1      run.dead and dead-lettered work
+//! queue     stages.worker.g1         stage.requested, stage.cancelled
 //! ```
+//!
+//! The adapter declares the run, stage, and evidence queues as quorum queues
+//! with `x-delivery-limit=3` and `x-dead-letter-exchange=quantrule.runs.dlx`.
+//! A message that exhausts the limit keeps its original routing key and lands
+//! in the dead-letter queue with an `x-death` header. The dead-letter queue is
+//! quorum and has no dead-letter target of its own, so a poison message cannot
+//! loop. The operator retires a drained generation deliberately; the service
+//! never deletes a queue.
 //!
 //! `stage.computed` and `stage.failed` are notifications with no required
 //! consumer, exactly like `run.failed`; they name the stage row whose state is
-//! authoritative. The stage queue is separate from `runs.backtest` so a long
+//! authoritative. The stage queue is separate from the run queue so a long
 //! diagnostic stage cannot delay an evidence run, and the backtest worker
 //! registers the run consumer first. The stage consumer also declares a lower
 //! RabbitMQ consumer priority (`x-priority = -1`) than the run consumer, which
@@ -35,16 +47,28 @@
 //!
 //! Every stage message carries only the stage run id. It never carries a
 //! reading, a candle, an artifact, or a client path; the stage row holds the
-//! input and the artifact manifest.
+//! input and the artifact manifest. A run message carries only the run id; the
+//! run row holds the inputs.
 
-/// The run-request work queue.
-pub const QUEUE_BACKTEST: &str = "runs.backtest";
-/// The computed-run work queue.
-pub const QUEUE_EVIDENCE: &str = "runs.evidence";
-/// The exhausted-retry queue.
-pub const QUEUE_DEAD_LETTER: &str = "runs.dead-letter";
-/// The diagnostic stage work queue.
-pub const QUEUE_STAGE: &str = "stages.worker";
+/// The run-request queue base name.
+pub const QUEUE_BACKTEST_BASE: &str = "runs.backtest";
+/// The computed-run queue base name.
+pub const QUEUE_EVIDENCE_BASE: &str = "runs.evidence";
+/// The exhausted-retry queue base name.
+pub const QUEUE_DEAD_LETTER_BASE: &str = "runs.dead-letter";
+/// The diagnostic stage queue base name.
+pub const QUEUE_STAGE_BASE: &str = "stages.worker";
+
+/// The generation used when `QR_QUEUE_GENERATION` is unset.
+///
+/// Generation 1 is the first quorum topology. The pre-generation classic queues
+/// (`runs.backtest`, `runs.evidence`, `runs.dead-letter`, `stages.worker`) are
+/// never declared by this version; an operator drains or retires them after the
+/// upgrade.
+pub const DEFAULT_QUEUE_GENERATION: u32 = 1;
+
+/// The separator between a queue base name and its generation.
+pub const QUEUE_GENERATION_SEPARATOR: &str = ".g";
 
 /// A run is ready to execute.
 pub const ROUTING_REQUESTED: &str = "run.requested";
@@ -65,6 +89,112 @@ pub const ROUTING_STAGE_COMPUTED: &str = "stage.computed";
 pub const ROUTING_STAGE_FAILED: &str = "stage.failed";
 /// A diagnostic stage was cancelled.
 pub const ROUTING_STAGE_CANCELLED: &str = "stage.cancelled";
+
+/// One queue in the control-plane topology.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum QueueKind {
+    /// A run-request work queue.
+    Backtest,
+    /// A computed-run work queue.
+    Evidence,
+    /// The exhausted-retry queue.
+    DeadLetter,
+    /// A diagnostic stage work queue.
+    Stage,
+}
+
+impl QueueKind {
+    /// Every queue in declaration order.
+    pub const ALL: [Self; 4] = [
+        Self::Backtest,
+        Self::Evidence,
+        Self::DeadLetter,
+        Self::Stage,
+    ];
+
+    /// The generation-independent base name.
+    #[must_use]
+    pub fn base(self) -> &'static str {
+        match self {
+            Self::Backtest => QUEUE_BACKTEST_BASE,
+            Self::Evidence => QUEUE_EVIDENCE_BASE,
+            Self::DeadLetter => QUEUE_DEAD_LETTER_BASE,
+            Self::Stage => QUEUE_STAGE_BASE,
+        }
+    }
+}
+
+/// The queue names of one generation.
+///
+/// The generation is appended to every base name. Two generations therefore
+/// have disjoint queue names, which is what lets a changed declaration (a
+/// different queue type, delivery limit, or dead-letter target) be deployed
+/// without redeclaring a live queue. The exchange names stay stable: only the
+/// queues move.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct QueueNames {
+    generation: u32,
+    backtest: String,
+    evidence: String,
+    dead_letter: String,
+    stage: String,
+}
+
+impl QueueNames {
+    /// Build the names for one generation.
+    ///
+    /// The configuration rejects generation zero; this constructor does not
+    /// panic on it, because a name is still well formed and a library value
+    /// must not abort.
+    #[must_use]
+    pub fn new(generation: u32) -> Self {
+        Self {
+            generation,
+            backtest: generated(QueueKind::Backtest, generation),
+            evidence: generated(QueueKind::Evidence, generation),
+            dead_letter: generated(QueueKind::DeadLetter, generation),
+            stage: generated(QueueKind::Stage, generation),
+        }
+    }
+
+    /// The generation suffix.
+    #[must_use]
+    pub fn generation(&self) -> u32 {
+        self.generation
+    }
+
+    /// The declared name of one queue.
+    #[must_use]
+    pub fn name(&self, kind: QueueKind) -> &str {
+        match kind {
+            QueueKind::Backtest => &self.backtest,
+            QueueKind::Evidence => &self.evidence,
+            QueueKind::DeadLetter => &self.dead_letter,
+            QueueKind::Stage => &self.stage,
+        }
+    }
+
+    /// The queue this declared name belongs to, or `None` when the name is not
+    /// part of this generation.
+    ///
+    /// The consumer uses this to refuse a base name or another generation's
+    /// name instead of silently creating a queue outside the topology.
+    #[must_use]
+    pub fn kind(&self, name: &str) -> Option<QueueKind> {
+        QueueKind::ALL
+            .into_iter()
+            .find(|kind| self.name(*kind) == name)
+    }
+}
+
+fn generated(kind: QueueKind, generation: u32) -> String {
+    format!(
+        "{}{}{}",
+        kind.base(),
+        QUEUE_GENERATION_SEPARATOR,
+        generation
+    )
+}
 
 /// Whether a routing key belongs to the diagnostic stage surface.
 ///
@@ -110,9 +240,10 @@ impl Delivery {
 
 /// An exhausted message kept for the operator.
 ///
-/// A dead letter carries the original bytes and the routing key it arrived
-/// under, so an operator can replay the same work. The queue never rewrites the
-/// body; the routing key it is filed under is [`ROUTING_DEAD`].
+/// A dead letter carries the original bytes. A broker-dead-lettered work
+/// message keeps its original routing key and gains the broker's `x-death`
+/// header; the worker's explicit retry-budget publish uses [`ROUTING_DEAD`].
+/// The queue never rewrites the body.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeadLetter {
     /// The dead-letter row identity.
@@ -139,10 +270,10 @@ mod tests {
     #[test]
     fn each_queue_and_routing_key_has_one_name() {
         let queues = [
-            QUEUE_BACKTEST,
-            QUEUE_EVIDENCE,
-            QUEUE_DEAD_LETTER,
-            QUEUE_STAGE,
+            QUEUE_BACKTEST_BASE,
+            QUEUE_EVIDENCE_BASE,
+            QUEUE_DEAD_LETTER_BASE,
+            QUEUE_STAGE_BASE,
         ];
         let keys = [
             ROUTING_REQUESTED,
@@ -163,9 +294,34 @@ mod tests {
             assert!(!name.is_empty());
             assert!(!keys[..index].contains(name));
         }
-        assert_ne!(QUEUE_BACKTEST, QUEUE_EVIDENCE);
-        assert_ne!(QUEUE_EVIDENCE, QUEUE_DEAD_LETTER);
-        assert_ne!(QUEUE_STAGE, QUEUE_BACKTEST);
+        assert_ne!(QUEUE_BACKTEST_BASE, QUEUE_EVIDENCE_BASE);
+        assert_ne!(QUEUE_EVIDENCE_BASE, QUEUE_DEAD_LETTER_BASE);
+        assert_ne!(QUEUE_STAGE_BASE, QUEUE_BACKTEST_BASE);
+    }
+
+    #[test]
+    fn every_queue_name_carries_the_generation() {
+        let names = QueueNames::new(1);
+        assert_eq!(names.generation(), 1);
+        assert_eq!(names.name(QueueKind::Backtest), "runs.backtest.g1");
+        assert_eq!(names.name(QueueKind::Evidence), "runs.evidence.g1");
+        assert_eq!(names.name(QueueKind::DeadLetter), "runs.dead-letter.g1");
+        assert_eq!(names.name(QueueKind::Stage), "stages.worker.g1");
+        for kind in QueueKind::ALL {
+            assert!(names.name(kind).ends_with(".g1"), "{}", names.name(kind));
+            assert_eq!(names.kind(names.name(kind)), Some(kind));
+        }
+    }
+
+    #[test]
+    fn a_new_generation_uses_new_names_and_rejects_the_old_ones() {
+        let first = QueueNames::new(1);
+        let second = QueueNames::new(2);
+        for kind in QueueKind::ALL {
+            assert_ne!(first.name(kind), second.name(kind));
+            assert_eq!(second.kind(first.name(kind)), None);
+            assert_eq!(first.kind(kind.base()), None);
+        }
     }
 
     #[test]

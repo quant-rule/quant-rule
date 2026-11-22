@@ -16,6 +16,7 @@ use crate::config::{Config, ConfigError};
 use crate::error::RuntimeError;
 use crate::health::HealthRegistry;
 use crate::migrations::Migration;
+use crate::queue::QueueNames;
 
 /// Applies the service ledger once with the database owner role.
 ///
@@ -171,11 +172,17 @@ impl ControlQueue {
     pub async fn open(config: &Config) -> Result<Self, RuntimeError> {
         Ok(Self {
             queue: Arc::new(
-                RabbitQueue::connect(&config.queue_url)
+                RabbitQueue::connect(&config.queue_url, config.queue_names())
                     .await
                     .map_err(|error| RuntimeError::Queue(error.to_string()))?,
             ),
         })
+    }
+
+    /// The queue generation this connection declared and consumes.
+    #[must_use]
+    pub fn names(&self) -> &QueueNames {
+        self.queue.names()
     }
 
     /// The wire name of the selected backend, for logs and tests.
@@ -209,13 +216,8 @@ impl QueueConsumer for ControlQueue {
         Queue::backend(self)
     }
 
-    fn consume(
-        &self,
-        name: &str,
-        keys: &[&str],
-        handler: MessageHandler,
-    ) -> BoxFuture<Result<(), QueueError>> {
-        self.queue.consume(name, keys, handler)
+    fn consume(&self, name: &str, handler: MessageHandler) -> BoxFuture<Result<(), QueueError>> {
+        self.queue.consume(name, handler)
     }
 }
 

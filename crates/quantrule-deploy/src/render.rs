@@ -198,6 +198,7 @@ fn common(
     env.insert("QR_OBJECT_STORE_URL".to_owned(), object_store.to_owned());
     env.insert("QR_OBJECT_BUCKET".to_owned(), bucket.to_owned());
     env.insert("QR_QUEUE_URL".to_owned(), queue.to_owned());
+    env.insert("QR_QUEUE_GENERATION".to_owned(), "1".to_owned());
     env.insert(
         "AWS_ACCESS_KEY_ID".to_owned(),
         secrets

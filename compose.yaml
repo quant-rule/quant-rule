@@ -46,6 +46,10 @@ x-server: &server
     QR_OBJECT_STORE_URL: http://minio:9000
     QR_OBJECT_BUCKET: quantrule
     QR_QUEUE_URL: amqp://quantrule:${QR_RABBITMQ_PASSWORD:-quantrule}@rabbitmq:5672/%2f
+    # Every declared queue name carries this generation. A changed queue
+    # declaration moves to a new generation instead of redeclaring a live name;
+    # the old generation drains or is retired deliberately.
+    QR_QUEUE_GENERATION: "1"
     QR_STATIC_DIR: /srv/static
     QR_CONFIG_ROOT: /srv/config
     # Diagnostic stage rows and their object-store blobs expire after this many

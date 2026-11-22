@@ -178,6 +178,12 @@
           "name": "simulation-retention",
           "file": "crates/quantrule-simulation-service/migrations/0015_simulation_retention.sql",
           "checksum": "b80e85066b89f08a"
+        },
+        {
+          "version": 16,
+          "name": "simulation-concurrency",
+          "file": "crates/quantrule-simulation-service/migrations/0016_simulation_concurrency.sql",
+          "checksum": "196d588d19be0275"
         }
       ]
     }

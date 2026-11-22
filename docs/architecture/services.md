@@ -92,7 +92,7 @@ only to the private overlay.
 | `model` | **N** | shards by timeframe; CPU-bound |
 | `backtest` | **N** | one run per worker; CPU-bound and sequential within a run |
 | `evidence` | one | finalization is a short, ordered step |
-| `simulation` | one | interactive; no batch parallelism, no queue |
+| `simulation` | 2 in HA; 1 in Compose and v2 | interactive; per-run row locks coordinate marks and the terminal decision |
 
 `backtest` is never sharded inside a run: strategy, fills, position, and cash are
 a fold over time. Claiming otherwise would be false.
@@ -164,3 +164,7 @@ synchronous, interactive, and isolated.
 A simulation run records an **inputs digest** over the model bundle, window
 selection, seed, mark criterion, and check thresholds. That is what makes the
 selection reproducible without claiming the human marks are.
+
+Two replicas are supported only through the
+[row-lock concurrency contract](simulation-concurrency.md); before HA-008 the
+service is single-instance.

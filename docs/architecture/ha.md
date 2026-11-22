@@ -36,7 +36,7 @@ The stateful and ingress layers are described in sections 4–8.
 | `strategy` | N | Object store + evidence lineage | Stateless signal compiler |
 | `backtest` | N | Object store + queue | Per-run fold, no HTTP |
 | `evidence` | 2+ | `qr_evidence` + object store | One leader finalises |
-| `simulation` | 2 | `qr_simulation` + object store | DB locks |
+| `simulation` | 2 | `qr_simulation` + object store | [Row locks](simulation-concurrency.md) (HA-008) |
 
 ## 3. Four databases
 
@@ -70,10 +70,10 @@ than silently degrade. This is a deliberate fail-closed choice.
 
 RabbitMQ:
 
-- Three nodes; quorum queues for runs and stages.
-- Publisher confirms, manual ack, delivery limit, DLQ, queue generation.
-- Definitions backup; queues are rebuilt from run and stage rows.
-- One broker loss loses no acknowledged message.
+- Three nodes; run, stage, evidence and dead-letter queues are quorum.
+- Publisher confirms, manual ack, `x-delivery-limit=3`, DLX and a quorum DLQ.
+- `QR_QUEUE_GENERATION` suffixes every queue; definitions export backs up topology, not messages.
+- One broker loss loses no acknowledged message; queues rebuild from run and stage rows.
 
 MinIO:
 
@@ -143,6 +143,7 @@ v2 remains readable for the older multi-host profile.
 |---|---|
 | Gateway/ingress loss | Load balancer routes to survivor; client reconnects |
 | Data/model/strategy loss | Other replica serves; retry is idempotent |
+| Simulation replica loss | Other replica serves; per-run row locks keep one decision |
 | Backtest worker kill | Lease expires; outbox re-arms; no partial publish |
 | Evidence leader kill | Lease expires; new leader; one finalisation |
 | PostgreSQL primary loss | Patroni promotes a synchronous standby; RPO 0 |
@@ -153,7 +154,6 @@ v2 remains readable for the older multi-host profile.
 | RabbitMQ node loss | Quorum queue continues |
 | MinIO node/drive loss | Erasure continues; hashes unchanged |
 | Physical host/AZ loss | Survives only with separate hosts/failure domains |
-
 ## 11. Backup, restore and DR
 
 - PITR for all four databases to one consistent point.

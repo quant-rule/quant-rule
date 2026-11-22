@@ -31,6 +31,25 @@ healthy when its check passes, not when its container is running.
 Queue depth and worker count remain in the report for the control plane; they
 are currently published as zero and are not an operational signal.
 
+### Queue generation and dead letters
+
+The work queues are generated quorum queues (`runs.backtest.g<n>`,
+`runs.evidence.g<n>`, `stages.worker.g<n>`) with a three-redelivery limit and a
+dead-letter exchange; `runs.dead-letter.g<n>` is the quorum dead-letter queue.
+Inspect them with:
+
+```bash
+docker compose exec -T rabbitmq rabbitmqctl list_queues name type messages consumers arguments --formatter json
+docker compose exec -T rabbitmq rabbitmqctl list_bindings source_name destination_name routing_key --formatter json
+```
+
+A message that exhausts the limit is in the dead-letter queue with its original
+routing key and an `x-death` header; the run row remains the record. Each
+rejection logs the queue, routing key, and `x-delivery-count`. A changed queue
+declaration moves to a new `QR_QUEUE_GENERATION`: stop new submissions, drain the
+old generation with its consumers, stop them, then unbind or delete the empty
+queues before the new generation publishes.
+
 ## 3. Run lifecycle operations
 
 | Situation | Operator action |
@@ -69,6 +88,12 @@ stores describe one instant; Postgres, the object store, and the broker stay
 up. The queue is not archived: a message is derived from a run row and is
 rebuilt. Backup briefly takes `/health` down and restarts the services that were
 running on exit, including after a failure.
+
+The broker topology is exported separately with `rabbitmqctl export_definitions`.
+The file contains the broker users and password hashes, so keep it mode 600 and
+out of Git. It records exchanges, queues, and bindings, not messages; a restore
+rebuilds the topology and queued work is rebuilt from run rows. The command pair
+is in the [multi-host runbook](../../deploy/multi-host/README.md) §11.
 
 `restore.sh` verifies the sidecar, the archive entry list, and every payload
 hash before it starts a write. It then refuses a non-empty database or bucket

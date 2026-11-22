@@ -64,12 +64,31 @@ Rules:
 ## 3. Topology
 
 ```text
-exchange  quantrule.runs        (direct, durable)
-queue     runs.backtest         routing keys run.requested, run.cancelled
-queue     runs.evidence         routing key run.computed
-queue     runs.dead-letter      routing key run.dead
-queue     stages.worker         routing keys stage.requested, stage.cancelled
+exchange  quantrule.runs          (direct, durable)
+exchange  quantrule.runs.dlx      (direct, durable, dead-letter)
+queue     runs.backtest.g1        run.requested, run.cancelled
+queue     runs.evidence.g1        run.computed
+queue     runs.dead-letter.g1     run.dead and dead-lettered work
+queue     stages.worker.g1        stage.requested, stage.cancelled
 ```
+
+Every queue is a durable quorum queue. The three work queues declare
+`x-delivery-limit=3` and `x-dead-letter-exchange=quantrule.runs.dlx`; the
+dead-letter queue is quorum and has no dead-letter target, so an exhausted
+message is kept once and cannot loop. A failed handler rejects with requeue,
+which RabbitMQ 4.3 and later count as a failed delivery; the next failed delivery
+after the limit is dead-lettered with its original routing key and an `x-death`
+header. The run row remains the record of the run.
+
+The `.g1` suffix is the queue generation, read from `QR_QUEUE_GENERATION`
+(default 1). Every service in one deployment must use the same generation; a
+mismatch leaves publishers and consumers on different queues. A changed
+declaration is deployed as a new generation: the services declare new names and
+never redeclare a live queue with different arguments. The exchange names stay
+stable. Stop new submissions, let the old generation's consumers drain its
+queues to zero, stop them, then unbind or delete the empty queues before the new
+generation publishes; the service never deletes a queue. A definitions export
+records the topology but not the queued messages.
 
 The stage queue is separate so a long diagnostic stage cannot delay an evidence
 run. Each consumer owns its channel and one prefetch slot, so the run and stage
@@ -78,22 +97,15 @@ consumers cannot hold each other's delivery; the worker starts
 run consumer and declares RabbitMQ consumer priority `x-priority = -1`; the run
 consumer keeps the default `0`.
 
-A publish waits for the broker's confirmation. The durable producer is the
-evidence outbox: the run row and its intent commit together, so a broker that is
-down delays the message and does not fail the submission. The publisher retries
-pending intents every 5 s, and a restart re-arms every unfinished run.
-
-A repeated publish is allowed. The worker treats a `run.requested` for a run it
-already claimed as a lookup, and evidence treats a `run.computed` for a finished
-run as a skip.
-
+The evidence outbox is the durable producer; a repeated delivery is a lookup.
 Retry budget: three attempts. The handler holds the unacked delivery for 5 s
 after the first failure and 25 s after the second; the third failure marks the
 run `failed` and publishes `run.dead`. A dead-lettered run is never silently
 lost; the run row records the attempt count. A claim records a monotonic term
 and a 60 s lease, and the worker renews it every 20 s. A queued run is
 claimable; a running run only when its lease is absent or expired. A computed
-run is only republished.
+run is only republished. The quorum delivery limit is the second guard for a
+consumer that cannot reach that path.
 
 ## 4. Idempotency
 
@@ -111,23 +123,17 @@ The full-run id is unchanged. A promoted run is distinct from the same full run,
 records `model_artifact_id` on the run row, and can still produce the same
 canonical digest.
 
-- A submission whose `run_id` exists returns the existing run with `200`.
-- A first submission returns `202`.
+- The first submission returns `202`; an existing `run_id` returns `200`.
 - The run row, the submission, and the `run.requested` intent commit in one
   transaction, so a retry after a commit finds the same run and does not create
   a second run record.
-- A restart re-arms and republishes every unfinished run, which rebuilds the
-  queue from run rows after a broker loss.
-- A run that is `running` without a digest is unfinished: its `run.requested`
-  intent is re-armed, while a `running` run with a digest wants `run.computed`.
+- A restart re-arms every unfinished run: a running run without a digest wants
+  `run.requested`, and a running run with a digest wants `run.computed`.
 - The same promoted submission returns the same promoted run; a full and a
   promoted submission never collide.
 - A claim takes a new lease term; a running run is reclaimable only after its
-  lease expires. A running run with a recorded digest republishes
-  `run.computed` so a lost publish still reaches evidence. Neither is executed
-  twice.
-- `computed`, `complete`, and `failed` carry the claim term. Evidence refuses a
-  stale term, so a worker that lost its lease cannot overwrite the new attempt.
+  lease expires. `computed`, `complete`, and `failed` carry the term, so a stale
+  worker cannot overwrite the new attempt.
 - Cancellation followed by completion is impossible: the worker checks the
   cancellation flag after the claim, before the model call, before the backtest,
   and before the first CAS write.
@@ -154,14 +160,7 @@ A run is never split across backtest workers. Scaling adds workers, not shards.
 Cancellation is best-effort by design: a run that has already reached the
 evidence service has completed, and the response says so.
 
-## 7. What is not in the control plane
-
-Simulation has no queue and no lifecycle. It is synchronous and interactive, and
-its oracle and check complete inside a request. If they ever exceed a few
-seconds, they join this plane with a recorded decision. See
-[`services.md`](services.md) §7.
-
-## 8. What the control plane must never do
+## 7. What the control plane must never do
 
 - Carry a model reading.
 - Change a run's inputs after submission.

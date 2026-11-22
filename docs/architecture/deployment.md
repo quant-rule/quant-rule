@@ -58,11 +58,11 @@ The image also carries the static client, built with **Bun** (`bun install`,
 
 All six binaries and nine long-running containers start; only `backtest` is
 HTTP-less. `db-bootstrap` creates the four databases and roles, then four
-`*-migrate` jobs apply each ledger. Long-running services hold only the
-application URL with `QR_MIGRATE=0`. The MinIO image is pinned; the database
-contract is [`docs/config/2026-11-22/four-databases.md`](../config/2026-11-22/four-databases.md)
+`*-migrate` jobs apply each ledger; long-running services hold only the
+application URL with `QR_MIGRATE=0`. Compose and v2 run one simulation replica;
+the HA profile's two require the [simulation concurrency contract](simulation-concurrency.md).
+The MinIO image is pinned; the database contract is [four-databases](../config/2026-11-22/four-databases.md)
 and the migration contract is [migrations.md](migrations.md).
-
 ## 3. Make targets
 
 | Target | Effect |
@@ -125,7 +125,7 @@ to start.
 | `QR_EVIDENCE_URL` | compose value | Evidence service, used by the gateway and the backtest worker |
 | `QR_SIMULATION_URL` | compose value | Simulation service, used by the gateway |
 | `QR_OBJECT_STORE_URL` | compose value | MinIO endpoint |
-| `QR_QUEUE_URL` | compose value | RabbitMQ |
+| `QR_QUEUE_URL` / `QR_QUEUE_GENERATION` | compose value / `1` | RabbitMQ endpoint / queue-generation suffix; a changed queue declaration uses a new generation |
 | `QR_UPLOAD_LIMIT_BYTES` | `536870912` | Dataset upload cap; a config bundle is capped at 4 MiB separately |
 | `QR_BEARER_TOKEN` | empty | Enables the token check when set |
 | `QR_BACKTEST_CONCURRENCY` | `1` | Runs per worker |
