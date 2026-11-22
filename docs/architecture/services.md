@@ -91,7 +91,7 @@ only to the private overlay.
 | `data` | one | object-store I/O and a catalog; replicas add nothing |
 | `model` | **N** | shards by timeframe; CPU-bound |
 | `backtest` | **N** | one run per worker; CPU-bound and sequential within a run |
-| `evidence` | one | finalization is a short, ordered step |
+| `evidence` | 2 in HA; 1 in Compose and v2 | both serve reads; one leader finalises |
 | `simulation` | 2 in HA; 1 in Compose and v2 | interactive; per-run row locks coordinate marks and the terminal decision |
 
 `backtest` is never sharded inside a run: strategy, fills, position, and cash are

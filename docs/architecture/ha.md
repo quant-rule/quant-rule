@@ -86,19 +86,19 @@ MinIO:
 ## 6. Evidence leader
 
 ```text
-evidence.leader_lease
-  id          singleton
+runs.leader_lease
+  singleton   boolean primary key
   holder      text
   term        bigint
   expires_at  timestamptz
 ```
 
-- The leader renews with database time.
-- Finalisation writes carry the term as a fencing token.
-- A new leader increments the term.
-- A stale leader cannot write a successful finalisation.
-- Finalisation is idempotent: one run, one digest, one record.
-- Reads are active/active on both evidence replicas.
+- Acquisition and renewal use database time; the term increments on acquisition.
+- Finalisation locks the row, requires the live term, and records one digest.
+- A new leader increments the term; a stale leader's write is refused.
+- Only the leader consumes `run.computed`; both replicas serve reads.
+- A leader loss expires the lease; the standby takes over and the outbox re-arms.
+- A duplicate delivery is a lookup: one run record, one canonical digest.
 
 ## 7. Cross-database consistency
 

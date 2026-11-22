@@ -13,15 +13,22 @@
 //! Both commit with the evidence row they describe and are retried by a
 //! reconciler, so no message is lost after a commit and no reference is left
 //! behind after an erase.
+//!
+//! Two replicas may serve reads. `runs.leader_lease` names the one finalizer;
+//! only its term can finish a run, and a standby takes over after the lease
+//! expires.
 
 #![forbid(unsafe_code)]
 
 pub mod evidence;
+pub mod leader;
 pub mod lineage;
 pub mod migrations;
 pub mod operations;
 pub mod outbox;
 pub mod postgres;
+pub mod postgres_finalize;
+pub mod postgres_leader;
 pub mod postgres_outbox;
 pub mod postgres_runs;
 pub mod reconcile;

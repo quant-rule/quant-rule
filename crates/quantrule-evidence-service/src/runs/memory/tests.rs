@@ -1,4 +1,5 @@
 use super::*;
+use crate::leader::LeaderLease;
 use quantrule_api::{RunId, StageName, StageStatus};
 
 const HOLDER: &str = "test-worker";
@@ -16,6 +17,15 @@ async fn claimed(store: &MemoryRuns, id: &str) -> RunRecord {
         panic!("the run was not claimed");
     };
     record
+}
+
+async fn leader(store: &MemoryRuns) -> u64 {
+    store
+        .leader_lease()
+        .acquire("test-evidence".to_owned())
+        .await
+        .expect("leader lease")
+        .expect("this process is the leader")
 }
 
 fn run(seed: &[u8]) -> NewRun {
@@ -294,6 +304,7 @@ async fn a_computed_run_is_not_reclaimed() {
 #[tokio::test]
 async fn only_a_running_run_can_be_completed_or_failed() {
     let store = MemoryRuns::default();
+    let leader = leader(&store).await;
     let run = store
         .submit(profile("default"), new_run())
         .await
@@ -304,6 +315,7 @@ async fn only_a_running_run_can_be_completed_or_failed() {
         .complete(
             id.clone(),
             0,
+            leader,
             Digest::sha256(b"too-early"),
             Vec::new(),
             done_stages(),
@@ -331,6 +343,7 @@ async fn only_a_running_run_can_be_completed_or_failed() {
         .complete(
             id.clone(),
             claimed.lease_term,
+            leader,
             Digest::sha256(b"canonical"),
             Vec::new(),
             done_stages(),
@@ -353,6 +366,7 @@ async fn only_a_running_run_can_be_completed_or_failed() {
 #[tokio::test]
 async fn a_completed_run_carries_its_artifacts_and_digest() {
     let store = MemoryRuns::default();
+    let leader = leader(&store).await;
     let run = store
         .submit(profile("default"), new_run())
         .await
@@ -375,6 +389,7 @@ async fn a_completed_run_carries_its_artifacts_and_digest() {
         .complete(
             id.clone(),
             claimed.lease_term,
+            leader,
             digest.clone(),
             vec![artifact.clone()],
             done_stages(),
@@ -512,6 +527,7 @@ async fn a_restart_rearms_an_unfinished_run() {
 #[tokio::test]
 async fn a_computed_run_is_notified_and_a_finished_run_is_silent() {
     let store = MemoryRuns::default();
+    let leader = leader(&store).await;
     let submitted = store
         .submit(profile("default"), run(b"outbox-computed"))
         .await
@@ -536,6 +552,7 @@ async fn a_computed_run_is_notified_and_a_finished_run_is_silent() {
         .complete(
             id.clone(),
             claimed.lease_term,
+            leader,
             Digest::sha256(b"canonical"),
             Vec::new(),
             done_stages(),
@@ -787,6 +804,7 @@ async fn an_expired_lease_is_reclaimed() {
 #[tokio::test]
 async fn a_stale_completion_or_failure_is_rejected() {
     let store = MemoryRuns::default();
+    let leader = leader(&store).await;
     let submitted = store
         .submit(profile("default"), run(b"lease-stale"))
         .await
@@ -806,6 +824,7 @@ async fn a_stale_completion_or_failure_is_rejected() {
         .complete(
             id.clone(),
             first.lease_term,
+            leader,
             Digest::sha256(b"stale"),
             Vec::new(),
             done_stages(),
@@ -830,6 +849,7 @@ async fn a_stale_completion_or_failure_is_rejected() {
         .complete(
             id.clone(),
             second.lease_term,
+            leader,
             Digest::sha256(b"current"),
             Vec::new(),
             done_stages(),

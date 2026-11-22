@@ -3,7 +3,7 @@
 //! It connects to Postgres, the object store, the broker, and the data service.
 //! It applies only the `runs`/`research` migrations, serves the public run,
 //! hypothesis, research, and operations surface plus the internal lifecycle,
-//! and consumes `run.computed` to verify the hash chain and finalize the run.
+//! and consumes `run.computed` only while it holds the database leader lease.
 //! It also publishes the run-notification outbox and retries the
 //! dataset-reference sweeps, so a crash after a commit cannot lose a run or
 //! leave a reference that blocks a dataset. Artifact bytes live in S3 and the
@@ -14,9 +14,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use quantrule_runtime::adapters::{
-    Message, MessageHandler, ObjectStore, Queue, QueueConsumer, QueueError,
-};
+use quantrule_runtime::adapters::{ObjectStore, Queue, QueueConsumer};
 use quantrule_runtime::backends::{
     ControlQueue, Objects, migrate_owner_database, open_service_database,
 };
@@ -26,10 +24,14 @@ use quantrule_runtime::queue::QueueKind;
 use quantrule_runtime::{Config, HealthRegistry, RuntimeError, logging};
 use quantrule_service_api::INTERNAL_API_VERSION;
 
-use quantrule_evidence_service::evidence::{EvidenceServices, finalize};
+use quantrule_evidence_service::evidence::EvidenceServices;
+use quantrule_evidence_service::leader::{
+    LEADER_LEASE_SECONDS, LeaderConsumer, LeaderLease, Leadership, spawn_leader_election,
+};
 use quantrule_evidence_service::lineage::{PgLineage, RunLineageStore};
 use quantrule_evidence_service::outbox::RunOutbox;
 use quantrule_evidence_service::postgres::{PgHypothesisStore, PgRunStore};
+use quantrule_evidence_service::postgres_leader::PgLeaderLease;
 use quantrule_evidence_service::releases::ReferenceReleaseLog;
 use quantrule_evidence_service::research::{HypothesisStore, ImprovementStore};
 use quantrule_evidence_service::runs::RunStore;
@@ -71,6 +73,12 @@ async fn main() -> Result<(), RuntimeError> {
     let run_store: Option<Arc<PgRunStore>> = pool
         .as_ref()
         .map(|pool| Arc::new(PgRunStore::new(pool.clone())));
+    let leader_lease: Option<Arc<dyn LeaderLease>> = pool.as_ref().map(|pool| {
+        Arc::new(PgLeaderLease::with_lease_seconds(
+            pool.clone(),
+            LEADER_LEASE_SECONDS,
+        )) as Arc<dyn LeaderLease>
+    });
     let runs: Option<RunHandle> = run_store
         .as_ref()
         .map(|store| Arc::clone(store) as Arc<dyn RunStore>);
@@ -230,6 +238,24 @@ async fn main() -> Result<(), RuntimeError> {
         })
     });
 
+    // The lease loop starts before the HTTP server. A standby consumes nothing
+    // until it acquires the lease; reads are served either way.
+    let leadership = leader_lease.map(|lease| {
+        let (sender, receiver) = tokio::sync::watch::channel(Leadership::Standby);
+        spawn_leader_election(lease, leader_holder(), sender);
+        receiver
+    });
+
+    // A takeover is a recovery point: re-arm every unfinished run when this
+    // replica acquires the lease, even though it may not have restarted.
+    if let (Some(outbox), Some(publish), Some(receiver)) = (
+        state.outbox.as_ref().map(Arc::clone),
+        state.queue.as_ref().map(Arc::clone),
+        leadership.as_ref().cloned(),
+    ) {
+        quantrule_evidence_service::outbox::spawn_leader_reconcile(receiver, outbox, publish);
+    }
+
     tracing::info!(
         bind = %config.bind,
         contract = INTERNAL_API_VERSION,
@@ -237,45 +263,41 @@ async fn main() -> Result<(), RuntimeError> {
     );
     let server = quantrule_runtime::serve_config(&config, router(state));
     let consumer = async move {
-        let Some(evidence) = evidence else {
+        let (Some(evidence), Some(leadership)) = (evidence, leadership) else {
             return std::future::pending::<Result<(), RuntimeError>>().await;
         };
-        let handler: MessageHandler = Box::new(move |message: Message| {
-            let evidence = Arc::clone(&evidence);
-            Box::pin(async move {
-                let run_id = serde_json::from_slice::<serde_json::Value>(&message.payload)
-                    .ok()
-                    .and_then(|value| {
-                        value
-                            .get("run_id")
-                            .and_then(serde_json::Value::as_str)
-                            .map(str::to_owned)
-                    });
-                let Some(run_id) = run_id else {
-                    tracing::error!("run.computed carries no run_id; acknowledging");
-                    return Ok(());
-                };
-                match finalize(run_id.clone(), &evidence).await {
-                    Ok(outcome) => {
-                        tracing::info!(run_id = %run_id, outcome = ?outcome, "run finalized");
-                        Ok(())
-                    }
-                    Err(error) => {
-                        tracing::error!(run_id = %run_id, error = %error, "run finalization failed");
-                        Err(QueueError(error.to_string()))
-                    }
-                }
-            })
-        });
-        queue
-            .consume(&evidence_queue, handler)
-            .await
-            .map_err(|error| RuntimeError::Queue(error.to_string()))
+        let consumer: Arc<dyn QueueConsumer> = queue;
+        LeaderConsumer::new(consumer, evidence_queue, evidence)
+            .run(leadership)
+            .await;
+        Ok::<(), RuntimeError>(())
     };
     tokio::select! {
         result = server => result,
         result = consumer => result,
     }
+}
+
+/// The identity this replica records in the leader lease.
+///
+/// `QR_LEADER_ID` names the replica explicitly. The hostname and process id
+/// keep the default unique per container, and the term, not the holder, is the
+/// fence.
+fn leader_holder() -> String {
+    std::env::var("QR_LEADER_ID")
+        .ok()
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+        .or_else(|| {
+            std::env::var("HOSTNAME")
+                .ok()
+                .map(|value| value.trim().to_owned())
+                .filter(|value| !value.is_empty())
+        })
+        .map_or_else(
+            || format!("evidence-{}", std::process::id()),
+            |host| format!("evidence-{host}-{}", std::process::id()),
+        )
 }
 
 /// Name the missing or invalid `QR_DATA_URL` at startup.
