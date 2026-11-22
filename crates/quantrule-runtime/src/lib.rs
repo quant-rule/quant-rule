@@ -18,8 +18,11 @@ pub mod config;
 pub mod error;
 pub mod health;
 pub mod logging;
+pub mod metrics;
 pub mod migrations;
+pub mod observability;
 pub mod queue;
+pub mod request_id;
 pub mod serve;
 pub mod shutdown;
 

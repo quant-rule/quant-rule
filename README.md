@@ -296,6 +296,7 @@ run detail. The contract is
 | [`docs/architecture/deployment.md`](docs/architecture/deployment.md) | How to run it |
 | [`docs/architecture/multi-host.md`](docs/architecture/multi-host.md) | How the six services of the v2 profile run across hosts; v3 adds the seventh |
 | [`docs/architecture/cross-database-consistency.md`](docs/architecture/cross-database-consistency.md) | Outbox, dataset references, reconciliation and tombstones across four databases |
+| [`docs/architecture/observability.md`](docs/architecture/observability.md) | Metrics, JSON logs, request/trace ids, and their non-goals |
 | [User manual](docs/manual/README.md) | Every journey, command, screen, term, and error |
 | [Stage to backtest tutorial](docs/tutorials/2026-11-17/stage-to-backtest.md) | Diagnostic stages to a promoted evidence run |
 | [End-to-end verification tutorial](docs/tutorials/2026-11-17/end-to-end-verification.md) | Clean-stack proof and the two-run digest |
@@ -314,7 +315,7 @@ run detail. The contract is
 | `crates/quantrule-app` | Shared application service |
 | `crates/quantrule-api` | HTTP contract types |
 | `crates/quantrule-service-api` | Internal service contract types |
-| `crates/quantrule-runtime` | Configuration, health, storage, queue, migrations |
+| `crates/quantrule-runtime` | Configuration, logging, metrics, health, storage, queue, migrations |
 | `crates/quantrule-gateway` | Gateway: profiles, static client, proxy, health |
 | `crates/quantrule-data-service` | Data service (`qr-data`) |
 | `crates/quantrule-model-service` | Model service (`qr-model`) |

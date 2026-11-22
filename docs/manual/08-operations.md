@@ -80,6 +80,33 @@ export is what makes the laptop a client rather than a local stack.
 
 A token is a network gate, not an account. There is one principal.
 
+## Metrics and logs
+
+Each service starts an internal Prometheus listener when `QR_METRICS_BIND` is
+set. The default Compose stack sets it to `0.0.0.0:9090` inside the container
+network and publishes no metrics port. The gateway does not proxy `/metrics`.
+
+```bash
+docker compose exec -T gateway curl -fsS http://127.0.0.1:9090/metrics
+docker compose exec -T data curl -fsS http://127.0.0.1:9090/metrics
+```
+
+The common families are build identity, process start, readiness, draining,
+dependency health, HTTP request counts, a duration histogram, and in-flight
+requests. Labels use the route template (`/runs/{id}`), never a raw path or id.
+`quantrule_ready` is process readiness in this slice; dependency readiness and
+drain are slice 2.
+
+Logs are one JSON object per line on stderr. Set `QR_LOG_FORMAT=text` only for
+local debugging; `QR_LOG` is the filter. A request returns `x-request-id`, and a
+valid W3C `traceparent` is forwarded. Neither enters an artifact or the
+canonical digest.
+
+```bash
+docker compose logs --tail 20 gateway
+curl -isS http://localhost:8080/health | grep -i x-request-id
+```
+
 ## Queue operations
 
 The run, evidence, and stage work queues are generated quorum queues

@@ -37,7 +37,7 @@ quantrule-simulation-service ──> quantrule-simulation
 | `quantrule-service-api` | `quantrule.internal/v1` records, bundles, run lifecycle, stage manifest, canonical digest | Any engine, runtime, or service dependency |
 | `quantrule-research` | Hypothesis evaluation: expectancy, significance, drawdown, comparison | I/O, clock, engine dependency |
 | `quantrule-simulation` | Research plane: deterministic windows, marks, oracle, check, exit lab | I/O, clock, run artifacts |
-| `quantrule-runtime` | Configuration, health, logging, shutdown, adapters, migrations, service client | An engine or `quantrule-app` |
+| `quantrule-runtime` | Configuration, health, logging, metrics, request ids, shutdown, adapters, migrations, service client | An engine or `quantrule-app` |
 | `quantrule-gateway` | Profiles (`gateway` schema), static client, proxy table, health | Any app, engine, or domain service crate |
 | `quantrule-data-service` | `catalog` schema, ingest, datasets, configs, pack registry, artifact retention, inspection, ladder | Another schema or a model run |
 | `quantrule-model-service` | Model compute and content-addressed model bundles | A strategy, execution, portfolio, or database schema |
@@ -64,7 +64,7 @@ cannot read a strategy, write a run, publish to the queue, or compute a model.
 | `quantrule-evidence-service` | `src/state.rs`, `src/postgres.rs`, `src/migrations.rs`, `src/leader.rs`, `src/postgres_leader.rs`, `src/postgres_finalize.rs`, `src/lineage.rs`, `src/outbox.rs`, `src/releases.rs`, `src/reconcile.rs`, `src/stage/` |
 | `quantrule-simulation-service` | `src/routes/`, `src/postgres.rs`, `src/bundle.rs` |
 | `quantrule-strategy-service` | `src/routes.rs`, `src/resolve.rs`, `src/state.rs` |
-| `quantrule-runtime` | `src/config.rs`, `src/health.rs`, `src/adapters/`, `src/client.rs`, `src/migrations.rs` |
+| `quantrule-runtime` | `src/config.rs`, `src/health.rs`, `src/logging.rs`, `src/metrics.rs`, `src/request_id.rs`, `src/observability.rs`, `src/adapters/`, `src/client.rs`, `src/migrations.rs` |
 
 ## 3. Where to add a change
 

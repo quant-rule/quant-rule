@@ -14,15 +14,25 @@ use quantrule_runtime::client::{
     ArtifactClient, ClientError, HttpServiceClient, ModelClient, PackClient, Service,
 };
 use quantrule_runtime::config::ConfigError;
-use quantrule_runtime::{Config, HealthRegistry, RuntimeError, logging, serve_config};
+use quantrule_runtime::metrics::{self, Metrics};
+use quantrule_runtime::request_id::RequestIds;
+use quantrule_runtime::{
+    Config, HealthRegistry, RuntimeError, logging, observability, serve_config,
+};
 use quantrule_strategy_service::{StrategyServices, StrategyState};
 
 #[tokio::main]
 async fn main() -> Result<(), RuntimeError> {
     let config = Config::from_env()?;
-    logging::init("info")?;
+    logging::init("strategy", config.image_digest.as_ref())?;
 
-    let mut health = HealthRegistry::named("strategy");
+    let metrics = Metrics::new(
+        "strategy",
+        env!("CARGO_PKG_VERSION"),
+        config.image_digest.as_ref().map(ToString::to_string),
+    );
+    metrics::start(&config, &metrics).await?;
+    let mut health = HealthRegistry::named("strategy").with_metrics(metrics.clone());
     let backend = Objects::open(&config).await?;
     let objects: Arc<dyn ObjectStore> = Arc::new(backend.clone());
     health.register("object-store", move || {
@@ -46,7 +56,15 @@ async fn main() -> Result<(), RuntimeError> {
         },
     ));
     tracing::info!(bind = %config.bind, "starting strategy service");
-    serve_config(&config, quantrule_strategy_service::router(state)).await
+    serve_config(
+        &config,
+        observability::instrument(
+            quantrule_strategy_service::router(state),
+            metrics,
+            RequestIds::from_env("strategy"),
+        ),
+    )
+    .await
 }
 
 /// Name the missing or invalid service URL at startup.

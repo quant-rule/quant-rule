@@ -8,7 +8,8 @@
 # services start with only their application credential. `data`, `model`,
 # `evidence`, and `simulation` serve the catalog, model compute, runs/research,
 # and the research plane; the gateway proxies all four. `strategy` serves the
-# internal signal route, and the backtest worker serves no HTTP.
+# internal signal route, and the backtest worker serves only an internal
+# metrics listener, never a public API.
 #
 # Windows and macOS run this file through Docker Desktop's Linux backend
 # (WSL2 on Windows). The image is linux/amd64.
@@ -55,6 +56,13 @@ x-server: &server
     QR_QUEUE_GENERATION: "1"
     QR_STATIC_DIR: /srv/static
     QR_CONFIG_ROOT: /srv/config
+    # Structured logs are one JSON object per line on stderr. Local debugging
+    # can opt into QR_LOG_FORMAT=text; the server profile keeps JSON.
+    QR_LOG_FORMAT: json
+    # The internal Prometheus listener. It is on the private container network
+    # only and is never published to the host. Unset disables it; the gateway
+    # does not proxy it. PLAT-006 owns the scrape configuration.
+    QR_METRICS_BIND: 0.0.0.0:9090
     # Diagnostic stage rows and their object-store blobs expire after this many
     # days. Evidence applies the cleanup at startup and hourly; a run and its
     # artifacts are never touched.
@@ -73,7 +81,8 @@ x-server: &server
     AWS_REGION: us-east-1
 
 # The probe reads the service's own `/health`; a running container is not a
-# healthy service. The workers have no HTTP surface and therefore no entry here.
+# healthy service. The workers have no public HTTP surface and therefore no entry
+# here; their internal metrics listener is not a liveness probe.
 x-gateway-healthcheck: &gateway-healthcheck
   test:
     - CMD-SHELL
@@ -179,6 +188,8 @@ services:
       QR_OBJECT_STORE_URL: http://minio:9000
       QR_OBJECT_BUCKET: quantrule
       QR_MIGRATE: "0"
+      QR_LOG_FORMAT: json
+      QR_METRICS_BIND: 0.0.0.0:9090
       QR_IMAGE_DIGEST:
       AWS_ACCESS_KEY_ID: quantrule
       AWS_SECRET_ACCESS_KEY: ${QR_OBJECT_STORE_PASSWORD:-quantrule}
@@ -214,9 +225,11 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-    # A worker serves no HTTP and publishes no liveness probe, so it has no
-    # healthcheck. Docker reports the process state; /health reports the
-    # dependencies. A worker probe is part of the split.
+    # A worker serves no public HTTP API and publishes no liveness probe, so it
+    # has no healthcheck. It does bind the internal metrics listener from the
+    # shared environment; that port is never published. Docker reports the
+    # process state; /health reports the dependencies. A worker probe is part of
+    # the drain and readiness slice.
 
   evidence:
     <<: *server

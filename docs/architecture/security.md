@@ -108,6 +108,9 @@ Residual risks accepted for v1:
   on a remote host. The operator confirms the image ID with `docker inspect`.
 - `/ready` is unauthenticated and reveals upstream states; it stays behind the
   same network gate as the gateway.
+- `/metrics` is unauthenticated and reveals route, status and latency aggregates.
+  It is internal only, disabled when `QR_METRICS_BIND` is unset, never proxied
+  by the gateway, and never published as a host port.
 - The infrastructure host is a single point of failure. The profile is not HA.
 
 ## 3. Input boundaries

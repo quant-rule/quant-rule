@@ -128,6 +128,8 @@ a fold over time. Claiming otherwise would be false.
 - Place a wall-clock value inside an artifact.
 - Render a human-readable label for a numeric code.
 - Publish a model reading on the control plane.
+- Serve `/metrics` on the public API port, proxy it through the gateway, or label it with a raw path, run id, profile id, token or object hash.
+- Log a header map, body, artifact byte, token or DSN.
 
 ## 7. Backend adapters
 

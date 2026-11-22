@@ -34,7 +34,7 @@ The stateful and ingress layers are described in sections 4–8.
 | `data` | 2 | `qr_catalog` + object store | [Idempotent upload](data-active-active.md) (HA-007) |
 | `model` | N | Object store | Stateless compute |
 | `strategy` | N | Object store + evidence lineage | Stateless signal compiler |
-| `backtest` | N | Object store + queue | Per-run fold, no HTTP |
+| `backtest` | N | Object store + queue | Per-run fold, internal metrics only |
 | `evidence` | 2+ | `qr_evidence` + object store | One leader finalises |
 | `simulation` | 2 | `qr_simulation` + object store | [Row locks](simulation-concurrency.md) (HA-008) |
 
@@ -119,6 +119,7 @@ No distributed transactions. The platform uses:
 - Postgres, RabbitMQ and MinIO use TLS; per-service credentials.
 - Internal HTTP mTLS is decided in Phase 0. If deferred, encrypted overlay,
   per-service credentials and gateway token are recorded residual risk.
+- Each service serves `/metrics` only on its internal listener and writes JSON logs; request ids never enter evidence.
 - Image is signed, SBOM published and digest pinned.
 
 ## 9. Deployment descriptor
@@ -163,8 +164,7 @@ v2 remains readable for the older multi-host profile.
 - RTO target: 15 minutes node/AZ, 1 hour region recovery.
 ## 12. Evidence boundary
 
-The single-host three-VM lab proves simulated node failure. It does not prove
-physical host, AZ, power or disk-controller failure. The release note states
-`Simulated HA` unless separate physical hosts or failure domains were used. The
-platform never trades; no broker, OMS, real-time risk or regulatory component is
-part of this architecture.
+The single-host three-VM lab proves simulated node failure, not physical host, AZ,
+power or disk-controller failure. The release note says `Simulated HA` unless
+separate hosts or failure domains were used. The platform never trades; no broker,
+OMS, real-time risk or regulatory component is part of this architecture.

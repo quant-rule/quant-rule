@@ -25,7 +25,7 @@ Client (browser or shell)
 Host A — gateway :8080 (the only published service)
         │  private overlay
         ├──► Host B — data :18081, evidence :18083, simulation :18084
-        ├──► Host C — model :18082, backtest workers (no HTTP)
+        ├──► Host C — model :18082, backtest workers (internal metrics only)
         └──► Host D — Postgres :5432, MinIO :9000, RabbitMQ :5672
 ```
 

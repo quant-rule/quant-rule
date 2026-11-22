@@ -128,6 +128,12 @@ pub struct Config {
     /// container cannot accidentally publish an unauthenticated service on a
     /// public interface.
     pub internal_only: bool,
+    /// Where the internal Prometheus listener binds.
+    ///
+    /// Unset disables the listener. When `QR_INTERNAL_ONLY` is set, the
+    /// address must be private or loopback: the metrics surface is internal and
+    /// is never proxied by the gateway.
+    pub metrics_bind: Option<SocketAddr>,
 }
 
 impl fmt::Debug for Config {
@@ -153,6 +159,7 @@ impl fmt::Debug for Config {
             .field("image_digest", &self.image_digest)
             .field("migrate", &self.migrate)
             .field("internal_only", &self.internal_only)
+            .field("metrics_bind", &self.metrics_bind)
             .finish()
     }
 }
@@ -176,23 +183,42 @@ impl Default for Config {
             image_digest: None,
             migrate: true,
             internal_only: false,
+            metrics_bind: None,
         }
     }
 }
 
 impl Config {
-    /// Re-check the internal bind after construction.
+    /// Re-check the internal binds after construction.
     ///
     /// The parser already calls this when `QR_INTERNAL_ONLY` is set. The
     /// service entry points call it again so a `Config` built by code cannot
-    /// bypass the guard.
+    /// bypass the guard for either the service bind or the metrics bind.
     ///
     /// # Errors
     ///
-    /// Returns [`ConfigError::Invalid`] when the bind is not private.
+    /// Returns [`ConfigError::Invalid`] when a bind is not private.
     pub fn check_internal_bind(&self) -> Result<(), ConfigError> {
         if self.internal_only {
             validate_internal_bind(&self.bind)?;
+        }
+        self.check_metrics_bind()
+    }
+
+    /// Re-check the metrics listener bind after construction.
+    ///
+    /// The metrics listener is internal. When `QR_INTERNAL_ONLY` is set, its
+    /// address must be private or loopback. A process with the listener disabled
+    /// has nothing to check.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConfigError::Invalid`] when the metrics bind is not private.
+    pub fn check_metrics_bind(&self) -> Result<(), ConfigError> {
+        if self.internal_only
+            && let Some(metrics) = self.metrics_bind
+        {
+            validate_private_address("QR_METRICS_BIND", metrics)?;
         }
         Ok(())
     }
@@ -357,6 +383,22 @@ impl Config {
         if config.internal_only {
             validate_internal_bind(&config.bind)?;
         }
+        if let Some(value) = values.get("QR_METRICS_BIND") {
+            let value = value.trim();
+            if value.is_empty() {
+                config.metrics_bind = None;
+            } else {
+                let parsed: SocketAddr = value.parse().map_err(|_| ConfigError::Invalid {
+                    name: "QR_METRICS_BIND",
+                    value: value.to_owned(),
+                    reason: "must be an IP:port",
+                })?;
+                if config.internal_only {
+                    validate_private_address("QR_METRICS_BIND", parsed)?;
+                }
+                config.metrics_bind = Some(parsed);
+            }
+        }
         Ok(config)
     }
 }
@@ -388,12 +430,16 @@ fn validate_internal_bind(bind: &str) -> Result<(), ConfigError> {
         value: bind.to_owned(),
         reason: "must be an IP:port when QR_INTERNAL_ONLY is set",
     })?;
+    validate_private_address("QR_BIND", address)
+}
+
+fn validate_private_address(name: &'static str, address: SocketAddr) -> Result<(), ConfigError> {
     if is_private_bind(address.ip()) {
         return Ok(());
     }
     Err(ConfigError::Invalid {
-        name: "QR_BIND",
-        value: bind.to_owned(),
+        name,
+        value: address.to_string(),
         reason: "must be a private or loopback address when QR_INTERNAL_ONLY is set",
     })
 }
@@ -508,5 +554,66 @@ mod tests {
         ));
         assert!(!migrate_only_in([OsString::from("--serve")].into_iter()));
         assert!(!migrate_only_in(std::iter::empty()));
+    }
+
+    #[test]
+    fn the_metrics_bind_is_optional_and_validated() {
+        assert_eq!(
+            Config::from_map(&BTreeMap::new())
+                .expect("config")
+                .metrics_bind,
+            None
+        );
+        assert_eq!(
+            Config::from_map(&values(&[("QR_METRICS_BIND", "")]))
+                .expect("config")
+                .metrics_bind,
+            None
+        );
+        assert_eq!(
+            Config::from_map(&values(&[("QR_METRICS_BIND", "127.0.0.1:9090")]))
+                .expect("config")
+                .metrics_bind,
+            Some(SocketAddr::from(([127, 0, 0, 1], 9090)))
+        );
+        let error = Config::from_map(&values(&[("QR_METRICS_BIND", "metrics:9090")]))
+            .expect_err("a hostname is not an IP:port");
+        assert!(error.to_string().contains("QR_METRICS_BIND"), "{error}");
+    }
+
+    #[test]
+    fn a_private_bind_is_required_for_metrics_when_internal() {
+        let error = Config::from_map(&values(&[
+            ("QR_INTERNAL_ONLY", "1"),
+            ("QR_BIND", "10.0.0.5:8080"),
+            ("QR_METRICS_BIND", "29.0.0.5:9090"),
+        ]))
+        .expect_err("a public metrics bind must be refused");
+        assert!(error.to_string().contains("QR_METRICS_BIND"), "{error}");
+
+        let config = Config::from_map(&values(&[
+            ("QR_INTERNAL_ONLY", "1"),
+            ("QR_BIND", "10.0.0.5:8080"),
+            ("QR_METRICS_BIND", "10.0.0.5:9090"),
+        ]))
+        .expect("a private metrics bind");
+        assert_eq!(
+            config.metrics_bind,
+            Some(SocketAddr::from(([10, 0, 0, 5], 9090)))
+        );
+    }
+
+    #[test]
+    fn a_manually_built_config_cannot_bypass_the_metrics_bind_guard() {
+        let config = Config {
+            internal_only: true,
+            bind: "10.0.0.5:8080".to_owned(),
+            metrics_bind: Some(SocketAddr::from(([29, 0, 0, 5], 9090))),
+            ..Config::default()
+        };
+        let error = config
+            .check_internal_bind()
+            .expect_err("public metrics bind");
+        assert!(error.to_string().contains("QR_METRICS_BIND"), "{error}");
     }
 }

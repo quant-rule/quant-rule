@@ -39,6 +39,10 @@ use quantrule_runtime::client::{
 use quantrule_runtime::config::Config;
 use quantrule_runtime::error::RuntimeError;
 use quantrule_runtime::health::HealthRegistry;
+use quantrule_runtime::metrics::Metrics;
+use quantrule_runtime::request_id::{
+    REQUEST_ID_HEADER, RequestIds, TRACEPARENT_HEADER, is_valid_request_id, parse_traceparent,
+};
 
 use crate::profile::{ProfileStore, create_profile, list_profiles};
 
@@ -93,6 +97,10 @@ pub struct AppState {
     pub simulations: Option<Arc<dyn SimulationCounter>>,
     /// The bearer token the gateway requires, when one is configured.
     pub bearer_token: Option<Arc<str>>,
+    /// The gateway's own metrics registry.
+    pub metrics: Metrics,
+    /// The gateway's request identifier source.
+    pub request_ids: RequestIds,
 }
 
 impl std::fmt::Debug for AppState {
@@ -112,6 +120,8 @@ impl std::fmt::Debug for AppState {
             .field("runs", &self.runs.is_some())
             .field("simulations", &self.simulations.is_some())
             .field("bearer_token", &self.bearer_token.is_some())
+            .field("metrics", &self.metrics)
+            .field("request_ids", &self.request_ids)
             .finish()
     }
 }
@@ -126,6 +136,34 @@ impl AppState {
     /// Build the state with whatever backing services are configured.
     #[must_use]
     pub fn with_services(config: &Config, health: HealthRegistry, services: Services) -> Self {
+        let metrics = Metrics::new(
+            "gateway",
+            env!("CARGO_PKG_VERSION"),
+            config.image_digest.as_ref().map(ToString::to_string),
+        );
+        Self::with_observability(
+            config,
+            health,
+            metrics,
+            RequestIds::new("gateway"),
+            services,
+        )
+    }
+
+    /// Build the state with an explicit registry and identifier source.
+    ///
+    /// The gateway binary supplies the process instance and starts the internal
+    /// listener from the same registry. Tests use the deterministic default from
+    /// [`Self::with_services`].
+    #[must_use]
+    pub fn with_observability(
+        config: &Config,
+        health: HealthRegistry,
+        metrics: Metrics,
+        request_ids: RequestIds,
+        services: Services,
+    ) -> Self {
+        let health = health.with_metrics(metrics.clone());
         Self {
             version: VersionInfo::current(env!("CARGO_PKG_VERSION"), config.image_digest.clone()),
             health,
@@ -140,6 +178,8 @@ impl AppState {
             runs: services.runs,
             simulations: services.simulations,
             bearer_token: config.bearer_token.as_deref().map(Arc::<str>::from),
+            metrics,
+            request_ids,
         }
     }
 }
@@ -260,10 +300,15 @@ pub fn router(state: Arc<AppState>) -> Router {
             Arc::clone(&state),
             crate::auth::authorize,
         ));
-    Router::new()
+    let router = Router::new()
         .merge(api)
         .fallback(static_client)
-        .with_state(state)
+        .with_state(Arc::clone(&state));
+    quantrule_runtime::observability::instrument(
+        router,
+        state.metrics.clone(),
+        state.request_ids.clone(),
+    )
 }
 
 /// Serve the built client, or the SPA entry point, for a non-API path.
@@ -315,6 +360,11 @@ async fn ready(State(state): State<Arc<AppState>>) -> (StatusCode, Json<HealthRe
         report.services.push(probe.2);
     }
     report.state = HealthReport::aggregate(report.services.clone());
+    for service in &report.services {
+        state
+            .metrics
+            .set_dependency(service.name.clone(), service.state.is_available());
+    }
     let status = if report.state == ServiceState::Down {
         StatusCode::SERVICE_UNAVAILABLE
     } else {
@@ -808,6 +858,10 @@ fn artifact_name(path: &str) -> Option<&str> {
 
 /// The request headers the gateway forwards. Everything else, including a
 /// client-set profile, host, authorization, and internal headers, is dropped.
+///
+/// The two observability headers are re-validated here even though the gateway
+/// middleware has already normalized them: a handler that builds a request
+/// without the middleware must not be able to forward an unchecked value.
 pub(crate) fn proxy_request_headers(source: &HeaderMap, profile: &ProfileId) -> HeaderMap {
     const ALLOWED: [&str; 4] = ["content-type", "accept", "if-none-match", "content-length"];
     let mut headers = HeaderMap::new();
@@ -815,6 +869,22 @@ pub(crate) fn proxy_request_headers(source: &HeaderMap, profile: &ProfileId) -> 
         if let Some(value) = source.get(name) {
             headers.insert(header::HeaderName::from_static(name), value.clone());
         }
+    }
+    if let Some(value) = source
+        .get(REQUEST_ID_HEADER)
+        .and_then(|value| value.to_str().ok())
+        .filter(|value| is_valid_request_id(value))
+        .and_then(|value| header::HeaderValue::from_str(value).ok())
+    {
+        headers.insert(header::HeaderName::from_static(REQUEST_ID_HEADER), value);
+    }
+    if let Some(context) = source
+        .get(TRACEPARENT_HEADER)
+        .and_then(|value| value.to_str().ok())
+        .and_then(parse_traceparent)
+        .and_then(|context| header::HeaderValue::from_str(&context.traceparent).ok())
+    {
+        headers.insert(header::HeaderName::from_static(TRACEPARENT_HEADER), context);
     }
     if let Ok(value) = header::HeaderValue::from_str(profile.as_str()) {
         headers.insert(

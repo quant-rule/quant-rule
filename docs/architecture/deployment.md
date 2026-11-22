@@ -56,12 +56,12 @@ The image also carries the static client built with **Bun**; no Bun or Python ru
 
 ## 2.1 Current state
 
-All seven binaries and ten long-running containers start; only `backtest` is
-HTTP-less. `db-bootstrap` creates the four databases and roles, then four `*-migrate` jobs apply each ledger;
-long-running services hold the application URL with `QR_MIGRATE=0`. Compose and v2 run one data and one
-simulation replica; the HA profile's two require the [data active/active](data-active-active.md) and
-[simulation concurrency](simulation-concurrency.md) contracts.
-The MinIO image is pinned; the database and migration contracts are [four-databases](../config/2026-11-22/four-databases.md) and [migrations.md](migrations.md).
+All seven binaries and ten long-running containers start; `backtest` serves only the internal metrics
+listener. `db-bootstrap` creates the four databases and roles, then four `*-migrate` jobs apply each ledger;
+long-running services use `QR_MIGRATE=0`. Compose and v2 run one data and one simulation replica; HA requires
+[data active/active](data-active-active.md) and [simulation concurrency](simulation-concurrency.md).
+The MinIO image and the database/migration contracts are pinned in
+[four-databases](../config/2026-11-22/four-databases.md) and [migrations.md](migrations.md).
 ## 3. Make targets
 
 | Target | Effect |
@@ -130,6 +130,7 @@ to start.
 | `QR_BEARER_TOKEN` | empty | Enables the token check when set |
 | `QR_BACKTEST_CONCURRENCY` | `1` | Runs per worker |
 | `QR_STAGE_RETENTION_DAYS` | `30` | Diagnostic stage retention in days |
+| `QR_LOG_FORMAT` / `QR_METRICS_BIND` | `json` / unset | JSON logs (`text` opt-in) / internal Prometheus listener; unset disables it, and it is never published |
 | Store passwords | `quantrule` on the loopback stack | `QR_POSTGRES_PASSWORD` seeds every database role; `QR_RABBITMQ_PASSWORD` and `QR_OBJECT_STORE_PASSWORD`; all required non-default for `make remote` |
 
 A config bundle is capped at 4 MiB by the config route, independently of `QR_UPLOAD_LIMIT_BYTES`; a larger config returns `413 upload.too_large`. Secrets come from the environment; no secret is committed.
@@ -166,5 +167,4 @@ for disposable data, or the migration runbook for kept evidence.
 
 ## 8. What deployment does not provide
 
-No high availability, no autoscaling, no TLS termination, no external registry.
-Multi-host placement is in [multi-host.md](multi-host.md); it is not HA.
+No high availability, no autoscaling, no TLS termination, no external registry. Multi-host placement is in [multi-host.md](multi-host.md); it is not HA.

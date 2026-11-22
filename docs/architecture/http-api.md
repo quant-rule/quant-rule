@@ -18,6 +18,8 @@ never renders a label, and never returns a raw engine type.
 | Version | `quantrule.api/v1` in `/version` and every error envelope |
 | Identifier | Content hash or opaque catalog id; never a path |
 | Time | Server-assigned; never accepted from the client |
+| Request ID | `x-request-id` is returned on every response; an invalid client value is replaced |
+| Metrics | `/metrics` is an internal listener, not a public API route |
 | Errors | One envelope, stable codes |
 
 ```json

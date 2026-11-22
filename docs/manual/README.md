@@ -72,6 +72,7 @@ These tutorials show the same product from five entry points:
 | [Run a backtest](../tutorials/2026-11-12/01-run-a-backtest.md) | The browser journey from upload to digest |
 | [End-to-end verification](../tutorials/2026-11-17/end-to-end-verification.md) | `make up`, `make verify`, and the two-run digest |
 | [Research artifacts from the client](../tutorials/2026-11-22/research-artifacts-client.md) | Pack lifecycle, signal compute/read, and run lineage |
+| [Runtime observability](../tutorials/2026-11-22/runtime-observability.md) | Metrics, JSON logs, and request/trace ids |
 
 ## 6. Status
 
