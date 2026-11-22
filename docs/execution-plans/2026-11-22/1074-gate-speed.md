@@ -77,24 +77,24 @@ The path table and fallbacks are in
 
 | ID | Plan item | Acceptance criterion | Evidence / command | Expected | Observed | Status | Reviewer | Date | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| V01 | Classifier table | Every path row maps to the expected mode | `cargo test -p quantrule-governance gate` | Pass |  | Pending |  |  |  |
-| V02 | Mixed scopes | Docs+governance -> governance; docs+web -> web; governance+web -> full | Unit tests | Pass |  | Pending |  |  |  |
-| V03 | Unknown path | Unknown -> full | Unit test | Pass |  | Pending |  |  |  |
-| V04 | Gate plan output | Text, JSON, `--field`, exit codes agree | `cargo test -p quantrule-governance --test gate` | Pass |  | Pending |  |  |  |
-| V05 | Docs mode | Docs-only runs checker only | `tools/gate.sh --explain`; CI | Pass |  | Pending |  |  |  |
-| V06 | Governance mode | Governance-only compiles governance only | `tools/gate.sh --changed`; CI | Pass |  | Pending |  |  |  |
-| V07 | Web mode | Web-only runs Bun, no engine compile | `tools/gate.sh --changed`; CI | Pass |  | Pending |  |  |  |
-| V08 | Full fallback | Lockfile, toolchain, CI, config, unknown -> full | Unit tests | Pass |  | Pending |  |  |  |
-| V09 | Aggregator | Failed or wrongly skipped job fails `gate` | CI seeded run | Pass |  | Pending |  |  |  |
-| V10 | Main/release | Main and release always full | Workflow diff; release run | Pass |  | Pending |  |  |  |
-| V11 | Retired guard | Batch/cell refuse; program check/report work | `cargo test -p quantrule-governance research` | Pass |  | Pending |  |  |  |
-| V12 | Historical records | 11 manifests keep command arrays; guard blocks runs | Diff; tests | Pass |  | Pending |  |  |  |
-| V13 | Docs timing | `plan-and-check` under 30 s | CI run | Pass |  | Pending |  |  |  |
+| V01 | Classifier table | Every path row maps to the expected mode | `cargo test -p quantrule-governance gate` | Pass | `cargo test -p quantrule-governance gate` passes; table covers every row | Pass |  |  |  |
+| V02 | Mixed scopes | Docs+governance -> governance; docs+web -> web; governance+web -> full | Unit tests | Pass | Unit tests cover all three mixed cases | Pass |  |  |  |
+| V03 | Unknown path | Unknown -> full | Unit test | Pass | `unknown/path.bin` maps to full | Pass |  |  |  |
+| V04 | Gate plan output | Text, JSON, `--field`, exit codes agree | `cargo test -p quantrule-governance --test gate` | Pass | Gate CLI tests cover text, JSON, `--field`, usage, and a Git range | Pass |  |  |  |
+| V05 | Docs mode | Docs-only runs checker only | `tools/gate.sh --explain`; CI | Pass | docs-only PR #1077: `plan_and_check` 28s; rust/web skipped; `Gate` 3s | Pass |  |  |  |
+| V06 | Governance mode | Governance-only compiles governance only | `tools/gate.sh --changed`; CI | Pass | `cargo test -p quantrule-governance` covers governance scope; local dispatch exercised | Pending |  |  |  |
+| V07 | Web mode | Web-only runs Bun, no engine compile | `tools/gate.sh --changed`; CI | Pass | `tools/gate.sh` web scope wired; CI web conditions in place | Pending |  |  |  |
+| V08 | Full fallback | Lockfile, toolchain, CI, config, unknown -> full | Unit tests | Pass | Lockfile, toolchain, CI, config, and unknown paths full | Pass |  |  |  |
+| V09 | Aggregator | Failed or wrongly skipped job fails `gate` | CI seeded run | Pass | #1076 full CI: `Gate` passed with all jobs | Pending |  |  |  |
+| V10 | Main/release | Main and release always full | Workflow diff; release run | Pass | Main push and release workflow keep full mode | Pass |  |  |  |
+| V11 | Retired guard | Batch/cell refuse; program check/report work | `cargo test -p quantrule-governance research` | Pass | `research batch` refuses a retired program; `research program --check` prints retired | Pass |  |  |  |
+| V12 | Historical records | 11 manifests keep command arrays; guard blocks runs | Diff; tests | Pass | 11 manifests carry `retired`; command arrays unchanged | Pass |  |  |  |
+| V13 | Docs timing | `plan-and-check` under 30 s | CI run | Pass | docs-only PR #1077: `plan_and_check` 28s | Pass |  |  |  |
 | V14 | Governance timing | Under 90 s cold | CI run | Pass |  | Pending |  |  |  |
 | V15 | Web timing | Under 2 min | CI run | Pass |  | Pending |  |  |  |
-| V16 | Full timing | Within 10% of current full gate | CI run | Pass |  | Pending |  |  |  |
-| V17 | Build settings | Keep only with a measured win; otherwise revert | A/B timing | Pass |  | Pending |  |  |  |
-| V18 | Shadow mode | Three PRs classify as expected | CI logs | Pass |  | Pending |  |  |  |
+| V16 | Full timing | Within 10% of current full gate | CI run | Pass | #1076 `rust` full 3m30s; full gate unchanged in order | Pending |  |  |  |
+| V17 | Build settings | Keep only with a measured win; otherwise revert | A/B timing | Pass | CI settings enabled; A/B measurement pending | Pending |  |  |  |
+| V18 | Shadow mode | Three PRs classify as expected | CI logs | Pass | #1076 classified full as expected | Pending |  |  |  |
 
 ## 8. Risks and stop conditions
 

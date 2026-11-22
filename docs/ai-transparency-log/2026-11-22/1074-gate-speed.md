@@ -27,8 +27,9 @@ change.
 - `tools/gate.sh --explain` on docs/governance/web/full ranges.
 - CI shadow run before conditional jobs.
 - Full gate on `main` and release unchanged.
-- CI-only `CARGO_INCREMENTAL=0` and `CARGO_PROFILE_DEV_DEBUG=0` are enabled and
-  measured on the next full and scoped runs.
+- Docs-only PR #1077: `plan_and_check` 28s; `rust`, `web`, `web-e2e`, and
+  `web-cross-browser` skipped; `Gate` 3s. The full #1076 path was 30s planning +
+  3m30s rust, so the CI build-setting A/B is still open.
 
 ## Learning
 
