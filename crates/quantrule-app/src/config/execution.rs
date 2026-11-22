@@ -10,6 +10,7 @@ use quantrule_backtest::execution::ExecutionConfig;
 use quantrule_data::Timeframe;
 use serde_json::Value;
 
+use super::costs;
 use super::data::timeframe;
 use super::error::ConfigError;
 use super::read::{self, ROOT};
@@ -67,33 +68,7 @@ pub fn parse(value: &Value, file: &str) -> Result<ExecutionRunConfig, ConfigErro
         "stop_first",
     )?;
 
-    let fee_rate = read::number(
-        file,
-        "$.fee_rate",
-        read::field(file, ROOT, object, "fee_rate")?,
-    )?;
-    if fee_rate < 0.0 {
-        return Err(ConfigError::range(
-            file,
-            "$.fee_rate",
-            ">= 0",
-            &fee_rate.to_string(),
-        ));
-    }
-
-    let slippage_bps = read::number(
-        file,
-        "$.slippage_bps",
-        read::field(file, ROOT, object, "slippage_bps")?,
-    )?;
-    if slippage_bps < 0.0 || slippage_bps >= 10_000.0 {
-        return Err(ConfigError::range(
-            file,
-            "$.slippage_bps",
-            ">= 0 and < 10000",
-            &slippage_bps.to_string(),
-        ));
-    }
+    let engine = costs::execution(file, ROOT, object)?;
 
     require_code(
         file,
@@ -107,10 +82,6 @@ pub fn parse(value: &Value, file: &str) -> Result<ExecutionRunConfig, ConfigErro
         read::field(file, ROOT, object, "end_of_data")?,
         "leave_open",
     )?;
-
-    let engine = ExecutionConfig::new(fee_rate, slippage_bps).map_err(|error| {
-        ConfigError::range(file, "$", "valid execution costs", &error.to_string())
-    })?;
 
     Ok(ExecutionRunConfig {
         engine,

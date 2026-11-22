@@ -25,6 +25,7 @@ history is in Git and the pull requests.
 - ADR-RA accepts the research artifact layer, model artifact input, strategy/portfolio/execution packs, signal artifacts and the seventh strategy service.
 - The research artifact pack envelope and strategy-pack schema validate a closed JSON contract, hash canonical bytes, reject duplicate name/version identities, and enforce the draft, validated, frozen and retired lifecycle.
 - The portfolio policy pack schema validates sizing, per-trade risk, exposure, maximum positions, drawdown action, a deterministic rebalance rule and ordered declarative constraints; it shares the pack identity and lifecycle and rejects account cash, currency and statistical fields.
+- The execution-simulation pack schema validates the fill timeframe, market-next-open order and stop-first tie rule, fee and slippage, commission, funding, zero-volume and end-of-data policy; it shares the pack identity and lifecycle and rejects broker, venue, routing and statistical fields.
 - ADR-HA accepts the Swarm HA profile, one Patroni cluster with four logical databases, quorum queues, distributed MinIO and the `quantrule.deploy/v3` descriptor.
 - The `v1.6.0` execution plan, issue tree, research-artifacts architecture and HA architecture are recorded as the plan of record.
 - The local and multi-host stacks use four logical PostgreSQL databases (`qr_gateway`, `qr_catalog`, `qr_evidence`, `qr_simulation`), each with a per-service owner role that migrates and an application role with DML only.

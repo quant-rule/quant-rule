@@ -1,7 +1,7 @@
 # Research Artifact Packs and Run v5
 
 - Date: 2026-11-22 (UTC)
-- Status: Strategy and portfolio policy pack schemas implemented (RA-002, RA-003); execution-simulation, signal artifacts and run v5 target the next release; accepted by [ADR-RA](../../adr/2026-11-22/1082-research-artifact-layer.md)
+- Status: Strategy, portfolio policy and execution-simulation pack schemas implemented (RA-002, RA-003, RA-004); signal artifacts and run v5 target the next release; accepted by [ADR-RA](../../adr/2026-11-22/1082-research-artifact-layer.md)
 - Claim type: Behaviour Claim
 - Related: [Research artifacts](../../architecture/research-artifacts.md), [Run v4](../2026-11-13/run-v4-strategy.md)
 
@@ -169,8 +169,24 @@ statistical or fitted field.
 }
 ```
 
-Only fields the simulation honours are permitted. No broker, venue, order
-routing, latency claim or live-market field is part of this pack.
+| Field | Rule |
+|---|---|
+| `fill_timeframe` | `1m`, `5m`, `15m` or `1h` |
+| `order_type` | `market_next_open` |
+| `tie_break` | `stop_first` |
+| `fee_rate` | Finite, `>= 0`; fraction of the fill notional |
+| `slippage_bps` | `>= 0` and `< 10000` |
+| `commission.rate` | Finite, `>= 0`; fraction of equity per fill |
+| `commission.base` | `equity` |
+| `commission.per` | `operation` |
+| `funding.rate` | Finite; fraction of position notional per interval; negative reverses the payer |
+| `funding.interval_hours` | `1`, `2`, `4`, `8`, `12` or `24` |
+| `zero_volume` | `reject` |
+| `end_of_data` | `leave_open` |
+
+Only fields the simulation honours are permitted. The closed schema rejects
+`broker`, `venue`, `order_routing`, `latency`, `participation`, order-book,
+volatility and every other live-market or statistical field.
 
 ## 6. Signal artifact
 

@@ -1,6 +1,6 @@
 # Research Artifacts
 
-- Status: Strategy and portfolio policy packs current (RA-002, RA-003); remaining artifacts target the next release; accepted by [ADR-RA](../adr/2026-11-22/1082-research-artifact-layer.md)
+- Status: Strategy, portfolio policy and execution-simulation packs current (RA-002–RA-004); signal artifacts and run v5 target the next release; accepted by [ADR-RA](../adr/2026-11-22/1082-research-artifact-layer.md)
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 
@@ -73,9 +73,10 @@ correlation, covariance, optimisation, fitted or statistical field.
 
 ## 5. Execution-simulation pack
 
-The execution-simulation pack owns simulated fill mechanics, commission,
-slippage, funding and fill assumptions. It is not a broker connection and contains
-no order-routing, venue or live-market field.
+The execution-simulation pack owns the fill timeframe, the market-next-open order
+and stop-first tie rule, fee and slippage, commission, funding, zero-volume
+rejection and end-of-data leave-open. It is not a broker connection: its closed
+schema has no venue, order-routing, latency, participation or live-market field.
 
 ## 6. Run v5
 

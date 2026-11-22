@@ -2,13 +2,15 @@
 //!
 //! The application service owns the schema because it owns the file boundary: the
 //! engine crates receive validated Rust values and never parse a file. One
-//! module covers each file, and a shared reader enforces the contract's common
-//! rules.
+//! module covers each file; a shared reader enforces the contract's common
+//! rules, and a shared cost module keeps fee, slippage, commission and funding
+//! identical across the run files and the execution pack.
 //!
 //! The loader reads and validates everything before a candle is read or an
 //! output byte is written. A rejection names the file and the JSON path, never
 //! a stack trace or an absolute path.
 
+pub(crate) mod costs;
 mod data;
 pub(crate) mod error;
 mod execution;
