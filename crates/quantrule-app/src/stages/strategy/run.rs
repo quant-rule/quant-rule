@@ -14,9 +14,7 @@ use quantrule_backtest::intent::{
     BracketIntent, EntryStyle, StopSpec, StrategyPosition, TargetSpec, TradeIntent,
 };
 use quantrule_backtest::side::Side;
-use quantrule_backtest::strategy::{
-    Decision, EventStrategyInput, EventTimeframeView, ExitReason, StateField,
-};
+use quantrule_backtest::strategy::{Decision, EventStrategyInput, ExitReason};
 use serde_json::{Value, json};
 
 use super::artifacts::{self, DecisionCounts, StrategyArtifactMeta};
@@ -338,7 +336,7 @@ pub fn decision_record(
         "reason": reason_label(decision),
         "intent": intent_value(decision),
         "atr14": atr14,
-        "evidence": evidence(config, input, decision),
+        "evidence": super::evidence::decision_evidence(config, input, decision),
     })
 }
 
@@ -470,188 +468,6 @@ fn target_spec(spec: TargetSpec) -> Value {
             "kind": "price",
             "price": price,
         }),
-    }
-}
-
-fn evidence(config: &StrategyConfig, input: &EventStrategyInput, decision: Decision) -> Vec<Value> {
-    match decision {
-        Decision::Enter(_) => config
-            .entry_conditions()
-            .iter()
-            .flat_map(|condition| condition_evidence(*condition, input))
-            .collect(),
-        Decision::Exit(exit)
-            if matches!(exit.reason, ExitReason::TimeStop | ExitReason::Giveback) =>
-        {
-            Vec::new()
-        }
-        Decision::Exit(_) => config
-            .exit_conditions()
-            .iter()
-            .flat_map(|condition| condition_evidence(*condition, input))
-            .collect(),
-        Decision::EnterBracket(_) => config
-            .compression_event()
-            .map(|(timeframe, event_type, subtype, source)| {
-                input
-                    .timeframe(timeframe)
-                    .map(|view| {
-                        view.events
-                            .iter()
-                            .filter(|event| {
-                                event.event_type == event_type
-                                    && event.subtype == subtype
-                                    && event.source == source
-                                    && event.direction == 0
-                                    && event.available_bar_index == input.execution_bar_index
-                            })
-                            .map(event_evidence)
-                            .collect()
-                    })
-                    .unwrap_or_default()
-            })
-            .unwrap_or_default(),
-        Decision::Hold => Vec::new(),
-    }
-}
-
-fn condition_matches(
-    condition: quantrule_backtest::strategy::Condition,
-    input: &EventStrategyInput,
-) -> bool {
-    use quantrule_backtest::strategy::Condition;
-    match condition {
-        Condition::Event {
-            timeframe_secs,
-            event_type,
-            subtype,
-            source,
-            direction,
-            contrarian: _,
-        } => input
-            .timeframe(u64::from(timeframe_secs))
-            .is_some_and(|view| {
-                view.events.iter().any(|event| {
-                    event.event_type == event_type
-                        && event.subtype == subtype
-                        && event.source == u16::from(source)
-                        && (direction == 0 || event.direction == direction)
-                })
-            }),
-        Condition::State {
-            timeframe_secs,
-            field,
-            value,
-        } => input
-            .timeframe(u64::from(timeframe_secs))
-            .is_some_and(|view| observed_state(view, field) == Some(value)),
-    }
-}
-
-fn condition_evidence(
-    condition: quantrule_backtest::strategy::Condition,
-    input: &EventStrategyInput,
-) -> Vec<Value> {
-    use quantrule_backtest::strategy::Condition;
-    if !condition_matches(condition, input) {
-        return Vec::new();
-    }
-    match condition {
-        Condition::Event {
-            timeframe_secs,
-            event_type,
-            subtype,
-            source,
-            direction,
-            contrarian: _,
-        } => input
-            .timeframe(u64::from(timeframe_secs))
-            .map(|view| {
-                view.events
-                    .iter()
-                    .filter(|event| {
-                        event.event_type == event_type
-                            && event.subtype == subtype
-                            && event.source == u16::from(source)
-                            && (direction == 0 || event.direction == direction)
-                    })
-                    .map(event_evidence)
-                    .collect()
-            })
-            .unwrap_or_default(),
-        Condition::State {
-            timeframe_secs,
-            field,
-            ..
-        } => input
-            .timeframe(u64::from(timeframe_secs))
-            .and_then(|view| {
-                observed_state(view, field).map(|observed| {
-                    json!({
-                        "kind": "state",
-                        "timeframe_secs": timeframe_secs,
-                        "field": state_field_label(field),
-                        "value": observed,
-                        "bar_index": view.bar_index,
-                    })
-                })
-            })
-            .into_iter()
-            .collect(),
-    }
-}
-
-fn event_evidence(event: &quantrule_backtest::strategy::EventView) -> Value {
-    json!({
-        "kind": "event",
-        "event_code": event.event_code,
-        "event_type": event.event_type,
-        "subtype": event.subtype,
-        "source": event.source,
-        "occurred_bar": event.occurred_bar_index,
-        "available_bar": event.available_bar_index,
-        "direction": event.direction,
-    })
-}
-
-fn observed_state(view: &EventTimeframeView, field: StateField) -> Option<i8> {
-    match field {
-        StateField::ProgressionStage => view.progression_stage,
-        StateField::ProgressionLegDirection => view.progression_leg_direction,
-        _ => state_value(view.states, field),
-    }
-}
-
-fn state_value(states: quantrule_model::timeframe::ModelStates, field: StateField) -> Option<i8> {
-    match field {
-        StateField::EmaStack => states.ema_stack,
-        StateField::RsiZone => states.rsi_zone,
-        StateField::MacdState => states.macd_state,
-        StateField::MacdHistogramState => states.macd_histogram_state,
-        StateField::AdxRegime => states.adx_regime,
-        StateField::AdxSlope => states.adx_slope,
-        StateField::DiState => states.di_state,
-        StateField::RvolRegime => states.rvol_regime,
-        StateField::VolRegime => states.vol_regime,
-        StateField::StructureState => states.structure_state,
-        StateField::ProgressionStage | StateField::ProgressionLegDirection => None,
-    }
-}
-
-fn state_field_label(field: StateField) -> &'static str {
-    match field {
-        StateField::EmaStack => "ema_stack",
-        StateField::RsiZone => "rsi_zone",
-        StateField::MacdState => "macd_state",
-        StateField::MacdHistogramState => "macd_histogram_state",
-        StateField::AdxRegime => "adx_regime",
-        StateField::AdxSlope => "adx_slope",
-        StateField::DiState => "di_state",
-        StateField::RvolRegime => "rvol_regime",
-        StateField::VolRegime => "vol_regime",
-        StateField::StructureState => "structure_state",
-        StateField::ProgressionStage => "progression_stage",
-        StateField::ProgressionLegDirection => "progression_leg_direction",
     }
 }
 

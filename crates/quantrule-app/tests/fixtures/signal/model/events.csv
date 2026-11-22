@@ -1,0 +1,2 @@
+timeframe_secs,event_code,event_type_code,event_subtype_code,source_code,occurred_bar_index,available_bar_index,direction_code,reference_code,primary_value,reference_value
+300,1,3,1,4,1,1,1,,101.0,

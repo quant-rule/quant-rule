@@ -1,7 +1,7 @@
 # Research Artifact Packs and Run v5
 
 - Date: 2026-11-22 (UTC)
-- Status: Strategy, portfolio policy and execution-simulation pack schemas implemented (RA-002, RA-003, RA-004); the run-v5 reference contract and config identity implemented (RA-005); the persistent pack registry, run lineage and artifact retention implemented (RA-006); signal computation, run-v5 catalog/worker reachability and the client surface target the next release; accepted by [ADR-RA](../../adr/2026-11-22/1082-research-artifact-layer.md)
+- Status: Strategy, portfolio policy and execution-simulation pack schemas implemented (RA-002, RA-003, RA-004); the run-v5 reference contract and config identity implemented (RA-005); the persistent pack registry, run lineage and artifact retention implemented (RA-006); the signal artifact contract and pure reference computation implemented (RA-007); the strategy service, run-v5 catalog/worker reachability and the client surface target the next release; accepted by [ADR-RA](../../adr/2026-11-22/1082-research-artifact-layer.md)
 - Claim type: Behaviour Claim
 - Related: [Research artifacts](../../architecture/research-artifacts.md), [Run v4](../2026-11-13/run-v4-strategy.md)
 
@@ -179,32 +179,20 @@ volatility and every other live-market or statistical field.
 
 ## 6. Signal artifact
 
-```json
-{
-  "schema": "quantrule.signal-artifact/v1",
-  "strategy_pack_id": "sha256:…",
-  "model_artifact_id": "sha256:…",
-  "data_version": "sha256:…",
-  "timeframe": "5m",
-  "period": { "from": "2024-01-01", "to": "2024-12-31" },
-  "rows": [
-    {
-      "bar_index": 0,
-      "open_time": 1704067200,
-      "available_bar_index": 0,
-      "action": "hold",
-      "side": null,
-      "intent": null,
-      "reason": null,
-      "evidence": []
-    }
-  ]
-}
-```
+The signal artifact is one document per model artifact and signal-mode strategy
+pack. It carries the pack, model and data identity, the timeframe, the period,
+and one row per execution bar with `bar_index`, `open_time`,
+`available_bar_index`, `action`, `side`, `intent`, `reason`, and numeric event
+and state `evidence`. It carries no fill, quantity, fee, cash, equity, P&L or
+edge metric. A later bar cannot change an earlier row, and the same model
+artifact plus pack plus schema gives one ID.
 
-The artifact contains no fill, quantity, fee, cash, equity, P&L or edge metric.
-`available_bar_index` is the first bar on which the row was knowable; a later bar
-cannot change it, and the same model artifact plus pack plus schema gives one ID.
+Signal mode uses a deterministic reference position: a market entry fills at the
+next open, a two-sided bracket chooses its side at the first boundary, ATR
+stop/target and the time stop close the reference position, and a strategy exit
+is applied at the next open. Giveback is fold-mode only. The full row, action,
+intent and reference-position semantics are in
+[`signal-artifact.md`](signal-artifact.md).
 
 ## 7. Run v5
 
@@ -255,12 +243,13 @@ hash and the canonical digest still covers result artifacts only.
 
 A v5 config is validated through a supplied reference resolver
 (`RunConfig::load_with`, `AppService::load_run_with`). The pack registry now
-stores and serves the pack bytes, but run submission, the catalog scan and the
-worker do not yet resolve a v5 config, and the signal artifact writer does not
-exist. Those integrations are later work items; no client command is added here.
-The current fold materializes strategy, execution, commission, funding, sizing,
-drawdown and position limits; `per_trade_risk`, `max_exposure`, `rebalance` and
-`constraints` are retained in `RunV5` but not applied yet.
+stores and serves the pack bytes, and RA-007 provides the pure signal
+computation, but run submission, the catalog scan and the worker do not yet
+resolve a v5 config, and the strategy service does not yet write the artifact to
+the object store. Those integrations are later work items; no client command is
+added here. The current fold materializes strategy, execution, commission,
+funding, sizing, drawdown and position limits; `per_trade_risk`, `max_exposure`,
+`rebalance` and `constraints` are retained in `RunV5` but not applied yet.
 
 ## 8. Lifecycle and validation
 
@@ -315,7 +304,8 @@ The data service adds `catalog.artifacts` and `catalog.artifact_references`
 (migration 8) as the signal-artifact seam. A referenced artifact is never
 collected. The internal pass collects an unreferenced signal artifact at least 30
 days old, writes a `catalog.retention_events` tombstone, then deletes an unshared
-object. Signal creation stays RA-007/RA-008.
+object. Signal creation is the RA-007 pure computation; the strategy service
+(RA-008) owns the object-store write and lineage registration.
 
 ## 9. Compatibility and clients
 

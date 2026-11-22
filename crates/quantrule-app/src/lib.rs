@@ -40,5 +40,6 @@ pub mod fingerprint;
 pub mod pack;
 pub mod pipeline;
 pub mod service;
+pub mod signal;
 pub mod stages;
 pub mod workspace;

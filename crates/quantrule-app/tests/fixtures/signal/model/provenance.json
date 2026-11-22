@@ -1,0 +1,9 @@
+{
+  "report": "model",
+  "data_version": "fixture-data-v1",
+  "config_hash": "fixture-model-config",
+  "requested_period": {
+    "from": "2024-01-01",
+    "to": "2024-12-31"
+  }
+}
