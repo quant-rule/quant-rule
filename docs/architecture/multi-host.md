@@ -122,7 +122,7 @@ The gateway `/ready` reports the upstream states.
 - Backtest workers scale by count across compute hosts through the queue.
 - One model endpoint is supported in v1. Multiple model hosts need a load
   balancer and are a follow-up.
-- `data`, `evidence`, and `simulation` are single instances.
+- `data` and `evidence` are single instances; `simulation` is single in v2 and two only in the HA profile after the [concurrency contract](simulation-concurrency.md).
 - The gateway is stateless; a second gateway needs a load balancer and is a
   follow-up.
 - A service failure affects that service. A host failure affects every service

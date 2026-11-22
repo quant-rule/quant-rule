@@ -36,7 +36,7 @@ The stateful and ingress layers are described in sections 4–8.
 | `strategy` | N | Object store + evidence lineage | Stateless signal compiler |
 | `backtest` | N | Object store + queue | Per-run fold, no HTTP |
 | `evidence` | 2+ | `qr_evidence` + object store | One leader finalises |
-| `simulation` | 2 | `qr_simulation` + object store | DB locks |
+| `simulation` | 2 | `qr_simulation` + object store | [Row locks](simulation-concurrency.md) (HA-008) |
 
 ## 3. Four databases
 
@@ -143,6 +143,7 @@ v2 remains readable for the older multi-host profile.
 |---|---|
 | Gateway/ingress loss | Load balancer routes to survivor; client reconnects |
 | Data/model/strategy loss | Other replica serves; retry is idempotent |
+| Simulation replica loss | Other replica serves; per-run row locks keep one decision |
 | Backtest worker kill | Lease expires; outbox re-arms; no partial publish |
 | Evidence leader kill | Lease expires; new leader; one finalisation |
 | PostgreSQL primary loss | Patroni promotes a synchronous standby; RPO 0 |
@@ -153,7 +154,6 @@ v2 remains readable for the older multi-host profile.
 | RabbitMQ node loss | Quorum queue continues |
 | MinIO node/drive loss | Erasure continues; hashes unchanged |
 | Physical host/AZ loss | Survives only with separate hosts/failure domains |
-
 ## 11. Backup, restore and DR
 
 - PITR for all four databases to one consistent point.

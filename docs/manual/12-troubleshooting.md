@@ -35,7 +35,7 @@ stale data. The token code is `auth.unauthorized`; there is no `token.invalid`.
 | `simulation.not_found` | Unknown simulation id | The run is unavailable | Re-read `simulation list` |
 | `simulation.mark_invalid` | Bar outside the window, or a schema violation | The mark is refused; the note is kept | Select a bar in the window; fix the mark fields |
 | `simulation.check_incomplete` | Fewer than 30 events produced a check row; the sample is underpowered | The check is refused | Use a bundle or timeframe with at least 30 events; do not mark the same small sample harder |
-| `simulation.locked` | Marking after a decision | The chart is locked | Do not mark; start a new simulation if needed |
+| `simulation.locked` | Marking after a decision, or a second decision from another replica | The chart is locked and the first decision is final | Read the simulation; do not retry the decision, and start a new run if needed |
 | `internal` | Unclassified server defect | The call fails with `internal` | Record the request, check logs, and report the defect |
 
 ## Connection symptoms

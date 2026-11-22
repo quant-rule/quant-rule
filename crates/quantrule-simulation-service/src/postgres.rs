@@ -2,9 +2,10 @@
 //!
 //! Every statement names `simulation.runs` or `simulation.marks` and filters by
 //! the injected profile. No statement reads or writes `runs`, `catalog`,
-//! `research`, or `gateway`. Marking mutations lock the run row and check the
-//! decision inside the same transaction, so a decision that lands concurrently
-//! cannot be bypassed.
+//! `research`, or `gateway`. Marking mutations, the terminal decision, and erase
+//! lock the one run row and check the decision inside the same transaction, so
+//! two replicas cannot race the mark set or overwrite a decision. Mutations on
+//! different runs do not block each other.
 
 use quantrule_api::{MarkOrigin, ProfileId, SimulationId, SimulationStatus};
 use quantrule_runtime::adapters::BoxFuture;
@@ -235,14 +236,28 @@ async fn load_marks(
     rows.iter().map(mark_from_row).collect()
 }
 
-async fn locked_status(
+struct LockedRun {
+    status: SimulationStatus,
+    decision: Option<DecisionRecord>,
+}
+
+/// Lock one run row and read the fields a mutation must decide on.
+///
+/// The lock is held until the caller commits or rolls back. Every mutation that
+/// can race a mark or a decision takes this lock first and checks the returned
+/// state, so two replicas serialize on the run rather than on the whole table.
+async fn locked_run(
     transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     profile: &ProfileId,
     sim_id: &str,
-) -> Result<SimulationStatus, StoreError> {
+) -> Result<LockedRun, StoreError> {
     let row = sqlx::query(
-        "SELECT status FROM simulation.runs
-         WHERE profile_id = $1 AND sim_id = $2 FOR UPDATE",
+        "SELECT status, decision, decision_note,
+                to_char(decided_at AT TIME ZONE 'UTC',
+                        'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS decided_at
+           FROM simulation.runs
+          WHERE profile_id = $1 AND sim_id = $2
+          FOR UPDATE",
     )
     .bind(profile.as_str())
     .bind(sim_id)
@@ -253,7 +268,20 @@ async fn locked_status(
         return Err(StoreError::NotFound);
     };
     let word: String = row.try_get("status").map_err(backend)?;
-    parse_status(&word).ok_or_else(|| invalid(format!("the stored status {word:?} is unknown")))
+    let status = parse_status(&word)
+        .ok_or_else(|| invalid(format!("the stored status {word:?} is unknown")))?;
+    Ok(LockedRun {
+        status,
+        decision: decision_of(&row)?,
+    })
+}
+
+async fn locked_status(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    profile: &ProfileId,
+    sim_id: &str,
+) -> Result<SimulationStatus, StoreError> {
+    Ok(locked_run(transaction, profile, sim_id).await?.status)
 }
 
 impl SimulationStore for PgSimulationStore {
@@ -547,7 +575,8 @@ impl SimulationStore for PgSimulationStore {
                 "SELECT status, to_char(archived_at AT TIME ZONE 'UTC',
                                         'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')
                    FROM simulation.runs
-                  WHERE profile_id = $1 AND sim_id = $2",
+                  WHERE profile_id = $1 AND sim_id = $2
+                  FOR UPDATE",
             )
             .bind(profile.as_str())
             .bind(&sim_id)
@@ -605,6 +634,7 @@ impl SimulationStore for PgSimulationStore {
             let mut transaction = pool.begin().await.map_err(backend)?;
             let status = locked_status(&mut transaction, &profile, &sim_id).await?;
             if status == SimulationStatus::Decided {
+                transaction.rollback().await.map_err(backend)?;
                 return Err(StoreError::Locked);
             }
             sqlx::query(
@@ -634,12 +664,19 @@ impl SimulationStore for PgSimulationStore {
     ) -> BoxFuture<Result<MarkRecord, StoreError>> {
         let pool = self.pool.clone();
         Box::pin(async move {
+            let chart = i64::try_from(mark.chart).map_err(|_| invalid("the chart does not fit"))?;
+            let bar = i64::try_from(mark.bar).map_err(|_| invalid("the bar does not fit"))?;
             let mut transaction = pool.begin().await.map_err(backend)?;
             let status = locked_status(&mut transaction, &profile, &sim_id).await?;
             if status == SimulationStatus::Decided {
+                transaction.rollback().await.map_err(backend)?;
                 return Err(StoreError::Locked);
             }
-            sqlx::query(
+            // The identity is `(origin, chart, bar, action, side)`. A duplicate
+            // submission updates the correction fields but keeps the identity
+            // and the server-assigned creation time, so an exact retry is
+            // idempotent and the mark order stays stable.
+            let row = sqlx::query(
                 "INSERT INTO simulation.marks
                      (mark_id, sim_id, profile_id, chart, bar, marked_time_utc, action,
                       quality, side, origin, note, created_at)
@@ -648,14 +685,19 @@ impl SimulationStore for PgSimulationStore {
                  ON CONFLICT (sim_id, origin, chart, bar, action, side) DO UPDATE SET
                      marked_time_utc = EXCLUDED.marked_time_utc,
                      quality = EXCLUDED.quality,
-                     note = EXCLUDED.note,
-                     created_at = EXCLUDED.created_at",
+                     note = EXCLUDED.note
+                 RETURNING mark_id, chart, bar,
+                     to_char(marked_time_utc AT TIME ZONE 'UTC',
+                             'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS marked_time_utc,
+                     action, quality, side, origin, note,
+                     to_char(created_at AT TIME ZONE 'UTC',
+                             'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS created_at",
             )
             .bind(&mark.mark_id)
             .bind(&sim_id)
             .bind(profile.as_str())
-            .bind(i64::try_from(mark.chart).map_err(|_| invalid("the chart does not fit"))?)
-            .bind(i64::try_from(mark.bar).map_err(|_| invalid("the bar does not fit"))?)
+            .bind(chart)
+            .bind(bar)
             .bind(&mark.marked_time_utc)
             .bind(action_text(mark.action))
             .bind(quality_text(mark.quality))
@@ -663,9 +705,16 @@ impl SimulationStore for PgSimulationStore {
             .bind(origin_text(mark.origin))
             .bind(&mark.note)
             .bind(&mark.created_at)
-            .execute(&mut *transaction)
+            .fetch_optional(&mut *transaction)
             .await
             .map_err(backend)?;
+            let Some(row) = row else {
+                transaction.rollback().await.map_err(backend)?;
+                return Err(StoreError::Conflict(
+                    "the mark could not be stored".to_owned(),
+                ));
+            };
+            let stored = mark_from_row(&row)?;
             if status == SimulationStatus::Draft {
                 sqlx::query(
                     "UPDATE simulation.runs SET status = 'marking'
@@ -678,31 +727,7 @@ impl SimulationStore for PgSimulationStore {
                 .map_err(backend)?;
             }
             transaction.commit().await.map_err(backend)?;
-            let rows = sqlx::query(
-                "SELECT mark_id, chart, bar,
-                        to_char(marked_time_utc AT TIME ZONE 'UTC',
-                                'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS marked_time_utc,
-                        action, quality, side, origin, note,
-                        to_char(created_at AT TIME ZONE 'UTC',
-                                'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS created_at
-                 FROM simulation.marks
-                 WHERE profile_id = $1 AND sim_id = $2 AND origin = $3 AND chart = $4
-                   AND bar = $5 AND action = $6 AND side = $7",
-            )
-            .bind(profile.as_str())
-            .bind(&sim_id)
-            .bind(origin_text(mark.origin))
-            .bind(i64::try_from(mark.chart).map_err(|_| invalid("the chart does not fit"))?)
-            .bind(i64::try_from(mark.bar).map_err(|_| invalid("the bar does not fit"))?)
-            .bind(action_text(mark.action))
-            .bind(side_text(mark.side))
-            .fetch_optional(&pool)
-            .await
-            .map_err(backend)?;
-            rows.as_ref()
-                .map(mark_from_row)
-                .transpose()
-                .map(|value| value.unwrap_or(mark))
+            Ok(stored)
         })
     }
 
@@ -717,6 +742,7 @@ impl SimulationStore for PgSimulationStore {
             let mut transaction = pool.begin().await.map_err(backend)?;
             let status = locked_status(&mut transaction, &profile, &sim_id).await?;
             if status == SimulationStatus::Decided {
+                transaction.rollback().await.map_err(backend)?;
                 return Err(StoreError::Locked);
             }
             let deleted = sqlx::query(
@@ -760,6 +786,7 @@ impl SimulationStore for PgSimulationStore {
             let mut transaction = pool.begin().await.map_err(backend)?;
             let status = locked_status(&mut transaction, &profile, &sim_id).await?;
             if status == SimulationStatus::Decided {
+                transaction.rollback().await.map_err(backend)?;
                 return Err(StoreError::Locked);
             }
             sqlx::query(
@@ -847,26 +874,20 @@ impl SimulationStore for PgSimulationStore {
         let pool = self.pool.clone();
         Box::pin(async move {
             let mut transaction = pool.begin().await.map_err(backend)?;
-            let status = locked_status(&mut transaction, &profile, &sim_id).await?;
-            if let Some(existing) = load_run(&pool, &profile, &sim_id)
-                .await?
-                .and_then(|run| run.decision)
-            {
-                transaction.commit().await.map_err(backend)?;
-                if existing.decision == decision.decision && existing.note == decision.note {
-                    return Ok(existing);
-                }
+            let locked = locked_run(&mut transaction, &profile, &sim_id).await?;
+            if locked.decision.is_some() || locked.status == SimulationStatus::Decided {
+                transaction.rollback().await.map_err(backend)?;
                 return Err(StoreError::Locked);
             }
-            if status == SimulationStatus::Decided {
-                transaction.commit().await.map_err(backend)?;
-                return Err(StoreError::Locked);
-            }
-            sqlx::query(
+            // The decision is terminal. The predicate repeats the locked read
+            // so a writer that somehow bypasses the lock still cannot overwrite
+            // a stored decision; exactly one update reports one affected row.
+            let updated = sqlx::query(
                 "UPDATE simulation.runs
                  SET status = 'decided', decision = $3, decision_note = $4,
                      decided_at = $5::timestamptz
-                 WHERE profile_id = $1 AND sim_id = $2",
+                 WHERE profile_id = $1 AND sim_id = $2
+                   AND decision IS NULL AND status <> 'decided'",
             )
             .bind(profile.as_str())
             .bind(&sim_id)
@@ -876,6 +897,10 @@ impl SimulationStore for PgSimulationStore {
             .execute(&mut *transaction)
             .await
             .map_err(backend)?;
+            if updated.rows_affected() != 1 {
+                transaction.rollback().await.map_err(backend)?;
+                return Err(StoreError::Locked);
+            }
             transaction.commit().await.map_err(backend)?;
             Ok(decision)
         })

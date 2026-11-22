@@ -300,22 +300,40 @@ impl SimulationStore for MemoryStore {
             if existing.status == SimulationStatus::Decided {
                 return Err(RepositoryError::Locked);
             }
-            inner.marks.retain(|(profile_id, sid, _), existing| {
+            let existing = inner
+                .marks
+                .iter()
+                .find(|((profile_id, sid, _), candidate)| {
+                    profile_id == profile.as_str()
+                        && sid == &sim_id
+                        && candidate.origin == mark.origin
+                        && candidate.chart == mark.chart
+                        && candidate.bar == mark.bar
+                        && candidate.action == mark.action
+                        && candidate.side == mark.side
+                })
+                .map(|(_, candidate)| candidate.clone());
+            let mut stored = mark.clone();
+            if let Some(existing) = existing {
+                stored.mark_id = existing.mark_id;
+                stored.created_at = existing.created_at;
+            }
+            inner.marks.retain(|(profile_id, sid, _), candidate| {
                 profile_id != profile.as_str()
                     || sid != &sim_id
-                    || existing.origin != mark.origin
-                    || existing.chart != mark.chart
-                    || existing.bar != mark.bar
-                    || existing.action != mark.action
-                    || existing.side != mark.side
+                    || candidate.origin != stored.origin
+                    || candidate.chart != stored.chart
+                    || candidate.bar != stored.bar
+                    || candidate.action != stored.action
+                    || candidate.side != stored.side
             });
             inner.marks.insert(
                 (
                     profile.as_str().to_owned(),
                     sim_id.clone(),
-                    mark.mark_id.clone(),
+                    stored.mark_id.clone(),
                 ),
-                mark.clone(),
+                stored.clone(),
             );
             if let Some(run) = inner.runs.get_mut(&key)
                 && run.status == SimulationStatus::Draft
@@ -323,7 +341,7 @@ impl SimulationStore for MemoryStore {
                 run.status = SimulationStatus::Marking;
             }
             store.recount(&mut inner, profile.as_str(), &sim_id);
-            Ok(mark)
+            Ok(stored)
         })
     }
 
@@ -472,10 +490,7 @@ impl SimulationStore for MemoryStore {
             let Some(run) = inner.runs.get_mut(&key) else {
                 return Err(not_found());
             };
-            if let Some(existing) = &run.decision {
-                if existing.decision == decision.decision && existing.note == decision.note {
-                    return Ok(existing.clone());
-                }
+            if run.decision.is_some() || run.status == SimulationStatus::Decided {
                 return Err(RepositoryError::Locked);
             }
             run.decision = Some(decision.clone());

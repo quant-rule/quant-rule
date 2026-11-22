@@ -21,6 +21,11 @@ pub fn available() -> Vec<Migration> {
             name: "simulation-retention",
             sql: include_str!("../migrations/0015_simulation_retention.sql"),
         },
+        Migration {
+            version: 16,
+            name: "simulation-concurrency",
+            sql: include_str!("../migrations/0016_simulation_concurrency.sql"),
+        },
     ];
     migrations.sort_by_key(|migration| migration.version);
     migrations
@@ -43,7 +48,7 @@ mod tests {
 
     fn an_empty_database_gets_the_migration() {
         let available = available();
-        assert_eq!(plan(&[], &available).expect("plan").len(), 2);
+        assert_eq!(plan(&[], &available).expect("plan").len(), 3);
     }
 
     #[test]
@@ -88,5 +93,14 @@ mod tests {
         assert!(sql.contains("profile_id     text NOT NULL"));
         assert!(sql.contains("profile_id       text NOT NULL"));
         assert!(sql.contains("UNIQUE (sim_id, origin, chart, bar, action, side)"));
+    }
+
+    #[test]
+    fn the_decision_is_terminal_in_the_schema() {
+        let sql = available()[2].sql;
+        assert!(sql.contains("simulation_runs_decision_complete"));
+        assert!(sql.contains("simulation.runs_decision_is_terminal"));
+        assert!(sql.contains("BEFORE UPDATE ON simulation.runs"));
+        assert!(sql.contains("the simulation decision is terminal"));
     }
 }

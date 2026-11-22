@@ -58,11 +58,11 @@ The image also carries the static client, built with **Bun** (`bun install`,
 
 All six binaries and nine long-running containers start; only `backtest` is
 HTTP-less. `db-bootstrap` creates the four databases and roles, then four
-`*-migrate` jobs apply each ledger. Long-running services hold only the
-application URL with `QR_MIGRATE=0`. The MinIO image is pinned; the database
-contract is [`docs/config/2026-11-22/four-databases.md`](../config/2026-11-22/four-databases.md)
+`*-migrate` jobs apply each ledger; long-running services hold only the
+application URL with `QR_MIGRATE=0`. Compose and v2 run one simulation replica;
+the HA profile's two require the [simulation concurrency contract](simulation-concurrency.md).
+The MinIO image is pinned; the database contract is [four-databases](../config/2026-11-22/four-databases.md)
 and the migration contract is [migrations.md](migrations.md).
-
 ## 3. Make targets
 
 | Target | Effect |

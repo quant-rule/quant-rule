@@ -41,9 +41,12 @@ history is in Git and the pull requests.
 - The evidence database adds `runs.dataset_reference_releases` (migration 18): an erase records the dataset-reference release in the same transaction as the consumer delete, and a reconciler retries the data-service call until it is confirmed.
 - `docs/architecture/cross-database-consistency.md` records the outbox, reference, reconciliation, and tombstone contract, and the failure matrix for a crash after commit, a duplicate publish, a restart, and an erase.
 - The evidence run row carries a per-run lease (`lease_holder`, `lease_term`, `lease_expires_at`, migration 19); a claim records a monotonic term, the worker renews the lease every 20 s from a control-plane task, and `computed`, `complete`, and `fail` carry the term so evidence refuses a stale worker.
+- The simulation database adds migration 16: a decision-completeness constraint and a trigger that refuse a changed or cleared decision. The repository locks the run row for mark, check, decision, and erase transactions, so two simulation replicas cannot corrupt the mark set or overwrite a decision.
+- The simulation service supports two replicas only through the HA-008 row-lock concurrency contract; the v2 multi-host profile remains single-instance.
 
 ### Changed
 
+- A simulation decision is terminal: the first decision wins and every later decision, including an identical retry, returns `simulation.locked`. A duplicate mark identity remains an idempotent upsert that keeps its stored id and creation time.
 - Queue names now end in `.g<generation>`; the pre-generation classic queues are drained or retired by the operator instead of being redeclared with new arguments.
 - A failed handler uses `basic.reject` rather than `basic.nack`, because RabbitMQ 4.3 and later count only a rejected delivery toward the quorum delivery limit.
 - The multi-host renderer writes `QR_QUEUE_GENERATION=1`, and the composed queue check verifies the quorum type, delivery limit, dead-letter bindings, and generated names.
@@ -60,6 +63,7 @@ history is in Git and the pull requests.
 
 ### Fixed
 
+- Concurrent simulation marks and the terminal decision no longer race: a mark that loses to a decision is refused instead of inserted, an erase takes the same run lock as a decision, and a failed mark transaction leaves no mark and no status change.
 - The run outbox now re-arms a `running` run without a digest as `run.requested`; a startup reconciliation names every unfinished run even after its worker or delivery was lost, while a terminal run still deletes its intents and a retry cannot create a second run record.
 - A running run whose worker died is reclaimed after its lease expires and a stale term is refused, so a rebuilt queue recovers the run without a partial artifact set or a duplicate run record.
 

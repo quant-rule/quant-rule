@@ -120,6 +120,10 @@ pub trait SimulationStore: Send + Sync {
     ) -> BoxFuture<Result<RunRecord, StoreError>>;
 
     /// Insert or replace one mark by its identity.
+    ///
+    /// A duplicate identity keeps the stored mark id and creation time; an
+    /// exact retry therefore leaves the row unchanged. A decided run refuses
+    /// with [`StoreError::Locked`].
     fn put_mark(
         &self,
         profile: ProfileId,
@@ -159,7 +163,11 @@ pub trait SimulationStore: Send + Sync {
         check: CheckRecord,
     ) -> BoxFuture<Result<(), StoreError>>;
 
-    /// Record the decision and lock marking.
+    /// Record the terminal decision and lock marking.
+    ///
+    /// Exactly one decision wins. A later decision returns
+    /// [`StoreError::Locked`], even when it carries the same body, so a client
+    /// reads the stored run rather than treating a duplicate as a new success.
     fn decide(
         &self,
         profile: ProfileId,

@@ -2,7 +2,8 @@
 //!
 //! The check is an event study over the recorded bundle. A set below thirty
 //! events is refused with `simulation.check_incomplete`. The decision closes
-//! marking; the predicate is enforced inside the repository transaction.
+//! marking permanently; the first decision wins and the predicate is enforced
+//! inside the repository transaction and again in the schema.
 
 use std::sync::Arc;
 
