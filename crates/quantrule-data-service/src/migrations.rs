@@ -43,6 +43,16 @@ pub fn available() -> Vec<Migration> {
             name: "dataset-references",
             sql: include_str!("../migrations/0006_dataset_references.sql"),
         },
+        Migration {
+            version: 7,
+            name: "packs",
+            sql: include_str!("../migrations/0007_packs.sql"),
+        },
+        Migration {
+            version: 8,
+            name: "artifacts",
+            sql: include_str!("../migrations/0008_artifacts.sql"),
+        },
     ];
     migrations.sort_by_key(|migration| migration.version);
     migrations
@@ -85,7 +95,7 @@ mod tests {
         let pending = plan(&applied, &available).expect("plan");
         assert_eq!(
             pending.iter().map(|m| m.version).collect::<Vec<_>>(),
-            vec![2, 3, 4, 5, 6]
+            vec![2, 3, 4, 5, 6, 7, 8]
         );
     }
 
@@ -104,7 +114,25 @@ mod tests {
             .iter()
             .map(|migration| migration.version)
             .collect();
-        assert_eq!(versions, vec![1, 2, 3, 4, 5, 6]);
+        assert_eq!(versions, vec![1, 2, 3, 4, 5, 6, 7, 8]);
+    }
+
+    #[test]
+    fn the_pack_migration_keeps_bytes_out_of_the_catalog() {
+        let available = available();
+        let migration = available
+            .iter()
+            .find(|migration| migration.version == 7)
+            .expect("migration 7");
+        assert_eq!(migration.name, "packs");
+        assert!(
+            !migration.sql.contains("pack_files"),
+            "the object store is the single pack byte authority"
+        );
+        assert!(
+            !migration.sql.contains("canonical bytea"),
+            "the catalog row must not store a pack byte payload"
+        );
     }
 
     #[test]

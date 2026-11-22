@@ -13,8 +13,10 @@ use quantrule_runtime::Config;
 use quantrule_runtime::adapters::ObjectStore;
 use quantrule_runtime::health::HealthRegistry;
 
+use crate::artifacts::ArtifactCatalog;
 use crate::catalog::DatasetCatalog;
 use crate::configs::ConfigCatalog;
+use crate::packs::PackRegistry;
 
 /// The backing services the data routes call.
 #[derive(Default)]
@@ -23,6 +25,10 @@ pub struct DataServices {
     pub catalog: Option<Arc<dyn DatasetCatalog>>,
     /// Where run configs are catalogued.
     pub configs: Option<Arc<dyn ConfigCatalog>>,
+    /// Where research packs are catalogued.
+    pub packs: Option<Arc<dyn PackRegistry>>,
+    /// Where computed research artifacts are catalogued.
+    pub artifacts: Option<Arc<dyn ArtifactCatalog>>,
     /// Where dataset bytes live.
     pub objects: Option<Arc<dyn ObjectStore>>,
 }
@@ -37,6 +43,11 @@ pub struct DataState {
     pub catalog: Option<Arc<dyn DatasetCatalog>>,
     /// Where run configs are catalogued; absent when no database is configured.
     pub configs: Option<Arc<dyn ConfigCatalog>>,
+    /// Where research packs are catalogued; absent when no database is configured.
+    pub packs: Option<Arc<dyn PackRegistry>>,
+    /// Where computed research artifacts are catalogued; absent when no
+    /// database is configured.
+    pub artifacts: Option<Arc<dyn ArtifactCatalog>>,
     /// Where dataset bytes live; absent when no object store is configured.
     pub objects: Option<Arc<dyn ObjectStore>>,
     /// Where the read-only run-config mount lives.
@@ -50,6 +61,15 @@ pub struct DataState {
     /// service, so a concurrent upload cannot observe an object that an erase
     /// is about to remove.
     pub dataset_gate: Arc<tokio::sync::Mutex<()>>,
+    /// Serialises pack registration and lifecycle with its object write.
+    ///
+    /// The registry row and the object store cannot share a transaction; the
+    /// gate makes the check-then-write window single-writer inside this
+    /// service.
+    pub pack_gate: Arc<tokio::sync::Mutex<()>>,
+    /// Serialises artifact registration, reference changes, and collection
+    /// with object deletion.
+    pub artifact_gate: Arc<tokio::sync::Mutex<()>>,
 }
 
 impl std::fmt::Debug for DataState {
@@ -60,10 +80,14 @@ impl std::fmt::Debug for DataState {
             .field("health", &self.health)
             .field("catalog", &self.catalog.is_some())
             .field("configs", &self.configs.is_some())
+            .field("packs", &self.packs.is_some())
+            .field("artifacts", &self.artifacts.is_some())
             .field("objects", &self.objects.is_some())
             .field("config_root", &self.config_root)
             .field("max_upload", &self.max_upload)
             .field("dataset_gate", &Arc::strong_count(&self.dataset_gate))
+            .field("pack_gate", &Arc::strong_count(&self.pack_gate))
+            .field("artifact_gate", &Arc::strong_count(&self.artifact_gate))
             .finish()
     }
 }
@@ -77,10 +101,14 @@ impl DataState {
             health,
             catalog: services.catalog,
             configs: services.configs,
+            packs: services.packs,
+            artifacts: services.artifacts,
             objects: services.objects,
             config_root: config.config_root.clone(),
             max_upload: config.upload_limit_bytes,
             dataset_gate: Arc::new(tokio::sync::Mutex::new(())),
+            pack_gate: Arc::new(tokio::sync::Mutex::new(())),
+            artifact_gate: Arc::new(tokio::sync::Mutex::new(())),
         }
     }
 }

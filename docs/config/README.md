@@ -11,7 +11,7 @@ document states which schema and run version it applies to.
 | Contract | Status | Path |
 |---|---|---|
 | Run v4 and the strategy | Current for a file-based full run; `run v4` binds the strategy to the run; data schema 3, model schema 4, `execution v2`, `portfolio v2` | `docs/config/2026-11-13/run-v4-strategy.md` |
-| Research packs and run v5 | Strategy, portfolio policy and execution-simulation packs and the run-v5 reference contract implemented (RA-002–RA-005); signal computation, the persistent registry and the client surface target the next release | `docs/config/2026-11-22/research-artifact-packs.md` |
+| Research packs and run v5 | Strategy, portfolio policy and execution-simulation packs, the run-v5 reference contract, the persistent pack registry, run lineage and artifact retention implemented (RA-002–RA-006); signal computation, run-v5 catalog/worker reachability and the client surface target the next release | `docs/config/2026-11-22/research-artifact-packs.md` |
 | Deployment v3 | Target for the next release; Swarm HA descriptor, four databases, ingress and stateful placement | `docs/config/2026-11-22/deploy-v3.md` |
 | Four logical databases | Current for local Compose and v2 multi-host; owner/app roles, per-service app URLs, one-shot owner migration jobs | `docs/config/2026-11-22/four-databases.md` |
 | Schema migrations | Current; forward-only ledgers, checksum pin, expand/contract and rollback runbook | `docs/architecture/migrations.md` |

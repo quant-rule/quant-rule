@@ -27,6 +27,7 @@ use quantrule_runtime::{Config, HealthRegistry, RuntimeError, logging};
 use quantrule_service_api::INTERNAL_API_VERSION;
 
 use quantrule_evidence_service::evidence::{EvidenceServices, finalize};
+use quantrule_evidence_service::lineage::{PgLineage, RunLineageStore};
 use quantrule_evidence_service::outbox::RunOutbox;
 use quantrule_evidence_service::postgres::{PgHypothesisStore, PgRunStore};
 use quantrule_evidence_service::releases::ReferenceReleaseLog;
@@ -43,6 +44,8 @@ type StageHandle = Arc<dyn StageStore>;
 type HypothesisHandle = Arc<dyn quantrule_evidence_service::research::HypothesisStore>;
 /// The research-ledger store a route handler reads.
 type ImprovementHandle = Arc<dyn ImprovementStore>;
+/// The run lineage store a route handler reads.
+type LineageHandle = Arc<dyn RunLineageStore>;
 
 #[tokio::main]
 async fn main() -> Result<(), RuntimeError> {
@@ -87,6 +90,9 @@ async fn main() -> Result<(), RuntimeError> {
         Arc::new(quantrule_evidence_service::research::PgImprovementStore::new(pool.clone()))
             as Arc<dyn ImprovementStore>
     });
+    let lineage: Option<LineageHandle> = pool
+        .as_ref()
+        .map(|pool| Arc::new(PgLineage::new(pool.clone())) as Arc<dyn RunLineageStore>);
 
     let backend = Objects::open(&config).await?;
     let objects: Arc<dyn ObjectStore> = Arc::new(backend.clone());
@@ -121,6 +127,7 @@ async fn main() -> Result<(), RuntimeError> {
             stages: stages.as_ref().map(Arc::clone),
             hypotheses,
             improvements,
+            lineage,
             objects: Some(Arc::clone(&objects)),
             queue: Some(publish),
             data: Some(data),

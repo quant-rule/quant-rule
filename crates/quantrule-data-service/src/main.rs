@@ -13,6 +13,8 @@ use quantrule_runtime::backends::{Objects, migrate_owner_database, open_service_
 use quantrule_runtime::config::migrate_only_requested;
 use quantrule_runtime::{Config, HealthRegistry, RuntimeError, logging, serve_config};
 
+use quantrule_data_service::artifacts::PgArtifacts;
+use quantrule_data_service::packs::PgPacks;
 use quantrule_data_service::postgres::{PgConfigStore, PgDatasetCatalog};
 use quantrule_data_service::{DataServices, DataState};
 
@@ -20,6 +22,10 @@ use quantrule_data_service::{DataServices, DataState};
 type CatalogHandle = Arc<dyn quantrule_data_service::DatasetCatalog>;
 /// The config catalog a route handler reads.
 type ConfigHandle = Arc<dyn quantrule_data_service::ConfigCatalog>;
+/// The pack registry a route handler reads.
+type PackHandle = Arc<dyn quantrule_data_service::PackRegistry>;
+/// The artifact catalog a route handler reads.
+type ArtifactHandle = Arc<dyn quantrule_data_service::ArtifactCatalog>;
 
 #[tokio::main]
 async fn main() -> Result<(), RuntimeError> {
@@ -38,12 +44,22 @@ async fn main() -> Result<(), RuntimeError> {
 
     let mut health = HealthRegistry::named("data");
     let opened = open_service_database(&config, &mut health).await?;
-    let (catalog, configs): (Option<CatalogHandle>, Option<ConfigHandle>) = match opened {
-        Some(database) => (
-            Some(Arc::new(PgDatasetCatalog::new(database.pool().clone()))),
-            Some(Arc::new(PgConfigStore::new(database.pool().clone()))),
-        ),
-        None => (None, None),
+    let (catalog, configs, packs, artifacts): (
+        Option<CatalogHandle>,
+        Option<ConfigHandle>,
+        Option<PackHandle>,
+        Option<ArtifactHandle>,
+    ) = match opened {
+        Some(database) => {
+            let pool = database.pool().clone();
+            (
+                Some(Arc::new(PgDatasetCatalog::new(pool.clone()))),
+                Some(Arc::new(PgConfigStore::new(pool.clone()))),
+                Some(Arc::new(PgPacks::new(pool.clone()))),
+                Some(Arc::new(PgArtifacts::new(pool))),
+            )
+        }
+        None => (None, None, None, None),
     };
 
     let backend = Objects::open(&config).await?;
@@ -59,6 +75,8 @@ async fn main() -> Result<(), RuntimeError> {
         DataServices {
             catalog,
             configs,
+            packs,
+            artifacts,
             objects: Some(objects),
         },
     ));

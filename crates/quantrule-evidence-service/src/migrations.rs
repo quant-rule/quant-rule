@@ -75,6 +75,11 @@ pub fn available() -> Vec<Migration> {
             name: "run-lease",
             sql: include_str!("../migrations/0019_run_lease.sql"),
         },
+        Migration {
+            version: 20,
+            name: "run-lineage",
+            sql: include_str!("../migrations/0020_run_lineage.sql"),
+        },
     ];
     migrations.sort_by_key(|migration| migration.version);
     migrations
@@ -117,7 +122,7 @@ mod tests {
         let pending = plan(&applied, &available).expect("plan");
         assert_eq!(
             pending.iter().map(|m| m.version).collect::<Vec<_>>(),
-            vec![4, 5, 8, 9, 13, 14, 15, 16, 17, 18, 19]
+            vec![4, 5, 8, 9, 13, 14, 15, 16, 17, 18, 19, 20]
         );
     }
 
@@ -138,7 +143,10 @@ mod tests {
             .iter()
             .map(|migration| migration.version)
             .collect();
-        assert_eq!(versions, vec![2, 4, 5, 8, 9, 13, 14, 15, 16, 17, 18, 19]);
+        assert_eq!(
+            versions,
+            vec![2, 4, 5, 8, 9, 13, 14, 15, 16, 17, 18, 19, 20]
+        );
     }
 
     #[test]
@@ -216,6 +224,27 @@ mod tests {
         assert!(
             migration.sql.contains("runs_lease_expiry_idx"),
             "migration 19 must index the lease expiry"
+        );
+    }
+
+    #[test]
+
+    fn the_run_lineage_migration_is_registered() {
+        let available = available();
+        let migration = available
+            .iter()
+            .find(|migration| migration.version == 20)
+            .expect("migration 20");
+        assert_eq!(migration.name, "run-lineage");
+        for table in ["runs.run_lineage", "runs.run_lineage_references"] {
+            assert!(
+                migration.sql.contains(table),
+                "migration 20 must create {table}"
+            );
+        }
+        assert!(
+            migration.sql.contains("ON DELETE CASCADE"),
+            "migration 20 must remove lineage with its run"
         );
     }
 

@@ -1,6 +1,6 @@
 # Cross-Database Consistency
 
-- Status: Current for the implemented slice (HA-004)
+- Status: Current for the implemented slice (HA-004); artifact references and run lineage added by RA-006
 - Issue: [#1102](https://github.com/quant-rule/quant-rule/issues/1102)
 - Claim type: Behaviour Claim
 - Related: [HA architecture](ha.md), [control plane](control-plane.md), [history retention](history-retention.md), [four databases](../config/2026-11-22/four-databases.md), [ADR-HA](../adr/2026-11-22/1082-ha-deployment-profile.md)
@@ -96,6 +96,20 @@ release, so a repeated release is a no-op and the erase keeps its evidence. A
 `404` means the dataset row is gone, so nothing can be blocked; the tombstone is
 confirmed instead of retried forever.
 
+### Artifact references and lineage
+
+`catalog.artifact_references` follows the same shape for computed signal
+artifacts: a consumer registers before it cites the artifact, and the retention
+pass refuses to collect a referenced row. The row and its
+`catalog.retention_events` tombstone commit before an unshared object is deleted.
+
+A run's research references live in `runs.run_lineage_references` in evidence.
+That is an evidence write, not a cross-database one: evidence does not read the
+catalog schema and does not join to it. The run-v5 integration that resolves a
+pack records the set; a repeated set is idempotent and a different set is
+refused. Registering the signal-artifact reference is the signal writer's call
+when that writer lands.
+
 ## 4. Erase boundaries
 
 | Record | Preconditions | Tombstone |
@@ -136,7 +150,7 @@ left for the release sweep; it never blocks erase without a retry path.
 | Crash between a reference registration and the run commit | The reference is registered first (the safe direction); this orphan is not released automatically. |
 | Research erase tombstone in the store transaction | The route records a tombstone after erase; a crash in that window is not retried. |
 | Profile erase | No command exists; a profile erase would be a new capability and a human decision. |
-| Orphan-object sweep | A leaked object is accepted; this slice does not delete one. |
+| Orphan-object sweep | A leaked object from a crash is accepted. The signal-artifact retention pass removes an unreferenced, expired artifact and its unshared object; it does not sweep an arbitrary orphan. |
 
 ## 7. Verification
 
@@ -145,8 +159,11 @@ left for the release sweep; it never blocks erase without a retry path.
   expired reclaim, a stale completion, and the heartbeat.
 - `cargo test -p quantrule-evidence-service --test outbox_conformance` runs the
   shared body against the memory store in the fast gate.
-- `QR_TEST_DATABASE_URL=<disposable> cargo test -p
-  quantrule-evidence-service --test outbox_conformance -- --ignored` runs the
-  same body against Postgres; `tools/postgres_composed.sh` includes it.
-- `cargo test -p quantrule-runtime --test migration_contract` pins migrations 18
-  and 19 and their checksums.
+- `QR_TEST_DATABASE_URL=<disposable> cargo test -p quantrule-evidence-service
+  --test outbox_conformance -- --ignored` runs the same body against Postgres.
+- `cargo test -p quantrule-data-service --test pack_conformance`, `--test
+  artifact_conformance` and `cargo test -p quantrule-evidence-service --test
+  lineage` run every store body against memory and Postgres.
+- `cargo test -p quantrule-runtime --test migration_contract` pins migrations 18,
+  19 and 20, catalog migrations 7 and 8, and every checksum;
+  `tools/postgres_composed.sh` includes every new target.

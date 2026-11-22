@@ -13,9 +13,9 @@
 //! is refused before its bytes are read.
 
 use std::collections::BTreeMap;
-use std::fmt;
 
 use quantrule_api::Digest;
+pub use quantrule_api::{ContentReference, ReferenceKind};
 use quantrule_data::Timeframe;
 use serde_json::{Map, Value};
 
@@ -29,101 +29,38 @@ pub const SIGNAL_ARTIFACT_SCHEMA: &str = "quantrule.signal-artifact/v1";
 /// The schema of the model bundle a signal artifact is computed from.
 pub const MODEL_ARTIFACT_SCHEMA: &str = "quantrule.model-bundle/v1";
 
-/// The kind of object a run reference names.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum ReferenceKind {
-    /// The upstream model bundle.
-    ModelArtifact,
-    /// The human-owned alpha definition.
-    StrategyPack,
-    /// The computed signal output of one model artifact and strategy pack.
-    SignalArtifact,
-    /// The human-owned portfolio policy.
-    PortfolioPolicy,
-    /// The human-owned execution-simulation policy.
-    ExecutionModel,
-}
-
-impl ReferenceKind {
-    /// The stable wire and hash tag.
-    #[must_use]
-    pub const fn code(self) -> &'static str {
-        match self {
-            Self::ModelArtifact => "model_artifact",
-            Self::StrategyPack => "strategy_pack",
-            Self::SignalArtifact => "signal_artifact",
-            Self::PortfolioPolicy => "portfolio_policy",
-            Self::ExecutionModel => "execution_model",
-        }
-    }
-}
-
-impl fmt::Display for ReferenceKind {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(self.code())
-    }
-}
-
-/// A run's id-and-hash reference to one immutable object.
+/// Parses one `{ "id": …, "hash": … }` reference.
 ///
-/// The two fields are the same SHA-256 value. Keeping both matches the run
-/// contract and makes an inconsistent document visible without reading bytes.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ContentReference {
-    /// The object id.
-    pub id: Digest,
-    /// The content hash of the stored bytes.
-    pub hash: Digest,
-}
-
-impl ContentReference {
-    /// Parses one `{ "id": …, "hash": … }` reference.
-    ///
-    /// # Errors
-    ///
-    /// Returns a [`ConfigError`] naming the file and JSON path when a field is
-    /// missing, unknown, not a SHA-256 digest, or the two values disagree.
-    pub fn parse(file: &str, path: &str, value: &Value) -> Result<Self, ConfigError> {
-        let object = read::object(file, path, value)?;
-        read::check_fields(file, path, object, &["id", "hash"])?;
-        let id = digest(
+/// # Errors
+///
+/// Returns a [`ConfigError`] naming the file and JSON path when a field is
+/// missing, unknown, not a SHA-256 digest, or the two values disagree.
+pub fn parse_content_reference(
+    file: &str,
+    path: &str,
+    value: &Value,
+) -> Result<ContentReference, ConfigError> {
+    let object = read::object(file, path, value)?;
+    read::check_fields(file, path, object, &["id", "hash"])?;
+    let id = digest(
+        file,
+        &read::child(path, "id"),
+        read::field(file, path, object, "id")?,
+    )?;
+    let hash = digest(
+        file,
+        &read::child(path, "hash"),
+        read::field(file, path, object, "hash")?,
+    )?;
+    if id != hash {
+        return Err(ConfigError::inconsistent(
             file,
-            &read::child(path, "id"),
-            read::field(file, path, object, "id")?,
-        )?;
-        let hash = digest(
-            file,
-            &read::child(path, "hash"),
-            read::field(file, path, object, "hash")?,
-        )?;
-        if id != hash {
-            return Err(ConfigError::inconsistent(
-                file,
-                path,
-                "one content id and the same content hash",
-                &format!("id {id}, hash {hash}"),
-            ));
-        }
-        Ok(Self { id, hash })
+            path,
+            "one content id and the same content hash",
+            &format!("id {id}, hash {hash}"),
+        ));
     }
-
-    /// The wire form, for a provenance record.
-    ///
-    /// The map is the serializer's ordered map, so the same reference always
-    /// produces the same bytes.
-    #[must_use]
-    pub fn to_value(&self) -> Value {
-        let mut object = Map::new();
-        object.insert("id".to_owned(), Value::String(self.id.to_string()));
-        object.insert("hash".to_owned(), Value::String(self.hash.to_string()));
-        Value::Object(object)
-    }
-
-    /// Whether these bytes carry this reference's content hash.
-    #[must_use]
-    pub fn matches(&self, bytes: &[u8]) -> bool {
-        Digest::sha256(bytes) == self.hash
-    }
+    Ok(ContentReference::new(id, hash))
 }
 
 /// Supplies the bytes a run v5 references.

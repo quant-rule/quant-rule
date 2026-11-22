@@ -17,6 +17,7 @@
 #![forbid(unsafe_code)]
 
 pub mod evidence;
+pub mod lineage;
 pub mod migrations;
 pub mod operations;
 pub mod outbox;

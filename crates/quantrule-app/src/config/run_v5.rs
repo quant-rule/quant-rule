@@ -432,7 +432,7 @@ fn required_reference(
     field: &str,
 ) -> Result<ContentReference, ConfigError> {
     let path = read::child("$", field);
-    ContentReference::parse(file, &path, read::field(file, "$", object, field)?)
+    references::parse_content_reference(file, &path, read::field(file, "$", object, field)?)
 }
 
 fn optional_reference(
@@ -444,7 +444,7 @@ fn optional_reference(
         return Ok(None);
     };
     let path = read::child("$", field);
-    ContentReference::parse(file, &path, value).map(Some)
+    references::parse_content_reference(file, &path, value).map(Some)
 }
 
 #[cfg(test)]

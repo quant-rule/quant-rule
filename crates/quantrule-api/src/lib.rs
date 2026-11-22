@@ -11,6 +11,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod artifact;
 pub mod catalog;
 pub mod digest;
 pub mod error;
@@ -19,13 +20,20 @@ pub mod history;
 pub mod improvement;
 pub mod model;
 pub mod operations;
+pub mod pack;
 pub mod profile;
+pub mod research;
 pub mod run;
 pub mod sha256;
 pub mod simulation;
 pub mod stage;
 pub mod version;
 
+pub use artifact::{
+    ArtifactKind, ArtifactRecord, ArtifactReference, ArtifactReferenceCount, ArtifactReferenceKind,
+    ArtifactReferenceRequest, ArtifactSummary, CollectArtifactsResponse, CollectedArtifact,
+    ReleaseArtifactReferenceRequest,
+};
 pub use catalog::{
     ConfigOrigin, ConfigSummary, DatasetRecord, DatasetReference, DatasetReferenceCount,
     DatasetReferenceKind, DatasetReferenceRequest, DatasetSummary, EraseDatasetResponse,
@@ -45,8 +53,15 @@ pub use improvement::{
 };
 pub use model::{EventBatch, EventRecord, ModelComputeRequest, ModelObject};
 pub use operations::{CleanupReport, OperationsReport};
+pub use pack::{
+    PackKind, PackLifecycleEvent, PackRecord, PackState, PackSummary, PackValidationRecord,
+};
 pub use profile::{
     CreateProfileRequest, DEFAULT_PROFILE, PROFILE_HEADER, ProfileId, ProfileSummary,
+};
+pub use research::{
+    ContentReference, PackProvenance, RecordRunLineageRequest, ReferenceKind, RunArtifactReference,
+    RunLineage,
 };
 pub use run::{
     ArtifactRef, Provenance, RunDetail, RunDigest, RunId, RunState, RunSummary, StageName,

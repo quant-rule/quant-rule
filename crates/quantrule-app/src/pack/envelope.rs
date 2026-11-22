@@ -5,8 +5,6 @@
 //! content identity covers these bytes only; lifecycle state is metadata that
 //! lives outside the hash.
 
-use std::fmt;
-
 use serde_json::Value;
 
 use crate::config::ConfigError;
@@ -14,48 +12,10 @@ use crate::config::read::{self, ROOT};
 
 use super::error::PackError;
 
+pub use quantrule_api::PackKind;
+
 /// The pack envelope schema.
 pub const PACK_SCHEMA: &str = "quantrule.pack/v1";
-
-/// The kind of document carried in a pack payload.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum PackKind {
-    /// A human-owned alpha definition.
-    Strategy,
-    /// A human-owned portfolio policy definition.
-    Portfolio,
-    /// A human-owned execution-simulation definition.
-    Execution,
-}
-
-impl PackKind {
-    /// The stable wire code.
-    #[must_use]
-    pub const fn code(self) -> &'static str {
-        match self {
-            Self::Strategy => "strategy",
-            Self::Portfolio => "portfolio",
-            Self::Execution => "execution",
-        }
-    }
-
-    /// Parses the stable wire code.
-    #[must_use]
-    pub fn from_code(code: &str) -> Option<Self> {
-        match code {
-            "strategy" => Some(Self::Strategy),
-            "portfolio" => Some(Self::Portfolio),
-            "execution" => Some(Self::Execution),
-            _ => None,
-        }
-    }
-}
-
-impl fmt::Display for PackKind {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(self.code())
-    }
-}
 
 /// The immutable envelope fields shared by every pack kind.
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -7,6 +7,7 @@
 
 pub mod hypotheses;
 pub mod internal;
+pub mod lineage;
 mod operations;
 mod research;
 pub mod runs;
@@ -92,6 +93,10 @@ fn routes() -> Router<Arc<EvidenceState>> {
             post(internal::computed_run),
         )
         .route("/internal/v1/runs/{id}/failed", post(internal::failed_run))
+        .route(
+            "/internal/v1/runs/{id}/lineage",
+            get(lineage::get_lineage).put(lineage::record_lineage),
+        )
         .route("/internal/v1/stages/{id}", get(stage_internal::get_stage))
         .route(
             "/internal/v1/stages/by-artifact/{kind}/{artifact_id}",

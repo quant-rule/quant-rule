@@ -43,8 +43,11 @@ base="postgres://quantrule:quantrule@127.0.0.1:${port}"
 target_dir="${CARGO_TARGET_DIR:-$root/target/gate}"
 
 targets=(
+  "quantrule-data-service artifact_conformance"
   "quantrule-data-service catalog_conformance"
   "quantrule-data-service d1"
+  "quantrule-data-service pack_conformance"
+  "quantrule-evidence-service lineage"
   "quantrule-evidence-service outbox_conformance"
   "quantrule-evidence-service research_ledger"
   "quantrule-evidence-service stage_conformance"

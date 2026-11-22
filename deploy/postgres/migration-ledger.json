@@ -58,6 +58,18 @@
           "name": "dataset-references",
           "file": "crates/quantrule-data-service/migrations/0006_dataset_references.sql",
           "checksum": "1b815b68afd07b48"
+        },
+        {
+          "version": 7,
+          "name": "packs",
+          "file": "crates/quantrule-data-service/migrations/0007_packs.sql",
+          "checksum": "8fc1accc46bd8e09"
+        },
+        {
+          "version": 8,
+          "name": "artifacts",
+          "file": "crates/quantrule-data-service/migrations/0008_artifacts.sql",
+          "checksum": "29d8b1c99105a8ea"
         }
       ]
     },
@@ -139,6 +151,12 @@
           "name": "run-lease",
           "file": "crates/quantrule-evidence-service/migrations/0019_run_lease.sql",
           "checksum": "fcdf15c98f8e1321"
+        },
+        {
+          "version": 20,
+          "name": "run-lineage",
+          "file": "crates/quantrule-evidence-service/migrations/0020_run_lineage.sql",
+          "checksum": "65e185dcd2d10075"
         }
       ]
     },
