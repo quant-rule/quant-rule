@@ -15,12 +15,19 @@ security boundary ([`ADR-11`](../adr/2026-11-12/11-profiles.md)).
 
 | Service | Binary | Responsibility | Owns | Must never |
 |---|---|---|---|---|
-| `gateway` | `qr-gateway` | HTTP boundary, static client, upload streaming, health aggregation, principal injection, proxy table | `gateway` schema (profiles) | compute a model value, read a candle, render a label |
-| `data` | `qr-data` | Ingestion, `data_version`, timeframe ladder, dataset and config catalog (including the read-only `config/` mount), read-only inspection | `catalog` schema, `datasets/` and `ladder/` objects | run a model, decide a signal |
+| `gateway` | `qr-gateway` | HTTP boundary, static client, upload streaming, health aggregation, principal injection, proxy table | `gateway` schema in `qr_gateway` | compute a model value, read a candle, render a label |
+| `data` | `qr-data` | Ingestion, `data_version`, timeframe ladder, dataset and config catalog (including the read-only `config/` mount), read-only inspection | `catalog` schema in `qr_catalog`, `datasets/` and `ladder/` objects | run a model, decide a signal |
 | `model` | `qr-model` | Readings, states, events, levels, progression, context, report | model objects | read strategy, execution, or portfolio |
 | `backtest` | `qr-backtest` | Run orchestration, strategy, execution, portfolio, diagnostic stage execution | artifact objects, stage worker | own the final provenance, canonical digest, or run record |
-| `evidence` | `qr-evidence` | Provenance, canonical digest, run records, research memory, stage lifecycle, finalization | `runs`, `research`, and `stage` schemas, bundle objects | compute a reading or decide a trade |
-| `simulation` | `qr-simulation` | Chart-first research: window selection, marks, oracle, review, check, decision | `simulation` schema, research objects | compute a model, write a run artifact, publish to the queue |
+| `evidence` | `qr-evidence` | Provenance, canonical digest, run records, research memory, stage lifecycle, finalization | `runs`, `research`, and `stage` schemas in `qr_evidence`, bundle objects | compute a reading or decide a trade |
+| `simulation` | `qr-simulation` | Chart-first research: window selection, marks, oracle, review, check, decision | `simulation` schema in `qr_simulation`, research objects | compute a model, write a run artifact, publish to the queue |
+
+Each database-owning service has a `<database>_owner` role used only by its
+one-shot migration job and a `<database>_app` role that serves requests with DML
+only. The long-running process never receives the owner URL. No role is granted
+connect on another service's database. Model and backtest have no database. The
+contract is
+[`docs/config/2026-11-22/four-databases.md`](../config/2026-11-22/four-databases.md).
 
 The worker builds the run manifest and proposes its canonical digest; evidence
 re-verifies the manifest, owns the recorded digest, and writes the run record.

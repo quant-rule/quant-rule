@@ -12,36 +12,79 @@ use crate::adapters::{
     Backend, BoxFuture, Database, MessageHandler, ObjectStore, Queue, QueueConsumer, QueueError,
     StoreError,
 };
-use crate::config::Config;
+use crate::config::{Config, ConfigError};
 use crate::error::RuntimeError;
 use crate::health::HealthRegistry;
 use crate::migrations::Migration;
 
-/// Opens the service's database, applies its ledger, and registers its health.
+/// Applies the service ledger once with the database owner role.
 ///
-/// The service names its own ledger and migration set. Returns `Ok(None)` when
-/// Postgres cannot be reached: the failure is registered as a health component
-/// so the service starts and reports degraded.
+/// This is the body of `--migrate-only`: the process opens the owner URL,
+/// applies the ledger, logs the result, and returns so the binary exits before
+/// it creates the application pool or binds HTTP. The owner credential is
+/// therefore present only in the one-shot migration job, never in the
+/// long-running service environment.
 ///
 /// # Errors
 ///
-/// Returns [`RuntimeError::Migrations`] when the ledger cannot be applied.
-pub async fn open_service_database(
+/// Returns [`RuntimeError::Config`] when the owner URL is absent,
+/// [`RuntimeError::Database`] when the owner connection fails, and
+/// [`RuntimeError::Migrations`] when the ledger cannot be applied.
+pub async fn migrate_owner_database(
     config: &Config,
     ledger: &str,
     label: &str,
     postgres_migrations: &[Migration],
+) -> Result<(), RuntimeError> {
+    let owner_url = config
+        .database_owner_url
+        .as_deref()
+        .ok_or(ConfigError::Missing {
+            name: "QR_DATABASE_OWNER_URL",
+        })?;
+    let owner = PgDatabase::connect(owner_url)
+        .await
+        .map_err(|error| RuntimeError::Database(error.to_string()))?;
+    let applied = apply_postgres_migrations(owner.pool(), ledger, postgres_migrations)
+        .await
+        .map_err(|error| RuntimeError::Migrations(error.to_string()))?;
+    tracing::info!(applied, "{} migrations applied by the migration job", label);
+    Ok(())
+}
+
+/// Opens the service's application database and registers its health.
+///
+/// The long-running service owns no migration path: `QR_MIGRATE` must be `0`
+/// and `QR_DATABASE_OWNER_URL` must be absent. A service that receives either
+/// fails closed instead of holding DDL or owner credentials. Returns `Ok(None)`
+/// when Postgres cannot be reached: the failure is registered as a health
+/// component so the service starts and reports degraded.
+///
+/// # Errors
+///
+/// Returns [`RuntimeError::Config`] when migration is enabled or an owner URL is
+/// present.
+pub async fn open_service_database(
+    config: &Config,
     health: &mut HealthRegistry,
 ) -> Result<Option<PgDatabase>, RuntimeError> {
+    if config.database_owner_url.is_some() {
+        return Err(RuntimeError::Config(ConfigError::Invalid {
+            name: "QR_DATABASE_OWNER_URL",
+            value: "<set>".to_owned(),
+            reason: "belongs to the --migrate-only job, not the long-running service",
+        }));
+    }
+    if config.migrate {
+        return Err(RuntimeError::Config(ConfigError::Invalid {
+            name: "QR_MIGRATE",
+            value: "1".to_owned(),
+            reason: "the long-running service must not migrate; run the migration job",
+        }));
+    }
+
     match PgDatabase::connect(&config.database_url).await {
         Ok(database) => {
-            if config.migrate {
-                let applied =
-                    apply_postgres_migrations(database.pool(), ledger, postgres_migrations)
-                        .await
-                        .map_err(|error| RuntimeError::Migrations(error.to_string()))?;
-                tracing::info!(applied, "{} migrations applied", label);
-            }
             let ping = database.clone();
             health.register("postgres", move || {
                 let database = ping.clone();
@@ -173,5 +216,39 @@ impl QueueConsumer for ControlQueue {
         handler: MessageHandler,
     ) -> BoxFuture<Result<(), QueueError>> {
         self.queue.consume(name, keys, handler)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn a_long_running_service_refuses_an_owner_url() {
+        let config = Config {
+            migrate: false,
+            database_owner_url: Some(
+                "postgres://qr_gateway_owner:secret@postgres:5432/qr_gateway".to_owned(),
+            ),
+            ..Config::default()
+        };
+        let mut health = HealthRegistry::new();
+        let error = open_service_database(&config, &mut health)
+            .await
+            .expect_err("an owner URL must be refused");
+        assert!(error.to_string().contains("QR_DATABASE_OWNER_URL"));
+    }
+
+    #[tokio::test]
+    async fn a_long_running_service_refuses_qr_migrate() {
+        let config = Config {
+            migrate: true,
+            ..Config::default()
+        };
+        let mut health = HealthRegistry::new();
+        let error = open_service_database(&config, &mut health)
+            .await
+            .expect_err("QR_MIGRATE=1 must be refused");
+        assert!(error.to_string().contains("QR_MIGRATE"));
     }
 }

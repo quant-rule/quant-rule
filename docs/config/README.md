@@ -13,6 +13,7 @@ document states which schema and run version it applies to.
 | Run v4 and the strategy | Current; `run v4` binds the strategy to the run; data schema 3, model schema 4, `execution v2`, `portfolio v2` | `docs/config/2026-11-13/run-v4-strategy.md` |
 | Research packs and run v5 | Strategy pack implemented (RA-002); portfolio, execution-simulation, signal artifacts and run v5 target the next release | `docs/config/2026-11-22/research-artifact-packs.md` |
 | Deployment v3 | Target for the next release; Swarm HA descriptor, four databases, ingress and stateful placement | `docs/config/2026-11-22/deploy-v3.md` |
+| Four logical databases | Current for local Compose and v2 multi-host; owner/app roles, per-service app URLs, one-shot owner migration jobs | `docs/config/2026-11-22/four-databases.md` |
 | Run v3 and portfolio constraints | Accepted for a model-only run; `run v3` must not carry a strategy | `docs/config/2026-11-11/run-v3-and-portfolio-constraints.md` |
 | Local research memory | Historical; the local SQLite module was removed on 2026-11-16; memory lives in the evidence service (#661) | `docs/config/2026-11-11/research-memory-v1.md` |
 | Client surfaces | Product 1.5.0: Svelte browser client and command shell; no desktop package | `docs/architecture/client.md` |

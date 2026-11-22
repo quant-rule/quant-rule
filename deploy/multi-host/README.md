@@ -78,12 +78,23 @@ first validation. The token must be at least 32 characters; the passwords at
 least 16 and not a template marker. The example descriptor enables
 `auth.gateway_token`, so the token is mandatory.
 
-`env/` is ignored by Git. The renderer writes one file per service and
-`env/infra.env`; each carries at least `QR_IMAGE`, `QR_IMAGE_DIGEST`,
-`QR_BIND_IP`, `QR_BIND_PORT`, `QR_BIND`, `QR_PROFILE=server`, the backend URLs
-and credentials, `QR_MIGRATE`, and `QR_INTERNAL_ONLY` on the internal HTTP
-services. Keep the rendered files at mode 600: they contain the resolved
-secrets.
+`env/` is ignored by Git. The renderer writes one file per service, one
+`<service>-migrate.env` for each database-owning service, and `infra.env`; each
+service file carries at least `QR_IMAGE`, `QR_IMAGE_DIGEST`, `QR_BIND_IP`,
+`QR_BIND_PORT`, `QR_BIND`, `QR_PROFILE=server`, the backend URLs and
+credentials, `QR_MIGRATE`, and `QR_INTERNAL_ONLY` on the internal HTTP services.
+Each database-owning service file gets only `QR_DATABASE_URL` for its
+`<database>_app` role with `QR_MIGRATE=0`; the matching migration file gets only
+`QR_DATABASE_OWNER_URL` for its `<database>_owner` role. `model` and `backtest`
+receive no database URL. Keep the rendered files at mode 600: they contain the
+resolved secrets.
+
+The descriptor still names one Postgres endpoint. The renderer keeps its scheme
+and host:port and uses `QR_POSTGRES_PASSWORD` for all eight roles; the four
+databases (`qr_gateway`, `qr_catalog`, `qr_evidence`, `qr_simulation`) and the
+roles are fixed by the bootstrap. Per-role password files belong to v3. The full
+contract is
+[`docs/config/2026-11-22/four-databases.md`](../../docs/config/2026-11-22/four-databases.md).
 
 ## 5. Image distribution — one digest
 
@@ -115,8 +126,14 @@ must run the `docker image inspect` check on each host.
 ## 6. Start order
 
 Infrastructure, then core, then compute, then the gateway. The role files have
-no `depends_on` because the dependency is on another machine; the order exists
-so the first start does not spend its retries on a backend that is not up yet.
+no cross-host `depends_on` because the dependency is on another machine; the
+order exists so the first start does not spend its retries on a backend that is
+not up yet. The infrastructure file also runs the one-shot `db-bootstrap` after
+Postgres is healthy; it creates the four databases and the owner/app roles
+before the core host starts. The core file runs `data-migrate`,
+`evidence-migrate`, and `simulation-migrate` before their services; the gateway
+file runs `gateway-migrate` before the gateway. Each migration job is local to
+its host, so its service can use `depends_on: service_completed_successfully`.
 
 ```bash
 # infrastructure host, from the repository root
@@ -225,8 +242,10 @@ the [`backup.sh`](backup.sh) and [`restore.sh`](restore.sh) wrappers on the infr
 host with `--application-stopped`; they wrap the tested archive tools and read
 the custom database, bucket, and queue names from `env/infra.env`. The archive
 holds a Postgres dump, an object mirror, and a manifest; the queue is not
-archived. A restore must reproduce the canonical digest, and copying a live
-database or object-store volume is not a backup.
+archived. The current tools dump one database, so they do not yet archive all
+four; treat that as a known limitation until the backup change lands. A restore
+must reproduce the canonical digest, and copying a live database or object-store
+volume is not a backup.
 
 ## 12. What this profile does not provide
 
@@ -239,9 +258,11 @@ decision, its alternatives, and its non-goals are recorded in ADR
 
 The profile records these residual risks:
 
-- Every service receives the same Postgres role, MinIO root credentials, and
-  queue user. A compromised service host can read all schemas and the bucket.
-  Per-service database roles and bucket policies are not implemented.
+- Database roles are per service, but this v2 profile still uses one Postgres
+  password for all eight roles. MinIO root credentials and one queue user are
+  also shared. A compromised service host can read every database with the
+  shared password and the whole bucket. Per-role password files and bucket
+  policies are not implemented.
 - There is no service-to-service authentication. The private overlay is the
   boundary; a client VPN peer must be routed to the gateway only, and internal
   ports must be firewalled to the exact host addresses, not the whole subnet.

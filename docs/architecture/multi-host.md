@@ -35,10 +35,10 @@ not a hard-coded layout.
 
 | Role | Services | Owns | Public port |
 |---|---|---|---|
-| `gateway` | `qr-gateway` | static client, proxy table, profiles | `:8080` only |
-| `core` | `qr-data`, `qr-evidence`, `qr-simulation` | catalog, runs/research, simulation | none |
+| `gateway` | `qr-gateway`, one-shot `gateway-migrate` | static client, proxy table, `qr_gateway` | `:8080` only |
+| `core` | `qr-data`, `qr-evidence`, `qr-simulation`, and their one-shot migrations | `qr_catalog`, `qr_evidence`, `qr_simulation` | none |
 | `compute` | `qr-model`, `qr-backtest` | model compute, run/stage workers | none |
-| `infra` | Postgres, MinIO, RabbitMQ | shared state and queue | none |
+| `infra` | Postgres, MinIO, RabbitMQ, one-shot `db-bootstrap` | shared state and queue | none |
 
 A service may be placed on another host as long as the descriptor validates and
 the host has the same image digest. The core services need distinct ports when
@@ -55,7 +55,7 @@ network gate, secrets file, and config root.
 | Command | Effect |
 |---|---|
 | `validate <deploy.json> [--secrets <file>]` | Refuses an unsafe or inconsistent descriptor before deployment |
-| `render <deploy.json> --out <dir> [--secrets <file>]` | Writes one env file per service and `infra.env` with owner-only permissions |
+| `render <deploy.json> --out <dir> [--secrets <file>]` | Writes one env file per service, four `<service>-migrate.env` files, and `infra.env` with owner-only permissions; the long-running envs carry only `<database>_app`, the migration envs only `<database>_owner` |
 | `check <deploy.json> [--secrets <file>]` | Probes `/version` and `/health` (or `/ready`) and compares the image digest |
 
 The validator refuses:
@@ -69,6 +69,13 @@ The validator refuses:
 - a fixed role group split across hosts (data/evidence/simulation, model/backtest);
 - a `config_root` other than `/srv/config`;
 - a descriptor with an unknown field.
+
+The v2 descriptor still carries one Postgres endpoint and one password. The
+renderer derives the four database URLs and the eight role names from that
+endpoint and secret; `db-bootstrap` creates the databases and roles, the
+one-shot `<service>-migrate` jobs apply the owner ledgers, and the long-running
+services start with the application URL only. Per-role password files are a v3
+concern.
 
 ## 5. Trust boundary
 
@@ -100,10 +107,10 @@ comparable when the image digest is the same.
 
 ## 7. Start order
 
-1. Infra: Postgres, MinIO, RabbitMQ; create the bucket.
-2. Core: `data`, then `evidence` and `simulation`.
+1. Infra: Postgres, MinIO, RabbitMQ; create the bucket and run `db-bootstrap`.
+2. Core: the three migration jobs, then `data`, `evidence`, and `simulation`.
 3. Compute: `model`, then the `backtest` workers.
-4. Gateway.
+4. Gateway: `gateway-migrate`, then the gateway.
 5. `qr-deploy check` and a verification run.
 
 Each Compose file uses `restart: unless-stopped` and has no cross-host
@@ -129,7 +136,8 @@ The gateway `/ready` reports the upstream states.
 
 - Stop the gateway, compute, and core roles; keep infrastructure running. Dump
   Postgres, mirror the bucket, write a manifest, and restore objects before
-  rows.
+  rows. The current `tools/backup.sh` dumps one database, so a four-database
+  archive is a follow-up; record the limitation until it lands.
 - The queue is not archived; messages are rebuilt from run rows.
 - Distribute the new image to every host, stop the gateway and workers, update
   core and compute, then start workers and gateway.
@@ -143,10 +151,12 @@ multi-region placement, service-to-service mTLS, external registry, RPM, or DEB.
 Windows multi-host servers are not supported; the server profile is Linux.
 Each remains a later decision with its own record.
 
-Residual risks accepted for v1: every service shares one Postgres role, the
-MinIO root credentials, and one queue user; the overlay is the only
-service-to-service boundary; `qr-deploy check` does not inspect a remote
-image; and the infrastructure host is a single point of failure.
+Residual risks accepted for v1: database roles are per service but the v2
+profile still uses one Postgres password for every role, every service shares
+the MinIO root credentials and one queue user, the overlay is the only
+service-to-service boundary, `qr-deploy check` does not inspect a remote
+image, the local backup tools do not yet archive all four databases, and the
+infrastructure host is a single point of failure.
 
 ## 11. Related
 

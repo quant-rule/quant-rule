@@ -5,13 +5,25 @@
 # address of the host, so a bridge network would publish the port on every
 # interface of the host instead of the overlay interface alone.
 #
-# `qr-deploy render` writes env/gateway.env. Run this file with
-# `--env-file env/gateway.env` so the project-level values below resolve, and
-# keep the distinct project name so removing another role never touches this
-# one.
+# `qr-deploy render` writes env/gateway.env and env/gateway-migrate.env. Run
+# this file with `--env-file env/gateway.env` so the project-level values below
+# resolve, and keep the distinct project name so removing another role never
+# touches this one.
 name: quantrule-gateway
 
 services:
+  # One-shot owner migration. It runs on the gateway host after the
+  # infrastructure db-bootstrap has created the databases and roles, applies the
+  # gateway ledger with the owner URL, and exits before the gateway starts.
+  gateway-migrate:
+    image: ${QR_IMAGE}
+    pull_policy: never
+    command: ["qr-gateway", "--migrate-only"]
+    network_mode: host
+    restart: "no"
+    env_file:
+      - env/gateway-migrate.env
+
   gateway:
     image: ${QR_IMAGE}
     pull_policy: never
@@ -20,6 +32,9 @@ services:
     env_file:
       - env/gateway.env
     restart: unless-stopped
+    depends_on:
+      gateway-migrate:
+        condition: service_completed_successfully
     healthcheck:
       # $$ defers expansion to the container: the probe reads the bind from the
       # service's own env file rather than from the Compose-level environment,

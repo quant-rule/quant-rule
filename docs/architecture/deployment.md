@@ -44,6 +44,7 @@ see [`docker/README.md`](../../docker/README.md) §7.
 | `evidence` | `quantrule-server` | — | — |
 | `simulation` | `quantrule-server` | — | — |
 | `postgres` | `postgres@sha256:846a…` (`QR_POSTGRES_IMAGE` override) | — | `pgdata` |
+| `db-bootstrap` / `*-migrate` | the Postgres image / `quantrule-server`, one-shot | — | — |
 | `minio` | `bitnamilegacy/minio` (pinned digest; `QR_OBJECT_STORE_IMAGE` override) | — | `objects` |
 | `rabbitmq` | `rabbitmq@sha256:7530…` (`QR_RABBITMQ_IMAGE` override) | — | `mqdata` |
 
@@ -55,11 +56,11 @@ The image also carries the static client, built with **Bun** (`bun install`,
 
 ## 2.1 Current state
 
-All six binaries and nine containers start; only `backtest` is HTTP-less and has
-no healthcheck. Gateway, data, evidence, and simulation migrate their own ledgers
-under P1's pinned lock; `backtest` and `model` keep `0`. The MinIO image is a
-pinned legacy archive, overridable by `QR_OBJECT_STORE_IMAGE`, pending a registry
-decision.
+All six binaries and nine long-running containers start; only `backtest` is
+HTTP-less. `db-bootstrap` creates the four databases and roles, then four
+`*-migrate` jobs apply each ledger. Long-running services hold only the
+application URL with `QR_MIGRATE=0`. The MinIO image is pinned; the database
+contract is [`docs/config/2026-11-22/four-databases.md`](../config/2026-11-22/four-databases.md).
 
 ## 3. Make targets
 
@@ -79,13 +80,12 @@ decision.
 | `make gate` | Full workspace gate |
 | `make remote` | Start with only `:8080` published and a bearer token; print the token and usage |
 | `make token` | Print a new 256-bit bearer token; writes no file |
-| `make backup` | Dump Postgres and mirror objects |
+| `make backup` | Dump Postgres (one database until the four-database archive lands) and mirror objects |
 | `make restore FILE=…` | Restore into a clean stack |
 | `make dev-web` | Bun dev server for the web client, proxying `localhost:8080` |
 
-`make scale` scales `model` and `backtest`. `make backup` and `make restore`
-call `tools/backup.sh` and `tools/restore.sh`. `make test-composed` runs the
-composed tier against a stack started by `make up`.
+`make scale` scales `model` and `backtest`; `make backup` and `make restore`
+call the tools scripts; `make test-composed` runs against a stack from `make up`.
 
 ## 3.1 Remote profile
 
@@ -121,7 +121,7 @@ to start.
 |---|---|---|
 | `QR_IMAGE_DIGEST` | image label; `make up` records the built image id | Required for a run/stage submission; reported by `/health` and written to provenance. A server without it refuses the submission. |
 | `QR_INTERNAL_ONLY` | unset | When `1`, an HTTP service refuses a public or unspecified bind; the multi-host profile sets it on the internal services. |
-| `QR_DATABASE_URL` | compose value | Postgres |
+| `QR_DATABASE_URL` / `QR_DATABASE_OWNER_URL` | compose value | The long-running service's `<database>_app` / the one-shot `<service>-migrate` job's `<database>_owner`; model and backtest receive neither; long-running services require `QR_MIGRATE=0` |
 | `QR_DATA_URL` | compose value | Data service, used by the gateway and the backtest worker |
 | `QR_MODEL_URL` | compose value | Model service, used by the gateway |
 | `QR_EVIDENCE_URL` | compose value | Evidence service, used by the gateway and the backtest worker |
@@ -132,7 +132,7 @@ to start.
 | `QR_BEARER_TOKEN` | empty | Enables the token check when set |
 | `QR_BACKTEST_CONCURRENCY` | `1` | Runs per worker |
 | `QR_STAGE_RETENTION_DAYS` | `30` | Diagnostic stage retention in days |
-| Store passwords | `quantrule` on the loopback stack | `QR_POSTGRES_PASSWORD`, `QR_RABBITMQ_PASSWORD`, and `QR_OBJECT_STORE_PASSWORD`; required non-default for `make remote` |
+| Store passwords | `quantrule` on the loopback stack | `QR_POSTGRES_PASSWORD` seeds every database role; `QR_RABBITMQ_PASSWORD` and `QR_OBJECT_STORE_PASSWORD`; all required non-default for `make remote` |
 
 A config bundle is capped at 4 MiB by the config route, independently of `QR_UPLOAD_LIMIT_BYTES`; a larger config returns `413 upload.too_large`. Secrets come from the environment; no secret is committed.
 
@@ -148,18 +148,20 @@ Docker Desktop on Windows.
 
 ## 6. Split host
 
-The same compose file runs on two machines: the server runs all nine containers,
-the client runs none. The client points at `http://<server>:8080`. Scaling and
-splitting are configuration; no code changes.
+The server runs the nine long-running containers and the bootstrap; the client
+runs none and points at `http://<server>:8080`. Scaling is configuration.
 
 ## 7. Upgrade and rollback
 
 1. Pull the new image digest.
 2. `make down && make up`.
-3. Migrations run forward at startup and are idempotent.
-4. Rollback is starting the previous digest. Migrations are forward-only, so a
-   rollback never reverts the schema; the previous version must tolerate the
-   newer schema.
+3. The bootstrap creates or converges the databases; the migration jobs apply
+   the ledgers before their services start.
+4. Rollback starts the previous digest. Migrations are forward-only, so a
+   rollback never reverts the schema; the previous version must tolerate it.
+
+The split does not copy rows from the old `quantrule` database: use `make reset`
+for disposable data, or the migration runbook for kept evidence.
 
 ## 8. What deployment does not provide
 

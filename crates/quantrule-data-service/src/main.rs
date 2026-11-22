@@ -9,7 +9,8 @@
 use std::sync::Arc;
 
 use quantrule_runtime::adapters::ObjectStore;
-use quantrule_runtime::backends::{Objects, open_service_database};
+use quantrule_runtime::backends::{Objects, migrate_owner_database, open_service_database};
+use quantrule_runtime::config::migrate_only_requested;
 use quantrule_runtime::{Config, HealthRegistry, RuntimeError, logging, serve_config};
 
 use quantrule_data_service::postgres::{PgConfigStore, PgDatasetCatalog};
@@ -25,15 +26,18 @@ async fn main() -> Result<(), RuntimeError> {
     let config = Config::from_env()?;
     logging::init("info")?;
 
+    if migrate_only_requested() {
+        return migrate_owner_database(
+            &config,
+            "catalog",
+            "catalog",
+            &quantrule_data_service::migrations::available(),
+        )
+        .await;
+    }
+
     let mut health = HealthRegistry::named("data");
-    let opened = open_service_database(
-        &config,
-        "catalog",
-        "catalog",
-        &quantrule_data_service::migrations::available(),
-        &mut health,
-    )
-    .await?;
+    let opened = open_service_database(&config, &mut health).await?;
     let (catalog, configs): (Option<CatalogHandle>, Option<ConfigHandle>) = match opened {
         Some(database) => (
             Some(Arc::new(PgDatasetCatalog::new(database.pool().clone()))),

@@ -11,6 +11,14 @@ use crate::descriptor::Descriptor;
 use crate::error::Error;
 use crate::validate::{expand, validate_with_secrets};
 
+/// The database one service owns. Model and backtest are absent by design.
+const SERVICE_DATABASES: [(&str, &str); 4] = [
+    ("gateway", "qr_gateway"),
+    ("data", "qr_catalog"),
+    ("evidence", "qr_evidence"),
+    ("simulation", "qr_simulation"),
+];
+
 /// Render every env file under `out`.
 ///
 /// # Errors
@@ -28,7 +36,8 @@ pub fn render(
         path: out.to_path_buf(),
         source,
     })?;
-    let database = expand(&descriptor.endpoints.database, secrets)?;
+    let database_endpoint = expand(&descriptor.endpoints.database, secrets)?;
+    let database_password = required(secrets, "QR_POSTGRES_PASSWORD")?;
     let object_store = expand(&descriptor.endpoints.object_store, secrets)?;
     let queue = expand(&descriptor.endpoints.queue, secrets)?;
     let bucket = descriptor
@@ -48,14 +57,7 @@ pub fn render(
     ] {
         let service = &descriptor.services[name];
         let host = &descriptor.hosts[&service.host];
-        let mut env = common(
-            descriptor,
-            secrets,
-            &database,
-            &object_store,
-            &queue,
-            &bucket,
-        );
+        let mut env = common(descriptor, secrets, &object_store, &queue, &bucket);
         env.insert("QR_BIND_IP".to_owned(), host.address.clone());
         if let Some(port) = service.port {
             env.insert("QR_BIND_PORT".to_owned(), port.to_string());
@@ -63,7 +65,7 @@ pub fn render(
         }
         match name {
             "gateway" => {
-                env.insert("QR_MIGRATE".to_owned(), "1".to_owned());
+                env.insert("QR_MIGRATE".to_owned(), "0".to_owned());
                 env.insert("QR_INTERNAL_ONLY".to_owned(), "0".to_owned());
                 env.insert("QR_STATIC_DIR".to_owned(), "/srv/static".to_owned());
                 env.insert("QR_DATA_URL".to_owned(), service_url(descriptor, "data")?);
@@ -84,7 +86,7 @@ pub fn render(
                 }
             }
             "data" => {
-                env.insert("QR_MIGRATE".to_owned(), "1".to_owned());
+                env.insert("QR_MIGRATE".to_owned(), "0".to_owned());
                 env.insert("QR_INTERNAL_ONLY".to_owned(), "1".to_owned());
                 env.insert("QR_CONFIG_ROOT".to_owned(), descriptor.config_root.clone());
             }
@@ -94,7 +96,7 @@ pub fn render(
                 env.insert("QR_DATA_URL".to_owned(), service_url(descriptor, "data")?);
             }
             "evidence" => {
-                env.insert("QR_MIGRATE".to_owned(), "1".to_owned());
+                env.insert("QR_MIGRATE".to_owned(), "0".to_owned());
                 env.insert("QR_INTERNAL_ONLY".to_owned(), "1".to_owned());
                 env.insert("QR_DATA_URL".to_owned(), service_url(descriptor, "data")?);
                 env.insert(
@@ -103,7 +105,7 @@ pub fn render(
                 );
             }
             "simulation" => {
-                env.insert("QR_MIGRATE".to_owned(), "1".to_owned());
+                env.insert("QR_MIGRATE".to_owned(), "0".to_owned());
                 env.insert("QR_INTERNAL_ONLY".to_owned(), "1".to_owned());
             }
             "backtest" => {
@@ -121,7 +123,37 @@ pub fn render(
             }
             _ => {}
         }
+        if let Some(database) = SERVICE_DATABASES
+            .iter()
+            .find_map(|(service, database)| (*service == name).then_some(*database))
+        {
+            env.insert(
+                "QR_DATABASE_URL".to_owned(),
+                database_url(
+                    &database_endpoint,
+                    &format!("{database}_app"),
+                    &database_password,
+                    database,
+                )?,
+            );
+        }
         let path = out.join(format!("{name}.env"));
+        write_env(&path, &env)?;
+        written.push(path);
+    }
+    for (service, database) in SERVICE_DATABASES {
+        let mut env = BTreeMap::new();
+        env.insert("QR_MIGRATE".to_owned(), "0".to_owned());
+        env.insert(
+            "QR_DATABASE_OWNER_URL".to_owned(),
+            database_url(
+                &database_endpoint,
+                &format!("{database}_owner"),
+                &database_password,
+                database,
+            )?,
+        );
+        let path = out.join(format!("{service}-migrate.env"));
         write_env(&path, &env)?;
         written.push(path);
     }
@@ -152,7 +184,6 @@ pub fn render(
 fn common(
     descriptor: &Descriptor,
     secrets: &BTreeMap<String, String>,
-    database: &str,
     object_store: &str,
     queue: &str,
     bucket: &str,
@@ -164,7 +195,6 @@ fn common(
         descriptor.image.digest.clone(),
     );
     env.insert("QR_PROFILE".to_owned(), "server".to_owned());
-    env.insert("QR_DATABASE_URL".to_owned(), database.to_owned());
     env.insert("QR_OBJECT_STORE_URL".to_owned(), object_store.to_owned());
     env.insert("QR_OBJECT_BUCKET".to_owned(), bucket.to_owned());
     env.insert("QR_QUEUE_URL".to_owned(), queue.to_owned());
@@ -184,6 +214,78 @@ fn common(
     );
     env.insert("AWS_REGION".to_owned(), "us-east-1".to_owned());
     env
+}
+
+/// Build one role's URL from the descriptor's Postgres endpoint.
+///
+/// The descriptor names one endpoint with one password. The renderer keeps the
+/// endpoint's scheme and host:port and replaces the userinfo and database path
+/// with the service role and its own database. Nothing is shared between
+/// services: a role can connect to one database only.
+fn database_url(
+    endpoint: &str,
+    role: &str,
+    password: &str,
+    database: &str,
+) -> Result<String, Error> {
+    let (scheme, rest) = endpoint.split_once("://").ok_or_else(|| Error::Invalid {
+        field: "endpoints.database".to_owned(),
+        message: "must be a postgres URL with a scheme".to_owned(),
+    })?;
+    let (authority, _path) = rest.split_once('/').ok_or_else(|| Error::Invalid {
+        field: "endpoints.database".to_owned(),
+        message: "must name a host, port, and database path".to_owned(),
+    })?;
+    let host = authority
+        .rsplit_once('@')
+        .map_or(authority, |(_userinfo, host)| host);
+    if host.is_empty() {
+        return Err(Error::Invalid {
+            field: "endpoints.database".to_owned(),
+            message: "must name a host and port".to_owned(),
+        });
+    }
+    Ok(format!(
+        "{scheme}://{role}:{}@{host}/{database}",
+        encode_userinfo(password)
+    ))
+}
+
+/// Percent-encode the characters that would end the userinfo or authority.
+///
+/// The secret file carries a raw password. A raw `@`, `/`, or `%` would make
+/// the generated URL mean a different host or a broken escape, so it is
+/// encoded here rather than left to the operator.
+fn encode_userinfo(value: &str) -> String {
+    let mut encoded = String::with_capacity(value.len());
+    for byte in value.bytes() {
+        let unreserved = byte.is_ascii_alphanumeric()
+            || matches!(
+                byte,
+                b'-' | b'.'
+                    | b'_'
+                    | b'~'
+                    | b'!'
+                    | b'$'
+                    | b'&'
+                    | b'\''
+                    | b'('
+                    | b')'
+                    | b'*'
+                    | b'+'
+                    | b','
+                    | b';'
+                    | b'='
+                    | b':'
+            );
+        if unreserved {
+            encoded.push(char::from(byte));
+        } else {
+            encoded.push('%');
+            encoded.push_str(&format!("{byte:02X}"));
+        }
+    }
+    encoded
 }
 
 fn service_url(descriptor: &Descriptor, name: &str) -> Result<String, Error> {
@@ -299,21 +401,56 @@ mod tests {
     }
 
     #[test]
-    fn render_writes_one_env_per_service_and_the_infra_env() {
+    fn render_writes_service_and_migration_envs() {
         let out = temp_dir();
         let files = render(&descriptor(), &secrets(), &out).expect("render");
-        assert_eq!(files.len(), 7);
+        assert_eq!(files.len(), 11);
         let gateway = std::fs::read_to_string(out.join("gateway.env")).expect("gateway");
         assert!(gateway.contains("QR_BEARER_TOKEN=0123456789abcdef"));
         assert!(gateway.contains("QR_DATA_URL=http://10.10.0.11:18081"));
         assert!(gateway.contains("QR_INTERNAL_ONLY=0"));
+        assert!(gateway.contains("QR_MIGRATE=0"));
+        assert!(gateway.contains(
+            "QR_DATABASE_URL=postgres://qr_gateway_app:db-secret-0123456789abcdef@10.10.0.20:5432/qr_gateway"
+        ));
+        assert!(!gateway.contains("QR_DATABASE_OWNER_URL"));
         let data = std::fs::read_to_string(out.join("data.env")).expect("data");
         assert!(data.contains("QR_INTERNAL_ONLY=1"));
         assert!(data.contains("QR_BIND=10.10.0.11:18081"));
-        assert!(data.contains("QR_MIGRATE=1"));
+        assert!(data.contains("QR_MIGRATE=0"));
+        assert!(data.contains(
+            "QR_DATABASE_URL=postgres://qr_catalog_app:db-secret-0123456789abcdef@10.10.0.20:5432/qr_catalog"
+        ));
+        assert!(!data.contains("QR_DATABASE_OWNER_URL"));
+        let model = std::fs::read_to_string(out.join("model.env")).expect("model");
+        assert!(!model.contains("QR_DATABASE_URL"));
+        assert!(!model.contains("QR_DATABASE_OWNER_URL"));
+        let evidence = std::fs::read_to_string(out.join("evidence.env")).expect("evidence");
+        assert!(evidence.contains(
+            "QR_DATABASE_URL=postgres://qr_evidence_app:db-secret-0123456789abcdef@10.10.0.20:5432/qr_evidence"
+        ));
+        assert!(!evidence.contains("QR_DATABASE_OWNER_URL"));
+        let simulation = std::fs::read_to_string(out.join("simulation.env")).expect("simulation");
+        assert!(simulation.contains(
+            "QR_DATABASE_URL=postgres://qr_simulation_app:db-secret-0123456789abcdef@10.10.0.20:5432/qr_simulation"
+        ));
+        assert!(!simulation.contains("QR_DATABASE_OWNER_URL"));
         let backtest = std::fs::read_to_string(out.join("backtest.env")).expect("backtest");
         assert!(backtest.contains("QR_BACKTEST_CONCURRENCY=1"));
         assert!(!backtest.contains("QR_BIND="));
+        assert!(!backtest.contains("QR_DATABASE_URL"));
+        assert!(!backtest.contains("QR_DATABASE_OWNER_URL"));
+
+        for (service, database) in SERVICE_DATABASES {
+            let env = std::fs::read_to_string(out.join(format!("{service}-migrate.env")))
+                .expect("migration env");
+            assert!(env.contains("QR_MIGRATE=0"));
+            assert!(env.contains(&format!(
+                "QR_DATABASE_OWNER_URL=postgres://{database}_owner:db-secret-0123456789abcdef@10.10.0.20:5432/{database}"
+            )));
+            assert!(!env.contains("QR_DATABASE_URL="));
+        }
+
         let infra = std::fs::read_to_string(out.join("infra.env")).expect("infra");
         assert!(infra.contains("QR_BIND_IP=10.10.0.20"));
         assert!(infra.contains("QR_OBJECT_BUCKET=quantrule"));
@@ -346,5 +483,32 @@ mod tests {
         let error = render(&descriptor, &secrets(), &out).expect_err("missing secret");
         assert!(error.to_string().contains("MISSING"), "{error}");
         let _ = std::fs::remove_dir_all(&out);
+    }
+
+    #[test]
+    fn a_role_url_keeps_the_host_and_encodes_the_password() {
+        let url = database_url(
+            "postgres://quantrule:unused@10.10.0.20:5432/quantrule",
+            "qr_catalog_app",
+            "p@ss/word%",
+            "qr_catalog",
+        )
+        .expect("url");
+        assert_eq!(
+            url,
+            "postgres://qr_catalog_app:p%40ss%2Fword%25@10.10.0.20:5432/qr_catalog"
+        );
+    }
+
+    #[test]
+    fn a_database_endpoint_without_a_path_is_refused() {
+        let error = database_url(
+            "postgres://quantrule:secret@10.10.0.20:5432",
+            "qr_catalog_app",
+            "secret",
+            "qr_catalog",
+        )
+        .expect_err("no path");
+        assert!(error.to_string().contains("host, port, and database path"));
     }
 }

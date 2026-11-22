@@ -1,8 +1,8 @@
 # The server image and the Compose stack
 
 - Status: Implements `DIST-022` (#643); six of six binaries exist and the default
-  stack starts all nine containers. The permanent object-store registry remains
-  a human decision.
+  stack starts nine long-running containers plus the one-shot database
+  bootstrap. The permanent object-store registry remains a human decision.
 - Claim type: Behaviour Claim
 
 One image, one published port, one bridge network. The image is `linux/amd64`;
@@ -49,7 +49,9 @@ no partial-stack profile: every one of the nine services starts by default.
 | `backtest` | `qr-backtest` | queue consumer; no HTTP |
 | `evidence` | `qr-evidence` | `/health`, `/version`, `/runs`, `/hypotheses`, and the internal worker lifecycle |
 | `simulation` | `qr-simulation` | `/health`, `/version`, and the eleven research-plane endpoints |
-| `postgres` | `postgres:17` | database |
+| `postgres` | `postgres:17` | database cluster (four logical databases) |
+| `db-bootstrap` | `postgres:17` | one-shot databases and roles |
+| `*-migrate` | `quantrule-server` | four one-shot owner migrations |
 | `minio` | `bitnamilegacy/minio` | object store |
 | `rabbitmq` | `rabbitmq:4-management` | broker |
 
@@ -84,13 +86,13 @@ bundle from the object store, so none needs a config mount. `backtest` loads the
 dataset and config from data, the model bundle from model, and records the run
 through evidence; it serves no HTTP.
 
-Each schema owner migrates its own ledger. The gateway applies the `gateway`
-ledger with `QR_MIGRATE=1`; `data` applies the `catalog` ledger; `evidence`
-applies the `runs` and `research` ledgers, including the run-attempts migration
-(0013); `simulation` applies its own `simulation` ledger (0014). `backtest` and
-`model` keep `QR_MIGRATE=0` because they own no schema. P1 pinned the
-session-level advisory lock to one connection, so the four migrators can run at
-once; the old gateway-sole-migrator workaround is gone.
+Each database owner migrates its own ledger in its own database. The one-shot
+`db-bootstrap` service creates the four databases and the eight owner/app roles;
+four one-shot `*-migrate` services run the same binary with `--migrate-only`,
+apply one ledger with the owner URL, and exit. The long-running service starts
+afterwards with its `<database>_app` URL and `QR_MIGRATE=0`; it never receives
+the owner credential. `backtest` and `model` own no database and have no
+migration job.
 
 ## 4. Object store source
 
@@ -131,7 +133,9 @@ credential has a local default and can be overridden:
 | `QR_MODEL_URL` | Model-service base URL used by the gateway |
 | `QR_EVIDENCE_URL` | Evidence-service base URL used by the gateway and the backtest worker |
 | `QR_SIMULATION_URL` | Simulation-service base URL used by the gateway |
-| `QR_POSTGRES_PASSWORD` | Postgres and the service URL |
+| `QR_DATABASE_URL` | The long-running service's `<database>_app` role; model and backtest receive none |
+| `QR_DATABASE_OWNER_URL` | The one-shot `<service>-migrate` job's `<database>_owner` role; never set on a long-running service |
+| `QR_POSTGRES_PASSWORD` | Seeds every database role in the local stack |
 | `QR_OBJECT_STORE_PASSWORD` | MinIO root password and the S3 secret |
 | `QR_RABBITMQ_PASSWORD` | Broker password and the service URL |
 | `QR_OBJECT_STORE_IMAGE` | Object-store image reference |

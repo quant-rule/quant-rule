@@ -64,7 +64,8 @@ A direct Compose start must set `QR_IMAGE_DIGEST` to the built image id;
 stage submissions instead of inventing a build identity.
 
 Fedora may use Docker Engine or Podman: `make up COMPOSE="podman compose"`. The
-default stack starts all nine containers; see
+default stack starts nine long-running containers, a one-shot database
+bootstrap, and four one-shot migration jobs; see
 [`docs/architecture/deployment.md`](docs/architecture/deployment.md).
 
 | Target | Effect |

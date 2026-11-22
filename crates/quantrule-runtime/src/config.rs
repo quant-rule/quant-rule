@@ -4,19 +4,30 @@
 //! that fails to parse is an error rather than a silent default.
 
 use std::collections::BTreeMap;
+use std::ffi::OsString;
 use std::fmt;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 
 use quantrule_api::Digest;
 
+/// The argument that selects the one-shot owner migration mode.
+///
+/// A long-running service never applies a migration: it holds only the
+/// application URL. The same binary runs once with this flag, opens the owner
+/// URL, applies its ledger, and exits before any pool or HTTP listener is
+/// created.
+pub const MIGRATE_ONLY_ARG: &str = "--migrate-only";
+
 /// The default bind address.
 pub const DEFAULT_BIND: &str = "0.0.0.0:8080";
-/// The default Postgres URL used by the compose stack.
+/// The default Postgres application-role URL.
 ///
 /// It carries no password: the compose stack supplies the full URL from
-/// `QR_DATABASE_URL`, and a process started without one fails closed.
-pub const DEFAULT_DATABASE_URL: &str = "postgres://quantrule@postgres:5432/quantrule";
+/// `QR_DATABASE_URL`, and a process started without one fails closed. Each
+/// database-owning service is pointed at its own database; the default is only
+/// the value a `Config` built outside Compose carries.
+pub const DEFAULT_DATABASE_URL: &str = "postgres://quantrule@postgres:5432/qr_gateway";
 /// The default object-store endpoint used by the compose stack.
 pub const DEFAULT_OBJECT_STORE_URL: &str = "http://minio:9000";
 /// The default object-store bucket used by the compose stack.
@@ -67,8 +78,17 @@ impl std::error::Error for ConfigError {}
 pub struct Config {
     /// Where the HTTP server listens.
     pub bind: String,
-    /// Postgres connection string.
+    /// Postgres connection string for the service's application role.
+    ///
+    /// The application role has DML only. It cannot create a schema or a table.
     pub database_url: String,
+    /// Postgres connection string for the service's owner role.
+    ///
+    /// Read only by the one-shot `--migrate-only` job. A long-running service
+    /// must not receive it: the runtime refuses to start when the variable is
+    /// present, so the process cannot keep a DDL credential in its
+    /// environment.
+    pub database_owner_url: Option<String>,
     /// S3-compatible endpoint.
     pub object_store_url: String,
     /// Bucket that holds every object.
@@ -89,7 +109,10 @@ pub struct Config {
     pub stage_retention_days: u64,
     /// The image digest that serves the request.
     pub image_digest: Option<Digest>,
-    /// Whether this process applies pending migrations at startup.
+    /// Whether `QR_MIGRATE` asks the long-running service to migrate.
+    ///
+    /// It must be false. The service refuses a true value; the ledger belongs
+    /// to the `--migrate-only` job.
     pub migrate: bool,
     /// Whether the HTTP server must bind to a private or loopback address.
     ///
@@ -105,6 +128,7 @@ impl fmt::Debug for Config {
             .debug_struct("Config")
             .field("bind", &self.bind)
             .field("database_url", &"<redacted>")
+            .field("database_owner_url", &"<redacted>")
             .field("object_store_url", &"<redacted>")
             .field("object_store_bucket", &self.object_store_bucket)
             .field("queue_url", &"<redacted>")
@@ -129,6 +153,7 @@ impl Default for Config {
         Self {
             bind: DEFAULT_BIND.to_owned(),
             database_url: DEFAULT_DATABASE_URL.to_owned(),
+            database_owner_url: None,
             object_store_url: DEFAULT_OBJECT_STORE_URL.to_owned(),
             object_store_bucket: DEFAULT_OBJECT_BUCKET.to_owned(),
             queue_url: DEFAULT_QUEUE_URL.to_owned(),
@@ -194,6 +219,12 @@ impl Config {
         }
         if let Some(value) = values.get("QR_DATABASE_URL") {
             config.database_url.clone_from(value);
+        }
+        if let Some(value) = values
+            .get("QR_DATABASE_OWNER_URL")
+            .filter(|value| !value.trim().is_empty())
+        {
+            config.database_owner_url = Some(value.clone());
         }
         if let Some(value) = values.get("QR_OBJECT_STORE_URL") {
             config.object_store_url.clone_from(value);
@@ -296,6 +327,21 @@ impl Config {
     }
 }
 
+/// Whether this process was started as a one-shot owner migration.
+///
+/// The check is argument-only and is evaluated before a service builds a
+/// database pool. The same image therefore keeps one migration path per
+/// service binary without a separate migration crate or a second binary.
+#[must_use]
+pub fn migrate_only_requested() -> bool {
+    migrate_only_in(std::env::args_os().skip(1))
+}
+
+fn migrate_only_in(args: impl Iterator<Item = OsString>) -> bool {
+    args.into_iter()
+        .any(|argument| argument == std::ffi::OsStr::new(MIGRATE_ONLY_ARG))
+}
+
 /// Refuse a bind address that is reachable from a public interface when the
 /// service is marked internal.
 ///
@@ -339,4 +385,73 @@ fn is_private_v4(address: Ipv4Addr) -> bool {
         || address.is_loopback()
         || address.is_link_local()
         || (octets[0] == 100 && (64..=127).contains(&octets[1]))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn values(pairs: &[(&str, &str)]) -> BTreeMap<String, String> {
+        pairs
+            .iter()
+            .map(|(name, value)| ((*name).to_owned(), (*value).to_owned()))
+            .collect()
+    }
+
+    #[test]
+    fn the_application_and_owner_urls_are_separate() {
+        let config = Config::from_map(&values(&[
+            (
+                "QR_DATABASE_URL",
+                "postgres://qr_catalog_app:app@postgres:5432/qr_catalog",
+            ),
+            (
+                "QR_DATABASE_OWNER_URL",
+                "postgres://qr_catalog_owner:owner@postgres:5432/qr_catalog",
+            ),
+        ]))
+        .expect("config");
+
+        assert_eq!(
+            config.database_url,
+            "postgres://qr_catalog_app:app@postgres:5432/qr_catalog"
+        );
+        assert_eq!(
+            config.database_owner_url.as_deref(),
+            Some("postgres://qr_catalog_owner:owner@postgres:5432/qr_catalog")
+        );
+    }
+
+    #[test]
+    fn an_empty_owner_url_is_unset() {
+        let config = Config::from_map(&values(&[("QR_DATABASE_OWNER_URL", "")])).expect("config");
+        assert_eq!(config.database_owner_url, None);
+    }
+
+    #[test]
+    fn debug_redacts_both_database_urls() {
+        let config = Config::from_map(&values(&[
+            (
+                "QR_DATABASE_URL",
+                "postgres://qr_gateway_app:app-secret@postgres:5432/qr_gateway",
+            ),
+            (
+                "QR_DATABASE_OWNER_URL",
+                "postgres://qr_gateway_owner:owner-secret@postgres:5432/qr_gateway",
+            ),
+        ]))
+        .expect("config");
+        let rendered = format!("{config:?}");
+        assert!(!rendered.contains("app-secret"), "{rendered}");
+        assert!(!rendered.contains("owner-secret"), "{rendered}");
+    }
+
+    #[test]
+    fn the_migration_only_argument_is_recognized() {
+        assert!(migrate_only_in(
+            [OsString::from("--migrate-only")].into_iter()
+        ));
+        assert!(!migrate_only_in([OsString::from("--serve")].into_iter()));
+        assert!(!migrate_only_in(std::iter::empty()));
+    }
 }

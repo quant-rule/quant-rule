@@ -33,16 +33,16 @@ Do not start this profile while the single-host stack owns
 | 4 | build host | Copy `deploy.example.json` to `deploy.json`; set the image reference/digest, host addresses, and ports | One descriptor |
 | 5 | build host | Create `secrets.env` from `secrets.example.env`; replace every placeholder | Owner-only file |
 | 6 | build host | `qr-deploy validate deploy.json --secrets secrets.env` | `ok: …`, no error |
-| 7 | build host | `qr-deploy render deploy.json --out deploy/multi-host/env --secrets secrets.env` | Seven env files |
-| 8 | infra host | Copy `compose.infra.yaml` and `env/infra.env`; `docker compose -f compose.infra.yaml --env-file env/infra.env up -d` | Postgres, MinIO, RabbitMQ healthy |
-| 9 | core host | Copy `compose.core.yaml`, `env/data.env`, `env/evidence.env`, `env/simulation.env`, and `config/`; start the three services | Three healthy endpoints |
+| 7 | build host | `qr-deploy render deploy.json --out deploy/multi-host/env --secrets secrets.env` | Eleven env files: six services, four migrations, and infra; the services carry app URLs only |
+| 8 | infra host | Copy the `deploy/` directory, `compose.infra.yaml`, and `env/infra.env`; start the infra role | Postgres, MinIO, RabbitMQ healthy; `db-bootstrap` created the four databases and roles |
+| 9 | core host | Copy `compose.core.yaml`, `env/data.env`, `env/data-migrate.env`, `env/evidence.env`, `env/evidence-migrate.env`, `env/simulation.env`, `env/simulation-migrate.env`, and `config/`; start the three services | Migration jobs complete; three healthy endpoints |
 | 10 | compute host | Copy `compose.compute.yaml`, `env/model.env`, `env/backtest.env`; start `model` and `--scale backtest=<replicas>` | Model healthy; workers consuming |
-| 11 | gateway host | Copy `compose.gateway.yaml` and `env/gateway.env`; start the gateway | `/ready` healthy |
+| 11 | gateway host | Copy `compose.gateway.yaml`, `env/gateway.env`, `env/gateway-migrate.env`; start the gateway | `gateway-migrate` completes; `/ready` healthy |
 | 12 | gateway or overlay host | `qr-deploy check deploy.json --secrets secrets.env` | HTTP services `ok`, one reported digest; worker `SKIP` |
 | 13 | compute host | `docker ps --filter name=backtest`; `docker image inspect --format '{{.Id}}' <image>` | Worker present; image ID matches |
 | 14 | client | `QUANTRULE_API_URL=http://<gateway>:8080/api/v1`; `quantrule health` | Connected |
 | 15 | client | Submit the verification fixture and read the digest | Same digest as single-host |
-| 16 | infra host | Stop gateway, compute, and core; run the backup wrapper with `--application-stopped` | Archive and sidecar written |
+| 16 | infra host | Stop gateway, compute, and core; run the backup wrapper with `--application-stopped` | Archive and sidecar written; the current tools cover one database, so treat it as incomplete until the four-database archive lands |
 
 Each host needs only the files for the services it runs. The image is already
 loaded; the Compose files use `network_mode: host` and the env file's
