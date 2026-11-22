@@ -45,6 +45,7 @@ pub(crate) fn run(args: &[String]) -> Result<(), String> {
     let cell_id = cell_id.ok_or_else(|| "--cell is required".to_owned())?;
     let out = PathBuf::from(out.ok_or_else(|| "--out is required".to_owned())?);
     let loaded = program::load(&program_path, &repo_root)?;
+    program::require_live(&loaded)?;
     let cell = loaded.cell(&cell_id)?.clone();
     let record = run_cell(&loaded, &cell, &phase, &out)?;
     println!(
@@ -201,6 +202,8 @@ mod tests {
             correction: serde_json::json!({}),
             green_criteria: serde_json::json!({}),
             max_parallel: 1,
+            retired: false,
+            retirement_note: None,
             cells: Vec::new(),
         };
         let cell = Cell {

@@ -1,6 +1,8 @@
 {
   "schema": "quantrule.research-program/v1",
   "program_id": "PROGRAM-2026-11-04-01",
+  "retired": true,
+  "retirement_note": "Historical research program; its Python command array is retained as audit evidence, not as a current runner.",
   "premise": "A confirmed RSI divergence at a confirmed major pivot marks exhaustion (regular) or continuation (hidden); after the pivot is confirmed, price reaches +2 ATR in the divergence direction before -1 ATR within 20 15m bars more often than the unconditional base.",
   "economic_rationale": "A divergence at a structural pivot is a failed-momentum signal; the confirmed pivot gives a reference for the stop, and the confirmation delay is part of the claim rather than an approximation.",
   "tier": "model",

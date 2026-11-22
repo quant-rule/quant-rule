@@ -1,6 +1,8 @@
 {
   "schema": "quantrule.research-program/v1",
   "program_id": "PROGRAM-2026-11-08-03",
+  "retired": true,
+  "retirement_note": "Historical research program; its Python command array is retained as audit evidence, not as a current runner.",
   "family": "MR7",
   "run_prefix": "mr7",
   "premise": "A sweep of the completed opening range that closes back inside is a stop-run and reclaim at a session extreme; the reclaim carries a reversal edge that a generic failed breakout does not, while a sweep that closes outside is the continuation control. The model is M1.1; MR7 is a research family, not a model version.",

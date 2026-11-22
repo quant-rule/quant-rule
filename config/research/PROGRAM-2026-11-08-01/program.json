@@ -1,6 +1,8 @@
 {
   "schema": "quantrule.research-program/v1",
   "program_id": "PROGRAM-2026-11-08-01",
+  "retired": true,
+  "retirement_note": "Historical research program; its Python command array is retained as audit evidence, not as a current runner.",
   "premise": "Event sequences, independent-level confluence, freshness, and path expectancy carry forward information that single-bar event votes did not. The model is M1.0; MR5 is a research family, not a model version.",
   "economic_rationale": "Confirmed levels concentrate resting liquidity and stop orders. A failed break, a retest, a confluence of independent references, and a fresh level are liquidity interactions with a counterparty; the path report shows whether the reaction is asymmetric enough to matter after costs.",
   "tier": "model",

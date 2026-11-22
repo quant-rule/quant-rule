@@ -47,6 +47,8 @@ pub(super) struct Program {
     pub correction: Value,
     pub green_criteria: Value,
     pub max_parallel: usize,
+    pub retired: bool,
+    pub retirement_note: Option<String>,
     pub cells: Vec<Cell>,
 }
 
@@ -142,6 +144,20 @@ pub(super) fn load(path: &Path, repo_root: &Path) -> Result<Program, String> {
     }
     let max_parallel = integer(document.get("max_parallel"), "$.max_parallel", 1, 64)? as usize;
     let _ = integer(document.get("iteration_cap"), "$.iteration_cap", 1, 100)?;
+    let retired = document
+        .get("retired")
+        .map(|value| value.as_bool().ok_or("$.retired must be a boolean"))
+        .transpose()?
+        .unwrap_or(false);
+    let retirement_note = document
+        .get("retirement_note")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned);
+    if retired && retirement_note.is_none() {
+        return Err("$.retirement_note is required when $.retired is true".to_owned());
+    }
     let validation_access = text(document.get("validation_access"), "$.validation_access")?;
     if validation_access != "none" && validation_access != "one_shot" {
         return Err("$.validation_access must be none or one_shot".to_owned());
@@ -220,6 +236,8 @@ pub(super) fn load(path: &Path, repo_root: &Path) -> Result<Program, String> {
         correction: Value::Object(correction.clone()),
         green_criteria,
         max_parallel,
+        retired,
+        retirement_note,
         cells,
     })
 }
@@ -263,11 +281,31 @@ pub(crate) fn run(args: &[String]) -> Result<(), String> {
     let program = load(&path, &repo_root)?;
     require_phase(&program, &phase)?;
     println!(
-        "ok {} cells={} primary={} phase={phase}",
+        "ok {} cells={} primary={} phase={phase}{}",
         program.program_id,
         program.cells.len(),
-        program.primary_cells().len()
+        program.primary_cells().len(),
+        if program.retired { " retired" } else { "" }
     );
+    Ok(())
+}
+
+/// Refuse to run a historical program.
+///
+/// # Errors
+///
+/// Returns the retirement reason.
+pub(super) fn require_live(program: &Program) -> Result<(), String> {
+    if program.retired {
+        return Err(format!(
+            "program {} is retired: {}",
+            program.program_id,
+            program
+                .retirement_note
+                .as_deref()
+                .unwrap_or("historical record")
+        ));
+    }
     Ok(())
 }
 
@@ -332,13 +370,8 @@ mod tests {
 
     static COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-    #[test]
-    fn a_valid_program_loads() {
-        let unique = COUNTER.fetch_add(1, Ordering::Relaxed);
-        let root = std::env::temp_dir().join(format!("qr-program-{}-{unique}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&root);
-        std::fs::create_dir_all(root.join("cell")).expect("tree");
-        let manifest = serde_json::json!({
+    fn manifest(retired: bool, note: Option<&str>) -> Value {
+        let mut manifest = serde_json::json!({
             "schema": SCHEMA, "program_id": "PROGRAM-2026-11-21-01", "premise": "p",
             "economic_rationale": "r", "tier": "model", "changed": "model",
             "frozen": ["strategy", "portfolio"], "partition_dev": "model_dev",
@@ -351,6 +384,22 @@ mod tests {
             "cells": [{"cell_id": "C1", "hypothesis": "h", "primary": true,
                 "config_dir": "cell", "command": ["echo", "{out}"], "result_parser": "none"}]
         });
+        if retired {
+            manifest["retired"] = Value::Bool(true);
+        }
+        if let Some(note) = note {
+            manifest["retirement_note"] = Value::String(note.to_owned());
+        }
+        manifest
+    }
+
+    #[test]
+    fn a_valid_program_loads() {
+        let unique = COUNTER.fetch_add(1, Ordering::Relaxed);
+        let root = std::env::temp_dir().join(format!("qr-program-{}-{unique}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("cell")).expect("tree");
+        let manifest = manifest(false, None);
         std::fs::write(
             root.join("program.json"),
             serde_json::to_string(&manifest).expect("json"),
@@ -360,6 +409,45 @@ mod tests {
         assert_eq!(loaded.program_id, "PROGRAM-2026-11-21-01");
         assert_eq!(loaded.primary_cells().len(), 1);
         require_phase(&loaded, "validation").expect("phase");
+        std::fs::remove_dir_all(root).expect("cleanup");
+    }
+    #[test]
+    fn a_retired_program_requires_a_note() {
+        let unique = COUNTER.fetch_add(1, Ordering::Relaxed);
+        let root = std::env::temp_dir().join(format!(
+            "qr-program-retired-{}-{unique}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("cell")).expect("tree");
+        std::fs::write(
+            root.join("program.json"),
+            serde_json::to_string(&manifest(true, None)).expect("json"),
+        )
+        .expect("write");
+        let error = match load(&root.join("program.json"), &root) {
+            Ok(_) => panic!("retired without note"),
+            Err(error) => error,
+        };
+        assert!(error.contains("retirement_note"));
+        std::fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[test]
+    fn a_retired_program_is_refused_by_the_runner() {
+        let unique = COUNTER.fetch_add(1, Ordering::Relaxed);
+        let root =
+            std::env::temp_dir().join(format!("qr-program-live-{}-{unique}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("cell")).expect("tree");
+        std::fs::write(
+            root.join("program.json"),
+            serde_json::to_string(&manifest(true, Some("historical evidence"))).expect("json"),
+        )
+        .expect("write");
+        let loaded = load(&root.join("program.json"), &root).expect("load");
+        let error = require_live(&loaded).expect_err("retired");
+        assert!(error.contains("historical evidence"));
         std::fs::remove_dir_all(root).expect("cleanup");
     }
 }

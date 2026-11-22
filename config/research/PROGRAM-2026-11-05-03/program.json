@@ -1,6 +1,8 @@
 {
   "schema": "quantrule.research-program/v1",
   "program_id": "PROGRAM-2026-11-05-03",
+  "retired": true,
+  "retirement_note": "Historical research program; its Python command array is retained as audit evidence, not as a current runner.",
   "premise": "An M2.x model version that combines OHLCV readings and event votes across volume, participation, flow, structure, cross-asset, and session context produces a forward directional prediction with lift over a direction-matched base, after costs, on model_dev.",
   "economic_rationale": "Each information area measures a different market mechanism. A vote that requires agreement across independent areas should filter noise, while the area cells test whether one mechanism carries information on its own. The exploratory cells guarantee coverage; the five primary cells are the only confirmatory cells.",
   "tier": "model",

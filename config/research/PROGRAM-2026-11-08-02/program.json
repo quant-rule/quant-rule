@@ -1,6 +1,8 @@
 {
   "schema": "quantrule.research-program/v1",
   "program_id": "PROGRAM-2026-11-08-02",
+  "retired": true,
+  "retirement_note": "Historical research program; its Python command array is retained as audit evidence, not as a current runner.",
   "family": "MR6",
   "run_prefix": "mr6",
   "premise": "The order of independent confirmation matters: a trend or momentum event followed within a short window by an independent participation event in the same direction carries directional information, while the reverse order does not. The model is M1.0; MR6 is a research family, not a model version.",

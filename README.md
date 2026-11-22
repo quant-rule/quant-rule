@@ -316,6 +316,11 @@ cargo test
 tools/gate.sh
 ```
 
+`tools/gate.sh --changed <range>` classifies docs, governance, web, and full
+changes and runs only the work the change can observe. Engine/shared changes,
+`main`, and releases always run the full gate. The contract is
+[`docs/workflows/change-scope.md`](docs/workflows/change-scope.md).
+
 ## Non-goals
 
 - Tick data, order books, machine learning, statistical signal generation.

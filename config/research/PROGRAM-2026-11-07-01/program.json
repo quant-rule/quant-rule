@@ -1,6 +1,8 @@
 {
   "schema": "quantrule.research-program/v1",
   "program_id": "PROGRAM-2026-11-07-01",
+  "retired": true,
+  "retirement_note": "Historical research program; its Python command array is retained as audit evidence, not as a current runner.",
   "premise": "Directional event information is conditional on location relative to a confirmed major level: the same event at a confirmed major level has positive forward edge, while away from structure it does not.",
   "economic_rationale": "Confirmed major pivots concentrate resting liquidity, stop orders, and market-maker inventory. A directional event at a level is a liquidity interaction with a counterparty flow; the same event mid-range has no such mechanism. M2 averaged locations in an unconditional vote, M3 conditioned on state but still averaged locations, and the 15m family programme tested the families unconditionally.",
   "tier": "model",

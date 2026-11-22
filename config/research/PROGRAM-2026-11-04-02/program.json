@@ -1,6 +1,8 @@
 {
   "schema": "quantrule.research-program/v1",
   "program_id": "PROGRAM-2026-11-04-02",
+  "retired": true,
+  "retirement_note": "Historical research program; its Python command array is retained as audit evidence, not as a current runner.",
   "premise": "A 15m directional event has a higher 2 ATR barrier hit rate when it agrees with the last closed 1h trend state (ema_stack in the event direction and adx_regime == 1) than the same 15m event alone, and the 15m event adds beyond the 1h state base.",
   "economic_rationale": "Higher-timeframe trend alignment filters counter-trend 15m triggers. The 1h state is the slowest allowed context; the 15m event provides the timing. If the 1h trend is the missing condition, the conditional event should beat both the unfiltered 15m event and the 1h state base.",
   "tier": "model",

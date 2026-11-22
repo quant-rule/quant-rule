@@ -11,6 +11,8 @@ gate and in CI.
 | Tool | Purpose | Path |
 |---|---|---|
 | Checker set | Runs every registered repository checker. | `qr-governance check --all` |
+| Change-scope planner | Classifies a change range as docs, governance, web, or full. | `qr-governance gate plan` |
+| Scoped gate | Runs the full gate or one classified scope. | `tools/gate.sh --changed` |
 | Worktree cleanup guard | Classifies, archives, and removes a merged task worktree; required before `git worktree remove`. | `qr-governance worktree` |
 | Verification manifest builder | Regenerates `verification.json` and both verification matrices from the registry and claims. | `qr-governance verification build` |
 | Registry generator | Rewrites the generated registry Markdown from `indicators.json`. | `qr-governance registry --write` |
@@ -31,6 +33,7 @@ not in the product image, and never reads a service.
 | `qr-governance check --all` | Run every repository checker |
 | `qr-governance check --checker <name>` | Run one checker |
 | `qr-governance check --list` | List the checker names |
+| `qr-governance gate plan --changed <range>` | Classify a change range for the scoped gate |
 | `qr-governance history list --kind config\|docs\|records` | List historical files with bytes and date |
 | `qr-governance history archive --kind ... --out ... (--before ... \| --all)` | Copy a selected set and write a verified manifest |
 | `qr-governance history erase --manifest ... --confirm ...` | Erase only a manifest that still matches the source bytes |

@@ -4,6 +4,7 @@
 //!
 //! ```text
 //! qr-governance check --all | --checker <name> | --list [--root <path>]
+//! qr-governance gate plan --changed <range>|--files <paths> [--json]
 //! qr-governance registry [--write] [--root <path>]
 //! qr-governance structure [--report] [--root <path>]
 //! qr-governance worktree check|archive|remove ...
@@ -22,12 +23,13 @@ fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let Some(command) = args.first() else {
         eprintln!(
-            "usage: qr-governance <check|registry|structure|worktree|labels|verification|improvement|research|guard|release|history> ..."
+            "usage: qr-governance <check|gate|registry|structure|worktree|labels|verification|improvement|research|guard|release|history> ..."
         );
         return ExitCode::from(2);
     };
     match command.as_str() {
         "check" => quantrule_governance::check::run(&args[1..]),
+        "gate" => quantrule_governance::gate::run(&args[1..]),
         "registry" => quantrule_governance::registry::run(&args[1..]),
         "structure" => quantrule_governance::structure::run(&args[1..]),
         "worktree" => quantrule_governance::worktree::run(&args[1..]),
