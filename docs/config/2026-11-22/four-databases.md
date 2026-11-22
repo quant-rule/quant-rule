@@ -47,8 +47,8 @@ compromised service process never holds a DDL credential.
 The migration job runs the same binary with `--migrate-only`. It opens the owner
 URL, applies one ledger, logs the result, and exits before it creates an
 application pool or binds a listener. Compose starts the jobs after
-`db-bootstrap` and the long-running services after their own job; model and
-backtest have no job and no database.
+`db-bootstrap` and the long-running services after their own job; model,
+strategy and backtest have no job and no database.
 
 ## 3. Grants
 
@@ -95,7 +95,8 @@ contract, the checksum pin, and the failed-job and rollback runbook are in
 ## 5. What changed locally
 
 The `postgres` container is still one container and one pinned image. It now
-holds four databases instead of one `quantrule` database with six schemas.
+holds four databases instead of one `quantrule` database with six service
+schemas; the stateless model, strategy and backtest services own none.
 The existing `quantrule` database is left in place as the maintenance database;
 the service schemas are created in their new databases.
 

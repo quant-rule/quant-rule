@@ -1,9 +1,9 @@
 //! The computed-artifact routes.
 //!
-//! These routes are service-to-service only. The signal writer arrives with its
-//! own work item; this surface already owns the generic registration, reference
-//! and retention operations it will call. No client path and no shell command
-//! reaches them.
+//! These routes are service-to-service only. The strategy service registers an
+//! artifact whose bytes it wrote itself; this surface owns the metadata-only
+//! registration, the compatibility body upload, references and retention. No
+//! client path and no shell command reaches them.
 
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
@@ -20,6 +20,7 @@ use quantrule_api::{
     ReleaseArtifactReferenceRequest,
 };
 use quantrule_runtime::clock;
+use quantrule_service_api::{ArtifactRegistration, ArtifactRegistrationRequest};
 use serde::Deserialize;
 
 use crate::artifacts::store::{ArtifactError, NewArtifact};
@@ -43,7 +44,10 @@ pub fn routes() -> Router<Arc<DataState>> {
             put(register_artifact).layer(DefaultBodyLimit::max(MAX_ARTIFACT_BYTES)),
         )
         .route("/internal/v1/artifacts/collect", post(collect_artifacts))
-        .route("/internal/v1/artifacts/{kind}/{id}", get(get_artifact))
+        .route(
+            "/internal/v1/artifacts/{kind}/{id}",
+            get(get_artifact).post(register_artifact_metadata),
+        )
         .route(
             "/internal/v1/artifacts/{kind}/{id}/bytes",
             get(get_artifact_bytes),
@@ -142,6 +146,82 @@ async fn register_artifact(
         StatusCode::OK
     };
     Ok((status, Json(outcome.record)))
+}
+
+/// Register an artifact whose canonical bytes are already in the object store.
+///
+/// The writer owns the bytes; this route is metadata only. It reads the object,
+/// verifies that its SHA-256 equals the id and that its length equals the
+/// declared byte count, and only then commits the row. A missing or mismatched
+/// object publishes no row.
+async fn register_artifact_metadata(
+    State(state): State<Arc<DataState>>,
+    headers: HeaderMap,
+    Path((kind, id)): Path<(String, String)>,
+    payload: Result<Json<ArtifactRegistrationRequest>, JsonRejection>,
+) -> Result<(StatusCode, Json<ArtifactRegistration>), ApiFailure> {
+    let profile = request_profile(&headers)?;
+    let kind = parse_kind(&kind)?;
+    let id = parse_id(&id)?;
+    let Json(request) = payload.map_err(|_| {
+        failure(
+            ErrorCode::ArtifactInvalid,
+            "the body is not an artifact registration",
+        )
+    })?;
+    let expected = Digest::parse(&id)
+        .map_err(|error| failure(ErrorCode::ArtifactInvalid, error.to_string()))?;
+    let object_key = format!("artifacts/{}", expected.as_hex());
+    let objects = state
+        .objects
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no object store is configured"))?;
+    let present = objects
+        .exists(&object_key)
+        .await
+        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
+    if !present {
+        return Err(failure(
+            ErrorCode::ArtifactNotFound,
+            format!("the artifact object {object_key} is absent"),
+        ));
+    }
+    let bytes = objects
+        .get(&object_key)
+        .await
+        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
+    if Digest::sha256(&bytes) != expected || bytes.len() as u64 != request.bytes {
+        return Err(failure(
+            ErrorCode::ArtifactInvalid,
+            "the stored artifact object does not match its id and byte count",
+        ));
+    }
+
+    let artifact = NewArtifact {
+        artifact_id: expected,
+        kind,
+        object_key,
+        bytes: request.bytes,
+        created_at: clock::now_utc()
+            .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?,
+    };
+    let _gate = state.artifact_gate.lock().await;
+    let outcome = catalog(&state)?
+        .register(profile, artifact)
+        .await
+        .map_err(store_failure)?;
+    let status = if outcome.created {
+        StatusCode::CREATED
+    } else {
+        StatusCode::OK
+    };
+    Ok((
+        status,
+        Json(ArtifactRegistration {
+            record: outcome.record,
+            created: outcome.created,
+        }),
+    ))
 }
 
 async fn list_artifacts(

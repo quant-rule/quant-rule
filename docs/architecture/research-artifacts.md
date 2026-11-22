@@ -1,6 +1,6 @@
 # Research Artifacts
 
-- Status: Strategy, portfolio policy and execution-simulation packs current (RA-002–RA-004); the run-v5 reference and identity contract current (RA-005); the persistent pack registry, run lineage and artifact retention current (RA-006); the signal artifact contract and pure reference computation current (RA-007); the strategy service, run-v5 catalog/worker reachability and the client surface target the next release; accepted by [ADR-RA](../adr/2026-11-22/1082-research-artifact-layer.md)
+- Status: Strategy, portfolio policy and execution-simulation packs current (RA-002–RA-004); the run-v5 reference and identity contract current (RA-005); the persistent pack registry, run lineage and artifact retention current (RA-006); the signal artifact contract and pure reference computation current (RA-007); the seventh strategy service and its metadata registration current (RA-008); run-v5 catalog/worker reachability and the client surface target later work; accepted by [ADR-RA](../adr/2026-11-22/1082-research-artifact-layer.md)
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 
@@ -14,7 +14,7 @@ below mean historical simulation.
 |---|---|---|---|---|
 | Model artifact | Computed upstream artifact | `model` | Object store + evidence provenance | Content hash |
 | Strategy pack | Human-owned definition | Human, via `data` | Catalog metadata + object store | Content hash |
-| Signal artifact | Computed alpha output | `strategy` | Object store + evidence lineage | Content hash |
+| Signal artifact | Computed alpha output | `strategy` | Object store + catalog row; run lineage at submission | Content hash |
 | Portfolio policy pack | Human-owned definition | Human, via `data` | Catalog metadata + object store | Content hash |
 | Execution-simulation pack | Human-owned definition | Human, via `data` | Catalog metadata + object store | Content hash |
 | Run v5 | Reference document | Human, via config | Catalog DB + evidence | Config hash |
@@ -114,31 +114,31 @@ Run v5 + Execution pack + Portfolio pack
        Run artifacts → evidence → research → human
 ```
 
-- `strategy` is stateless, has no database and no queue, scales horizontally and
-  is idempotent by model hash + pack hash.
-- It rejects fold-mode packs.
-- The per-bar fold stays inside `backtest`; there is no network call per bar.
-- Research stays inside `evidence`; it is not a separate service.
-- `simulation` remains a separate hindsight plane and never reaches the signal
-  path.
+- `strategy` is the seventh service: stateless, no database or queue, idempotent
+  by model hash + pack hash. It resolves once per request, rejects fold-mode
+  packs before the model call, and makes no per-bar network call.
+- It writes canonical bytes under `artifacts/<hash>`, then calls the data
+  service's metadata-only registration; signal bytes never travel over HTTP.
+- Research stays inside `evidence`; `simulation` is a separate hindsight plane.
 
 ## 8. Registry and lineage
 
 `qr_catalog` stores pack metadata, validation records and lifecycle events;
 MinIO is the sole byte authority under `packs/<hash>`. Registration writes the
-object first and the metadata row second; show, validate, freeze, retire and
-fetch re-read the object and verify its hash, so a missing object fails closed.
-A frozen pack is immutable and a retired pack is never deleted.
+object first and the row second; reads verify the object hash, so a missing
+object fails closed. A frozen pack is immutable; a retired one is never deleted.
 
 `qr_evidence` stores a run's model, strategy, signal, portfolio and execution
 references with pack provenance. The set is immutable: the same set is
 idempotent and a different set is refused. No cross-database transaction exists
 and no fifth database is added.
 
-`catalog.artifacts` is the generic signal-artifact seam. A registered consumer
-reference protects an artifact; the retention pass removes only an unreferenced
-artifact older than 30 days, writes a tombstone in the same transaction, and
-deletes an unshared object after the commit.
+`catalog.artifacts` is the pre-run signal record: the strategy service writes
+the bytes and registers the row. Run lineage is recorded at submission, because
+the signal must exist first; that path adds `run:<id>` and no new reference kind.
+A registered reference protects an artifact; retention removes only an
+unreferenced artifact older than 30 days, writes a tombstone in the same
+transaction, and deletes an unshared object after the commit.
 
 ## 9. Alpha and edge
 
@@ -157,7 +157,8 @@ change to alpha is a new pack and a new hypothesis.
 ## 10. Client surface
 
 The 49 existing commands and screens remain unchanged. Additive pack and signal
-commands and a browser Packs surface are a later client slice; RA-006 adds none.
+commands and a browser Packs surface are a later client slice; RA-008 adds none
+and exposes only the internal signal route.
 
 ## 11. Non-goals
 

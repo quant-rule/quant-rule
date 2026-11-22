@@ -25,9 +25,10 @@ const DATABASES: [(&str, &str, &str); 4] = [
 ];
 
 /// The services that own no database and must not carry a migration job.
-const STATELESS_SERVICES: [(&str, &str); 2] = [
+const STATELESS_SERVICES: [(&str, &str); 3] = [
     ("model", "crates/quantrule-model-service/src/main.rs"),
     ("backtest", "crates/quantrule-backtest-service/src/main.rs"),
+    ("strategy", "crates/quantrule-strategy-service/src/main.rs"),
 ];
 
 #[derive(Debug, Deserialize)]

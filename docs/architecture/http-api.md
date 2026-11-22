@@ -142,11 +142,10 @@ bundle manifest records the registry version (`2026-11-10.2`), and
 | Code | HTTP | Meaning |
 |---|---|---|
 | `auth.unauthorized` | 401 | Missing or wrong bearer token (when configured) |
-| `profile.not_found` | 404 | Unknown or missing profile |
-| `profile.invalid` | 400 | Bad profile name |
-| `dataset.not_found` | 404 | Unknown `data_version` |
-| `dataset.invalid` | 400 | Blank name, bad UTF-8, or a rejected candle |
+| `profile.*` | 404/400 | Unknown or missing profile, or a bad profile name |
+| `dataset.*` | 404/400 | Unknown `data_version`, blank name, bad UTF-8, or a rejected candle |
 | `config.invalid` | 400 | Schema or cross-config rule failed |
+| `pack.*`, `artifact.*`, `signal.invalid` | 404/400/409 | Unknown or malformed pack/artifact, a refused lifecycle or retained artifact, or an invalid signal source |
 | `hypothesis.not_found` | 404 | Unknown hypothesis fingerprint |
 | `hypothesis.invalid` | 400 | A hypothesis failed validation |
 | `run.not_found` | 404 | Unknown run id |
@@ -166,9 +165,9 @@ bundle manifest records the registry version (`2026-11-10.2`), and
 | `simulation.check_incomplete` | 409 | Fewer than 30 events, or an unmarked check window |
 | `simulation.locked` | 409 | Marking or a second decision after the decision is recorded |
 
-An upload is idempotent: the same bytes return the existing record and never
-create a second row. A config row carries the whole bundle, so a run can
-reproduce the configuration after the staging directory is gone.
+An upload is idempotent: the same bytes return the existing record, never a
+second row. A config row carries the whole bundle, so a run reproduces after
+staging is gone.
 
 ## 6. Simulation endpoints — the research plane
 

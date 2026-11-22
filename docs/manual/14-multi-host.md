@@ -2,6 +2,9 @@
 
 - Status: Current
 - Audience: operator placing the six services on more than one Linux host
+- Boundary: the v2 descriptor places six services; the seventh `strategy`
+  service is single-host Compose only, and its v3 placement is HA-012. The
+  gateway accepts an absent `QR_STRATEGY_URL`, so v2 still starts.
 
 ## Goal
 

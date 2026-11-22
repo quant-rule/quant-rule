@@ -10,7 +10,8 @@
 The multi-host profile places the same six services on several Linux hosts. It
 is a deployment shape, not a second architecture: the binaries, the
 `quantrule.api/v1` contract, the schemas, the engines, and the canonical digest
-are unchanged.
+are unchanged. The v2 descriptor places six services; the seventh `strategy`
+service is single-host Compose only, and v3 placement is HA-012.
 
 The single-host Compose stack remains the default. The desktop profile is
 retired; this profile exists for capacity and network placement.

@@ -1,0 +1,29 @@
+[package]
+name = "quantrule-strategy-service"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "The QuantRule strategy service: signal-mode strategy packs and signal artifacts"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[[bin]]
+name = "qr-strategy"
+path = "src/main.rs"
+
+[dependencies]
+axum = "0.8.9"
+quantrule-api = { path = "../quantrule-api" }
+quantrule-app = { path = "../quantrule-app" }
+quantrule-runtime = { path = "../quantrule-runtime" }
+quantrule-service-api = { path = "../quantrule-service-api" }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros"] }
+tracing = "0.1.44"
+
+[dev-dependencies]
+tower = { version = "0.5.3", features = ["util"] }
+
+[lints]
+workspace = true

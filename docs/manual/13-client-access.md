@@ -80,7 +80,8 @@ A remote gateway needs no local Docker.
 - The browser client reaches the gateway on Windows and Linux.
 - The CLI reaches the same gateway with the same token and profile.
 - No desktop package is required.
-- The server remains the Linux image with six services.
+- The server remains the Linux image with seven services in the single-host
+  stack; the v2 multi-host profile places six.
 
 ## 7. Failure
 

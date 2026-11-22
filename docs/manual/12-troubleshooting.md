@@ -17,6 +17,7 @@ stale data. The token code is `auth.unauthorized`; there is no `token.invalid`.
 | `dataset.not_found` | Unknown `data_version` in this profile | The affected read or run is refused | Re-read `dataset list`; do not construct an id |
 | `dataset.invalid` | Blank name, bad UTF-8, or a rejected candle | Upload is refused; tolerant mode reports skipped rows | Fix the file, or choose tolerant deliberately |
 | `config.invalid` | Schema or cross-config rule failed | The config shows `invalid`; submit is disabled | Read the parser message; fix the config |
+| `signal.invalid` | A signal request names a non-frozen, wrong-kind or fold-mode pack, or a mismatched model source | The internal signal call is refused before any write | Freeze the signal pack; use a signal-mode pack and the model id the manifest reports |
 | `hypothesis.not_found` | Unknown sealed hypothesis fingerprint | The read is refused | Re-read the hypothesis source; do not guess a fingerprint |
 | `hypothesis.invalid` | Hypothesis failed validation | The write is refused | Fix the hypothesis JSON |
 | `run.not_found` | Unknown run id in this profile | The run detail is unavailable | Re-read `run list` |

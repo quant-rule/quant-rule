@@ -32,8 +32,10 @@ historical simulation, not broker connectivity or live accounting.
    artifact is a computed, content-addressed output of a model artifact and a
    signal-mode strategy pack.
 3. Add a stateless seventh `strategy` service that validates signal-mode packs,
-   computes signal artifacts, writes them to the object store and records lineage.
-   It has no database, no queue and no per-bar network call.
+   computes signal artifacts, writes them directly to the object store and
+   registers a metadata-only catalog row. It records no run lineage itself: the
+   signal exists before a run, and evidence records the set at run submission. It
+   has no database, no queue and no per-bar network call.
 4. Keep the strategy/execution/portfolio fold inside `backtest`. Fold-mode packs
    are not executed by the strategy service.
 5. Signal mode uses a deterministic reference position. Giveback remains
@@ -42,8 +44,10 @@ historical simulation, not broker connectivity or live accounting.
    hash. `RunId` keeps its current formula; hashes enter through `config_hash` and
    provenance. v3 and v4 configs remain readable.
 7. Store pack definitions and lifecycle in the catalog database, pack bytes and
-   signal artifacts in the object store, and lineage in evidence. No fifth
-   database.
+   signal artifacts in the object store, the pre-run signal row in the catalog,
+   and run lineage in evidence. A new signal may be unreferenced; run submission
+   adds `run:<id>`, and the 30-day retention window applies. No new reference
+   kind and no fifth database.
 8. Freeze is a human decision supported by an independent Quant Validator record.
    A frozen pack never changes; a change is a new pack.
 9. Keep the browser and CLI contract frozen. Pack and signal management is
@@ -89,6 +93,15 @@ Negative:
 - A run references content hashes, not payloads.
 - A succeeded run has all of its bytes; no partial publish.
 - The platform never trades.
+
+## Amendment 2026-11-22 (RA-008)
+
+The strategy service writes the signal bytes itself and calls a metadata-only
+registration route, because a signal can exceed the 64 MiB HTTP body cap. The
+catalog row is the pre-run record. Run lineage is recorded at submission, not by
+the strategy service, and the new signal waits unreferenced inside the 30-day
+window. The v2 profile still places six services; the seventh is in the
+single-host stack and v3 placement is HA-012.
 
 ## Verification
 

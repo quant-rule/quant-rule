@@ -26,14 +26,20 @@ use quantrule_service_api::{ConfigBundle, DatasetObject};
 
 use crate::adapters::BoxFuture;
 
+mod artifacts;
 mod counts;
 mod evidence;
+mod memory;
 mod model;
+mod packs;
 mod stage;
 
+pub use artifacts::{ArtifactClient, MemoryArtifacts};
 pub use counts::{COUNT_PAGE, MemoryCounts, RunCounter, SimulationCounter};
 pub use evidence::{EvidenceClient, MemoryEvidence};
+pub use memory::MemoryClient;
 pub use model::{MemoryModel, ModelClient};
+pub use packs::{MemoryPacks, PackClient};
 pub use stage::{MemoryStageClient, StageClient};
 
 /// A service reachable on the internal network.
@@ -49,6 +55,8 @@ pub enum Service {
     Simulation,
     /// The backtest worker's health endpoint; it exposes no other route.
     Backtest,
+    /// The stateless signal-mode strategy compute.
+    Strategy,
 }
 
 impl Service {
@@ -61,6 +69,7 @@ impl Service {
             Self::Evidence => "evidence",
             Self::Simulation => "simulation",
             Self::Backtest => "backtest",
+            Self::Strategy => "strategy",
         }
     }
 
@@ -73,6 +82,7 @@ impl Service {
             Self::Evidence => "QR_EVIDENCE_URL",
             Self::Simulation => "QR_SIMULATION_URL",
             Self::Backtest => "QR_BACKTEST_HEALTH_URL",
+            Self::Strategy => "QR_STRATEGY_URL",
         }
     }
 }
@@ -570,6 +580,29 @@ impl HttpServiceClient {
         }
     }
 
+    /// Read one raw internal body, or `None` when the service answers `404`.
+    async fn get_bytes(
+        &self,
+        service: Service,
+        profile: Option<&ProfileId>,
+        path: String,
+    ) -> Result<Option<Vec<u8>>, ClientError> {
+        let mut request = ServiceRequest::get(path);
+        if let Some(profile) = profile {
+            request = request.with_header(PROFILE_HEADER, profile.as_str());
+        }
+        let response = <Self as ServiceClient>::send(self, service, request).await?;
+        match response.status {
+            200 => Ok(Some(response.body)),
+            404 => Ok(None),
+            status => Err(ClientError::Status {
+                service,
+                status,
+                message: upstream_message(&response.body),
+            }),
+        }
+    }
+
     async fn post_json<T, B>(
         &self,
         service: Service,
@@ -620,7 +653,9 @@ impl HttpServiceClient {
             ServiceRequest::post(path, body).with_header(PROFILE_HEADER, profile.as_str());
         let response = <Self as ServiceClient>::send(self, service, request).await?;
         match response.status {
-            200 => serde_json::from_slice(&response.body).map_err(|error| {
+            // A profile-scoped create may answer 201 for the first writer and
+            // 200 for an idempotent duplicate; the body carries `created`.
+            200 | 201 => serde_json::from_slice(&response.body).map_err(|error| {
                 ClientError::InvalidResponse {
                     service,
                     message: error.to_string(),
@@ -858,64 +893,6 @@ impl DataClient for MemoryDataClient {
     }
 }
 
-/// An in-memory client that records calls and replays configured responses.
-///
-/// It is the fake the plan requires for a service test: a gateway route or a
-/// worker hop is exercised without a socket, and the recorded call is the
-/// assertion.
-#[derive(Debug, Clone, Default)]
-pub struct MemoryClient {
-    responses: std::sync::Arc<
-        std::sync::Mutex<std::collections::BTreeMap<(Service, String), ServiceResponse>>,
-    >,
-    calls: std::sync::Arc<std::sync::Mutex<Vec<(Service, ServiceRequest)>>>,
-}
-
-impl MemoryClient {
-    /// An empty client.
-    #[must_use]
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Configure the response for one service and path.
-    pub fn respond(&self, service: Service, path: impl Into<String>, response: ServiceResponse) {
-        self.responses
-            .lock()
-            .expect("the response lock")
-            .insert((service, path.into()), response);
-    }
-
-    /// The calls this client has seen, in order.
-    #[must_use]
-    pub fn calls(&self) -> Vec<(Service, ServiceRequest)> {
-        self.calls.lock().expect("the call lock").clone()
-    }
-}
-
-impl ServiceClient for MemoryClient {
-    fn send(
-        &self,
-        service: Service,
-        request: ServiceRequest,
-    ) -> BoxFuture<Result<ServiceResponse, ClientError>> {
-        let responses = std::sync::Arc::clone(&self.responses);
-        let calls = std::sync::Arc::clone(&self.calls);
-        Box::pin(async move {
-            calls
-                .lock()
-                .expect("the call lock")
-                .push((service, request.clone()));
-            responses
-                .lock()
-                .expect("the response lock")
-                .get(&(service, request.path))
-                .cloned()
-                .ok_or(ClientError::Unconfigured { service })
-        })
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -970,6 +947,7 @@ mod tests {
             Service::Evidence,
             Service::Simulation,
             Service::Backtest,
+            Service::Strategy,
         ];
         for (index, service) in services.iter().enumerate() {
             assert!(!service.name().is_empty());

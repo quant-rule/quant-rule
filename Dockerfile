@@ -2,13 +2,13 @@
 
 # The QuantRule server image: one digest, one runtime, every service binary and
 # the built client. The image carries no Python interpreter, no Bun runtime, and
-# no repository tooling. The six service binaries span six packages, one per
-# service: gateway, backtest, data, model, evidence, and simulation.
+# no repository tooling. The seven service binaries span seven packages, one per
+# service: gateway, backtest, data, model, evidence, simulation, and strategy.
 #
 # The host contract is linux/amd64. Windows and macOS run the same image through
 # Docker Desktop's Linux backend.
 
-# --- Rust: the six service binaries ---------------------------------------
+# --- Rust: the seven service binaries -------------------------------------
 FROM rust:1.99.1-slim-trixie AS rust-builder
 
 # aws-lc-sys needs cmake and a C compiler; rusqlite builds its bundled SQLite
@@ -43,6 +43,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
         -p quantrule-model-service \
         -p quantrule-evidence-service \
         -p quantrule-simulation-service \
+        -p quantrule-strategy-service \
         --bins \
     && mkdir -p /out/bin \
     && find target/release -maxdepth 1 -type f -name 'qr-*' ! -name '*.d' \

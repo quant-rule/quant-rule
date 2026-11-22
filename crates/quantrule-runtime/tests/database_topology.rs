@@ -111,7 +111,7 @@ fn services_hold_only_the_app_url_and_migration_jobs_only_the_owner_url() {
 #[test]
 fn stateless_services_have_no_database() {
     let compose = read("compose.yaml");
-    for service in ["model", "backtest"] {
+    for service in ["model", "backtest", "strategy"] {
         let block = service_block(&compose, service);
         assert!(
             !block.contains("QR_DATABASE_URL"),
@@ -122,6 +122,27 @@ fn stateless_services_have_no_database() {
             "{service} must not receive an owner URL"
         );
     }
+}
+
+#[test]
+fn the_strategy_service_receives_no_database_queue_or_config_mount() {
+    let compose = read("compose.yaml");
+    let block = service_block(&compose, "strategy");
+    for forbidden in [
+        "QR_DATABASE_URL",
+        "QR_DATABASE_OWNER_URL",
+        "QR_QUEUE_URL",
+        "QR_CONFIG_ROOT",
+        "volumes:",
+    ] {
+        assert!(
+            !block.contains(forbidden),
+            "strategy must not receive {forbidden}"
+        );
+    }
+    assert!(block.contains("QR_DATA_URL: http://data:8080"));
+    assert!(block.contains("QR_MODEL_URL: http://model:8080"));
+    assert!(block.contains("QR_OBJECT_STORE_URL: http://minio:9000"));
 }
 
 #[test]

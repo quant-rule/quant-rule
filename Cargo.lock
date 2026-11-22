@@ -2867,6 +2867,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "quantrule-strategy-service"
+version = "1.5.2"
+dependencies = [
+ "axum",
+ "quantrule-api",
+ "quantrule-app",
+ "quantrule-runtime",
+ "quantrule-service-api",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tower",
+ "tracing",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"

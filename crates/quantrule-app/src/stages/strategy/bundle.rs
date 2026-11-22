@@ -66,7 +66,7 @@ impl std::error::Error for StrategyBundleError {
 }
 
 /// One published model bar, reduced to the values a strategy may read.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BarRow {
     /// The timeframe in seconds.
     pub timeframe_secs: u64,
@@ -113,19 +113,69 @@ impl ModelBundle {
     /// Returns [`StrategyBundleError`] when a required artifact is missing,
     /// unreadable, or not shaped like a model bundle.
     pub fn load(path: &Path) -> Result<Self, StrategyBundleError> {
-        let provenance = parse_provenance(&path.join("provenance.json"))?;
-        let bars = parse_readings(&path.join("readings.csv"))?;
-        let events = parse_events(&path.join("events.csv"))?;
+        let provenance_path = path.join("provenance.json");
+        let readings_path = path.join("readings.csv");
+        let events_path = path.join("events.csv");
+        let provenance = read_bytes(&provenance_path)?;
+        let readings = read_bytes(&readings_path)?;
+        let events = read_bytes(&events_path)?;
+        Self::from_files_at(
+            &provenance,
+            &readings,
+            &events,
+            &provenance_path,
+            &readings_path,
+            &events_path,
+        )
+    }
+
+    /// Builds a bundle from already-read model-bundle artifacts.
+    ///
+    /// The strategy service reads the three artifacts from the object store
+    /// after verifying the frozen manifest, so it does not need a temporary
+    /// directory. This constructor applies the same provenance, column,
+    /// identity and ordering checks as [`ModelBundle::load`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StrategyBundleError`] when an artifact is not UTF-8, is not
+    /// JSON or CSV, is not shaped like a model bundle, or has no readings.
+    pub fn from_files(
+        provenance: &[u8],
+        readings: &[u8],
+        events: &[u8],
+    ) -> Result<Self, StrategyBundleError> {
+        Self::from_files_at(
+            provenance,
+            readings,
+            events,
+            Path::new("provenance.json"),
+            Path::new("readings.csv"),
+            Path::new("events.csv"),
+        )
+    }
+
+    fn from_files_at(
+        provenance: &[u8],
+        readings: &[u8],
+        events: &[u8],
+        provenance_path: &Path,
+        readings_path: &Path,
+        events_path: &Path,
+    ) -> Result<Self, StrategyBundleError> {
+        let provenance = parse_provenance(provenance, provenance_path)?;
+        let bars = parse_readings(readings, readings_path)?;
+        let events = parse_events(events, events_path)?;
         if bars.is_empty() {
             return Err(StrategyBundleError::Invalid {
-                path: path.join("readings.csv"),
+                path: readings_path.to_path_buf(),
                 message: "the bundle has no readings".to_owned(),
             });
         }
         for timeframe in events.keys() {
             if !bars.contains_key(timeframe) {
                 return Err(StrategyBundleError::Invalid {
-                    path: path.join("events.csv"),
+                    path: events_path.to_path_buf(),
                     message: format!("events name timeframe {timeframe}s, but readings do not"),
                 });
             }
@@ -149,8 +199,8 @@ impl ModelBundle {
     /// Builds a bundle directly from published rows.
     ///
     /// This exists for the signal module's unit tests: they exercise the
-    /// reference position without writing a bundle to disk. The loader is the
-    /// only production constructor, so a test cannot bypass its column checks.
+    /// reference position without writing a bundle to disk. The byte and file
+    /// loaders remain the production constructors and keep their column checks.
     #[cfg(test)]
     pub(crate) fn from_parts(
         data_version: String,
@@ -297,8 +347,8 @@ fn view(row: &BarRow, _window_bars: usize, events: Vec<EventView>) -> EventTimef
     }
 }
 
-fn parse_provenance(path: &Path) -> Result<StageProvenance, StrategyBundleError> {
-    crate::artifact::provenance::load_model(path).map_err(strategy_bundle_error)
+fn parse_provenance(bytes: &[u8], path: &Path) -> Result<StageProvenance, StrategyBundleError> {
+    crate::artifact::provenance::load_model_bytes(bytes, path).map_err(strategy_bundle_error)
 }
 
 fn strategy_bundle_error(error: ProvenanceError) -> StrategyBundleError {
@@ -310,8 +360,11 @@ fn strategy_bundle_error(error: ProvenanceError) -> StrategyBundleError {
     }
 }
 
-fn parse_readings(path: &Path) -> Result<BTreeMap<u64, Vec<BarRow>>, StrategyBundleError> {
-    let table = Table::read(path)?;
+fn parse_readings(
+    bytes: &[u8],
+    path: &Path,
+) -> Result<BTreeMap<u64, Vec<BarRow>>, StrategyBundleError> {
+    let table = Table::parse(bytes, path)?;
     let timeframe = table.column("timeframe_secs")?;
     let bar = table.column("bar")?;
     let timestamp = table.column("timestamp")?;
@@ -409,8 +462,11 @@ fn parse_readings(path: &Path) -> Result<BTreeMap<u64, Vec<BarRow>>, StrategyBun
     Ok(bars)
 }
 
-fn parse_events(path: &Path) -> Result<BTreeMap<u64, Vec<EventView>>, StrategyBundleError> {
-    let table = Table::read(path)?;
+fn parse_events(
+    bytes: &[u8],
+    path: &Path,
+) -> Result<BTreeMap<u64, Vec<EventView>>, StrategyBundleError> {
+    let table = Table::parse(bytes, path)?;
     let timeframe = table.column("timeframe_secs")?;
     let event_code = table.column("event_code")?;
     let event_type = table.column("event_type_code")?;
@@ -466,8 +522,8 @@ fn parse_events(path: &Path) -> Result<BTreeMap<u64, Vec<EventView>>, StrategyBu
     Ok(events)
 }
 
-fn read_text(path: &Path) -> Result<String, StrategyBundleError> {
-    fs::read_to_string(path).map_err(|source| StrategyBundleError::Read {
+fn read_bytes(path: &Path) -> Result<Vec<u8>, StrategyBundleError> {
+    fs::read(path).map_err(|source| StrategyBundleError::Read {
         path: path.to_path_buf(),
         source,
     })
@@ -479,8 +535,11 @@ struct Table {
 }
 
 impl Table {
-    fn read(path: &Path) -> Result<Self, StrategyBundleError> {
-        let text = read_text(path)?;
+    fn parse(bytes: &[u8], path: &Path) -> Result<Self, StrategyBundleError> {
+        let text = std::str::from_utf8(bytes).map_err(|error| StrategyBundleError::Invalid {
+            path: path.to_path_buf(),
+            message: format!("the artifact is not UTF-8: {error}"),
+        })?;
         let mut lines = text.lines();
         let header = lines.next().ok_or_else(|| StrategyBundleError::Invalid {
             path: path.to_path_buf(),
@@ -679,6 +738,27 @@ fn parse_value<T: std::str::FromStr>(
 #[cfg(test)]
 mod tests {
     use super::{ModelBundle, Table};
+
+    fn fixture() -> std::path::PathBuf {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/signal/model")
+    }
+
+    #[test]
+    fn the_byte_constructor_equals_the_file_loader() {
+        let root = fixture();
+        let loaded = ModelBundle::load(&root).expect("the fixture loads from disk");
+        let provenance = std::fs::read(root.join("provenance.json")).expect("provenance");
+        let readings = std::fs::read(root.join("readings.csv")).expect("readings");
+        let events = std::fs::read(root.join("events.csv")).expect("events");
+        let from_files =
+            ModelBundle::from_files(&provenance, &readings, &events).expect("the fixture bytes");
+        assert_eq!(loaded.data_version, from_files.data_version);
+        assert_eq!(loaded.config_id, from_files.config_id);
+        assert_eq!(loaded.period_from, from_files.period_from);
+        assert_eq!(loaded.period_to, from_files.period_to);
+        assert_eq!(loaded.bars, from_files.bars);
+        assert_eq!(loaded.events, from_files.events);
+    }
 
     #[test]
     fn a_missing_bundle_is_reported() {

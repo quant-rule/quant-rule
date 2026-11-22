@@ -18,6 +18,7 @@ members = [
     "crates/quantrule-runtime",
     "crates/quantrule-service-api",
     "crates/quantrule-shell",
+    "crates/quantrule-strategy-service",
 ]
 resolver = "3"
 

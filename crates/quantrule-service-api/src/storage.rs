@@ -142,6 +142,37 @@ pub struct ModelBundleManifest {
     pub artifacts: Vec<ArtifactRef>,
 }
 
+impl ModelBundleManifest {
+    /// The canonical model artifact id over the manifest entries.
+    ///
+    /// A model artifact is a file set, not one document. Its id is the
+    /// canonical digest over `(name, sha256)`, so a caller that resolved a
+    /// bundle can verify the id it was given without trusting the manifest
+    /// field order.
+    #[must_use]
+    pub fn artifact_id(&self) -> Digest {
+        let entries: Vec<(String, Digest)> = self
+            .artifacts
+            .iter()
+            .map(|artifact| (artifact.name.clone(), artifact.sha256.clone()))
+            .collect();
+        Digest::canonical(&entries)
+    }
+
+    /// The object key of one manifest artifact.
+    ///
+    /// The manifest key names the bundle directory; each artifact name is
+    /// relative to that directory.
+    #[must_use]
+    pub fn artifact_key(&self, name: &str) -> Option<String> {
+        if self.manifest_key == "manifest.json" {
+            return Some(name.to_owned());
+        }
+        let prefix = self.manifest_key.strip_suffix("/manifest.json")?;
+        Some(format!("{prefix}/{name}"))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -256,6 +287,43 @@ mod tests {
             manifest
         );
         assert!(text.contains(MODEL_BUNDLE_SCHEMA));
+    }
+
+    #[test]
+    fn the_model_artifact_id_is_the_canonical_entry_digest() {
+        let manifest = bundle_manifest();
+        let expected = Digest::canonical(&[(
+            "model.json".to_owned(),
+            manifest.artifacts[0].sha256.clone(),
+        )]);
+        assert_eq!(manifest.artifact_id(), expected);
+
+        let mut reordered = manifest.clone();
+        reordered.artifacts.push(ArtifactRef {
+            name: "a.csv".to_owned(),
+            bytes: 1,
+            sha256: digest(b"a"),
+        });
+        let expected = reordered.artifact_id();
+        reordered.artifacts.reverse();
+        assert_eq!(reordered.artifact_id(), expected);
+    }
+
+    #[test]
+    fn an_artifact_key_is_below_the_manifest_directory() {
+        let manifest = bundle_manifest();
+        assert_eq!(
+            manifest.artifact_key("model.json").as_deref(),
+            Some("models/bundle/model.json")
+        );
+        let mut flat = manifest;
+        flat.manifest_key = "manifest.json".to_owned();
+        assert_eq!(
+            flat.artifact_key("model.json").as_deref(),
+            Some("model.json")
+        );
+        flat.manifest_key = "models/bundle.json".to_owned();
+        assert_eq!(flat.artifact_key("model.json"), None);
     }
 
     #[test]

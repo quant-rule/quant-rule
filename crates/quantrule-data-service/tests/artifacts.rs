@@ -103,6 +103,163 @@ async fn an_artifact_is_registered_and_read_by_content_identity() {
     );
 }
 
+fn metadata_request(id: &Digest, bytes: u64) -> Request<Body> {
+    Request::post(format!("/internal/v1/artifacts/signal/{id}"))
+        .header(PROFILE_HEADER, "default")
+        .header("content-type", "application/json")
+        .body(Body::from(
+            serde_json::to_vec(&serde_json::json!({"bytes": bytes})).expect("body"),
+        ))
+        .expect("request")
+}
+
+#[tokio::test]
+async fn an_already_stored_artifact_is_registered_from_metadata_only() {
+    let (state, objects, _packs, artifacts) = state_with_research_artifacts().await;
+    let bytes = b"{\"schema\":\"quantrule.signal-artifact/v1\",\"rows\":[]}\n";
+    let id = Digest::sha256(bytes);
+    let key = format!("artifacts/{}", id.as_hex());
+    objects.store(&key, bytes.to_vec()).await.expect("object");
+
+    let response = router(std::sync::Arc::clone(&state))
+        .oneshot(metadata_request(&id, bytes.len() as u64))
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let registration: quantrule_service_api::ArtifactRegistration =
+        serde_json::from_slice(&body_bytes(response).await).expect("registration");
+    assert!(registration.created);
+    assert_eq!(registration.record.summary.artifact_id, id);
+    assert_eq!(registration.record.summary.bytes, bytes.len() as u64);
+    assert_eq!(registration.record.object_key, key);
+
+    let response = router(std::sync::Arc::clone(&state))
+        .oneshot(metadata_request(&id, bytes.len() as u64))
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let duplicate: quantrule_service_api::ArtifactRegistration =
+        serde_json::from_slice(&body_bytes(response).await).expect("registration");
+    assert!(!duplicate.created);
+    assert_eq!(duplicate.record, registration.record);
+    assert_eq!(
+        artifacts
+            .list(profile("default"), ArtifactKind::Signal)
+            .await
+            .expect("list")
+            .len(),
+        1
+    );
+}
+
+#[tokio::test]
+async fn metadata_registration_fails_closed_on_a_missing_or_mismatched_object() {
+    let (state, objects, _packs, artifacts) = state_with_research_artifacts().await;
+    let bytes = b"signal-bytes";
+    let id = Digest::sha256(bytes);
+
+    let response = router(std::sync::Arc::clone(&state))
+        .oneshot(metadata_request(&id, bytes.len() as u64))
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    assert_eq!(
+        read_error(&body_bytes(response).await).error.code,
+        ErrorCode::ArtifactNotFound
+    );
+
+    let key = format!("artifacts/{}", id.as_hex());
+    objects
+        .store(&key, b"different-bytes".to_vec())
+        .await
+        .expect("wrong object");
+    let response = router(std::sync::Arc::clone(&state))
+        .oneshot(metadata_request(&id, bytes.len() as u64))
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        read_error(&body_bytes(response).await).error.code,
+        ErrorCode::ArtifactInvalid
+    );
+
+    objects
+        .store(&key, bytes.to_vec())
+        .await
+        .expect("right object");
+    let response = router(state)
+        .oneshot(metadata_request(&id, 1))
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        read_error(&body_bytes(response).await).error.code,
+        ErrorCode::ArtifactInvalid
+    );
+    assert!(
+        artifacts
+            .list(profile("default"), ArtifactKind::Signal)
+            .await
+            .expect("list")
+            .is_empty(),
+        "a failed verification publishes no row"
+    );
+}
+
+#[tokio::test]
+async fn a_metadata_registered_artifact_stays_referenced() {
+    let (state, objects, _packs, artifacts) = state_with_research_artifacts().await;
+    let bytes = b"referenced-signal";
+    let id = Digest::sha256(bytes);
+    let key = format!("artifacts/{}", id.as_hex());
+    objects.store(&key, bytes.to_vec()).await.expect("object");
+    let response = router(std::sync::Arc::clone(&state))
+        .oneshot(metadata_request(&id, bytes.len() as u64))
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::CREATED);
+
+    let response = router(std::sync::Arc::clone(&state))
+        .oneshot(
+            Request::post(format!("/internal/v1/artifacts/signal/{id}/references"))
+                .header(PROFILE_HEADER, "default")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::to_vec(&serde_json::json!({
+                        "reference_id": "run:later",
+                        "kind": DatasetReferenceKind::Run
+                    }))
+                    .expect("body"),
+                ))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let response = router(state)
+        .oneshot(
+            Request::post("/internal/v1/artifacts/collect")
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let report: CollectArtifactsResponse =
+        serde_json::from_slice(&body_bytes(response).await).expect("report");
+    assert_eq!(report.collected, 0);
+    assert!(objects.exists(&key).await.expect("object"));
+    assert!(
+        artifacts
+            .get(profile("default"), ArtifactKind::Signal, id.to_string())
+            .await
+            .expect("get")
+            .is_some()
+    );
+}
+
 #[tokio::test]
 async fn a_referenced_artifact_is_retained_and_an_unreferenced_one_is_collected() {
     let (state, objects, _packs, artifacts) = state_with_research_artifacts().await;

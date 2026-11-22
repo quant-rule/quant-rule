@@ -2,9 +2,9 @@
 //!
 //! This crate defines what one service sends another: the run lifecycle, the
 //! config bundle, the dataset object reference, the model bundle manifest, the
-//! diagnostics stage lifecycle and manifest, and the canonical digest over a
-//! run's artifacts. It carries references, never a candle, a reading, or a
-//! payment payload.
+//! signal request and artifact registration, the diagnostics stage lifecycle and
+//! manifest, and the canonical digest over a run's artifacts. It carries
+//! references, never a candle, a reading, or a payment payload.
 //!
 //! The crate depends on [`quantrule_api`] for the shared digest and run
 //! vocabulary and on no engine, no runtime, and no service crate. A service
@@ -12,11 +12,14 @@
 
 #![forbid(unsafe_code)]
 
+pub mod artifact;
 pub mod manifest;
 pub mod run;
+pub mod signal;
 pub mod stage;
 pub mod storage;
 
+pub use artifact::{ArtifactRegistration, ArtifactRegistrationRequest};
 pub use manifest::{
     ManifestArtifact, ManifestError, RunManifest, SCHEMA as RUN_MANIFEST_SCHEMA, canonical_digest,
 };
@@ -25,6 +28,7 @@ pub use run::{
     RunClaimOutcome, RunClaimRequest, RunComputed, RunFailed, RunHeartbeat, RunRecord,
     derive_run_id, derive_run_id_with_model,
 };
+pub use signal::{SIGNAL_REQUEST_SCHEMA, SIGNAL_RESPONSE_SCHEMA, SignalRequest, SignalResponse};
 pub use stage::{
     NewStageRun, STAGE_MANIFEST_SCHEMA, StageCancelOutcome, StageClaim, StageClaimOutcome,
     StageComputed, StageFailed, StageManifest, StageManifestError, StageRecord,

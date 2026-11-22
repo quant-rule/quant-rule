@@ -40,7 +40,7 @@ repeating a status.
 | Area | Status |
 |---|---|
 | Pipeline | Every stage is implemented: data, model, strategy, execution, portfolio, backtest, qualification, analytics. |
-| Surfaces | Product 1.5.2 is a distributed platform with two clients: a Svelte browser client and a command shell, both on `quantrule.api/v1`. The command shell is a thin gateway client with no engine dependency; the six services are packaged in one image and nine-container stack. Windows and Linux are supported browser and CLI platforms; macOS is unsupported in v1.5.2. |
+| Surfaces | Product 1.5.2 is a distributed platform with two clients: a Svelte browser client and a command shell, both on `quantrule.api/v1`. The command shell is a thin gateway client with no engine dependency; seven services are packaged in one image and the single-host Compose stack runs ten containers. Windows and Linux are supported browser and CLI platforms; macOS is unsupported in v1.5.2. |
 | Command surface | 49 implemented commands on the gateway-client surface in [command-surface.md](command-surface.md), including the model, strategy, and portfolio stage commands added in #852–#854, the optional `run submit --model-artifact` flag added in #855, and the research, registry, operations, and manual work through #859; the surface is released as v1.5.2, and the previous 27-command surface was released as v0.9.0 (prepared as v1.0.0). The discovery gate passes for the implemented set. |
 | Stage surface | The stage contract, schema, worker, gateway, and the model, strategy, and portfolio slices are implemented (#850–#854); promotion is implemented (#855), the research ledger and manifest v3 are implemented (#856), the research commands and Research screen are implemented (#857), the operations surface and end-to-end verification are implemented (#858), and the 14-chapter user manual and checker are implemented (#859, #965, #970). [stage-surface.md](stage-surface.md). |
 | Model | `M1.3` current; 49 indicators, 150 active events, 199 validation claims; accepted compression baselines; `M2.x` no edge; `M3.x` underpowered; `M4.x` no edge; `MR5.x` no edge; `MR6.x` no edge; `MR7.x` no edge. |
@@ -53,7 +53,7 @@ repeating a status.
 | Research swarm | Current contract; no active campaign. |
 | Release tags | `v1.5.2` is the latest published release (2026-11-21), the Windows fixture recovery; `v1.5.0` and `v1.5.1` are withdrawn because their Windows CLI gate failed. `v1.4.2` is the second release recovery for the multi-host deployment; `v1.4.1` and `v1.4.0` are withdrawn because their workflows failed. `v1.3.0` is the stage execution surface (`sha256:d9b8daa1…`). `v1.2.0` is the version-alignment release (`sha256:26350916…`); `v1.1.0` is the 1.1.0 alignment release (`sha256:d5ce83da…`); `v1.0.0` is the desktop release, prepared as `v1.1.0` (`sha256:a133ff14…`); `v0.9.0` is the distributed platform (`sha256:1250438f…`). The tag mapping is in `docs/releases/README.md`. |
 | Changelog | Grouped release history; `1.5.2` is the current section, and the historical headings are normalized to the current tags. |
-| Tooling | The shell is the agent command path; it makes one gateway call per command. The improvement run store records evidence; the gateway `run submit` is the current execution path. `tools/gate.sh` runs the workspace gate. The distributed stack adds `make` targets and six services, specified in [deployment.md](deployment.md). The `simulation` service and the browser client own chart-first research; the Python simulation, chart, oracle, and trade tools are retired by DIST-105. The repository and the product image carry no Python ([zero-Python ADR](../adr/2026-11-21/992-zero-python-governance.md)). |
+| Tooling | The shell is the agent command path; it makes one gateway call per command. The improvement run store records evidence; the gateway `run submit` is the current execution path. `tools/gate.sh` runs the workspace gate. The distributed stack adds `make` targets and seven services, specified in [deployment.md](deployment.md). The `simulation` service and the browser client own chart-first research; the Python simulation, chart, oracle, and trade tools are retired by DIST-105. The repository and the product image carry no Python ([zero-Python ADR](../adr/2026-11-21/992-zero-python-governance.md)). |
 | Manual | Current; 14 chapters, the command and GUI references, the glossary, troubleshooting, client access, and multi-host (#859, #965, #970). [docs/manual/README.md](../manual/README.md) |
 
 ## Status of each document
@@ -63,7 +63,7 @@ repeating a status.
 | [`kata.md`](kata.md) | Current | Why the product exists |
 | [`characteristics.md`](characteristics.md) | Current | Which qualities are measurable and how |
 | [`services.md`](services.md) | Current; released as v0.9.0 (prepared as v1.0.0); current in v1.5.2 | Who does what, and what each service owns |
-| [`research-artifacts.md`](research-artifacts.md) | Strategy, portfolio policy and execution-simulation packs current (RA-002–RA-004); run-v5 reference and identity contract current (RA-005); persistent registry, run lineage and artifact retention current (RA-006); signal artifact contract and reference computation current (RA-007); the strategy service, run-v5 catalog/worker reachability and the client surface target the next release; accepted by ADR-RA | The model artifact, packs, signal artifacts, run v5 and lineage |
+| [`research-artifacts.md`](research-artifacts.md) | Strategy, portfolio policy and execution-simulation packs current (RA-002–RA-004); run-v5 reference and identity contract current (RA-005); persistent registry, run lineage and artifact retention current (RA-006); signal artifact contract, reference computation and the seventh strategy service current (RA-007, RA-008); run-v5 catalog/worker reachability and the client surface target the next release; accepted by ADR-RA | The model artifact, packs, signal artifacts, run v5 and lineage |
 | [`ha.md`](ha.md) | Target for the next release; data active/active and the evidence leader are current; accepted by ADR-HA | Swarm HA, four databases, replication, failure and evidence boundary |
 | [`data-plane.md`](data-plane.md) | Current; released as v0.9.0 (prepared as v1.0.0); current in v1.5.2 | How one run stays deterministic |
 | [`control-plane.md`](control-plane.md) | Current; released as v0.9.0 (prepared as v1.0.0); current in v1.5.2 | How a run is submitted, retried, and cancelled |
@@ -71,7 +71,7 @@ repeating a status.
 | [`deployment.md`](deployment.md) | Current; released as v1.0.0 (prepared as v1.1.0); current in v1.5.2 | How to run it with one command |
 | [`migrations.md`](migrations.md) | Current; accepted 2026-11-22 as HA-003 | Forward-only ledgers, expand/contract, job order, rollback |
 | [`cross-database-consistency.md`](cross-database-consistency.md) | Current for the outbox, reference and evidence-leader slice (HA-004, HA-006); quorum queues and simulation concurrency are current | How four databases stay consistent without a distributed transaction |
-| [`multi-host.md`](multi-host.md) | Current in v1.5.2; released as v1.4.2; hardening #980 | How the six services run across hosts |
+| [`multi-host.md`](multi-host.md) | Current in v1.5.2; released as v1.4.2; hardening #980; the v2 profile places six services and leaves `strategy` to v3 (HA-012) | How the six services run across hosts |
 | [`client.md`](client.md) | Current; product 1.5.2, current tag v1.5.2 | The browser client |
 | [`user-journey.md`](user-journey.md) | Current; released as v1.0.0 (prepared as v1.1.0); current in v1.5.2 | How it is used and what it returns |
 | [`security.md`](security.md) | Current; released as v0.9.0 (prepared as v1.0.0); current in v1.5.2 | The trust boundary |
@@ -101,7 +101,7 @@ One term per concept. A synonym is a defect.
 | `artifact` | One immutable output file of a run |
 | `bundle` | The complete artifact set of one run |
 | `canonical digest` | `sha256` over the sorted artifact hashes, excluding provenance |
-| `service` | One of the six deployable responsibilities |
+| `service` | One of the seven deployable responsibilities |
 | `data plane` | The synchronous deterministic run path |
 | `control plane` | The asynchronous lifecycle |
 | `operator` | The single principal |

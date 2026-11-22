@@ -1,9 +1,9 @@
 //! Computed research artifacts and their retention seam.
 //!
 //! A signal artifact is a computed, content-addressed output of a model
-//! artifact and a signal-mode strategy pack. The signal writer arrives with its
-//! own work item; the catalog already owns the generic artifact identity,
-//! consumer references, and the retention tombstone that writer will use.
+//! artifact and a signal-mode strategy pack. The strategy service writes the
+//! bytes and registers the row; the catalog owns the artifact identity,
+//! consumer references, and the retention tombstone.
 //!
 //! An artifact row is profile-scoped; the bytes are shared by content key. A
 //! referenced artifact is never collected, and an unreferenced one is collected
@@ -24,7 +24,7 @@ pub type ArtifactReferenceKind = DatasetReferenceKind;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ArtifactKind {
-    /// A computed signal artifact. Its writer is a later work item.
+    /// A computed signal artifact.
     Signal,
 }
 
