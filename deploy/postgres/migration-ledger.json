@@ -1,0 +1,155 @@
+{
+  "schema": "quantrule.migration-ledger/v1",
+  "ledgers": [
+    {
+      "database": "qr_gateway",
+      "service": "gateway",
+      "ledger": "gateway",
+      "entry": "crates/quantrule-gateway/src/bin/qr_gateway.rs",
+      "module": "crates/quantrule-gateway/src/migrations.rs",
+      "migrations": [
+        {
+          "version": 7,
+          "name": "profiles",
+          "file": "crates/quantrule-gateway/migrations/0007_profiles.sql",
+          "checksum": "c44f4d2ed4915c9d"
+        }
+      ]
+    },
+    {
+      "database": "qr_catalog",
+      "service": "data",
+      "ledger": "catalog",
+      "entry": "crates/quantrule-data-service/src/main.rs",
+      "module": "crates/quantrule-data-service/src/migrations.rs",
+      "migrations": [
+        {
+          "version": 1,
+          "name": "catalog",
+          "file": "crates/quantrule-data-service/migrations/0001_catalog.sql",
+          "checksum": "2c1c671eb9c74a67"
+        },
+        {
+          "version": 2,
+          "name": "catalog-profile",
+          "file": "crates/quantrule-data-service/migrations/0002_catalog_profile.sql",
+          "checksum": "4b806eddaa48df35"
+        },
+        {
+          "version": 3,
+          "name": "dataset-quality",
+          "file": "crates/quantrule-data-service/migrations/0003_dataset_quality.sql",
+          "checksum": "054376a9f0f89fa4"
+        },
+        {
+          "version": 4,
+          "name": "config-files",
+          "file": "crates/quantrule-data-service/migrations/0004_config_files.sql",
+          "checksum": "3800218c1fd1b561"
+        },
+        {
+          "version": 5,
+          "name": "config-profile",
+          "file": "crates/quantrule-data-service/migrations/0005_config_profile.sql",
+          "checksum": "d9a3cff483e32c7b"
+        },
+        {
+          "version": 6,
+          "name": "dataset-references",
+          "file": "crates/quantrule-data-service/migrations/0006_dataset_references.sql",
+          "checksum": "1b815b68afd07b48"
+        }
+      ]
+    },
+    {
+      "database": "qr_evidence",
+      "service": "evidence",
+      "ledger": "runs",
+      "entry": "crates/quantrule-evidence-service/src/main.rs",
+      "module": "crates/quantrule-evidence-service/src/migrations.rs",
+      "migrations": [
+        {
+          "version": 2,
+          "name": "runs",
+          "file": "crates/quantrule-evidence-service/migrations/0002_runs.sql",
+          "checksum": "b0e6809863dfdc7c"
+        },
+        {
+          "version": 4,
+          "name": "research",
+          "file": "crates/quantrule-evidence-service/migrations/0004_research.sql",
+          "checksum": "0e980adb4a699415"
+        },
+        {
+          "version": 5,
+          "name": "hypothesis-body",
+          "file": "crates/quantrule-evidence-service/migrations/0005_hypothesis_body.sql",
+          "checksum": "925450aecb985e79"
+        },
+        {
+          "version": 8,
+          "name": "hypothesis-profile",
+          "file": "crates/quantrule-evidence-service/migrations/0008_hypothesis_profile.sql",
+          "checksum": "4d29b4330107aec9"
+        },
+        {
+          "version": 9,
+          "name": "run-submissions",
+          "file": "crates/quantrule-evidence-service/migrations/0009_run_submissions.sql",
+          "checksum": "deb52581a23d4a64"
+        },
+        {
+          "version": 13,
+          "name": "run-attempts",
+          "file": "crates/quantrule-evidence-service/migrations/0013_run_attempts.sql",
+          "checksum": "203484faf2cd4805"
+        },
+        {
+          "version": 14,
+          "name": "stage",
+          "file": "crates/quantrule-evidence-service/migrations/0014_stage.sql",
+          "checksum": "04eb235a3a9a3a66"
+        },
+        {
+          "version": 15,
+          "name": "run-model-artifact",
+          "file": "crates/quantrule-evidence-service/migrations/0015_run_model_artifact.sql",
+          "checksum": "0f6200dc24a72a6b"
+        },
+        {
+          "version": 16,
+          "name": "research-ledger",
+          "file": "crates/quantrule-evidence-service/migrations/0016_research_ledger.sql",
+          "checksum": "6a561fc557aaac41"
+        },
+        {
+          "version": 17,
+          "name": "retention",
+          "file": "crates/quantrule-evidence-service/migrations/0017_retention.sql",
+          "checksum": "50d3572036271f83"
+        }
+      ]
+    },
+    {
+      "database": "qr_simulation",
+      "service": "simulation",
+      "ledger": "simulation",
+      "entry": "crates/quantrule-simulation-service/src/main.rs",
+      "module": "crates/quantrule-simulation-service/src/migrations.rs",
+      "migrations": [
+        {
+          "version": 14,
+          "name": "simulation",
+          "file": "crates/quantrule-simulation-service/migrations/0014_simulation.sql",
+          "checksum": "23c276227cb03d78"
+        },
+        {
+          "version": 15,
+          "name": "simulation-retention",
+          "file": "crates/quantrule-simulation-service/migrations/0015_simulation_retention.sql",
+          "checksum": "b80e85066b89f08a"
+        }
+      ]
+    }
+  ]
+}

@@ -88,7 +88,9 @@ docker compose run --rm db-bootstrap
 The local stack seeds every role from `QR_POSTGRES_PASSWORD`; it is one password
 for eight roles because the local stack is a single-operator development
 deployment. The v2 multi-host profile does the same, so per-role passwords
-remain a v3 (`quantrule.deploy/v3`) concern.
+remain a v3 (`quantrule.deploy/v3`) concern. The forward-only migration
+contract, the checksum pin, and the failed-job and rollback runbook are in
+[`migrations.md`](../../architecture/migrations.md).
 
 ## 5. What changed locally
 
