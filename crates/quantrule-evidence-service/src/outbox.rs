@@ -16,6 +16,7 @@ use std::time::Duration;
 use quantrule_api::RunId;
 use quantrule_runtime::adapters::{BoxFuture, Queue};
 
+use crate::leader::Leadership;
 use crate::runs::{NotificationKind, RunNotification};
 
 /// How many pending notifications one drain pass publishes.
@@ -243,6 +244,53 @@ pub fn spawn_publisher(
     })
 }
 
+/// Re-arm every unfinished run whenever this replica becomes the leader.
+///
+/// A lease takeover is the same recovery point as a process restart: the old
+/// leader may have consumed a notification that was then lost or dead-lettered.
+/// The startup pass re-arms every live run, and the queue stays the delivery
+/// path. A standby performs no work here.
+pub fn spawn_leader_reconcile(
+    mut leadership: tokio::sync::watch::Receiver<Leadership>,
+    outbox: Arc<dyn RunOutbox>,
+    queue: Arc<dyn Queue>,
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        loop {
+            let is_leader = matches!(*leadership.borrow_and_update(), Leadership::Leader(_));
+            if is_leader {
+                match reconcile(outbox.as_ref(), ReconcileMode::Startup).await {
+                    Ok(report) if report.inserted > 0 || report.rearmed > 0 => {
+                        tracing::info!(
+                            wanted = report.wanted,
+                            inserted = report.inserted,
+                            rearmed = report.rearmed,
+                            "the new evidence leader re-armed run notifications"
+                        );
+                    }
+                    Ok(_) => {}
+                    Err(error) => {
+                        tracing::warn!(%error, "the leader re-arm will retry on the next election");
+                    }
+                }
+                match drain(outbox.as_ref(), queue.as_ref(), DRAIN_LIMIT).await {
+                    Ok(report) => {
+                        if let Some(error) = report.error {
+                            tracing::warn!(%error, "the leader re-arm drain will retry");
+                        }
+                    }
+                    Err(error) => {
+                        tracing::warn!(%error, "the leader re-arm drain will retry");
+                    }
+                }
+            }
+            if leadership.changed().await.is_err() {
+                return;
+            }
+        }
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -454,6 +502,58 @@ mod tests {
                 .len(),
             1
         );
+    }
+
+    #[tokio::test]
+    async fn a_new_leader_rearms_a_published_computed_notification() {
+        let store = MemoryRuns::default();
+        let queue = RecordingQueue::default();
+        let submitted = store
+            .submit(profile("default"), run(b"leader-rearm"))
+            .await
+            .expect("submit");
+        let id = submitted.record().run_id.to_string();
+        let ClaimOutcome::Claimed(claimed) = store
+            .claim(id.clone(), "test-worker".to_owned(), None)
+            .await
+            .expect("claim")
+        else {
+            panic!("the run was not claimed");
+        };
+        store
+            .computed(
+                id.clone(),
+                claimed.lease_term,
+                Digest::sha256(b"canonical"),
+                Vec::new(),
+                Vec::new(),
+            )
+            .await
+            .expect("computed");
+        drain(&store, &queue, DRAIN_LIMIT).await.expect("drain");
+        let published = queue.messages().len();
+        assert_eq!(published, 2, "requested and computed intents published");
+
+        let (sender, receiver) = tokio::sync::watch::channel(Leadership::Standby);
+        let outbox: Arc<dyn RunOutbox> = Arc::new(store.clone());
+        let queue_handle: Arc<dyn Queue> = Arc::new(queue.clone());
+        let task = spawn_leader_reconcile(receiver, outbox, queue_handle);
+        sender
+            .send(Leadership::Leader(1))
+            .expect("become the leader");
+        for _ in 0..100 {
+            if queue.messages().len() > published {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        assert_eq!(
+            queue.messages().len(),
+            published + 1,
+            "a new leader must re-arm the published computed notification"
+        );
+        assert_eq!(store.outstanding().await.expect("outstanding"), 0);
+        task.abort();
     }
 
     #[tokio::test]

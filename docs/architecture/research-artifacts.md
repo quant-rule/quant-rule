@@ -1,6 +1,6 @@
 # Research Artifacts
 
-- Status: Strategy, portfolio policy and execution-simulation packs current (RA-002–RA-004); the run-v5 reference and identity contract current (RA-005); the persistent pack registry, run lineage and artifact retention current (RA-006); signal computation, run-v5 catalog/worker reachability and the client surface target the next release; accepted by [ADR-RA](../adr/2026-11-22/1082-research-artifact-layer.md)
+- Status: Strategy, portfolio policy and execution-simulation packs current (RA-002–RA-004); the run-v5 reference and identity contract current (RA-005); the persistent pack registry, run lineage and artifact retention current (RA-006); the signal artifact contract and pure reference computation current (RA-007); the strategy service, run-v5 catalog/worker reachability and the client surface target the next release; accepted by [ADR-RA](../adr/2026-11-22/1082-research-artifact-layer.md)
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 
@@ -42,25 +42,24 @@ backed by a Quant Validator record; a frozen pack is immutable, a change is a ne
 ## 3. Signal artifact
 
 The signal artifact is the computed output of a model artifact and a signal-mode
-strategy pack. It contains one row per bar:
+strategy pack. It carries one row per execution bar:
 
 | Field | Meaning |
 |---|---|
-| `bar_index` | Zero-based position in the timeframe |
-| `open_time` | UTC Unix second |
+| `bar_index`, `open_time` | Published execution bar identity |
 | `available_bar_index` | First bar on which the row was knowable |
-| `action` | Hold, enter, exit or bracket intent |
-| `side` | Long, short or null |
-| `intent` | Target position or conditional order |
-| `reason` | Stable code |
+| `action`, `side` | Hold, enter, exit or bracket, and the side |
+| `intent` | Next-bar market entry, two-sided bracket, or flat exit |
+| `reason` | Stable action code |
 | `evidence` | Event and state references |
 
 It carries no fill, quantity, fee, cash, equity, P&L or edge metric. A later bar
-cannot change an earlier signal. The same model artifact, pack and schema produce
-the same signal artifact.
-
-Signal mode uses a deterministic reference position. Giveback remains a fold-mode
-feature unless candles become an explicit signal-service input.
+cannot change an earlier row, and the same model artifact, pack and schema
+produce the same bytes. Signal mode uses a deterministic reference position:
+market entries fill at the next open, a two-sided bracket chooses its side at
+the first boundary, ATR stop/target and the time stop close the reference
+position, and giveback stays fold-mode unless candles become an explicit input.
+The contract is [`docs/config/2026-11-22/signal-artifact.md`](../config/2026-11-22/signal-artifact.md).
 
 ## 4. Portfolio policy pack
 

@@ -1,0 +1,7 @@
+timeframe_secs,bar,timestamp,open,high,low,close,volume,ema_stack,rsi_zone,macd_state,macd_histogram_state,adx_regime,adx_slope,di_state,progression_stage_code,progression_leg_direction,atr,rvol_regime,vol_regime,structure_state
+300,0,1704067200,100,101,99,100,10,0,0,0,0,0,0,0,,,1,,,
+300,1,1704067500,100,102,99,101,10,0,0,0,0,0,0,0,,,1,,,
+300,2,1704067800,101,102,100,101,10,0,0,0,0,0,0,0,,,1,,,
+300,3,1704068100,102,105,101,104,10,0,0,0,0,0,0,0,,,1,,,
+300,4,1704068400,104,105,103,104,10,0,0,0,0,0,0,0,,,1,,,
+300,5,1704068700,104,105,103,104,10,0,0,0,0,0,0,0,,,1,,,

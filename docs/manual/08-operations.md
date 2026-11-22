@@ -100,6 +100,22 @@ a new `QR_QUEUE_GENERATION`: stop new submissions, drain the old generation with
 its consumers, stop them, then unbind or delete the empty queues before the new
 generation publishes.
 
+### Evidence leader
+
+With the HA profile, two evidence replicas serve reads; one holds
+`runs.leader_lease` and consumes `run.computed`. The lease is renewed every 10 s
+against a 30 s database window. Inspect it:
+
+```bash
+docker compose exec -T postgres psql -U qr_evidence_app -d qr_evidence \
+  -c 'SELECT holder, term, expires_at > now() AS live FROM runs.leader_lease'
+docker compose logs evidence | grep 'evidence replica is the leader'
+```
+
+A leader kill lets the standby acquire a higher term after expiry; the outbox
+re-arms the unfinished run, so a message is never lost. A stale leader's
+finalisation is refused and the run record does not change.
+
 ### Definitions backup and restore
 
 The archive does not contain the broker. Export the topology separately; the

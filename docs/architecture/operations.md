@@ -50,6 +50,14 @@ declaration moves to a new `QR_QUEUE_GENERATION`: stop new submissions, drain th
 old generation with its consumers, stop them, then unbind or delete the empty
 queues before the new generation publishes.
 
+### Evidence leader
+
+`runs.leader_lease` names the one finalizer; the leader renews every 10 s with a
+30 s database window. A standby serves reads and acquires after expiry. Inspect
+`SELECT holder, term, expires_at > now() AS live FROM runs.leader_lease;`.
+A leader kill expires the lease, the standby takes over, and the outbox re-arms
+the unfinished run; `this evidence replica is the leader` names the new holder.
+
 ## 3. Run lifecycle operations
 
 | Situation | Operator action |
@@ -80,8 +88,7 @@ scripts.
 | Manifest | `manifest.json` inside the archive: schema, one line per payload file with size and SHA-256, and the object key of each mirrored object |
 | Payload | `postgres/quantrule.dump` (custom format) and `objects/<key>` |
 
-The mirror is staged inside the object-store container and again on the host,
-so the backup host needs free space for the archive plus one mirror.
+The mirror is staged inside the object-store container and on the host, so the backup host needs room for the archive plus one mirror.
 
 The application services are stopped while the dump and mirror run, so the two
 stores describe one instant; Postgres, the object store, and the broker stay
@@ -95,13 +102,11 @@ out of Git. It records exchanges, queues, and bindings, not messages; a restore
 rebuilds the topology and queued work is rebuilt from run rows. The command pair
 is in the [multi-host runbook](../../deploy/multi-host/README.md) §11.
 
-`restore.sh` verifies the sidecar, the archive entry list, and every payload
-hash before it starts a write. It then refuses a non-empty database or bucket
-unless `--force` is given, and refuses a non-interactive run without `--yes`.
-Objects are written before rows, so an interrupted restore leaves unreferenced
-blobs rather than rows that point at missing bytes. A corrupt, incomplete, or
-sidecar-less archive is refused with the mismatched path. After a clean
-`make reset`, restore before `make up`; a stack that has already migrated needs
+`restore.sh` verifies the sidecar, entry list, and payload hashes before it
+writes. It refuses a non-empty database or bucket without `--force`, and a
+non-interactive run without `--yes`. Objects are written before rows, so an
+interrupted restore leaves unreferenced blobs rather than missing bytes. After a
+clean `make reset`, restore before `make up`; an already-migrated stack needs
 `--force` or a reset.
 
 The object mirror uses the `mc` bundled in the pinned MinIO image. A replacement
@@ -109,25 +114,21 @@ The object mirror uses the `mc` bundled in the pinned MinIO image. A replacement
 The archive contains candle data and is handled as sensitive; see
 [`data-lifecycle.md`](../workflows/data-lifecycle.md).
 
-The default stack starts all six services, three stores, one-shot database
-bootstrap, and four one-shot migration jobs (see
-[`deployment.md`](deployment.md) section 2.1). The four logical databases are a
-current deployment contract
-([`docs/config/2026-11-22/four-databases.md`](../config/2026-11-22/four-databases.md)).
-Backup covers the durable stores; it cannot contain state that a missing
-`data`, `model`, or `simulation` binary never produced. The scripts stop every
-non-store service in the project.
+The default stack starts all six services, three stores, the database bootstrap,
+and four migration jobs ([deployment.md](deployment.md) §2.1). The four logical
+databases are a current deployment contract
+([four databases](../config/2026-11-22/four-databases.md)). Backup covers only
+what the durable stores contain; the scripts stop every non-store service.
 
-The current backup tools dump one database. Until the four-database archive
-lands, a backup after the split is incomplete and a restore drill must be
-re-run; do not claim evidence preservation from a single dump.
+The current tools dump one database; until the four-database archive lands a
+backup is incomplete and a restore drill must be re-run. Do not claim evidence
+preservation from a single dump.
 
-Round trip: `tools/test_backup.sh` is opt-in and uses an isolated
-`quantrule-backup-test` project, so it needs port 8080 free and never touches
-the default project. It creates a dataset, config, and hypothesis row through the
-gateway, seeds a run with artifact blobs, checks the refusals, wipes the
-volumes, restores, and compares every row digest and object hash. Record the
-archive digest in the run note for a long campaign.
+Round trip: `tools/test_backup.sh` is opt-in, uses an isolated
+`quantrule-backup-test` project, needs port 8080 free, and never touches the
+default project. It creates a dataset, config, and hypothesis through the
+gateway, seeds a run, checks the refusals, wipes, restores, and compares every
+row digest and object hash. Record the archive digest in the long-campaign note.
 
 ## 5. Upgrade
 
@@ -159,8 +160,7 @@ The full migration contract and runbook are in
 | Queue loss | Rebuild from run rows in `queued`; resubmit those runs |
 | Image regression | Roll back to the previous digest; record the failure |
 
-The last verified backup and its digest belong in the run note for any long
-campaign.
+The last verified backup and digest belong in the long-campaign note.
 
 ## 7. Housekeeping
 

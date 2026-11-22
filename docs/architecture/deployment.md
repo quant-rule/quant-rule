@@ -121,11 +121,11 @@ to start.
 | `QR_INTERNAL_ONLY` | unset | When `1`, an HTTP service refuses a public or unspecified bind; the multi-host profile sets it on the internal services. |
 | `QR_DATABASE_URL` / `QR_DATABASE_OWNER_URL` | compose value | The long-running service's `<database>_app` / the one-shot `<service>-migrate` job's `<database>_owner`; model and backtest receive neither; long-running services require `QR_MIGRATE=0` |
 | `QR_DATA_URL` | compose value | Data service, used by the gateway and the backtest worker |
-| `QR_MODEL_URL` | compose value | Model service, used by the gateway |
+| `QR_MODEL_URL` / `QR_SIMULATION_URL` | compose value | Model service / simulation service, used by the gateway |
 | `QR_EVIDENCE_URL` | compose value | Evidence service, used by the gateway and the backtest worker |
-| `QR_SIMULATION_URL` | compose value | Simulation service, used by the gateway |
 | `QR_OBJECT_STORE_URL` | compose value | MinIO endpoint |
 | `QR_QUEUE_URL` / `QR_QUEUE_GENERATION` | compose value / `1` | RabbitMQ endpoint / queue-generation suffix; a changed queue declaration uses a new generation |
+| `QR_LEADER_ID` | hostname + process id | Evidence leader holder; a distinct value per replica makes logs clear, and the term, not the holder, is the fence |
 | `QR_UPLOAD_LIMIT_BYTES` | `536870912` | Dataset upload cap; a config bundle is capped at 4 MiB separately |
 | `QR_BEARER_TOKEN` | empty | Enables the token check when set |
 | `QR_BACKTEST_CONCURRENCY` | `1` | Runs per worker |

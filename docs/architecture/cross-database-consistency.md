@@ -1,6 +1,6 @@
 # Cross-Database Consistency
 
-- Status: Current for the implemented slice (HA-004); artifact references and run lineage added by RA-006
+- Status: Current for the outbox, reference and leader slice (HA-004, HA-006); artifact references and run lineage added by RA-006
 - Issue: [#1102](https://github.com/quant-rule/quant-rule/issues/1102)
 - Claim type: Behaviour Claim
 - Related: [HA architecture](ha.md), [control plane](control-plane.md), [history retention](history-retention.md), [four databases](../config/2026-11-22/four-databases.md), [ADR-HA](../adr/2026-11-22/1082-ha-deployment-profile.md)
@@ -79,6 +79,9 @@ The backtest worker still publishes `run.computed` after its lifecycle call.
 That publish is an optimisation on the same broker: the outbox row is the
 durable copy, and finalisation skips a second delivery of a finished run.
 
+Leader finalisation uses `runs.leader_lease`; the live leader term plus the run
+term fences the write. Only the leader consumes `run.computed`; reads stay active.
+
 ## 3. Dataset references
 
 A consumer registers a reference before it uses a dataset and releases it before
@@ -142,8 +145,7 @@ left for the release sweep; it never blocks erase without a retry path.
 
 | Item | State |
 |---|---|
-| Quorum queues, publisher confirms, delivery limit | A later HA leaf; the classic queue already confirms a publish today. |
-| Evidence leader, term, fencing | A later HA leaf; finalisation is idempotent without it. |
+| Quorum queues, publisher confirms, delivery limit | Quorum queues are current (HA-005); publisher confirms and the delivery limit remain the queue guard. |
 | Diagnostic stage notifications | They keep their existing publish path; this outbox covers runs only. |
 | Simulation dataset references | Not registered; the research plane has no data client. |
 | Mixed worker/evidence protocol versions | The claim and finalisation payloads carry the lease fields; an in-flight run is not supported across a mixed control plane. Drain it or let the lease expire before a rollback. |
@@ -155,15 +157,13 @@ left for the release sweep; it never blocks erase without a retry path.
 ## 7. Verification
 
 - `cargo test -p quantrule-evidence-service --lib` covers the memory outbox,
-  restart re-arm, terminal cleanup, the release tombstone, the live lease, an
-  expired reclaim, a stale completion, and the heartbeat.
-- `cargo test -p quantrule-evidence-service --test outbox_conformance` runs the
-  shared body against the memory store in the fast gate.
-- `QR_TEST_DATABASE_URL=<disposable> cargo test -p quantrule-evidence-service
-  --test outbox_conformance -- --ignored` runs the same body against Postgres.
-- `cargo test -p quantrule-data-service --test pack_conformance`, `--test
-  artifact_conformance` and `cargo test -p quantrule-evidence-service --test
-  lineage` run every store body against memory and Postgres.
-- `cargo test -p quantrule-runtime --test migration_contract` pins migrations 18,
-  19 and 20, catalog migrations 7 and 8, and every checksum;
-  `tools/postgres_composed.sh` includes every new target.
+  restart re-arm, terminal cleanup, the release tombstone, the run lease, and
+  the leader lease.
+- `--test outbox_conformance` runs the shared body against memory; with
+  `QR_TEST_DATABASE_URL=<disposable>` and `--ignored`, against Postgres.
+- `--test leader` covers acquisition, renewal, expiry, takeover, the single
+  finalizer, stale-leader refusal, duplicate delivery, and standby reads.
+- `--test lineage`, `--test pack_conformance` and `--test artifact_conformance`
+  run their store bodies against memory and Postgres.
+- `cargo test -p quantrule-runtime --test migration_contract` pins migrations 18
+  through 21, catalog migrations 7 and 8, and every checksum.
