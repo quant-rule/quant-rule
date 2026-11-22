@@ -57,6 +57,11 @@ row cannot drift. No client, route or service was added.
 - Updated the signal contract document, the research-artifact pack status, the
   architecture status and signal section, the configuration and architecture
   indexes, the changelog, and this log.
+- Added the [RA-007 Quant Researcher note](../../reports/2026-11-22/1095-signal-researcher.md)
+  the issue's Done criteria asks for. It is a sequential pass by the
+  implementation agent, states the hypothesis, falsifiers, semantics and
+  boundary, and records that human acceptance and the independent Quant
+  Validator record (RA-010) remain pending.
 
 ## Design decisions for review
 
