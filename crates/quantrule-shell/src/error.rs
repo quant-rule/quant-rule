@@ -20,7 +20,13 @@ pub(crate) enum RunError {
         message: String,
     },
     /// The gateway could not be reached or the HTTP exchange failed.
-    Transport(String),
+    ///
+    /// The attempt count is the only detail: an exchange error can carry a URL,
+    /// a token, or a body, so the message is built from the policy instead.
+    Transport {
+        /// Attempts made, including the first.
+        attempts: u32,
+    },
     /// The response body is not the contract type the command expects.
     Decode {
         /// The path that was called.
@@ -52,6 +58,11 @@ impl RunError {
         }
     }
 
+    /// Build a transport failure for one attempt count.
+    pub(crate) fn transport(attempts: u32) -> Self {
+        Self::Transport { attempts }
+    }
+
     /// Build a decode failure for one path.
     pub(crate) fn decode(path: &str, error: impl fmt::Display) -> Self {
         Self::Decode {
@@ -73,7 +84,15 @@ impl fmt::Display for RunError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Api { code, message } => write!(formatter, "{code}: {message}"),
-            Self::Transport(message) => write!(formatter, "cannot reach the gateway: {message}"),
+            Self::Transport { attempts: 1 } => {
+                formatter.write_str("cannot reach the gateway after 1 attempt")
+            }
+            Self::Transport { attempts } => {
+                write!(
+                    formatter,
+                    "cannot reach the gateway after {attempts} attempts"
+                )
+            }
             Self::Decode { path, message } => {
                 write!(
                     formatter,

@@ -100,14 +100,15 @@ the stage provenance, computes `run_id`, writes `queued`, publishes
 
 `202` means new work; `200` means the identical run already exists, and
 `created` is `true` for `202` and `false` for `200`. A run is content-addressed
-and shared: each profile that submits it gets a submission row, and the run is
-not duplicated. A duplicate submission publishes the message again, so a retry
-after a lost publish can recover; the worker treats it as a lookup.
+and shared: each profile that submits it gets a submission row, and a duplicate
+submission republishes the message so a retry after a lost publish recovers.
 
-A proxied timeout is `503 service.unavailable`; retry it, because uploads and
-run submissions are content-addressed and return the existing record. Upload,
-artifact download, model compute, signal create, and signal bytes get 15 minutes;
-other calls get 30 seconds.
+A proxied timeout is `503 service.unavailable`; a repeated submission is safe,
+because uploads and run submissions are content-addressed and return the
+existing record. Upload, artifact download, model compute, signal create, and signal
+bytes get 15 minutes; other calls get 30 seconds. Clients retry only GET reads
+(a transport failure or `408`/`429`/`502`/`503`/`504`), never a mutation, and
+the retry is client-local: it does not change server idempotency or run identity.
 
 ## 4. Run detail
 

@@ -96,6 +96,15 @@ impl Request {
     }
 }
 
+/// One scripted failure for a matching request.
+struct Failure {
+    method: String,
+    path: String,
+    /// `0` closes the connection without an answer; any other value answers it.
+    status: u16,
+    remaining: u32,
+}
+
 /// The mutable fixture state.
 struct FixtureState {
     profiles: Vec<Value>,
@@ -107,6 +116,8 @@ struct FixtureState {
     parity: Option<Value>,
     /// The bearer token the fixture requires, when a test sets one.
     token: Option<String>,
+    /// Scripted transient failures, consumed in order.
+    failures: Vec<Failure>,
 }
 
 /// The response a handler builds.
@@ -150,6 +161,16 @@ impl Response {
             content_type,
             headers: Vec::new(),
             body,
+        }
+    }
+
+    /// Close the connection without writing a response.
+    fn closed() -> Self {
+        Self {
+            status: 0,
+            content_type: "application/json",
+            headers: Vec::new(),
+            body: Vec::new(),
         }
     }
 }
@@ -229,6 +250,7 @@ impl Fixture {
             next_profile: 0,
             parity,
             token: None,
+            failures: Vec::new(),
         }));
         let stop = Arc::new(AtomicBool::new(false));
         let handle = {
@@ -364,6 +386,35 @@ impl Fixture {
         self.state.lock().expect("the fixture lock").token = Some(token.to_owned());
     }
 
+    /// Answer the next `times` matching requests with `status` instead of the route.
+    pub fn fail_next(&self, method: &str, path: &str, status: u16, times: u32) {
+        assert!(status != 0, "use drop_next for a closed connection");
+        self.state
+            .lock()
+            .expect("the fixture lock")
+            .failures
+            .push(Failure {
+                method: method.to_owned(),
+                path: path.to_owned(),
+                status,
+                remaining: times,
+            });
+    }
+
+    /// Close the next `times` matching connections without an answer.
+    pub fn drop_next(&self, method: &str, path: &str, times: u32) {
+        self.state
+            .lock()
+            .expect("the fixture lock")
+            .failures
+            .push(Failure {
+                method: method.to_owned(),
+                path: path.to_owned(),
+                status: 0,
+                remaining: times,
+            });
+    }
+
     /// Add a profile to the list.
     pub fn add_profile(&self, id: &str, name: &str) {
         self.state
@@ -402,14 +453,28 @@ fn serve(listener: TcpListener, state: Arc<Mutex<FixtureState>>, stop: Arc<Atomi
                     let response = {
                         let mut state = state.lock().expect("the fixture lock");
                         state.requests.push(request.clone());
-                        if authorized(&state, &request) {
-                            handle(&mut state, &request)
-                        } else {
+                        if !authorized(&state, &request) {
                             Response::unauthorized()
+                        } else if let Some(status) = take_failure(&mut state, &request) {
+                            if status == 0 {
+                                Response::closed()
+                            } else {
+                                Response::error(
+                                    status,
+                                    "service.unavailable",
+                                    "the fixture refused the request",
+                                )
+                            }
+                        } else {
+                            handle(&mut state, &request)
                         }
                     };
-                    let _ = write_response(&mut stream, response);
-                    let _ = stream.shutdown(std::net::Shutdown::Write);
+                    if response.status == 0 {
+                        let _ = stream.shutdown(std::net::Shutdown::Both);
+                    } else {
+                        let _ = write_response(&mut stream, response);
+                        let _ = stream.shutdown(std::net::Shutdown::Write);
+                    }
                 } else {
                     let _ = stream.shutdown(std::net::Shutdown::Both);
                 }
@@ -421,6 +486,20 @@ fn serve(listener: TcpListener, state: Arc<Mutex<FixtureState>>, stop: Arc<Atomi
             Err(_) => break,
         }
     }
+}
+
+/// Consume one scripted failure and return its status, or `None`.
+fn take_failure(state: &mut FixtureState, request: &Request) -> Option<u16> {
+    let index = state.failures.iter().position(|failure| {
+        failure.remaining > 0 && failure.method == request.method && failure.path == request.path
+    })?;
+    let failure = &mut state.failures[index];
+    failure.remaining -= 1;
+    let status = failure.status;
+    if failure.remaining == 0 {
+        state.failures.remove(index);
+    }
+    Some(status)
 }
 
 fn authorized(state: &FixtureState, request: &Request) -> bool {

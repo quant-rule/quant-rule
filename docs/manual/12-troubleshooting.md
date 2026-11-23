@@ -32,7 +32,7 @@ stale data. The token code is `auth.unauthorized`; there is no `token.invalid`.
 | `research.conflict` | Duplicate submit/decision, or accepted without a succeeded digest | The action is refused | Read the record; wait for the run or choose a non-accepted decision |
 | `upload.too_large` | Body exceeds the configured limit | Upload is refused | Split the source or raise the limit with the human |
 | `queue.unavailable` | Broker unreachable | A stage submission is refused; a run submission is accepted and retried from its outbox row | Read `health`; start the broker |
-| `service.unavailable` | Downstream service unreachable or refused the proxied call | The call is refused; rows are not presented as fresh | Read `health` and `make logs`; stop |
+| `service.unavailable` | Downstream service unreachable or refused the proxied call | A GET retries to its budget, then the shell prints the attempt-count transport error and the browser shows the code; a mutation is refused | Read `health` and `make logs`; stop |
 | `simulation.not_found` | Unknown simulation id | The run is unavailable | Re-read `simulation list` |
 | `simulation.mark_invalid` | Bar outside the window, or a schema violation | The mark is refused; the note is kept | Select a bar in the window; fix the mark fields |
 | `simulation.check_incomplete` | Fewer than 30 events produced a check row; the sample is underpowered | The check is refused | Use a bundle or timeframe with at least 30 events; do not mark the same small sample harder |
@@ -43,13 +43,20 @@ stale data. The token code is `auth.unauthorized`; there is no `token.invalid`.
 
 | Symptom | Meaning | Next action |
 |---|---|---|
-| `unreachable` | The gateway does not answer | Check the URL, `make ps`, and the private network |
+| `unreachable` | The gateway does not answer after the client retry budget | Check the URL, `make ps`, and the private network |
+| Reconnect banner | A GET is inside its bounded retry budget; a mutation is never retried | Wait; if it does not clear, read `/ready` and the logs |
 | `version mismatch` | The client and gateway API versions differ | Use a client built for the gateway version |
 | `token required` | The gateway enforces a token and none was accepted | Enter the token on Connection |
 | `degraded` | A dependency is down but the gateway answers | Read the service table; stop before submitting |
 | Rows disappear after a profile switch | The scope was cleared, not a data loss | Re-read under the new profile |
 | A run stays `queued` | No worker is consuming the queue | Check the backtest worker and queue; stop |
 | A message is in the dead-letter queue | The handler rejected it past the delivery limit | Read the queue name, `x-death`, and the run row; do not republish blindly |
+
+The shell prints `cannot reach the gateway after N attempts` after the budget;
+the message never names a path, token, or body. Only GET reads retry, on a
+transport failure, `408`, `429`, `502`, `503` or `504`. A `401`, `403`, `404`,
+other `4xx`, an invalid response and every POST/PUT/DELETE stay single-attempt,
+so a submit, cancel, or decision is never duplicated by the client.
 
 ## What a code does not mean
 

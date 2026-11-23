@@ -84,9 +84,13 @@ pub(super) fn write_response(stream: &mut TcpStream, response: Response) -> std:
         400 => "Bad Request",
         401 => "Unauthorized",
         404 => "Not Found",
+        408 => "Request Timeout",
         409 => "Conflict",
+        429 => "Too Many Requests",
         500 => "Internal Server Error",
+        502 => "Bad Gateway",
         503 => "Service Unavailable",
+        504 => "Gateway Timeout",
         _ => "Internal Server Error",
     };
     let mut head = format!(

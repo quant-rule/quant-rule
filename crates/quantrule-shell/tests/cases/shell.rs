@@ -1,7 +1,7 @@
 //! Shell error, determinism, JSON, and help output tests.
 
 use crate::cases::assertions::{assert_failure, assert_success, stderr, stdout};
-use crate::support::{Fixture, canonical_digest, digest, run_id};
+use crate::support::{Fixture, canonical_digest, data_version, digest, run_id};
 
 #[test]
 fn the_error_envelope_keeps_its_stable_code() {
@@ -28,6 +28,87 @@ fn a_missing_required_option_is_refused_without_a_request() {
     assert_failure(&output);
     assert!(stderr(&output).contains("--bundle is required"));
     assert!(fixture.requests().is_empty());
+}
+
+#[test]
+fn a_transient_get_succeeds_with_the_same_printed_output() {
+    let fixture = Fixture::start();
+    let baseline = fixture.run(&["run", "status", &run_id()]);
+    assert_success(&baseline);
+
+    fixture.clear_requests();
+    let path = format!("/runs/{}", run_id());
+    fixture.fail_next("GET", &path, 503, 1);
+    fixture.drop_next("GET", &path, 1);
+    let retried = fixture.run(&["run", "status", &run_id()]);
+    assert_success(&retried);
+    assert_eq!(stdout(&retried), stdout(&baseline));
+    assert_eq!(stderr(&retried), "");
+
+    let requests = fixture.requests();
+    assert_eq!(requests.len(), 3);
+    assert!(
+        requests
+            .iter()
+            .all(|request| request.method == "GET" && request.path == path)
+    );
+}
+
+#[test]
+fn a_permanent_get_failure_names_the_attempt_count_without_a_path() {
+    let fixture = Fixture::start();
+    let path = format!("/runs/{}", run_id());
+    fixture.drop_next("GET", &path, 3);
+    let output = fixture.run(&["run", "status", &run_id()]);
+    assert_failure(&output);
+    assert_eq!(stdout(&output), "");
+    assert_eq!(
+        stderr(&output),
+        "error: cannot reach the gateway after 3 attempts\n"
+    );
+    assert_eq!(fixture.requests().len(), 3);
+
+    let text = stderr(&output);
+    assert!(!text.contains(&run_id()));
+    assert!(!text.contains("/runs/"));
+}
+
+#[test]
+fn a_post_is_attempted_once() {
+    let fixture = Fixture::start();
+    fixture.drop_next("POST", "/runs", 1);
+    let output = fixture.run(&["run", "submit", &data_version(), "cfg_abc"]);
+    assert_failure(&output);
+    assert_eq!(
+        stderr(&output),
+        "error: cannot reach the gateway after 1 attempt\n"
+    );
+    let requests = fixture.requests();
+    assert_eq!(requests.len(), 1);
+    assert_eq!(requests[0].method, "POST");
+    assert_eq!(requests[0].path, "/runs");
+}
+
+#[test]
+fn an_unauthorized_get_is_not_retried() {
+    let fixture = Fixture::start();
+    fixture.require_token("secret-token");
+    let output = fixture.run(&["run", "status", &run_id()]);
+    assert_failure(&output);
+    assert_eq!(
+        stderr(&output),
+        "error: auth.unauthorized: a bearer token is required\n"
+    );
+    assert_eq!(fixture.requests().len(), 1);
+}
+
+#[test]
+fn a_missing_run_is_not_retried() {
+    let fixture = Fixture::start();
+    let output = fixture.run(&["run", "status", &digest('9')]);
+    assert_failure(&output);
+    assert_eq!(stderr(&output), "error: run.not_found: run is unknown\n");
+    assert_eq!(fixture.requests().len(), 1);
 }
 
 #[test]
