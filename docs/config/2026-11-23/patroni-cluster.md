@@ -124,7 +124,7 @@ Patroni replication and pg_rewind connect to the Patroni alias with
 `verify-full`. The required sample set is:
 
 ```bash
-PKI_EXTRA_SANS="patroni-infra-1,patroni-infra-2,patroni-infra-3,etcd-infra-1,etcd-infra-2,etcd-infra-3,rabbitmq-infra-1,rabbitmq-infra-2,rabbitmq-infra-3"   tools/pki.sh --out /etc/quantrule/pki
+PKI_EXTRA_SANS="patroni-infra-1,patroni-infra-2,patroni-infra-3,etcd-infra-1,etcd-infra-2,etcd-infra-3,rabbitmq-infra-1,rabbitmq-infra-2,rabbitmq-infra-3,minio-infra-1,minio-infra-2,minio-infra-3,minio-infra-4"   tools/pki.sh --out /etc/quantrule/pki
 ```
 
 The lab uses `patroni-lab-1..3,etcd-lab-1..3`. Do not add a plaintext fallback
@@ -177,9 +177,10 @@ attach to it, so they cannot start before it exists.
 |---:|---|---|
 | 1 | `tools/stateful.sh network` | overlay exists, attachable, encrypted |
 | 2 | `tools/stateful.sh copy` | manifest, per-host configs, PKI, secrets, host Compose files |
-| 3 | `tools/stateful.sh start` | etcd, Patroni, HAProxy, then the seed broker and the other two |
+| 3 | `tools/stateful.sh start` | MinIO, etcd, Patroni, HAProxy, then the seed broker and the other two |
 | 4 | `tools/stateful.sh wait` | etcd health, Patroni leader + sync standby, three brokers/no alarms, primary psql |
 | 5 | `tools/stateful.sh queue-bootstrap` | app queue user, vhost, and permissions |
+| 6 | `tools/stateful.sh object-bootstrap` | MinIO bucket, versioning, `qr_app`, and policy |
 | 6 | `tools/swarm.sh bootstrap` | app objects, labels, cluster/db/migrate jobs, stack |
 
 `tools/stateful.sh copy` reads the manifest and copies each file with

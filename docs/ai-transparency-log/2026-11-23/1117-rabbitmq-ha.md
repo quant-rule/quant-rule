@@ -51,8 +51,8 @@ evidence service suites, `qr-governance check --all`, `make compose-check`, both
 
 No live RabbitMQ cluster, broker loss, or TLS handshake was observed in this
 environment. The lab is `Unverified`; `Real HA` is HA-014. The end-to-end digest
-is `Blocked` until PLAT-005 configures MinIO. The fixture image digests and PKI
-are placeholders; none was invented as a real pin.
+is `Measured` only after `tools/verify.sh` succeeds. The fixture image digests
+and PKI are placeholders; none was invented as a real pin.
 
 ## Learning
 
@@ -90,7 +90,7 @@ are placeholders; none was invented as a real pin.
   export/import/verify/retention tool, the broker-loss lab phase, and the final
   gate. The boundary is the human's phase-2 brief: no new dependency, no
   command-surface change, `Simulated HA` at the queue level, and the end-to-end
-  digest `Blocked`/`Unverified` until PLAT-005 MinIO.
+  digest `Measured` only after `tools/verify.sh` succeeds.
 
 ### Work performed
 
@@ -132,9 +132,9 @@ definition fixture verify, `tools/test_tiers.sh ha --plan`, and `tools/gate.sh`
 (`gate passed: full`).
 
 The live lab was not run: this environment has no three-VM Swarm. The queue row
-is `Unverified`; `Real HA` is HA-014; the end-to-end digest is
-`Blocked`/`Unverified` until PLAT-005 MinIO. No live broker loss or TLS handshake
-is claimed.
+is `Unverified`; `Real HA` is HA-014; the end-to-end digest is `Measured` only
+after `tools/verify.sh` succeeds. No live broker loss or TLS handshake is
+claimed.
 
 ### Learning
 

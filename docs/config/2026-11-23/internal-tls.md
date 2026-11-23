@@ -182,9 +182,31 @@ Client:
 
 ## 6. MinIO
 
-Server: the image starts with `MINIO_SCHEME=https` and `--certs-dir /certs`,
-where `/certs` contains `public.crt`, `private.key` and `CAs/ca.crt`. The
-healthcheck trusts `CURL_CA_BUNDLE=/certs/CAs/ca.crt`.
+Server (Compose and v2): the image starts with `MINIO_SCHEME=https` and
+`--certs-dir /certs`, where `/certs` contains `public.crt`, `private.key` and
+`CAs/ca.crt`. The healthcheck trusts `CURL_CA_BUNDLE=/certs/CAs/ca.crt`.
+
+v3 (`minio-<host>.conf`): the unit command exports `MINIO_ROOT_USER` and
+`MINIO_ROOT_PASSWORD` from the mounted mode-600 files, sources the config, and
+execs `minio server --certs-dir /certs`. The config carries only references:
+
+```text
+MINIO_VOLUMES="https://minio-<host>:9000/dataN …"
+MINIO_SERVER_URL="https://minio:9000"
+MINIO_BROWSER="off"
+MINIO_STORAGE_CLASS_STANDARD="EC:2"
+MINIO_ROOT_USER_FILE="/run/secrets/minio_root_user"
+MINIO_ROOT_PASSWORD_FILE="/run/secrets/minio_root_password"
+MINIO_CONFIG_ENV_FILE="/etc/minio/minio.conf"
+```
+
+The reference topology is four nodes × one drive EC:2; the lab is three VMs ×
+two drives EC:3. `parity` must exceed the largest per-node drive count so one
+node loss keeps the write quorum. There is no plaintext listener, no console, and
+no published 9000/9001; the HAProxy pair owns the `minio` alias and the
+health-checked `*:9000` TCP frontend over `minio-<host>:9000`. Nodes carry only
+`minio-<host>`. The leaf covers `minio` plus every `minio-<host>`; the manifest
+records the same set.
 
 Client:
 
@@ -193,9 +215,16 @@ Client:
 | URL | `https://minio:9000` with no userinfo |
 | CA | `QR_OBJECT_STORE_TLS_CA_PATH`, absolute |
 | Trust store | explicit Smithy `TrustStore::empty()` plus the bundle; platform roots are not used for the private endpoint |
-| Credentials | the two `_FILE` values; no `aws-config` and no AWS default chain |
+| Credentials | `qr_app` and its app secret from the two `_FILE` values; no root, no `aws-config`, no AWS default chain |
 | Addressing | path style, region `us-east-1` |
+| Bucket | `quantrule`, content-addressed, versioning enabled, least-privilege policy |
+| Stateful `mc` | mounts `CAs/ca.crt` at `/certs/ca.crt` and sets `SSL_CERT_FILE`; no `--insecure` |
 | Failure | client construction or handshake fails; no plaintext retry |
+
+PLAT-005 owns local erasure, versioning, the bucket policy, the app account, and
+the MinIO check rows/node-loss lab; HA-013 owns off-host/archive copies, restore
+drills, and any second-site replication. Root files are stateful host files,
+never app Swarm secrets or app containers; object lock is not in v1.5.10.
 
 ## 7. Configuration
 

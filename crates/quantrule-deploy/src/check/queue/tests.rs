@@ -230,8 +230,8 @@ fn a_missing_peer_and_shutdown_sessions_are_failed_rows() {
             "",
         )
         .replace(
-            "  server rabbitmq-infra-3 rabbitmq-infra-3:5671 check\n  on-marked-down shutdown-sessions\n\nlisten stats",
-            "  server rabbitmq-infra-3 rabbitmq-infra-3:5671 check\n\nlisten stats",
+            "  server rabbitmq-infra-3 rabbitmq-infra-3:5671 check\n  on-marked-down shutdown-sessions\n\nfrontend minio",
+            "  server rabbitmq-infra-3 rabbitmq-infra-3:5671 check\n\nfrontend minio",
         );
     std::fs::write(&path, mutated).expect("mutate");
     let rows = rows(&descriptor, Some(&directory), &FakeCertificates::valid());

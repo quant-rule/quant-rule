@@ -38,9 +38,9 @@ non-root database, broker and store start.
 | Rotate the CA | Re-issue, overlap the intermediate in `ca.crt`, rolling restart | Old and new leaves verify during the overlap |
 
 A missing CA, wrong CA, hostname mismatch or expired leaf fails closed: the pool
-does not open, the migration job fails, or `/ready` reports the dependency down.
-There is no plaintext fallback. Internal service-to-service HTTP stays plaintext
-on the overlay ([TLS contract](../config/2026-11-23/internal-tls.md)).
+does not open, the migration job fails, or `/ready` reports the dependency down;
+there is no plaintext fallback. Internal HTTP stays plaintext on the overlay
+([TLS contract](../config/2026-11-23/internal-tls.md)).
 
 ## Steps
 
@@ -245,16 +245,22 @@ out of Git because it contains users and password hashes.
 | `make restore FILE=<archive>` | Verifies the sidecar and every payload, then restores into a clean stack |
 | `tools/restore.sh <archive> --force --yes` | Explicitly replaces a non-empty stack |
 
-The queue is not archived; an acknowledged message survives one broker loss,
-and a lost queue is rebuilt from run rows. Restore writes
-objects before rows, so an interrupted copy leaves unreferenced blobs rather
-than a run that looks present but cannot verify. Export the stripped topology
-with `tools/queue-definitions.sh export`; definitions restore queues and
-bindings, not messages.
+The queue is not archived; an acknowledged message survives one broker loss and
+a lost queue is rebuilt from run rows. Restore writes objects before rows, so an
+interrupted copy leaves unreferenced blobs, not a present but unverifiable run.
 
-`tools/backup.sh` and `tools/restore.sh` still dump and restore one database,
-so a backup is incomplete until all four are covered. The database and role
-contract is [`docs/config/2026-11-22/four-databases.md`](../config/2026-11-22/four-databases.md).
+## v3 object store
+
+PLAT-005 runs `tools/stateful.sh object-bootstrap` after `wait`: it creates the
+`quantrule` bucket, enables versioning, creates `qr_app`, attaches the policy,
+and the check adds config/quorum, unit/alias, HAProxy 9000, manifest, app, and
+leaf SAN rows. The two root files are `minio` scope. One node loss keeps the
+write quorum; the lab re-reads the probe hash through `minio:9000`, heals to
+zero, and records `Simulated HA`; the digest is `Measured` only after `verify.sh`.
+HA-013 owns off-host/archive and restore; object lock is not in v1.5.10.
+
+`tools/backup.sh` and `tools/restore.sh` still dump one database, so a backup is
+incomplete until all four are covered ([four databases](../config/2026-11-22/four-databases.md)).
 
 ## Migrations
 
@@ -275,32 +281,28 @@ The exact commands and the rollback conditions are in
 
 An existing local stack created before file-backed secrets keeps its old store
 passwords. Export `QR_POSTGRES_PASSWORD`, `QR_RABBITMQ_PASSWORD` and
-`QR_OBJECT_STORE_PASSWORD` with those values before the first `make secrets`, or
-reset a disposable stack with `make reset`. A kept stack needs the coordinated
-password change, not a volume wipe.
+`QR_OBJECT_STORE_PASSWORD` before the first `make secrets`, or reset a
+disposable stack with `make reset`; a kept stack needs a coordinated change.
 
 ### Queue generation cutover
 
 An upgrade that changes the queue topology does not reuse the old names. Stop
 the gateway and old workers, let the old queues drain, then unbind or delete the
-empty old queues before the new generation starts publishing. Leaving an old
-queue bound to `quantrule.runs` while the new generation runs makes it receive
-copies with no consumer. A queued run that is lost with the old queue is rebuilt
-from its run row; the run row is authoritative.
+empty old queues before the new generation publishes; an old queue bound to
+`quantrule.runs` receives copies with no consumer. A lost queued run is rebuilt
+from its run row.
 
 ## What you see
 
 The Operations screen shows connection, product, API, image digest, health,
-active profile, token presence, retention, cleanup counts and error, the
-permanent-evidence rule, and the run verification form. The Connection screen
-owns entering and forgetting the token.
+active profile, token presence, retention, cleanup, the permanent-evidence rule,
+and run verification; Connection owns entering and forgetting the token.
 
 ## What it proves
 
 **Verification.** Health, retention, token, backup, and digest reads prove the
-deployment is reachable and its evidence is intact. A recorded digest is not a
-reproducibility proof by itself; two equivalent runs with the same digest are.
-None of this is research evidence or an edge claim.
+deployment is reachable and its evidence is intact; two equivalent runs with the
+same digest are the reproducibility proof. None of this is research evidence.
 
 ## Failure
 

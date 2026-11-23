@@ -14,6 +14,7 @@ mod bootstrap;
 pub(crate) mod infra;
 pub(crate) mod ingress;
 mod jobs;
+pub(crate) mod minio;
 pub(crate) mod queue;
 mod secrets;
 pub(crate) mod stateful;
@@ -298,6 +299,7 @@ fn prepare_output(out: &Path) -> Result<(), Error> {
         "quantrule_traefik.yml",
         "traefik-dynamic.yml",
         "stateful-manifest.json",
+        "minio-policy.json",
     ] {
         remove_existing(&out.join(name))?;
     }
@@ -327,6 +329,7 @@ fn remove_stale_stateful(out: &Path) -> Result<(), Error> {
             && (name.ends_with(".yml") || name.ends_with(".cfg")))
             || (name.starts_with("rabbitmq-") && name.ends_with(".conf"))
             || name == "rabbitmq-enabled_plugins"
+            || (name.starts_with("minio-") && name.ends_with(".conf"))
         {
             remove_existing(&entry.path())?;
         }
@@ -535,6 +538,8 @@ mod tests {
         std::fs::write(out.join("haproxy-edge-old.cfg"), "stale").expect("stale haproxy");
         std::fs::write(out.join("rabbitmq-infra-old.conf"), "stale").expect("stale rabbitmq");
         std::fs::write(out.join("rabbitmq-enabled_plugins"), "stale").expect("stale plugins");
+        std::fs::write(out.join("minio-infra-old.conf"), "stale").expect("stale minio");
+        std::fs::write(out.join("minio-policy.json"), "stale").expect("stale minio policy");
         std::fs::write(out.join("stateful-manifest.json"), "stale").expect("stale manifest");
         std::fs::create_dir_all(out.join("infra")).expect("stale infra");
         std::fs::write(out.join("infra/old.yaml"), "stale").expect("stale unit");
@@ -550,6 +555,8 @@ mod tests {
         assert!(!out.join("haproxy-edge-old.cfg").exists());
         assert!(!out.join("rabbitmq-infra-old.conf").exists());
         assert!(!out.join("rabbitmq-enabled_plugins").exists());
+        assert!(!out.join("minio-infra-old.conf").exists());
+        assert!(!out.join("minio-policy.json").exists());
         assert!(!out.join("stateful-manifest.json").exists());
         assert!(!out.join("infra").exists());
         assert_eq!(

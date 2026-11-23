@@ -786,5 +786,5 @@ x-quantrule:
   network_attachable: true
   network_encrypted: true
   owner: "HA-012"
-  platform: "Traefik ingress configuration is PLAT-002; Patroni, etcd, and HAProxy are PLAT-003; RabbitMQ is PLAT-004; MinIO and observability remain PLAT-005/006"
+  platform: "Traefik ingress configuration is PLAT-002; Patroni, etcd, and HAProxy are PLAT-003; RabbitMQ is PLAT-004; MinIO is PLAT-005; observability remains PLAT-006"
   profile: "lab-single-host"

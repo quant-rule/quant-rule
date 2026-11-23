@@ -92,17 +92,25 @@ the role; never put a value in an env file.
 For `quantrule.deploy/v3`, the renderer reads each `secrets.files` source once
 and writes the same value to `secrets/<name>`; `secrets/manifest.json` lists the
 names, relative paths, modes, and Swarm names, never a value or a fingerprint.
-`bootstrap.sh` creates one external Swarm secret per file from `secrets/<name>`;
-it hashes the rendered file locally for the `quantrule.source_sha256` drift
-label and never prints, logs, or passes the value. The app services mount only
-the secrets they consume; owner URLs go only to the migration jobs. The five
-stateful secrets (four Patroni passwords and `rabbitmq_erlang_cookie`) are
-excluded from app Swarm secrets and copied by `tools/stateful.sh`; the cookie
-and broker key go only to `stateful.rabbitmq.nodes`. `QR_INTERNAL_ONLY=1` and the
-entrypoint's private-address resolution are unchanged; a task with no resolvable
-private address fails closed. The queue definitions export is credential-free
-(`users`/`permissions` stripped) and mode 600. The contract is
-[deploy/v3](../2026-11-22/deploy-v3.md).
+`bootstrap.sh` creates one external Swarm secret per app file from
+`secrets/<name>`; it hashes the rendered file locally for the
+`quantrule.source_sha256` drift label and never prints, logs, or passes the
+value. The app services mount only the secrets they consume; owner URLs go only
+to the migration jobs. The five stateful secrets (four Patroni passwords and
+`rabbitmq_erlang_cookie`) are excluded from app Swarm secrets and copied by
+`tools/stateful.sh`; the cookie and broker key go only to
+`stateful.rabbitmq.nodes`. The two MinIO root secrets (`minio_root_user`,
+`minio_root_password`) have `minio` scope: they go only to
+`stateful.minio.nodes`, never an app Swarm secret and never an app container.
+`object_store_access_key` is exactly `qr_app`; that pair stays an app Swarm
+secret and is copied to the MinIO hosts only for the one-shot object bootstrap.
+`QR_INTERNAL_ONLY=1` and the entrypoint's private-address resolution are
+unchanged; a task with no resolvable private address fails closed. The queue
+definitions export is credential-free (`users`/`permissions` stripped) and mode
+600. The contract is [deploy/v3](../2026-11-22/deploy-v3.md) and the MinIO
+contract is [minio-cluster](minio-cluster.md). The MinIO check verifies the root
+files only on MinIO hosts and the app `_FILE` path; the lab proves one node loss
+keeps the probe hash.
 
 ## 5. Token rotation
 

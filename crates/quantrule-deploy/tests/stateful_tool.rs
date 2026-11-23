@@ -67,14 +67,17 @@ fn the_plan_is_docker_free_and_names_the_boot_order() {
         "no Docker, SSH, jq, or secret file is read",
         "network",
         "copy",
-        "etcd -> Patroni -> HAProxy",
+        "MinIO nodes -> etcd -> Patroni -> HAProxy",
         "seed the first RabbitMQ broker",
+        "MinIO mc admin info (all nodes/drives, 0 offline, 0 healing)",
         "etcdctl endpoint health",
         "patronictl list",
         "RabbitMQ cluster_status (3 running, no alarms)",
         "queue-bootstrap",
+        "object-bootstrap",
+        "put/get/delete probe",
         "psql -h postgres",
-        "no stack, volume, secret, config, node, or service is removed",
+        "no stack, volume, secret, config, node, service, or bucket object outside the bootstrap probe is removed",
     ] {
         assert!(text.contains(expected), "{expected}: {text}");
     }
@@ -110,6 +113,9 @@ fn the_copy_selector_keeps_broker_material_on_brokers() {
     assert!(!edge.contains(&"rabbitmq-infra-1.conf"), "{edge:?}");
     assert!(!edge.contains(&"pki/rabbitmq/server.key"), "{edge:?}");
     assert!(!edge.contains(&"patroni-infra-1.yml"), "{edge:?}");
+    assert!(!edge.contains(&"minio-infra-1.conf"), "{edge:?}");
+    assert!(!edge.contains(&"secrets/minio_root_password"), "{edge:?}");
+    assert!(!edge.contains(&"pki/minio/private.key"), "{edge:?}");
 
     let broker = selector("infra-1");
     assert!(broker.contains(&"rabbitmq-infra-1.conf"), "{broker:?}");
@@ -118,6 +124,13 @@ fn the_copy_selector_keeps_broker_material_on_brokers() {
         "{broker:?}"
     );
     assert!(broker.contains(&"pki/rabbitmq/server.key"), "{broker:?}");
+    assert!(broker.contains(&"minio-infra-1.conf"), "{broker:?}");
+    assert!(broker.contains(&"secrets/minio_root_user"), "{broker:?}");
+    assert!(
+        broker.contains(&"secrets/minio_root_password"),
+        "{broker:?}"
+    );
+    assert!(broker.contains(&"pki/minio/private.key"), "{broker:?}");
     assert!(!broker.contains(&"haproxy-edge-1.cfg"), "{broker:?}");
 
     let text = std::fs::read_to_string(repo("tools/stateful.sh")).expect("tool");
@@ -181,6 +194,110 @@ fn the_queue_bootstrap_never_passes_the_password_as_an_argument() {
         text.contains("printf '%s\\n' \"$url\" | $ssh_bin"),
         "the URL must travel on stdin: {text}"
     );
+}
+
+#[test]
+fn the_start_puts_minio_before_the_other_stateful_units() {
+    let text = std::fs::read_to_string(repo("tools/stateful.sh")).expect("tool");
+    let minio = text
+        .find("start_phase \"minio-$host\"")
+        .expect("minio start");
+    let etcd = text.find("start_phase etcd").expect("etcd start");
+    assert!(minio < etcd, "{text}");
+    assert!(text.contains("minio_drives"), "{text}");
+    assert!(
+        text.contains("/srv/quantrule/minio/$host/drive$drive"),
+        "{text}"
+    );
+}
+
+#[test]
+fn the_wait_checks_every_minio_node_and_drive() {
+    let text = std::fs::read_to_string(repo("tools/stateful.sh")).expect("tool");
+    for expected in [
+        "minio_ready",
+        "admin info local",
+        "minio-$node:9000",
+        "0 drives offline",
+        "0 drives healing",
+        "$total drives online",
+        "minio_total_drives",
+        "minio_write_config \"$minio_host\" \"$minio_mc_dir\"",
+        "MinIO $minio_host (nodes/drives/healing)",
+    ] {
+        assert!(text.contains(expected), "{expected}: {text}");
+    }
+}
+
+#[test]
+fn the_minio_client_mounts_the_private_ca() {
+    let text = std::fs::read_to_string(repo("tools/stateful.sh")).expect("tool");
+    for function in ["minio_mc", "minio_mc_shell"] {
+        let header = format!("{function}() {{");
+        let start = text
+            .find(&header)
+            .unwrap_or_else(|| panic!("{function} is missing: {text}"));
+        let rest = &text[start..];
+        let end = rest[1..]
+            .find("\n}\n")
+            .map(|index| index + 1)
+            .unwrap_or(rest.len());
+        let body = &rest[..end];
+        for expected in [
+            "-v /etc/quantrule/pki/minio/CAs/ca.crt:/certs/ca.crt:ro",
+            "-e SSL_CERT_FILE=/certs/ca.crt",
+        ] {
+            assert!(
+                body.contains(expected),
+                "{function} lacks {expected}: {body}"
+            );
+        }
+        assert!(!body.contains("--insecure"), "{function}: {body}");
+    }
+    assert_eq!(
+        text.matches("-e SSL_CERT_FILE=/certs/ca.crt").count(),
+        2,
+        "{text}"
+    );
+    assert_eq!(
+        text.matches("-v /etc/quantrule/pki/minio/CAs/ca.crt:/certs/ca.crt:ro")
+            .count(),
+        2,
+        "{text}"
+    );
+}
+
+#[test]
+fn the_object_bootstrap_is_pinned_and_never_prints_a_secret() {
+    let text = std::fs::read_to_string(repo("tools/stateful.sh")).expect("tool");
+    for expected in [
+        "minio_image()",
+        "images.minio_client",
+        "minio_write_config",
+        "config.json",
+        "chmod 600 \"$directory/config.json\"",
+        "admin policy create local __POLICY__ /policy.json",
+        "admin policy attach local __POLICY__ --user __USER__",
+        "admin user add local",
+        "printf \"%s\\n%s\\n\" __USER__ \"$secret\" | mc --config-dir /mc",
+        "mb --ignore-existing",
+        "version enable",
+        "version info",
+        "bootstrap-probe",
+        "--force --versions",
+        "the existing user may have a different secret",
+        "--entrypoint /bin/sh",
+    ] {
+        assert!(text.contains(expected), "{expected}: {text}");
+    }
+    assert!(!text.contains("set -x"), "{text}");
+    assert!(
+        !text.contains("docker run --rm --network $overlay -e MINIO"),
+        "{text}"
+    );
+    assert!(!text.contains("-e MC_"), "{text}");
+    let marker = "stateful-minio-secret-must-not-appear";
+    assert!(!text.contains(marker), "{text}");
 }
 
 #[test]

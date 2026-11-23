@@ -297,7 +297,7 @@ fn default_openssl() -> &'static Path {
         ));
         write_mode(
             &path,
-            "#!/bin/sh\nprintf 'Certificate will not expire\\nX509v3 Subject Alternative Name:\\n    DNS:quantrule.dev, DNS:postgres, DNS:patroni-infra-1, DNS:patroni-infra-2, DNS:patroni-infra-3, DNS:etcd-infra-1, DNS:etcd-infra-2, DNS:etcd-infra-3, DNS:rabbitmq, DNS:rabbitmq-infra-1, DNS:rabbitmq-infra-2, DNS:rabbitmq-infra-3\\n'\nexit 0\n",
+            "#!/bin/sh\nprintf 'Certificate will not expire\\nX509v3 Subject Alternative Name:\\n    DNS:quantrule.dev, DNS:postgres, DNS:patroni-infra-1, DNS:patroni-infra-2, DNS:patroni-infra-3, DNS:etcd-infra-1, DNS:etcd-infra-2, DNS:etcd-infra-3, DNS:rabbitmq, DNS:rabbitmq-infra-1, DNS:rabbitmq-infra-2, DNS:rabbitmq-infra-3, DNS:minio, DNS:minio-infra-1, DNS:minio-infra-2, DNS:minio-infra-3, DNS:minio-infra-4, DNS:minio-lab-1, DNS:minio-lab-2, DNS:minio-lab-3\\n'\nexit 0\n",
             0o755,
         );
         path
@@ -328,6 +328,7 @@ fn stage_pki(directory: &Path) -> PathBuf {
     std::fs::create_dir_all(root.join("postgres")).expect("postgres pki");
     std::fs::create_dir_all(root.join("etcd")).expect("etcd pki");
     std::fs::create_dir_all(root.join("rabbitmq")).expect("rabbitmq pki");
+    std::fs::create_dir_all(root.join("minio/CAs")).expect("minio pki");
     let ca = root.join("ca.crt");
     write_mode(&ca, "fixture CA\n", 0o644);
     for (directory, name) in [
@@ -348,6 +349,13 @@ fn stage_pki(directory: &Path) -> PathBuf {
             0o600,
         );
     }
+    write_mode(
+        &root.join("minio/public.crt"),
+        "fixture certificate\n",
+        0o644,
+    );
+    write_mode(&root.join("minio/private.key"), "fixture key\n", 0o600);
+    write_mode(&root.join("minio/CAs/ca.crt"), "fixture CA\n", 0o644);
     ca
 }
 

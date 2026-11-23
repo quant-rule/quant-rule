@@ -5,6 +5,11 @@
     "etcd-infra-1",
     "etcd-infra-2",
     "etcd-infra-3",
+    "minio",
+    "minio-infra-1",
+    "minio-infra-2",
+    "minio-infra-3",
+    "minio-infra-4",
     "patroni-infra-1",
     "patroni-infra-2",
     "patroni-infra-3",
@@ -138,6 +143,59 @@
       ]
     },
     {
+      "source": "minio-infra-1.conf",
+      "target": "/etc/quantrule/minio/minio.conf",
+      "mode": "600",
+      "owner": "root",
+      "scope": "config",
+      "hosts": [
+        "infra-1"
+      ]
+    },
+    {
+      "source": "minio-infra-2.conf",
+      "target": "/etc/quantrule/minio/minio.conf",
+      "mode": "600",
+      "owner": "root",
+      "scope": "config",
+      "hosts": [
+        "infra-2"
+      ]
+    },
+    {
+      "source": "minio-infra-3.conf",
+      "target": "/etc/quantrule/minio/minio.conf",
+      "mode": "600",
+      "owner": "root",
+      "scope": "config",
+      "hosts": [
+        "infra-3"
+      ]
+    },
+    {
+      "source": "minio-infra-4.conf",
+      "target": "/etc/quantrule/minio/minio.conf",
+      "mode": "600",
+      "owner": "root",
+      "scope": "config",
+      "hosts": [
+        "infra-4"
+      ]
+    },
+    {
+      "source": "minio-policy.json",
+      "target": "/etc/quantrule/minio/quantrule-app-policy.json",
+      "mode": "644",
+      "owner": "root",
+      "scope": "config",
+      "hosts": [
+        "infra-1",
+        "infra-2",
+        "infra-3",
+        "infra-4"
+      ]
+    },
+    {
       "source": "secrets/postgres_superuser_password",
       "target": "/etc/quantrule/secrets/postgres_superuser_password",
       "mode": "600",
@@ -197,6 +255,58 @@
         "infra-1",
         "infra-2",
         "infra-3"
+      ]
+    },
+    {
+      "source": "secrets/minio_root_user",
+      "target": "/etc/quantrule/secrets/minio_root_user",
+      "mode": "600",
+      "owner": "root",
+      "scope": "secret",
+      "hosts": [
+        "infra-1",
+        "infra-2",
+        "infra-3",
+        "infra-4"
+      ]
+    },
+    {
+      "source": "secrets/minio_root_password",
+      "target": "/etc/quantrule/secrets/minio_root_password",
+      "mode": "600",
+      "owner": "root",
+      "scope": "secret",
+      "hosts": [
+        "infra-1",
+        "infra-2",
+        "infra-3",
+        "infra-4"
+      ]
+    },
+    {
+      "source": "secrets/object_store_access_key",
+      "target": "/etc/quantrule/secrets/object_store_access_key",
+      "mode": "600",
+      "owner": "root",
+      "scope": "secret",
+      "hosts": [
+        "infra-1",
+        "infra-2",
+        "infra-3",
+        "infra-4"
+      ]
+    },
+    {
+      "source": "secrets/object_store_secret_key",
+      "target": "/etc/quantrule/secrets/object_store_secret_key",
+      "mode": "600",
+      "owner": "root",
+      "scope": "secret",
+      "hosts": [
+        "infra-1",
+        "infra-2",
+        "infra-3",
+        "infra-4"
       ]
     },
     {
@@ -341,6 +451,45 @@
         "infra-1",
         "infra-2",
         "infra-3"
+      ]
+    },
+    {
+      "source": "pki/minio/public.crt",
+      "target": "/etc/quantrule/pki/minio/public.crt",
+      "mode": "644",
+      "owner": "root",
+      "scope": "pki",
+      "hosts": [
+        "infra-1",
+        "infra-2",
+        "infra-3",
+        "infra-4"
+      ]
+    },
+    {
+      "source": "pki/minio/private.key",
+      "target": "/etc/quantrule/pki/minio/private.key",
+      "mode": "600",
+      "owner": "root",
+      "scope": "pki",
+      "hosts": [
+        "infra-1",
+        "infra-2",
+        "infra-3",
+        "infra-4"
+      ]
+    },
+    {
+      "source": "pki/minio/CAs/ca.crt",
+      "target": "/etc/quantrule/pki/minio/CAs/ca.crt",
+      "mode": "644",
+      "owner": "root",
+      "scope": "pki",
+      "hosts": [
+        "infra-1",
+        "infra-2",
+        "infra-3",
+        "infra-4"
       ]
     }
   ]

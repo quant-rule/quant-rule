@@ -335,6 +335,93 @@ fn a_stateful_secret_is_strong_url_safe_and_not_a_default() {
 }
 
 #[test]
+fn the_minio_root_secrets_are_required_strong_and_scoped() {
+    for removed in ["minio_root_user", "minio_root_password"] {
+        let mut value = sample();
+        value["secrets"]["files"]
+            .as_object_mut()
+            .expect("files")
+            .remove(removed);
+        let error = v3::validate(&descriptor(value)).expect_err("a missing root secret");
+        assert!(
+            error.to_string().contains("deploy.secrets.missing"),
+            "{removed}: {error}"
+        );
+        assert!(error.to_string().contains(removed), "{removed}: {error}");
+    }
+
+    for (name, value, expected) in [
+        ("minio_root_user", "short", "deploy.secret.weak_credential"),
+        (
+            "minio_root_user",
+            "minioadmin",
+            "deploy.secret.default_credential",
+        ),
+        (
+            "minio_root_password",
+            "minioadmin",
+            "deploy.secret.weak_credential",
+        ),
+        (
+            "minio_root_password",
+            "quantrule-minio-password",
+            "deploy.secret.default_credential",
+        ),
+    ] {
+        let (descriptor, directory) = stage(&mut sample());
+        write_mode_600(&directory.join(name), value);
+        let error = validate_files(&descriptor).expect_err(value);
+        assert!(
+            error.to_string().contains(expected),
+            "{name}/{value}: {error}"
+        );
+        let _ = std::fs::remove_dir_all(directory);
+    }
+
+    let (descriptor, directory) = stage(&mut sample());
+    let root = std::fs::read_to_string(fixture("minio_root_password")).expect("root fixture");
+    write_mode_600(&directory.join("object_store_secret_key"), root.trim());
+    let error = validate_files(&descriptor).expect_err("a duplicate root password");
+    assert!(
+        error
+            .to_string()
+            .contains("deploy.secret.duplicate_credential"),
+        "{error}"
+    );
+    let _ = std::fs::remove_dir_all(directory);
+
+    assert_eq!(scope("minio_root_user"), "minio");
+    assert_eq!(scope("minio_root_password"), "minio");
+    assert_eq!(scope("patroni_rest_password"), "stateful");
+    assert_eq!(scope("object_store_access_key"), "app");
+}
+
+#[test]
+fn the_object_store_access_key_must_be_the_dedicated_app_user() {
+    let (descriptor, directory) = stage(&mut sample());
+    write_mode_600(
+        &directory.join("object_store_access_key"),
+        "qr-access-9f2b4d6c",
+    );
+    let error = validate_files(&descriptor).expect_err("the wrong app user");
+    assert!(
+        error
+            .to_string()
+            .contains("deploy.secret.object_store_user"),
+        "{error}"
+    );
+    let _ = std::fs::remove_dir_all(directory);
+
+    let (descriptor, directory) = stage(&mut sample());
+    write_mode_600(
+        &directory.join("object_store_access_key"),
+        OBJECT_STORE_USER,
+    );
+    validate_files(&descriptor).expect("qr_app is the dedicated user");
+    let _ = std::fs::remove_dir_all(directory);
+}
+
+#[test]
 fn the_url_parsers_reject_the_wrong_shape() {
     assert!(parse_postgres_url("postgres://role:value@host:5432/db?sslmode=verify-full").is_some());
     assert!(parse_postgres_url("postgres://role@host:5432/db?sslmode=verify-full").is_none());

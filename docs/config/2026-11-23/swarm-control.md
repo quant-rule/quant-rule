@@ -95,15 +95,17 @@ The generated `bootstrap.sh` runs on a manager in this order:
    443 in host mode, and verify every app service publishes nothing.
 
 The database bootstrap and migrations run **before** the stack, because the
-cluster and the HAProxy aliases are PLAT-003 infrastructure and the RabbitMQ
-cluster is PLAT-004; the app services must not start against an unmigrated schema
-or an absent queue user. The units and `tools/stateful.sh queue-bootstrap` must
-be running; the job's bounded retry covers their startup. A failed job stops the
+cluster and the HAProxy aliases are PLAT-003 infrastructure, the RabbitMQ cluster
+is PLAT-004, and the MinIO bucket/account, check rows, and node-loss lab are
+PLAT-005; the app services must not start against an unmigrated schema, an
+absent queue user, or an absent bucket.
+The units and `tools/stateful.sh queue-bootstrap`/`object-bootstrap` must be
+running; the job's bounded retry covers their startup. A failed job stops the
 run before `docker stack deploy`; no partial app stack is published.
 
-`tools/stateful.sh` must have started etcd -> Patroni -> HAProxy -> the three
-brokers and run `queue-bootstrap` before this script; it does not start or
-configure a stateful unit. `tools/queue-definitions.sh` separately exports the
+`tools/stateful.sh` must have started MinIO -> etcd -> Patroni -> HAProxy -> the
+three brokers and run `queue-bootstrap`/`object-bootstrap` before this script; it
+does not start or configure a stateful unit. `tools/queue-definitions.sh` separately exports the
 stripped topology and owns verify/import/retention; it is not part of the stack
 bootstrap.
 
@@ -245,8 +247,10 @@ met prints `UNVERIFIED` and exits non-zero.
 Fast, Docker-free evidence:
 
 - `cargo test -p quantrule-deploy` proves the schema, manager rules, MinIO
-  topology, labels, health checks, update order, job order, drift refusal, the
-  remote inspector, and wrapper behavior.
+  topology/parity, the MinIO check rows, labels, health checks, update order, job
+  order, drift refusal, the remote inspector, and wrapper behavior.
+- The `ha` object phase writes a probe through `minio:9000`, stops one node,
+  compares the SHA-256, restores it, heals to zero, and records `Simulated HA`.
 - `cargo test -p quantrule-deploy check::remote` covers a healthy swarm, a
   missing service, a wrong replica, a wrong image, a second published port, an
   unencrypted overlay, a missing label, a manager count below three, and a

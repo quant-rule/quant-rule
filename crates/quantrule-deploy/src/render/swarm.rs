@@ -86,7 +86,9 @@ pub fn stack_yaml(descriptor: &Descriptor) -> Result<String, Error> {
     let mut secrets = BTreeMap::new();
     for name in descriptor.secrets.files.keys() {
         safe_component(name, &format!("secrets.files.{name}"))?;
-        if crate::validate::secrets::STATEFUL_SECRETS.contains(&name.as_str()) {
+        if crate::validate::secrets::STATEFUL_SECRETS.contains(&name.as_str())
+            || crate::validate::secrets::MINIO_SECRETS.contains(&name.as_str())
+        {
             continue;
         }
         secrets.insert(name.clone(), external(name));
@@ -143,7 +145,7 @@ fn metadata(descriptor: &Descriptor) -> Yaml {
         .with(
             "platform",
             Yaml::string(
-                "Traefik ingress configuration is PLAT-002; Patroni, etcd, and HAProxy are PLAT-003; RabbitMQ is PLAT-004; MinIO and observability remain PLAT-005/006",
+                "Traefik ingress configuration is PLAT-002; Patroni, etcd, and HAProxy are PLAT-003; RabbitMQ is PLAT-004; MinIO is PLAT-005; observability remains PLAT-006",
             ),
         )
 }

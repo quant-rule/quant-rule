@@ -17,6 +17,7 @@ use crate::render::{infra, queue, stateful};
 use super::ingress::CertificateQuery;
 use super::report::{CheckReport, CheckRow};
 use super::stateful::read_text;
+use super::text::{section, service_block};
 
 /// Append every queue row, or one failed row per unreadable group.
 pub(crate) fn append(
@@ -334,43 +335,6 @@ fn broker_rows(descriptor: &Descriptor, out: Option<&Path>) -> Vec<CheckRow> {
         ));
     }
     rows
-}
-
-/// One named HAProxy section, from its header to the next `frontend`, `backend`,
-/// or `listen` header. The header includes its leading newline, so
-/// `default_backend` does not match a backend header. An absent header yields
-/// the empty string.
-fn section<'a>(text: &'a str, header: &str) -> &'a str {
-    let Some(start) = text.find(header) else {
-        return "";
-    };
-    let rest = &text[start..];
-    let end = rest[1..]
-        .find("\nfrontend ")
-        .into_iter()
-        .chain(rest[1..].find("\nbackend "))
-        .chain(rest[1..].find("\nlisten "))
-        .min()
-        .map_or(rest.len(), |index| index + 1);
-    &rest[..end]
-}
-
-/// One 2-space-indented Compose service block. The header includes its leading
-/// newline so a mount path or a network alias cannot match it.
-fn service_block<'a>(text: &'a str, key: &str) -> &'a str {
-    let header = format!("\n  {key}:\n");
-    let Some(start) = text.find(&header) else {
-        return "";
-    };
-    let rest = &text[start + header.len()..];
-    let end = rest
-        .match_indices("\n  ")
-        .find(|(index, _)| {
-            let after = &rest[index + 3..];
-            !after.starts_with(' ') && !after.starts_with('\n')
-        })
-        .map_or(rest.len(), |(index, _)| index);
-    &rest[..end]
 }
 
 fn haproxy_rows(descriptor: &Descriptor, out: Option<&Path>) -> Vec<CheckRow> {

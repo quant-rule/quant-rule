@@ -42,7 +42,7 @@ pub fn render(
     }
     let manifest = SecretManifest {
         v: "quantrule.deploy/v3",
-        note: "values are not listed; app secrets are Swarm objects, stateful secrets are copied by tools/stateful.sh",
+        note: "values are not listed; app secrets are Swarm objects, stateful and MinIO root secrets are copied by tools/stateful.sh",
         files: entries,
     };
     let text = serde_json::to_string_pretty(&manifest).map_err(|error| Error::Invalid {

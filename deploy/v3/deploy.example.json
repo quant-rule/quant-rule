@@ -39,6 +39,10 @@
       "reference": "minio/minio",
       "digest": "sha256:bdf0781acceb93983c15eec9e56bfbd59dcadc98ea57467022d61aeee074a2cc"
     },
+    "minio_client": {
+      "reference": "minio/mc",
+      "digest": "sha256:5c5b1f8f2a4e3d6c9b7a1e0f8d2c4b6a9e7f1d3c5b8a0e2f4d6c8b1a3e5f7d9c"
+    },
     "prometheus": {
       "reference": "prom/prometheus",
       "digest": "sha256:c4bfb1e3ef91709eca17ae08b3676ac008939765ad9cf6c2b4617f363b1354be"
@@ -283,7 +287,8 @@
         1,
         1,
         1
-      ]
+      ],
+      "parity": "EC:2"
     }
   },
   "observability": {
@@ -303,7 +308,7 @@
   "backup": {
     "pitr": true,
     "retention_days": 30,
-    "object_replication": true
+    "object_replication": false
   },
   "secrets": {
     "files": {
@@ -323,7 +328,9 @@
       "patroni_replication_password": "/etc/quantrule/secrets/patroni_replication_password",
       "patroni_rewind_password": "/etc/quantrule/secrets/patroni_rewind_password",
       "patroni_rest_password": "/etc/quantrule/secrets/patroni_rest_password",
-      "rabbitmq_erlang_cookie": "/etc/quantrule/secrets/rabbitmq_erlang_cookie"
+      "rabbitmq_erlang_cookie": "/etc/quantrule/secrets/rabbitmq_erlang_cookie",
+      "minio_root_user": "/etc/quantrule/secrets/minio_root_user",
+      "minio_root_password": "/etc/quantrule/secrets/minio_root_password"
     }
   }
 }

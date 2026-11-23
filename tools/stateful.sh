@@ -1,28 +1,33 @@
 #!/usr/bin/env bash
-# Operate the v3 Patroni/etcd/HAProxy and RabbitMQ tier in the approved boot order.
+# Operate the v3 MinIO/Patroni/etc/HAProxy/RabbitMQ tier in the approved boot order.
 #
 # The wrapper renders the descriptor, creates the encrypted overlay with
 # `bootstrap.sh --network-only`, copies the stateful manifest files, configs,
-# PKI, secrets, and host Compose files to each host over SSH, starts etcd ->
-# Patroni -> HAProxy -> the first RabbitMQ broker, waits for that broker, starts
-# the other two, and waits for etcd quorum, a Patroni leader with a sync standby,
-# a three-node RabbitMQ cluster with no alarms, and a psql connection through the
-# `postgres` alias. It never removes a stack, volume, secret, config, node, or
-# service. Secret values travel on standard input and are never printed or
-# passed as an argument.
+# PKI, secrets, and host Compose files to each host over SSH, starts MinIO ->
+# etcd -> Patroni -> HAProxy -> the first RabbitMQ broker, waits for that broker,
+# starts the other two, and waits for MinIO nodes/drives with zero healing, etcd
+# quorum, a Patroni leader with a sync standby, a three-node RabbitMQ cluster with
+# no alarms, and a psql connection through the `postgres` alias. It never removes
+# a stack, volume, secret, config, node, or service. Secret values travel on
+# standard input and are never printed or passed as an argument on the operator
+# host.
 #
 # Usage: tools/stateful.sh [--plan|--dry-run] <command>
 #
 #   network         Render, then create or validate the encrypted attachable overlay.
 #   copy            Render, then copy the manifest, configs, PKI, secrets, and compose files.
-#   start           Start etcd, then Patroni, then HAProxy, seed the first RabbitMQ
-#                   broker, then start the other two brokers.
-#   wait            Wait for etcd health, Patroni leader + sync standby, a three-node
-#                   RabbitMQ cluster with no alarms, and a primary psql.
+#   start           Start MinIO, then etcd, then Patroni, then HAProxy, seed the first
+#                   RabbitMQ broker, then start the other two brokers.
+#   wait            Wait for every MinIO node/drive with zero healing, etcd health,
+#                   Patroni leader + sync standby, a three-node RabbitMQ cluster with
+#                   no alarms, and a primary psql.
 #   queue-bootstrap Create the app user, vhost, and permissions from queue_url.
 #                   Run this after `wait` and before `swarm.sh bootstrap`.
-#   status          Show compose ps, Patroni list, etcd health, and RabbitMQ
-#                   cluster/alarm state on every stateful host.
+#   object-bootstrap Create the quantrule bucket, enable versioning, create the
+#                   qr_app user, attach the least-privilege policy, and run a
+#                   put/get/delete probe. Run after `wait`, before `swarm.sh bootstrap`.
+#   status          Show compose ps, MinIO admin info, Patroni list, etcd health,
+#                   and RabbitMQ cluster/alarm state on every stateful host.
 #
 # Environment:
 #   DESCRIPTOR             descriptor path (default deploy/v3/deploy.example.json)
@@ -33,8 +38,8 @@
 #   QR_STATEFUL_DOCKER     remote docker executable (default docker)
 #   QR_STATEFUL_ATTEMPTS   wait attempts (default 90)
 #   QR_STATEFUL_INTERVAL   seconds between wait attempts (default 2)
-#   QR_STATEFUL_DATA_OWNER optional owner[:group] for the Patroni, etcd, and
-#                          RabbitMQ data dirs; empty keeps the image's own ownership
+#   QR_STATEFUL_DATA_OWNER optional owner[:group] for the Patroni, etcd, RabbitMQ,
+#                          and MinIO data dirs; empty keeps the image's own ownership
 #   QR_STATEFUL_QUEUE_URL  queue_url file for queue-bootstrap (default: the
 #                          descriptor secrets.files.queue_url path)
 #
@@ -76,7 +81,7 @@ while [ "$#" -gt 0 ]; do
       usage
       exit 0
       ;;
-    network | copy | start | wait | queue-bootstrap | status)
+    network | copy | start | wait | queue-bootstrap | object-bootstrap | status)
       [ -z "$command" ] || { printf 'stateful: one command at a time\n' >&2; exit 2; }
       command=$1
       shift
@@ -95,11 +100,12 @@ stateful: descriptor: $descriptor
 stateful: render: qr-deploy render $descriptor --out $out --target all
 stateful: 1 network: sh $out/bootstrap.sh --network-only on a Swarm manager
 stateful: 2 copy: stateful-manifest.json + infra/<host>.yaml + per-host configs/PKI/secrets over SSH stdin
-stateful: 3 start: etcd -> Patroni -> HAProxy -> seed the first RabbitMQ broker -> start the other two
-stateful: 4 wait: etcdctl endpoint health; patronictl list (Leader + Sync); RabbitMQ cluster_status (3 running, no alarms); psql -h postgres (primary)
+stateful: 3 start: MinIO nodes -> etcd -> Patroni -> HAProxy -> seed the first RabbitMQ broker -> start the other two
+stateful: 4 wait: MinIO mc admin info (all nodes/drives, 0 offline, 0 healing); etcdctl endpoint health; patronictl list (Leader + Sync); RabbitMQ cluster_status (3 running, no alarms); psql -h postgres (primary)
 stateful: 5 queue-bootstrap: create the app user/vhost/permissions from queue_url (password on stdin, before swarm bootstrap)
-stateful: 6 status: compose ps, Patroni list, etcd health, RabbitMQ cluster/alarms
-stateful: no stack, volume, secret, config, node, or service is removed
+stateful: 6 object-bootstrap: pinned mc; create quantrule, enable versioning, create qr_app, attach quantrule-app, put/get/delete probe
+stateful: 7 status: compose ps, MinIO admin info/healing, Patroni list, etcd health, RabbitMQ cluster/alarms
+stateful: no stack, volume, secret, config, node, service, or bucket object outside the bootstrap probe is removed
 PLAN
   exit 0
 fi
@@ -126,7 +132,7 @@ descriptor_list() {
 }
 
 all_hosts() {
-  jq -r '[.stateful.postgres.nodes[], .stateful.etcd.nodes[], .stateful.haproxy.nodes[], .stateful.rabbitmq.nodes[]] | unique[]' \
+  jq -r '[.stateful.postgres.nodes[], .stateful.etcd.nodes[], .stateful.haproxy.nodes[], .stateful.rabbitmq.nodes[], .stateful.minio.nodes[]] | unique[]' \
     "$descriptor"
 }
 
@@ -140,6 +146,33 @@ is_rabbitmq_host() {
     [ "$broker" = "$host" ] && return 0
   done
   return 1
+}
+
+minio_hosts() {
+  descriptor_list '.stateful.minio.nodes'
+}
+
+is_minio_host() {
+  host=$1
+  for node in $(minio_hosts); do
+    [ "$node" = "$host" ] && return 0
+  done
+  return 1
+}
+
+minio_drives() {
+  jq -r --arg host "$1" '
+    .stateful.minio.nodes as $nodes
+    | .stateful.minio.drives[$nodes | index($host)]
+  ' "$descriptor"
+}
+
+minio_total_drives() {
+  jq -r '[.stateful.minio.drives[]] | add' "$descriptor"
+}
+
+minio_image() {
+  jq -r '.images.minio_client.reference + "@" + .images.minio_client.digest' "$descriptor"
 }
 
 overlay() {
@@ -189,12 +222,23 @@ copy() {
     )
     directories="/srv/quantrule/patroni/data /srv/quantrule/patroni/wal-archive /srv/quantrule/etcd/data"
     owned="/srv/quantrule/patroni /srv/quantrule/patroni/data /srv/quantrule/patroni/wal-archive /srv/quantrule/etcd /srv/quantrule/etcd/data"
+    private_dirs=""
     if is_rabbitmq_host "$host"; then
       directories="$directories /srv/quantrule/rabbitmq/data /srv/quantrule/rabbitmq/definitions /srv/quantrule/rabbitmq/conf.d"
       owned="$owned /srv/quantrule/rabbitmq /srv/quantrule/rabbitmq/data /srv/quantrule/rabbitmq/definitions /srv/quantrule/rabbitmq/conf.d"
     fi
+    if is_minio_host "$host"; then
+      drives=$(minio_drives "$host")
+      directories="$directories /srv/quantrule/minio /srv/quantrule/minio/$host /etc/quantrule/minio /etc/quantrule/minio/mc /etc/quantrule/minio/mc-app"
+      owned="$owned /srv/quantrule/minio /srv/quantrule/minio/$host"
+      private_dirs="/etc/quantrule/minio /etc/quantrule/minio/mc /etc/quantrule/minio/mc-app"
+      for drive in $(seq 1 "$drives"); do
+        directories="$directories /srv/quantrule/minio/$host/drive$drive"
+        owned="$owned /srv/quantrule/minio/$host/drive$drive"
+      done
+    fi
     # shellcheck disable=SC2086
-    $ssh_bin "$host" "$sudo_bin sh -c 'mkdir -p $directories'" || \
+    $ssh_bin "$host" "$sudo_bin sh -c 'umask 077; mkdir -p $directories; [ -z \"$private_dirs\" ] || chmod 700 $private_dirs'" || \
       die "cannot create the data directories on $host"
     if [ -n "${QR_STATEFUL_DATA_OWNER:-}" ]; then
       # shellcheck disable=SC2086
@@ -265,6 +309,9 @@ wait_rabbitmq_seed() {
 }
 
 start() {
+  for host in $(minio_hosts); do
+    start_phase "minio-$host" "$host"
+  done
   start_phase etcd "$(descriptor_list '.stateful.etcd.nodes')"
   start_phase patroni "$(descriptor_list '.stateful.postgres.nodes')"
   start_phase haproxy "$(descriptor_list '.stateful.haproxy.nodes')"
@@ -315,17 +362,113 @@ primary_psql() {
     $image psql -h postgres -U postgres -d postgres -tAc 'SELECT NOT pg_is_in_recovery()'"
 }
 
+minio_mc_dir=/etc/quantrule/minio/mc
+minio_mc_app_dir=/etc/quantrule/minio/mc-app
+minio_policy_file=/etc/quantrule/minio/quantrule-app-policy.json
+minio_bucket=quantrule
+minio_app_user=qr_app
+minio_app_policy=quantrule-app
+
+minio_container() {
+  printf 'quantrule-minio-%s' "$1"
+}
+
+# Write an mc config from two mounted secret files. The JSON is built on the
+# host and written at mode 600; the secret values never enter the operator's
+# command line, the SSH command line, or a log.
+minio_write_config() {
+  host=$1
+  directory=$2
+  user_file=$3
+  secret_file=$4
+  endpoint=$(jq -r '.endpoints.object_store.scheme + "://" + .endpoints.object_store.host + ":" + (.endpoints.object_store.port | tostring)' "$descriptor")
+  script='
+set -eu
+umask 077
+directory=$1
+user_file=$2
+secret_file=$3
+endpoint=$4
+mkdir -p "$directory"
+chmod 700 "$directory"
+user=$(cat "$user_file")
+secret=$(cat "$secret_file")
+printf "{\"version\":\"10\",\"aliases\":{\"local\":{\"url\":\"%s\",\"accessKey\":\"%s\",\"secretKey\":\"%s\",\"api\":\"S3v4\",\"path\":\"auto\"}}}\n" \
+  "$endpoint" "$user" "$secret" > "$directory/config.json"
+chmod 600 "$directory/config.json"
+'
+  # shellcheck disable=SC2086
+  printf '%s\n' "$script" | $ssh_bin "$host" "$sudo_bin sh -s -- '$directory' '$user_file' '$secret_file' '$endpoint'" || \
+    die "cannot write the MinIO client config on $host"
+}
+
+# Run the pinned mc client with a config directory mounted at /mc. The private
+# MinIO CA is mounted at /certs/ca.crt and SSL_CERT_FILE points mc at it, so a
+# self-signed internal leaf verifies without --insecure.
+minio_mc() {
+  host=$1
+  directory=$2
+  shift 2
+  image=$(minio_image)
+  overlay=$(overlay)
+  # shellcheck disable=SC2086
+  $ssh_bin "$host" "$sudo_bin $docker_bin run --rm --network $overlay \
+    -v $directory:/mc:ro \
+    -v /etc/quantrule/pki/minio/CAs/ca.crt:/certs/ca.crt:ro \
+    -e SSL_CERT_FILE=/certs/ca.crt \
+    $image --config-dir /mc $*"
+}
+
+# Run a shell script inside the pinned mc client; used only where the mc CLI
+# needs a value read from a mounted file. The private CA is mounted and trusted
+# here for the same reason as minio_mc.
+minio_mc_shell() {
+  host=$1
+  directory=$2
+  mounts=$3
+  script=$4
+  image=$(minio_image)
+  overlay=$(overlay)
+  # shellcheck disable=SC2086
+  $ssh_bin "$host" "$sudo_bin $docker_bin run --rm --network $overlay \
+    --entrypoint /bin/sh $mounts \
+    -v $directory:/mc:ro \
+    -v /etc/quantrule/pki/minio/CAs/ca.crt:/certs/ca.crt:ro \
+    -e SSL_CERT_FILE=/certs/ca.crt \
+    $image -c '$script'"
+}
+
+minio_ready() {
+  host=$1
+  total=$(minio_total_drives)
+  info=$(minio_mc "$host" "$minio_mc_dir" admin info local) || return 1
+  for node in $(minio_hosts); do
+    printf '%s\n' "$info" | grep -q "minio-$node:9000" || return 1
+  done
+  printf '%s\n' "$info" | grep -q "0 drives offline" || return 1
+  printf '%s\n' "$info" | grep -q "0 drives healing" || return 1
+  printf '%s\n' "$info" | grep -Eq "$total drives online" || return 1
+}
+
 wait_ready() {
   image=$(postgres_image)
   name=$(overlay)
+  minio_host=$(minio_hosts | head -n 1)
+  [ -n "$minio_host" ] || die "stateful.minio.nodes is empty"
+  minio_write_config "$minio_host" "$minio_mc_dir" \
+    /etc/quantrule/secrets/minio_root_user \
+    /etc/quantrule/secrets/minio_root_password
   psql_host=$(descriptor_list '.stateful.haproxy.nodes' | head -n 1)
   [ -n "$psql_host" ] || psql_host=$(descriptor_list '.stateful.postgres.nodes' | head -n 1)
   attempt=1
   while :; do
     failed=""
-    for host in $(descriptor_list '.stateful.etcd.nodes'); do
-      etcd_health "$host" || { failed="etcd $host"; break; }
-    done
+    minio_ready "$minio_host" || failed="MinIO $minio_host (nodes/drives/healing)"
+    if [ -z "$failed" ]; then
+      for host in $(descriptor_list '.stateful.etcd.nodes'); do
+        etcd_health "$host" || { failed="etcd $host"; break; }
+      done
+    fi
     if [ -z "$failed" ]; then
       for host in $(descriptor_list '.stateful.postgres.nodes'); do
         patroni_ready "$host" || { failed="Patroni $host (leader/sync)"; break; }
@@ -341,7 +484,7 @@ wait_ready() {
       [ "$primary" = "t" ] || failed="psql through postgres"
     fi
     if [ -z "$failed" ]; then
-      printf 'stateful: ready: etcd health, Patroni leader + sync standby, three RabbitMQ nodes with no alarms, primary psql through postgres\n'
+      printf 'stateful: ready: MinIO nodes/drives with no healing, etcd health, Patroni leader + sync standby, three RabbitMQ nodes with no alarms, primary psql through postgres\n'
       return 0
     fi
     [ "$attempt" -lt "$attempts" ] || die "not ready after $attempts attempts: $failed"
@@ -392,12 +535,73 @@ printf "stateful: queue user %s is ready on vhost %s\n" "$user" "$vhost"
     die "cannot bootstrap the queue application user on $host"
 }
 
+object_bootstrap() {
+  host=$(minio_hosts | head -n 1)
+  [ -n "$host" ] || die "stateful.minio.nodes is empty"
+  minio_write_config "$host" "$minio_mc_dir" \
+    /etc/quantrule/secrets/minio_root_user \
+    /etc/quantrule/secrets/minio_root_password
+  minio_write_config "$host" "$minio_mc_app_dir" \
+    /etc/quantrule/secrets/object_store_access_key \
+    /etc/quantrule/secrets/object_store_secret_key
+  printf 'stateful: bootstrapping the object store on %s\n' "$host"
+  minio_mc "$host" "$minio_mc_dir" mb --ignore-existing "local/$minio_bucket" >/dev/null || \
+    die "cannot create the $minio_bucket bucket"
+  minio_mc "$host" "$minio_mc_dir" version enable "local/$minio_bucket" >/dev/null || \
+    die "cannot enable versioning on $minio_bucket"
+  admin_script='
+set -eu
+secret=$(cat /secrets/app_secret)
+mc --config-dir /mc admin policy detach local __POLICY__ --user __USER__ >/dev/null 2>&1 || true
+mc --config-dir /mc admin policy remove local __POLICY__ >/dev/null 2>&1 || true
+mc --config-dir /mc admin policy create local __POLICY__ /policy.json >/dev/null
+mc --config-dir /mc admin policy attach local __POLICY__ --user __USER__ >/dev/null
+if ! printf "%s\n%s\n" __USER__ "$secret" | mc --config-dir /mc admin user add local >/dev/null 2>&1; then
+  printf "stateful: %s exists; verifying the pre-provisioned secret\n" __USER__ >&2
+fi
+'
+  admin_script=${admin_script//__POLICY__/$minio_app_policy}
+  admin_script=${admin_script//__USER__/$minio_app_user}
+  minio_mc_shell "$host" "$minio_mc_dir" \
+    "-v /etc/quantrule/secrets/object_store_secret_key:/secrets/app_secret:ro -v $minio_policy_file:/policy.json:ro" \
+    "$admin_script" || die "cannot create the $minio_app_user user or attach the $minio_app_policy policy"
+  probe_script='
+set -eu
+mc --config-dir /mc ls local/__BUCKET__ >/dev/null
+printf "bootstrap-probe\n" | mc --config-dir /mc pipe local/__BUCKET__/.bootstrap-probe >/dev/null
+[ "$(mc --config-dir /mc cat local/__BUCKET__/.bootstrap-probe)" = "bootstrap-probe" ]
+mc --config-dir /mc rm --force --versions local/__BUCKET__/.bootstrap-probe >/dev/null
+versioning=$(mc --config-dir /mc version info local/__BUCKET__ 2>&1)
+printf "%s\n" "$versioning" | grep -Eiq "enabled"
+! printf "%s\n" "$versioning" | grep -Eiq "not enabled|disabled"
+printf "stateful: object bootstrap verified: bucket, versioning, %s, %s\n" __USER__ __POLICY__
+'
+  probe_script=${probe_script//__BUCKET__/$minio_bucket}
+  probe_script=${probe_script//__USER__/$minio_app_user}
+  probe_script=${probe_script//__POLICY__/$minio_app_policy}
+  minio_mc_shell "$host" "$minio_mc_app_dir" "" "$probe_script" || \
+    die "the $minio_app_user probe failed; the existing user may have a different secret. Rotate the object_store_secret_key file, update the app secret, and rerun object-bootstrap"
+  printf 'stateful: object bootstrap complete: bucket %s, versioning enabled, %s with %s, put/get/delete verified\n' \
+    "$minio_bucket" "$minio_app_user" "$minio_app_policy"
+}
+
 status() {
   for host in $(all_hosts); do
     printf '\n== %s ==\n' "$host"
     # shellcheck disable=SC2086
     $ssh_bin "$host" "cd /etc/quantrule/infra && $sudo_bin $docker_bin compose -f $host.yaml ps" || true
   done
+  printf '\n== MinIO ==\n'
+  minio_host=$(minio_hosts | head -n 1)
+  if [ -n "$minio_host" ]; then
+    if minio_write_config "$minio_host" "$minio_mc_dir" \
+      /etc/quantrule/secrets/minio_root_user \
+      /etc/quantrule/secrets/minio_root_password 2>/dev/null; then
+      minio_mc "$minio_host" "$minio_mc_dir" admin info local || true
+    else
+      printf 'MinIO: cannot read the root secret files on %s\n' "$minio_host"
+    fi
+  fi
   printf '\n== Patroni ==\n'
   for host in $(descriptor_list '.stateful.postgres.nodes'); do
     printf '%s: ' "$host"
@@ -422,6 +626,7 @@ case "$command" in
   start) start ;;
   wait) wait_ready ;;
   queue-bootstrap) queue_bootstrap ;;
+  object-bootstrap) object_bootstrap ;;
   status) status ;;
   *) die "unknown command $command" ;;
 esac
