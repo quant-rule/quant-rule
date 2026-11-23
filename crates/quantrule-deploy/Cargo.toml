@@ -11,6 +11,7 @@ name = "qr-deploy"
 path = "src/main.rs"
 
 [dependencies]
+quantrule-api = { path = "../quantrule-api" }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 ureq = "3.5"

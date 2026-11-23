@@ -1,4 +1,4 @@
-//! Check a deployed multi-host stack.
+//! The `quantrule.deploy/v2` checker, unchanged.
 //!
 //! Every HTTP service exposes `/version` and `/health`; the gateway also
 //! exposes `/ready`. The tool compares the reported image digest with the

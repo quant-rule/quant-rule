@@ -182,7 +182,8 @@ $dc kill -s HUP gateway
 ```
 
 An invalid file keeps the last good token, and every client re-exports the new
-value. The v3 Swarm secret objects are HA-012.
+value. The v3 Swarm secrets, render, check, and rotation are in
+[manual 15](../../docs/manual/15-ha-deployment.md).
 
 ## 7. Verification
 

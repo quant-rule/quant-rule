@@ -1,8 +1,8 @@
-//! Render one env file per service and one for the infrastructure host.
+//! The `quantrule.deploy/v2` renderer, unchanged.
 //!
-//! The generated files are the only input to the per-role Compose files. They
-//! are written with owner-only permissions on Unix because they carry
-//! credentials.
+//! One env file per service and one for the infrastructure host. The generated
+//! files are the only input to the per-role Compose files. They are written
+//! with owner-only permissions on Unix because they carry credentials.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -519,7 +519,7 @@ mod tests {
 
     fn descriptor() -> Descriptor {
         let mut value: Value = serde_json::from_str(include_str!(
-            "../../../deploy/multi-host/deploy.example.json"
+            "../../../../deploy/multi-host/deploy.example.json"
         ))
         .expect("example");
         value["image"]["digest"] = serde_json::json!(
@@ -555,13 +555,12 @@ mod tests {
     }
 
     fn temp_dir() -> PathBuf {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
         std::env::temp_dir().join(format!(
             "qr-deploy-render-{}-{}",
             std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .expect("clock")
-                .as_nanos()
+            COUNTER.fetch_add(1, Ordering::Relaxed)
         ))
     }
 
@@ -693,7 +692,7 @@ mod tests {
     fn render_reports_a_missing_placeholder() {
         let out = temp_dir();
         let mut value: Value = serde_json::from_str(include_str!(
-            "../../../deploy/multi-host/deploy.example.json"
+            "../../../../deploy/multi-host/deploy.example.json"
         ))
         .expect("example");
         value["image"]["digest"] = serde_json::json!(

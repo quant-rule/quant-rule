@@ -1,0 +1,670 @@
+configs:
+  quantrule_database_ca:
+    external: true
+    name: "quantrule_database_ca"
+  quantrule_object_store_ca:
+    external: true
+    name: "quantrule_object_store_ca"
+  quantrule_queue_ca:
+    external: true
+    name: "quantrule_queue_ca"
+  quantrule_traefik:
+    external: true
+    name: "quantrule_traefik"
+networks:
+  quantrule:
+    external: true
+    name: "quantrule"
+secrets:
+  data_database_url:
+    external: true
+    name: "data_database_url"
+  data_owner_database_url:
+    external: true
+    name: "data_owner_database_url"
+  evidence_database_url:
+    external: true
+    name: "evidence_database_url"
+  evidence_owner_database_url:
+    external: true
+    name: "evidence_owner_database_url"
+  gateway_database_url:
+    external: true
+    name: "gateway_database_url"
+  gateway_owner_database_url:
+    external: true
+    name: "gateway_owner_database_url"
+  gateway_token:
+    external: true
+    name: "gateway_token"
+  object_store_access_key:
+    external: true
+    name: "object_store_access_key"
+  object_store_secret_key:
+    external: true
+    name: "object_store_secret_key"
+  queue_url:
+    external: true
+    name: "queue_url"
+  simulation_database_url:
+    external: true
+    name: "simulation_database_url"
+  simulation_owner_database_url:
+    external: true
+    name: "simulation_owner_database_url"
+services:
+  backtest:
+    command:
+      -
+        "qr-backtest"
+    configs:
+      -
+        mode: 292
+        source: "quantrule_queue_ca"
+        target: "/run/quantrule/pki/queue-ca.crt"
+      -
+        mode: 292
+        source: "quantrule_object_store_ca"
+        target: "/run/quantrule/pki/object-store-ca.crt"
+    deploy:
+      labels:
+        quantrule.evidence: "HA profile (unverified)"
+        quantrule.kind: "backtest"
+        quantrule.profile: "swarm-ha"
+      placement:
+        constraints:
+          -
+            "node.labels.quantrule.backtest == true"
+          -
+            "node.labels.quantrule.profile == swarm-ha"
+        max_replicas_per_node: 1
+        preferences:
+          -
+            spread: "node.labels.quantrule.domain"
+      replicas: 3
+      restart_policy:
+        condition: "on-failure"
+        delay: "5s"
+        max_attempts: 3
+        window: "120s"
+      rollback_config:
+        delay: "5s"
+        failure_action: "pause"
+        order: "start-first"
+        parallelism: 1
+      update_config:
+        delay: "10s"
+        failure_action: "rollback"
+        max_failure_ratio: 0
+        monitor: "30s"
+        order: "start-first"
+        parallelism: 1
+    environment:
+      QR_BACKTEST_CONCURRENCY: "1"
+      QR_BIND: "0.0.0.0:9090"
+      QR_DATA_URL: "http://data:8080"
+      QR_EVIDENCE_URL: "http://evidence:8080"
+      QR_IMAGE_DIGEST: "sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
+      QR_INTERNAL_ONLY: "1"
+      QR_LOG_FORMAT: "json"
+      QR_METRICS_BIND: "0.0.0.0:9100"
+      QR_MIGRATE: "0"
+      QR_MODEL_URL: "http://model:8080"
+      QR_OBJECT_BUCKET: "quantrule"
+      QR_OBJECT_STORE_ACCESS_KEY_FILE: "/run/secrets/object_store_access_key"
+      QR_OBJECT_STORE_SECRET_KEY_FILE: "/run/secrets/object_store_secret_key"
+      QR_OBJECT_STORE_TLS_CA_PATH: "/run/quantrule/pki/object-store-ca.crt"
+      QR_OBJECT_STORE_URL: "https://minio:9000"
+      QR_PROFILE: "server"
+      QR_QUEUE_GENERATION: "1"
+      QR_QUEUE_TLS_CA_PATH: "/run/quantrule/pki/queue-ca.crt"
+      QR_QUEUE_URL_FILE: "/run/secrets/queue_url"
+    image: "registry.quantrule.dev/quantrule/server@sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
+    networks:
+      -
+        "quantrule"
+    secrets:
+      -
+        mode: 256
+        source: "object_store_access_key"
+        target: "object_store_access_key"
+      -
+        mode: 256
+        source: "object_store_secret_key"
+        target: "object_store_secret_key"
+      -
+        mode: 256
+        source: "queue_url"
+        target: "queue_url"
+    stop_grace_period: "40s"
+  data:
+    command:
+      -
+        "qr-data"
+    configs:
+      -
+        mode: 292
+        source: "quantrule_database_ca"
+        target: "/run/quantrule/pki/database-ca.crt"
+      -
+        mode: 292
+        source: "quantrule_object_store_ca"
+        target: "/run/quantrule/pki/object-store-ca.crt"
+    deploy:
+      labels:
+        quantrule.evidence: "HA profile (unverified)"
+        quantrule.kind: "data"
+        quantrule.profile: "swarm-ha"
+      placement:
+        constraints:
+          -
+            "node.labels.quantrule.data == true"
+          -
+            "node.labels.quantrule.profile == swarm-ha"
+        max_replicas_per_node: 1
+        preferences:
+          -
+            spread: "node.labels.quantrule.domain"
+      replicas: 2
+      restart_policy:
+        condition: "on-failure"
+        delay: "5s"
+        max_attempts: 3
+        window: "120s"
+      rollback_config:
+        delay: "5s"
+        failure_action: "pause"
+        order: "start-first"
+        parallelism: 1
+      update_config:
+        delay: "10s"
+        failure_action: "rollback"
+        max_failure_ratio: 0
+        monitor: "30s"
+        order: "start-first"
+        parallelism: 1
+    environment:
+      QR_BIND: "0.0.0.0:8080"
+      QR_CONFIG_ROOT: "/srv/config"
+      QR_DATABASE_TLS_CA_PATH: "/run/quantrule/pki/database-ca.crt"
+      QR_DATABASE_URL_FILE: "/run/secrets/data_database_url"
+      QR_IMAGE_DIGEST: "sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
+      QR_INTERNAL_ONLY: "1"
+      QR_LOG_FORMAT: "json"
+      QR_METRICS_BIND: "0.0.0.0:9100"
+      QR_MIGRATE: "0"
+      QR_OBJECT_BUCKET: "quantrule"
+      QR_OBJECT_STORE_ACCESS_KEY_FILE: "/run/secrets/object_store_access_key"
+      QR_OBJECT_STORE_SECRET_KEY_FILE: "/run/secrets/object_store_secret_key"
+      QR_OBJECT_STORE_TLS_CA_PATH: "/run/quantrule/pki/object-store-ca.crt"
+      QR_OBJECT_STORE_URL: "https://minio:9000"
+      QR_PROFILE: "server"
+      QR_QUEUE_GENERATION: "1"
+    image: "registry.quantrule.dev/quantrule/server@sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
+    networks:
+      -
+        "quantrule"
+    secrets:
+      -
+        mode: 256
+        source: "object_store_access_key"
+        target: "object_store_access_key"
+      -
+        mode: 256
+        source: "object_store_secret_key"
+        target: "object_store_secret_key"
+      -
+        mode: 256
+        source: "data_database_url"
+        target: "data_database_url"
+    stop_grace_period: "40s"
+  evidence:
+    command:
+      -
+        "qr-evidence"
+    configs:
+      -
+        mode: 292
+        source: "quantrule_database_ca"
+        target: "/run/quantrule/pki/database-ca.crt"
+      -
+        mode: 292
+        source: "quantrule_queue_ca"
+        target: "/run/quantrule/pki/queue-ca.crt"
+      -
+        mode: 292
+        source: "quantrule_object_store_ca"
+        target: "/run/quantrule/pki/object-store-ca.crt"
+    deploy:
+      labels:
+        quantrule.evidence: "HA profile (unverified)"
+        quantrule.kind: "evidence"
+        quantrule.profile: "swarm-ha"
+      placement:
+        constraints:
+          -
+            "node.labels.quantrule.evidence == true"
+          -
+            "node.labels.quantrule.profile == swarm-ha"
+        max_replicas_per_node: 1
+        preferences:
+          -
+            spread: "node.labels.quantrule.domain"
+      replicas: 2
+      restart_policy:
+        condition: "on-failure"
+        delay: "5s"
+        max_attempts: 3
+        window: "120s"
+      rollback_config:
+        delay: "5s"
+        failure_action: "pause"
+        order: "start-first"
+        parallelism: 1
+      update_config:
+        delay: "10s"
+        failure_action: "rollback"
+        max_failure_ratio: 0
+        monitor: "30s"
+        order: "start-first"
+        parallelism: 1
+    environment:
+      QR_BIND: "0.0.0.0:8080"
+      QR_DATABASE_TLS_CA_PATH: "/run/quantrule/pki/database-ca.crt"
+      QR_DATABASE_URL_FILE: "/run/secrets/evidence_database_url"
+      QR_DATA_URL: "http://data:8080"
+      QR_IMAGE_DIGEST: "sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
+      QR_INTERNAL_ONLY: "1"
+      QR_LOG_FORMAT: "json"
+      QR_METRICS_BIND: "0.0.0.0:9100"
+      QR_MIGRATE: "0"
+      QR_OBJECT_BUCKET: "quantrule"
+      QR_OBJECT_STORE_ACCESS_KEY_FILE: "/run/secrets/object_store_access_key"
+      QR_OBJECT_STORE_SECRET_KEY_FILE: "/run/secrets/object_store_secret_key"
+      QR_OBJECT_STORE_TLS_CA_PATH: "/run/quantrule/pki/object-store-ca.crt"
+      QR_OBJECT_STORE_URL: "https://minio:9000"
+      QR_PROFILE: "server"
+      QR_QUEUE_GENERATION: "1"
+      QR_QUEUE_TLS_CA_PATH: "/run/quantrule/pki/queue-ca.crt"
+      QR_QUEUE_URL_FILE: "/run/secrets/queue_url"
+      QR_STAGE_RETENTION_DAYS: "30"
+    image: "registry.quantrule.dev/quantrule/server@sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
+    networks:
+      -
+        "quantrule"
+    secrets:
+      -
+        mode: 256
+        source: "object_store_access_key"
+        target: "object_store_access_key"
+      -
+        mode: 256
+        source: "object_store_secret_key"
+        target: "object_store_secret_key"
+      -
+        mode: 256
+        source: "evidence_database_url"
+        target: "evidence_database_url"
+      -
+        mode: 256
+        source: "queue_url"
+        target: "queue_url"
+    stop_grace_period: "40s"
+  gateway:
+    command:
+      -
+        "qr-gateway"
+    configs:
+      -
+        mode: 292
+        source: "quantrule_database_ca"
+        target: "/run/quantrule/pki/database-ca.crt"
+    deploy:
+      labels:
+        quantrule.evidence: "HA profile (unverified)"
+        quantrule.kind: "gateway"
+        quantrule.profile: "swarm-ha"
+      placement:
+        constraints:
+          -
+            "node.labels.quantrule.gateway == true"
+          -
+            "node.labels.quantrule.profile == swarm-ha"
+        max_replicas_per_node: 1
+        preferences:
+          -
+            spread: "node.labels.quantrule.domain"
+      replicas: 2
+      restart_policy:
+        condition: "on-failure"
+        delay: "5s"
+        max_attempts: 3
+        window: "120s"
+      rollback_config:
+        delay: "5s"
+        failure_action: "pause"
+        order: "start-first"
+        parallelism: 1
+      update_config:
+        delay: "10s"
+        failure_action: "rollback"
+        max_failure_ratio: 0
+        monitor: "30s"
+        order: "start-first"
+        parallelism: 1
+    environment:
+      QR_BEARER_TOKEN_FILE: "/run/secrets/gateway_token"
+      QR_BIND: "0.0.0.0:8080"
+      QR_DATABASE_TLS_CA_PATH: "/run/quantrule/pki/database-ca.crt"
+      QR_DATABASE_URL_FILE: "/run/secrets/gateway_database_url"
+      QR_DATA_URL: "http://data:8080"
+      QR_EVIDENCE_URL: "http://evidence:8080"
+      QR_IMAGE_DIGEST: "sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
+      QR_INTERNAL_ONLY: "1"
+      QR_LOG_FORMAT: "json"
+      QR_METRICS_BIND: "0.0.0.0:9100"
+      QR_MIGRATE: "0"
+      QR_MODEL_URL: "http://model:8080"
+      QR_OBJECT_BUCKET: "quantrule"
+      QR_OBJECT_STORE_TLS_CA_PATH: "/run/quantrule/pki/object-store-ca.crt"
+      QR_OBJECT_STORE_URL: "https://minio:9000"
+      QR_PROFILE: "server"
+      QR_QUEUE_GENERATION: "1"
+      QR_SIMULATION_URL: "http://simulation:8080"
+      QR_STATIC_DIR: "/srv/static"
+      QR_STRATEGY_URL: "http://strategy:8080"
+    image: "registry.quantrule.dev/quantrule/server@sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
+    networks:
+      -
+        "quantrule"
+    secrets:
+      -
+        mode: 256
+        source: "gateway_database_url"
+        target: "gateway_database_url"
+      -
+        mode: 256
+        source: "gateway_token"
+        target: "gateway_token"
+    stop_grace_period: "40s"
+  ingress:
+    configs:
+      -
+        mode: 292
+        source: "quantrule_traefik"
+        target: "/etc/traefik/traefik.yml"
+    deploy:
+      labels:
+        quantrule.evidence: "HA profile (unverified)"
+        quantrule.kind: "ingress"
+        quantrule.profile: "swarm-ha"
+      placement:
+        constraints:
+          -
+            "node.labels.quantrule.ingress == true"
+          -
+            "node.labels.quantrule.profile == swarm-ha"
+        max_replicas_per_node: 1
+        preferences:
+          -
+            spread: "node.labels.quantrule.domain"
+      replicas: 2
+      restart_policy:
+        condition: "on-failure"
+        delay: "5s"
+        max_attempts: 3
+        window: "120s"
+      rollback_config:
+        delay: "5s"
+        failure_action: "pause"
+        order: "start-first"
+        parallelism: 1
+      update_config:
+        delay: "10s"
+        failure_action: "rollback"
+        max_failure_ratio: 0
+        monitor: "30s"
+        order: "start-first"
+        parallelism: 1
+    image: "traefik@sha256:8330e8d28853641532609f63676dc2eec8d19e2bc7fadd5505a1d0c8c254d042"
+    networks:
+      -
+        "quantrule"
+    ports:
+      -
+        mode: "host"
+        protocol: "tcp"
+        published: 443
+        target: 443
+    stop_grace_period: "40s"
+  model:
+    command:
+      -
+        "qr-model"
+    configs:
+      -
+        mode: 292
+        source: "quantrule_object_store_ca"
+        target: "/run/quantrule/pki/object-store-ca.crt"
+    deploy:
+      labels:
+        quantrule.evidence: "HA profile (unverified)"
+        quantrule.kind: "model"
+        quantrule.profile: "swarm-ha"
+      placement:
+        constraints:
+          -
+            "node.labels.quantrule.model == true"
+          -
+            "node.labels.quantrule.profile == swarm-ha"
+        max_replicas_per_node: 1
+        preferences:
+          -
+            spread: "node.labels.quantrule.domain"
+      replicas: 3
+      restart_policy:
+        condition: "on-failure"
+        delay: "5s"
+        max_attempts: 3
+        window: "120s"
+      rollback_config:
+        delay: "5s"
+        failure_action: "pause"
+        order: "start-first"
+        parallelism: 1
+      update_config:
+        delay: "10s"
+        failure_action: "rollback"
+        max_failure_ratio: 0
+        monitor: "30s"
+        order: "start-first"
+        parallelism: 1
+    environment:
+      QR_BIND: "0.0.0.0:8080"
+      QR_DATA_URL: "http://data:8080"
+      QR_IMAGE_DIGEST: "sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
+      QR_INTERNAL_ONLY: "1"
+      QR_LOG_FORMAT: "json"
+      QR_METRICS_BIND: "0.0.0.0:9100"
+      QR_MIGRATE: "0"
+      QR_OBJECT_BUCKET: "quantrule"
+      QR_OBJECT_STORE_ACCESS_KEY_FILE: "/run/secrets/object_store_access_key"
+      QR_OBJECT_STORE_SECRET_KEY_FILE: "/run/secrets/object_store_secret_key"
+      QR_OBJECT_STORE_TLS_CA_PATH: "/run/quantrule/pki/object-store-ca.crt"
+      QR_OBJECT_STORE_URL: "https://minio:9000"
+      QR_PROFILE: "server"
+      QR_QUEUE_GENERATION: "1"
+    image: "registry.quantrule.dev/quantrule/server@sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
+    networks:
+      -
+        "quantrule"
+    secrets:
+      -
+        mode: 256
+        source: "object_store_access_key"
+        target: "object_store_access_key"
+      -
+        mode: 256
+        source: "object_store_secret_key"
+        target: "object_store_secret_key"
+    stop_grace_period: "40s"
+  simulation:
+    command:
+      -
+        "qr-simulation"
+    configs:
+      -
+        mode: 292
+        source: "quantrule_database_ca"
+        target: "/run/quantrule/pki/database-ca.crt"
+      -
+        mode: 292
+        source: "quantrule_object_store_ca"
+        target: "/run/quantrule/pki/object-store-ca.crt"
+    deploy:
+      labels:
+        quantrule.evidence: "HA profile (unverified)"
+        quantrule.kind: "simulation"
+        quantrule.profile: "swarm-ha"
+      placement:
+        constraints:
+          -
+            "node.labels.quantrule.simulation == true"
+          -
+            "node.labels.quantrule.profile == swarm-ha"
+        max_replicas_per_node: 1
+        preferences:
+          -
+            spread: "node.labels.quantrule.domain"
+      replicas: 2
+      restart_policy:
+        condition: "on-failure"
+        delay: "5s"
+        max_attempts: 3
+        window: "120s"
+      rollback_config:
+        delay: "5s"
+        failure_action: "pause"
+        order: "start-first"
+        parallelism: 1
+      update_config:
+        delay: "10s"
+        failure_action: "rollback"
+        max_failure_ratio: 0
+        monitor: "30s"
+        order: "start-first"
+        parallelism: 1
+    environment:
+      QR_BIND: "0.0.0.0:8080"
+      QR_DATABASE_TLS_CA_PATH: "/run/quantrule/pki/database-ca.crt"
+      QR_DATABASE_URL_FILE: "/run/secrets/simulation_database_url"
+      QR_IMAGE_DIGEST: "sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
+      QR_INTERNAL_ONLY: "1"
+      QR_LOG_FORMAT: "json"
+      QR_METRICS_BIND: "0.0.0.0:9100"
+      QR_MIGRATE: "0"
+      QR_OBJECT_BUCKET: "quantrule"
+      QR_OBJECT_STORE_ACCESS_KEY_FILE: "/run/secrets/object_store_access_key"
+      QR_OBJECT_STORE_SECRET_KEY_FILE: "/run/secrets/object_store_secret_key"
+      QR_OBJECT_STORE_TLS_CA_PATH: "/run/quantrule/pki/object-store-ca.crt"
+      QR_OBJECT_STORE_URL: "https://minio:9000"
+      QR_PROFILE: "server"
+      QR_QUEUE_GENERATION: "1"
+    image: "registry.quantrule.dev/quantrule/server@sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
+    networks:
+      -
+        "quantrule"
+    secrets:
+      -
+        mode: 256
+        source: "object_store_access_key"
+        target: "object_store_access_key"
+      -
+        mode: 256
+        source: "object_store_secret_key"
+        target: "object_store_secret_key"
+      -
+        mode: 256
+        source: "simulation_database_url"
+        target: "simulation_database_url"
+    stop_grace_period: "40s"
+  strategy:
+    command:
+      -
+        "qr-strategy"
+    configs:
+      -
+        mode: 292
+        source: "quantrule_object_store_ca"
+        target: "/run/quantrule/pki/object-store-ca.crt"
+    deploy:
+      labels:
+        quantrule.evidence: "HA profile (unverified)"
+        quantrule.kind: "strategy"
+        quantrule.profile: "swarm-ha"
+      placement:
+        constraints:
+          -
+            "node.labels.quantrule.strategy == true"
+          -
+            "node.labels.quantrule.profile == swarm-ha"
+        max_replicas_per_node: 1
+        preferences:
+          -
+            spread: "node.labels.quantrule.domain"
+      replicas: 3
+      restart_policy:
+        condition: "on-failure"
+        delay: "5s"
+        max_attempts: 3
+        window: "120s"
+      rollback_config:
+        delay: "5s"
+        failure_action: "pause"
+        order: "start-first"
+        parallelism: 1
+      update_config:
+        delay: "10s"
+        failure_action: "rollback"
+        max_failure_ratio: 0
+        monitor: "30s"
+        order: "start-first"
+        parallelism: 1
+    environment:
+      QR_BIND: "0.0.0.0:8080"
+      QR_DATA_URL: "http://data:8080"
+      QR_IMAGE_DIGEST: "sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
+      QR_INTERNAL_ONLY: "1"
+      QR_LOG_FORMAT: "json"
+      QR_METRICS_BIND: "0.0.0.0:9100"
+      QR_MIGRATE: "0"
+      QR_MODEL_URL: "http://model:8080"
+      QR_OBJECT_BUCKET: "quantrule"
+      QR_OBJECT_STORE_ACCESS_KEY_FILE: "/run/secrets/object_store_access_key"
+      QR_OBJECT_STORE_SECRET_KEY_FILE: "/run/secrets/object_store_secret_key"
+      QR_OBJECT_STORE_TLS_CA_PATH: "/run/quantrule/pki/object-store-ca.crt"
+      QR_OBJECT_STORE_URL: "https://minio:9000"
+      QR_PROFILE: "server"
+      QR_QUEUE_GENERATION: "1"
+    image: "registry.quantrule.dev/quantrule/server@sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
+    networks:
+      -
+        "quantrule"
+    secrets:
+      -
+        mode: 256
+        source: "object_store_access_key"
+        target: "object_store_access_key"
+      -
+        mode: 256
+        source: "object_store_secret_key"
+        target: "object_store_secret_key"
+    stop_grace_period: "40s"
+x-quantrule:
+  evidence: "HA profile (unverified)"
+  network: "overlay, attachable, encrypted; created by bootstrap.sh and checked before deploy"
+  network_attachable: true
+  network_encrypted: true
+  owner: "HA-012"
+  platform: "Traefik/ACME, Patroni, RabbitMQ, MinIO, and observability configuration belong to PLAT-002..006"
+  profile: "swarm-ha"

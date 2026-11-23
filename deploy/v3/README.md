@@ -1,0 +1,57 @@
+# QuantRule `quantrule.deploy/v3`
+
+This directory holds the checked-in v3 descriptor, the fake fixture secrets, and
+the local contract examples. The contract is
+[`docs/config/2026-11-22/deploy-v3.md`](../../docs/config/2026-11-22/deploy-v3.md).
+
+`qr-deploy` implements the closed schema, version-first dispatch, `validate`,
+`validate --files`, `render`, and `check`. The renderer writes the seven-service
+Swarm stack, the pinned per-host stateful/observability skeletons, the operator
+job scripts, the secret/PKI copies, and `render.json`. The checker validates the
+descriptor, placement, pins, and local files and probes the one HTTPS ingress.
+v2 output is unchanged.
+
+## Validate, render, check
+
+The sample names `/etc/quantrule/secrets/...` and `/etc/quantrule/pki/ca.crt`,
+so a structural check needs no local copies:
+
+```bash
+qr-deploy validate deploy/v3/deploy.example.json
+```
+
+For the file contract, copy the fixture secrets to a temporary mode-700
+directory, make each file mode 600, point a copy of the descriptor at them, and
+run `--files`. The test suite does this; the fixture values are not deployable
+credentials.
+
+```bash
+install -d -m 700 /tmp/qr-v3-secrets
+find deploy/v3/secrets -type f ! -name README.md \
+  -exec install -m 600 {} /tmp/qr-v3-secrets/ \;
+# point secrets.files and endpoints.*.tls_ca at local files, then:
+qr-deploy validate /tmp/deploy.json --files
+qr-deploy render /tmp/deploy.json --out /tmp/qr-v3-out --target all
+qr-deploy check /tmp/deploy.json
+```
+
+`--target swarm` writes `stack.yaml`, `bootstrap.sh`, `jobs/`, and the shared
+`secrets/`, `pki/`, and `render.json`. `--target infra` writes `infra/<host>.yaml`
+and the shared material. `--target all` writes both. A v3 render without
+`--target` is a usage error; v2 `render` is unchanged and rejects `--target`.
+
+## Fixture secrets
+
+`secrets/` contains one fake value per required secret: the gateway token, the
+four database app/owner URLs, the queue URL, and the S3 access/secret pair.
+Every role has a distinct password, so the duplicate-credential rule can be
+tested. The values are deliberately non-default but are not real secrets; never
+deploy them.
+
+Git preserves the executable bit, not mode 600. After copying, run the
+`install -m 600` command above.
+
+The full shape, field rules, stable `deploy.*` codes, render layout, check
+output, profiles, and evidence boundary are in the contract document. The sample
+uses three compute hosts across `az1`, `az2`, and `az3`; it has etcd and HAProxy
+blocks and a non-empty `secrets.files` map.

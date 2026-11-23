@@ -1,7 +1,7 @@
 # File-Backed Secrets
 
 - Date: 2026-11-23 (UTC)
-- Status: Current for the local Compose stack and the v2 multi-host profile
+- Status: Current for the local Compose stack, the v2 multi-host profile, and v3 render/check
 - Issue: [#1107](https://github.com/quant-rule/quant-rule/issues/1107)
 - Claim type: Behaviour Claim
 - Related: [HA architecture](../../architecture/ha.md), [security](../../architecture/security.md), [four databases](../2026-11-22/four-databases.md)
@@ -82,13 +82,22 @@ unset, so it keeps the documented unauthenticated local profile.
 `make compose-check` writes disposable secrets to a temporary directory and
 validates both Compose files, so CI needs no committed secret.
 
-## 4. Multi-host v2
+## 4. Multi-host v2 and Swarm v3
 
 `qr-deploy render` writes `out/secrets/` at mode 700 with one mode-600 file per
 secret, and the service env files name `/run/secrets/<name>`. The role Compose
 files declare the mount. Copy `env/` and `env/secrets/` to the host that runs
-the role; never put a value in an env file. `qr-deploy` v3 and Swarm secret
-objects are HA-012; this document defines the files v3 consumes.
+the role; never put a value in an env file.
+
+For `quantrule.deploy/v3`, the renderer reads each `secrets.files` source once
+and writes the same value to `secrets/<name>`; `secrets/manifest.json` lists the
+names, relative paths, modes, and Swarm names, never a value or a fingerprint.
+`bootstrap.sh` creates one external Swarm secret per file from `secrets/<name>`
+and never reads the value itself. The app services mount only the secrets they
+consume; owner URLs go only to the migration jobs. `QR_INTERNAL_ONLY=1` and the
+entrypoint's private-address resolution are unchanged; a task with no resolvable
+private address fails closed. The contract is
+[deploy/v3](../2026-11-22/deploy-v3.md).
 
 ## 5. Token rotation
 
@@ -122,6 +131,13 @@ Rotate by replacing the file and sending `SIGHUP`; no restart is required. Every
 client re-exports the new value. The browser forgets and re-enters it on the
 Connection screen. The token age is `quantrule_auth_token_age_seconds`; no token
 fingerprint or generation appears in `/version` or a log record.
+
+Under Swarm, a secret object is immutable, so the HA profile uses the recorded
+exception: create a new secret name, update the gateway service to mount it,
+wait for the rolling replacement to drain, then remove the old secret. The
+mount target stays `gateway_token`, so `QR_BEARER_TOKEN_FILE` and the gateway
+token code are unchanged. The exact operator sequence is in
+[manual 15](../../manual/15-ha-deployment.md#token-rotation-under-swarm).
 
 ## 6. Verification
 

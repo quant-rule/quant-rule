@@ -1,7 +1,7 @@
 # QuantRule User Manual
 
-- Date: 2026-11-20 (UTC)
-- Status: Current; 14 chapters
+- Date: 2026-11-23 (UTC)
+- Status: Current; 15 chapters
 - Audience: operator, quant researcher, reviewer
 - Scope: the end-to-end use of the product through the CLI and the browser
 - Claim type: Behaviour Claim
@@ -32,10 +32,11 @@ authoritative.
 | 12 | Troubleshooting | [12-troubleshooting.md](12-troubleshooting.md) | Stable error codes, causes, and the next action | Current |
 | 13 | Client access | [13-client-access.md](13-client-access.md) | Browser and CLI on Windows/Linux; macOS unsupported; local server paths | Current |
 | 14 | Multi-host | [14-multi-host.md](14-multi-host.md) | How to place the six services on several hosts | Current |
+| 15 | HA deployment | [15-ha-deployment.md](15-ha-deployment.md) | How to render, bootstrap, and check the v3 Swarm HA profile | Current |
 
 ## 3. How the chapters are written
 
-Chapters 1–8 and 13–14 are runnable procedures, not a reference dump:
+Chapters 1–8 and 13–15 are runnable procedures, not a reference dump:
 
 - **Goal:** the trader's question in one sentence.
 - **Before you start:** the profile, data, config, or artifact you need.

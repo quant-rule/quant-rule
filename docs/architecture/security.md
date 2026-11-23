@@ -86,17 +86,19 @@ it to no file and never prints it; `--token` is visible in the process list.
 The multi-host profile keeps the same trust boundary. Its six services run on
 several hosts, but `data`, `model`, `evidence`, `simulation`, and `backtest` are
 reachable only over WireGuard, Tailscale, or a dedicated private VLAN. The
-single-host Compose stack adds `strategy` on the same container network, and v3
-(HA-012) places it in the multi-host profile. The services have
+single-host Compose stack adds `strategy` on the same container network, and the
+v3 Swarm profile (HA-012) places all seven. The services have
 no application authentication. The gateway remains the only public service and
 requires a bearer token when it is on a LAN or the public internet.
 
 `QR_INTERNAL_ONLY=1` makes an internal HTTP service fail at startup if its bind
 is public, unspecified, or a hostname; the serve boundary rechecks it.
-`qr-deploy validate` refuses the same placement before deployment. The overlay
-is the security boundary; a published internal port is a defect, not a
-workaround. Postgres, MinIO, and RabbitMQ bind only to the private overlay, use
-non-default credentials, and require TLS; the CA model is
+`qr-deploy validate` refuses the same placement before deployment. The v3 image
+resolves an unspecified `QR_BIND`/`QR_METRICS_BIND` to the Swarm task address
+and fails closed when none resolves. The overlay is the security boundary; a
+published internal port is a defect, not a workaround. Postgres, MinIO, and
+RabbitMQ bind only to the private overlay, use non-default credentials, and
+require TLS; the CA model is
 [internal TLS](../config/2026-11-23/internal-tls.md).
 
 Residual risks accepted for v1:
@@ -110,8 +112,7 @@ Residual risks accepted for v1:
   credential and the CA bundle can connect. Internal HTTP has no service
   authentication: a compromised overlay host can impersonate any service, read
   inter-service traffic, and set the trusted profile header.
-- The overlay provides encryption and host authentication, not service
-  authentication. Route a client VPN peer to the gateway only.
+- The overlay provides encryption and host authentication, not service authentication; route a client VPN peer to the gateway only.
 - `qr-deploy check` compares the reported digest, not the running image.
 - `/ready` and `/metrics` are unauthenticated; `/ready` stays behind the network
   gate and `/metrics` is internal, unset by default and never proxied.

@@ -2621,6 +2621,7 @@ dependencies = [
 name = "quantrule-deploy"
 version = "1.5.2"
 dependencies = [
+ "quantrule-api",
  "serde",
  "serde_json",
  "ureq",
