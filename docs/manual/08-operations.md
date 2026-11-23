@@ -124,9 +124,8 @@ quantrule health
 
 Open `http://<server>:8080` in the browser on that machine and enter the token on
 **Connection**. The shell default is `http://127.0.0.1:8080/api/v1`, so the
-export is what makes the laptop a client rather than a local stack.
-
-A token is a network gate, not an account. There is one principal.
+export is what makes the laptop a client rather than a local stack. A token is
+a network gate, not an account. There is one principal.
 
 ## Metrics and logs
 
@@ -167,6 +166,10 @@ deadline. A claim, a model compute, a signal create, a stage create, a decision,
 a cancel and a streaming body never retry. A queue consumer that errors
 reconnects with 1, 2, 4, 8, 16 and 30 s backoff; after that the container
 restarts. A drain during a backoff is a clean stop, not a reconnect.
+
+The shell retries GET reads on 3 attempts, 200 ms base, factor four, 5 s cap and
+15 s deadline; the browser uses 3 attempts, 250 ms base, factor four and 4 s cap.
+A mutation never retries; the browser banner persists until a read succeeds.
 
 Logs are one JSON object per line on stderr. Set `QR_LOG_FORMAT=text` only for
 local debugging; `QR_LOG` is the filter. A request returns `x-request-id`, and a
@@ -235,9 +238,8 @@ docker compose cp qr-definitions.json rabbitmq:/tmp/qr-definitions.json
 docker compose exec -T rabbitmq rabbitmqctl import_definitions /tmp/qr-definitions.json
 ```
 
-Definitions restore queues and bindings, not messages. Rebuild queued runs from
-run rows. A definitions file names a queue generation; importing it over a live
-generation is not the upgrade path.
+Definitions restore queues and bindings, not messages; rebuild queued runs from
+run rows. Importing one over a live queue generation is not the upgrade path.
 
 ## Backup and restore
 
@@ -252,11 +254,9 @@ objects before rows, so an interrupted copy leaves unreferenced blobs rather
 than a run that looks present but cannot verify. Export the broker topology
 separately; definitions restore queues and bindings, not messages.
 
-The stack now stores evidence in four logical databases. `tools/backup.sh` and
-`tools/restore.sh` still dump and restore one database, so they do not yet
-cover all four; treat a backup as incomplete until the four-database archive
-change lands. The database and role contract is
-[`docs/config/2026-11-22/four-databases.md`](../config/2026-11-22/four-databases.md).
+`tools/backup.sh` and `tools/restore.sh` still dump and restore one database,
+so a backup is incomplete until all four are covered. The database and role
+contract is [`docs/config/2026-11-22/four-databases.md`](../config/2026-11-22/four-databases.md).
 
 ## Migrations
 
@@ -313,7 +313,7 @@ None of this is research evidence or an edge claim.
 | `profile.not_found` | The active profile does not exist | Create it, or select an existing one |
 | `profile.invalid` | The profile name failed validation | Use lowercase letters, digits, and hyphens |
 | `run.not_found` | The digest form names an unknown run | Re-read the run list |
-| `service.unavailable` | A service is unreachable, restarting, or draining | Read `health`; wait for `/ready`; stop only if it stays down |
+| `service.unavailable` | A service is unreachable, restarting, or draining | Read `health`; wait for `/ready`; a GET retries to its budget, a mutation is not retried |
 | `queue.unavailable` | The broker or the service queue is unavailable | Read `health`; run submissions are retried from the outbox, so do not resubmit a run |
 | `pki-init` failed | `make pki` was not run or a mount is wrong | Run `make pki`, then `make down && make up` |
 | `must use sslmode=verify-full` | A database URL uses `prefer`, `require` or `verify-ca` | Fix the URL; do not weaken the mode |

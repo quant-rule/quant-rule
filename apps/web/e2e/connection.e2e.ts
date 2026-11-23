@@ -30,6 +30,17 @@ test("shows unreachable when the gateway does not answer", async ({ page }) => {
   await expect(page.getByText("connected", { exact: true })).toHaveCount(0);
 });
 
+test("shows the reconnect banner across the bounded retry budget", async ({ page }) => {
+  await installFixture(page, { unreachable: true });
+  await page.goto("/");
+
+  const banner = page.getByTestId("reconnect-banner");
+  await expect(banner).toBeVisible();
+  await expect(banner).toContainText("Reconnecting to the gateway");
+  await expect(banner).toContainText("after 3 attempts");
+  await expect(page.getByText("unreachable", { exact: true })).toBeVisible();
+});
+
 test("shows degraded and names the down dependency", async ({ page }) => {
   await installFixture(page, {
     health: {

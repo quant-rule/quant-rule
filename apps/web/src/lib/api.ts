@@ -3,6 +3,16 @@ export const API_BASE = "/api/v1";
 export const PROFILE_HEADER = "X-QuantRule-Profile";
 export const DEFAULT_PROFILE = "default";
 
+import {
+  beginRetry,
+  clearRetry,
+  endRetry,
+  finalMessage,
+  retryDelayMs,
+  retryMessage,
+  retryableMethod,
+  retryableStatus,
+} from "./transport";
 import type { DatasetRecord } from "./types";
 
 let activeProfile = DEFAULT_PROFILE;
@@ -90,17 +100,78 @@ async function parse<T>(response: Response): Promise<T> {
   return (await response.json()) as T;
 }
 
+function sleep(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function aborted(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    (error as { name?: unknown }).name === "AbortError"
+  );
+}
+
+/**
+ * Exchange one request, retrying a GET within the fixed budget.
+ *
+ * A transport failure, `408`, `429`, `502`, `503` and `504` retry; an abort, a
+ * mutation, a streaming upload and every other status do not. The response is
+ * returned unparsed, so an invalid body is a parse failure outside the loop and
+ * is never retried.
+ */
+async function exchange(path: string, init: RequestInit): Promise<Response> {
+  const retryable = retryableMethod(init.method);
+  const headers = requestHeaders(init.headers);
+  let attempt = 0;
+
+  for (;;) {
+    attempt += 1;
+    let response: Response;
+    try {
+      response = await fetch(`${API_BASE}${path}`, { ...init, headers });
+    } catch (error) {
+      if (!retryable || aborted(error)) {
+        throw error;
+      }
+      const delay = retryDelayMs(attempt);
+      if (delay === null) {
+        endRetry(finalMessage(attempt, null));
+        throw error;
+      }
+      beginRetry(retryMessage(attempt, null));
+      await sleep(delay);
+      continue;
+    }
+
+    if (!retryable || !retryableStatus(response.status)) {
+      if (retryable) {
+        clearRetry();
+      }
+      return response;
+    }
+
+    const delay = retryDelayMs(attempt);
+    if (delay === null) {
+      endRetry(finalMessage(attempt, response.status));
+      return response;
+    }
+    beginRetry(retryMessage(attempt, response.status));
+    await sleep(delay);
+  }
+}
+
 /**
  * Call one endpoint.
  *
  * The response is parsed as JSON; an error envelope becomes an `ApiError` with
- * its stable code, so a screen can branch on the code and print the message.
+ * its stable code, so a screen can branch on the code and print the message. A
+ * GET that fails transiently is retried by [`exchange`]; the bytes a screen
+ * receives are the last attempt's bytes, never a retry marker.
  */
 export async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: requestHeaders(init.headers),
-  });
+  const response = await exchange(path, init);
   return parse<T>(response);
 }
 
@@ -112,10 +183,7 @@ export async function call<T>(path: string, init: RequestInit = {}): Promise<T> 
  * stable code.
  */
 export async function callVoid(path: string, init: RequestInit = {}): Promise<void> {
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: requestHeaders(init.headers),
-  });
+  const response = await exchange(path, init);
   if (!response.ok) {
     throw await failure(response);
   }
@@ -128,10 +196,7 @@ export async function callVoid(path: string, init: RequestInit = {}): Promise<vo
  * response is still checked for the shared error envelope.
  */
 export async function fetchBytes(path: string, init: RequestInit = {}): Promise<ArrayBuffer> {
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: requestHeaders(init.headers),
-  });
+  const response = await exchange(path, init);
   if (!response.ok) {
     throw await failure(response);
   }

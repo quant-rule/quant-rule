@@ -5,19 +5,27 @@
 //! request, forwards the profile header, attaches the bearer token when one is
 //! configured, and returns the response bytes.
 //!
-//! A non-2xx response is not an I/O failure: the shared envelope is parsed and
-//! its stable code is preserved. A body that does not match the contract is a
-//! decode failure, named with the path that produced it.
+//! A `GET` is the only retryable method: it repeats a transport failure, `408`,
+//! `429`, `502`, `503` and `504` under the bounded policy in [`crate::retry`].
+//! A mutation, a streaming upload and an invalid response are single-attempt. A
+//! non-2xx response is not an I/O failure: the shared envelope is parsed and its
+//! stable code is preserved. After the final attempt the transport failure names
+//! the attempt count and never the URL, token, or body.
 
-use std::time::Duration;
+use std::thread;
+use std::time::{Duration, Instant};
 
 use quantrule_api::{PROFILE_HEADER, ProfileId};
 
 use crate::error::RunError;
+use crate::retry;
 use crate::token::BearerToken;
 
 /// The gateway base used when `QUANTRULE_API_URL` is unset.
 pub(crate) const DEFAULT_API_URL: &str = "http://127.0.0.1:8080/api/v1";
+
+/// The longest one exchange may take, matching the agent default.
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 
 /// One response, before the command decodes it.
 pub(crate) struct Response {
@@ -49,7 +57,7 @@ impl Client {
     ) -> Result<Self, RunError> {
         let config = ureq::Agent::config_builder()
             .http_status_as_error(false)
-            .timeout_global(Some(Duration::from_secs(120)))
+            .timeout_global(Some(REQUEST_TIMEOUT))
             .build();
         Ok(Self {
             agent: ureq::Agent::new_with_config(config),
@@ -59,26 +67,53 @@ impl Client {
         })
     }
 
-    /// GET one path.
+    /// GET one path under the bounded retry policy.
     ///
     /// # Errors
     ///
-    /// Returns [`RunError::Transport`] when the exchange fails and
+    /// Returns [`RunError::Transport`] when every attempt fails and
     /// [`RunError::Api`] when the gateway refuses the call.
     pub(crate) fn get(&self, path: &str) -> Result<Response, RunError> {
         let url = self.url(path);
-        let response = self
-            .common_headers(self.agent.get(&url))
-            .call()
-            .map_err(|error| RunError::Transport(error.to_string()))?;
-        read(response, path)
+        let started = Instant::now();
+        let mut last_attempt = 1;
+
+        for attempt in 1..=retry::ATTEMPTS {
+            last_attempt = attempt;
+            let remaining = retry::TOTAL_DEADLINE.saturating_sub(started.elapsed());
+            if remaining.is_zero() {
+                break;
+            }
+            let builder = self
+                .agent
+                .get(&url)
+                .config()
+                .timeout_global(Some(remaining.min(REQUEST_TIMEOUT)))
+                .build();
+            match exchange(self.common_headers(builder).call()) {
+                Ok(response) if retry::is_retryable_status(response.status) => {}
+                Ok(response) => return checked(response, path),
+                Err(()) => {}
+            }
+
+            let Some(delay) = retry::delay_after(attempt) else {
+                break;
+            };
+            let remaining = retry::TOTAL_DEADLINE.saturating_sub(started.elapsed());
+            if delay >= remaining {
+                break;
+            }
+            thread::sleep(delay);
+        }
+
+        Err(RunError::transport(last_attempt))
     }
 
     /// POST a JSON body.
     ///
     /// # Errors
     ///
-    /// Returns the same failures as [`Client::get`].
+    /// Returns the same failures as [`Client::get`], with one attempt.
     pub(crate) fn post_json(&self, path: &str, body: &str) -> Result<Response, RunError> {
         self.post_bytes(path, "application/json", body.as_bytes().to_vec())
     }
@@ -89,7 +124,7 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns the same failures as [`Client::get`].
+    /// Returns the same failures as [`Client::get`], with one attempt.
     pub(crate) fn post_json_bytes(&self, path: &str, body: Vec<u8>) -> Result<Response, RunError> {
         self.post_bytes(path, "application/json", body)
     }
@@ -98,7 +133,7 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns the same failures as [`Client::get`].
+    /// Returns the same failures as [`Client::get`], with one attempt.
     pub(crate) fn post_bytes(
         &self,
         path: &str,
@@ -106,19 +141,20 @@ impl Client {
         body: Vec<u8>,
     ) -> Result<Response, RunError> {
         let url = self.url(path);
-        let response = self
-            .common_headers(self.agent.post(&url))
-            .header("content-type", content_type)
-            .send(body)
-            .map_err(|error| RunError::Transport(error.to_string()))?;
-        read(response, path)
+        let response = exchange(
+            self.common_headers(self.agent.post(&url))
+                .header("content-type", content_type)
+                .send(body),
+        )
+        .map_err(|()| RunError::transport(1))?;
+        checked(response, path)
     }
 
     /// POST a CSV body.
     ///
     /// # Errors
     ///
-    /// Returns the same failures as [`Client::get`].
+    /// Returns the same failures as [`Client::get`], with one attempt.
     pub(crate) fn post_csv(&self, path: &str, body: Vec<u8>) -> Result<Response, RunError> {
         self.post_bytes(path, "text/csv", body)
     }
@@ -127,28 +163,24 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns the same failures as [`Client::get`].
+    /// Returns the same failures as [`Client::get`], with one attempt.
     pub(crate) fn post_empty(&self, path: &str) -> Result<Response, RunError> {
         let url = self.url(path);
-        let response = self
-            .common_headers(self.agent.post(&url))
-            .send_empty()
-            .map_err(|error| RunError::Transport(error.to_string()))?;
-        read(response, path)
+        let response = exchange(self.common_headers(self.agent.post(&url)).send_empty())
+            .map_err(|()| RunError::transport(1))?;
+        checked(response, path)
     }
 
     /// DELETE one path, accepting a `204` with no body.
     ///
     /// # Errors
     ///
-    /// Returns the same failures as [`Client::get`].
+    /// Returns the same failures as [`Client::get`], with one attempt.
     pub(crate) fn delete_empty(&self, path: &str) -> Result<Response, RunError> {
         let url = self.url(path);
-        let response = self
-            .common_headers(self.agent.delete(&url))
-            .call()
-            .map_err(|error| RunError::Transport(error.to_string()))?;
-        read(response, path)
+        let response = exchange(self.common_headers(self.agent.delete(&url)).call())
+            .map_err(|()| RunError::transport(1))?;
+        checked(response, path)
     }
 
     /// Attach the headers every gateway call carries.
@@ -165,6 +197,20 @@ impl Client {
     fn url(&self, path: &str) -> String {
         format!("{}{}", self.base_url, path)
     }
+}
+
+/// Read one exchange into status and bytes.
+///
+/// A transport or body failure is `Err(())`: the caller retries a GET and turns
+/// a mutation failure into the stable attempt-count error. The raw error is not
+/// kept because it can carry a URL, a token, or a response body.
+fn exchange(
+    response: Result<ureq::http::Response<ureq::Body>, ureq::Error>,
+) -> Result<Response, ()> {
+    let response = response.map_err(|_| ())?;
+    let status = response.status().as_u16();
+    let body = response.into_body().read_to_vec().map_err(|_| ())?;
+    Ok(Response { status, body })
 }
 
 /// Percent-encode one path segment or query value.
@@ -195,17 +241,13 @@ fn hex_digit(value: u8) -> char {
     }
 }
 
-fn read(response: ureq::http::Response<ureq::Body>, path: &str) -> Result<Response, RunError> {
-    let status = response.status().as_u16();
-    let body = response
-        .into_body()
-        .read_to_vec()
-        .map_err(|error| RunError::Transport(error.to_string()))?;
-    if (200..300).contains(&status) {
-        return Ok(Response { status, body });
+/// Preserve a 2xx, and turn a non-2xx into the shared envelope error.
+fn checked(response: Response, path: &str) -> Result<Response, RunError> {
+    if (200..300).contains(&response.status) {
+        return Ok(response);
     }
 
-    let value: Option<serde_json::Value> = serde_json::from_slice(&body).ok();
+    let value: Option<serde_json::Value> = serde_json::from_slice(&response.body).ok();
     let code = value
         .as_ref()
         .and_then(|value| value.pointer("/error/code"))
@@ -216,7 +258,7 @@ fn read(response: ureq::http::Response<ureq::Body>, path: &str) -> Result<Respon
         .and_then(|value| value.pointer("/error/message"))
         .and_then(serde_json::Value::as_str)
         .map(str::to_owned)
-        .unwrap_or_else(|| format!("{path} answered with HTTP {status}"));
+        .unwrap_or_else(|| format!("{path} answered with HTTP {}", response.status));
     Err(RunError::api(code, &message))
 }
 

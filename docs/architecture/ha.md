@@ -140,7 +140,7 @@ secrets by file, renders the Swarm stack and pinned stateful units, and rejects:
 
 | Failure | Behaviour |
 |---|---|
-| Gateway/ingress loss | Load balancer routes to survivor; client reconnects |
+| Gateway/ingress loss | Load balancer routes to survivor; client GET retries in its budget, mutation re-run after `/ready` |
 | Data/model/strategy loss | Other replica serves; retry is idempotent |
 | Simulation replica loss | Other replica serves; per-run row locks keep one decision |
 | Backtest worker kill | Lease expires; outbox re-arms; no partial publish |

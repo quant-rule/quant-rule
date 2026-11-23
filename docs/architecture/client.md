@@ -67,6 +67,16 @@ same error-envelope check. The profile header is attached in one place.
 - Test: an HTTP fixture router keyed by path and method; no socket.
 - The mock backend is the only test seam and must not diverge from the contract.
 
+Retries are client-local and GET-only. The shell uses 3 attempts, a 200 ms base,
+factor 4, a 5 s cap and a 15 s deadline; the browser uses 3 attempts, a 250 ms
+base, factor 4 and a 4 s cap. A transport error, `408`, `429`, `502`, `503` and
+`504` retry; `401`, `403`, `404`, any other `4xx`, an invalid response and any
+POST/PUT/DELETE/streaming upload do not. There is no jitter or random source. A
+retry never changes run identity, server idempotency or the canonical digest.
+The shell prints `cannot reach the gateway after N attempts`, with no URL, token
+or body; `transport.ts` holds the browser's `reconnecting` flag and last
+transport message, and `App.svelte` shows one banner until a read succeeds.
+
 ## 4. Disconnection and profile scope
 
 Selecting a profile, or losing the gateway, clears every profile-scoped row
@@ -79,10 +89,8 @@ packs, and signal artifacts.
 - Submission is disabled.
 - No result is read from local storage.
 
-Each store carries a generation counter, so a read that started under the
-previous profile is dropped when it returns. A tool whose value is "these bytes
-are the truth" must not present stale evidence. Only connection settings persist
-locally.
+Each store carries a generation counter, so a read started under the previous
+profile is dropped when it returns; only connection settings persist locally.
 
 ## 5. Numbers, not labels
 

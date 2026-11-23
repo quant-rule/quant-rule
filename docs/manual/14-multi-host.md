@@ -123,6 +123,7 @@ availability.
 | TLS handshake error | CA, SAN or expiry mismatch | Verify with `openssl verify -CAfile pki/ca.crt pki/<service>/server.crt` |
 | `sslmode=verify-full is required` | The descriptor still carries a plaintext database URL | Rewrite it and re-render; do not use `require` or `verify-ca` |
 | `qr-deploy check` connection refused | The service is down or the overlay is down | Read the host logs and `/health` |
+| Gateway restart or failover | A client GET is inside its retry budget; the browser shows the reconnect banner | Wait for `/ready`; re-run a refused mutation |
 | `SKIP backtest` | The worker has no public HTTP surface | Check the container on the compute host |
 | Gateway `degraded` | An upstream is down | Start the missing service; `/ready` names it |
 | Run stays `queued` | No backtest worker is consuming | Start a worker on the compute host |

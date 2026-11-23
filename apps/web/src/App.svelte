@@ -18,6 +18,7 @@
   import { SECTIONS, type Section } from "./lib/capabilities";
   import { initialise } from "./lib/connection.svelte";
   import { load as loadProfiles } from "./lib/profiles.svelte";
+  import { transport } from "./lib/transport";
 
   const sections = SECTIONS;
 
@@ -68,6 +69,13 @@
   </aside>
 
   <main>
+    {#if $transport.reconnecting || $transport.lastError !== null}
+      <div class="reconnect" data-testid="reconnect-banner" role="status" aria-live="polite">
+        <strong>{$transport.reconnecting ? "Reconnecting to the gateway" : "Gateway unavailable"}</strong>
+        <span>{$transport.lastError ?? ""}</span>
+      </div>
+    {/if}
+
     <header class="topbar">
       <h1>{sections.find((item) => item.id === section)?.label}</h1>
       <ProfileSwitcher />
@@ -171,6 +179,18 @@
     padding: 1rem 1.25rem;
     border-bottom: 1px solid var(--line);
     background: #11161e;
+  }
+
+  .reconnect {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: baseline;
+    padding: 0.6rem 1.25rem;
+    background: #241f14;
+    border-bottom: 1px solid var(--warn);
+    color: var(--warn);
+    font-size: 0.9rem;
   }
 
   .content { padding: 1.25rem; }

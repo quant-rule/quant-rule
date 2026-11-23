@@ -12,6 +12,7 @@ mod command;
 mod error;
 mod output;
 mod profile;
+mod retry;
 mod session;
 mod token;
 
