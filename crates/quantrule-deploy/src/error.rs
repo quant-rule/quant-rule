@@ -30,6 +30,18 @@ pub enum Error {
         /// Why the value was rejected.
         message: String,
     },
+    /// A v3 rule was violated.
+    ///
+    /// The code is stable across releases so a client can act on it; the field
+    /// is a dot path and the message tells the operator what to change.
+    Rule {
+        /// The stable `deploy.*` code.
+        code: &'static str,
+        /// The descriptor field or file, as a dot path.
+        field: String,
+        /// Why the value was rejected.
+        message: String,
+    },
     /// A placeholder in the descriptor has no value in the secrets file.
     MissingSecret {
         /// The missing environment-variable name.
@@ -46,6 +58,18 @@ pub enum Error {
     Usage(String),
 }
 
+impl Error {
+    /// Build a v3 rule failure with a stable code.
+    #[must_use]
+    pub fn rule(code: &'static str, field: impl Into<String>, message: impl Into<String>) -> Self {
+        Self::Rule {
+            code,
+            field: field.into(),
+            message: message.into(),
+        }
+    }
+}
+
 impl fmt::Display for Error {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -56,6 +80,11 @@ impl fmt::Display for Error {
                 write!(formatter, "cannot parse {}: {message}", path.display())
             }
             Self::Invalid { field, message } => write!(formatter, "{field}: {message}"),
+            Self::Rule {
+                code,
+                field,
+                message,
+            } => write!(formatter, "{code} at {field}: {message}"),
             Self::MissingSecret { name } => {
                 write!(formatter, "the secrets file does not define {name}")
             }

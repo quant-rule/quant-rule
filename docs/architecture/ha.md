@@ -1,6 +1,6 @@
 # Highly Available Runtime
 
-- Status: Target for the next release; the evidence leader (HA-006), data active/active (HA-007), runtime drain/readiness/retries/file secrets/token rotation (HA-009), and internal TLS for PostgreSQL/RabbitMQ/MinIO (HA-010) are current; accepted by [ADR-HA](../adr/2026-11-22/1082-ha-deployment-profile.md)
+- Status: Target for the next release; the evidence leader (HA-006), data active/active (HA-007), runtime drain/readiness/retries/file secrets/token rotation (HA-009), internal TLS for PostgreSQL/RabbitMQ/MinIO (HA-010), and v3 render/check (HA-012) are current; accepted by [ADR-HA](../adr/2026-11-22/1082-ha-deployment-profile.md)
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 
@@ -114,10 +114,10 @@ No distributed transactions. The platform uses:
 
 - `https://quantrule.dev` resolves to Traefik ×2 behind a VIP or cloud LB.
 - TLS on 443; HTTP redirects; only 443 public.
-- Gateway token is the only human auth; no accounts or tenancy. Secrets are files under `/run/secrets`; the S3 client uses only the two file credentials. v3 Swarm secret objects and `secrets.files` are HA-012.
+- Gateway token is the only human auth; no accounts or tenancy. Secrets are files under `/run/secrets`; the S3 client uses only the two file credentials. v3 assembles `secrets.files` into external Swarm secrets; rotation uses a new secret name and a rolling update ([contract](../config/2026-11-23/secret-files.md)).
 - The gateway re-reads `QR_BEARER_TOKEN_FILE` every `QR_TOKEN_RELOAD_SECONDS` and on `SIGHUP`; an invalid edit keeps the last good token and counts the reason.
 - Postgres, RabbitMQ and MinIO use TLS with a private CA; per-service credentials.
-- Internal HTTP stays plaintext on the encrypted overlay. mTLS is deferred to HA-012; a compromised overlay host can impersonate a service ([TLS contract](../config/2026-11-23/internal-tls.md)).
+- Internal HTTP stays plaintext on the encrypted overlay. mTLS remains deferred beyond HA-012; a compromised overlay host can impersonate a service ([TLS contract](../config/2026-11-23/internal-tls.md)).
 - Every service serves `/ready`; a drain flips it before the process stops, and `/metrics` stays internal.
 - JSON logs carry request ids as observability only; they never enter evidence.
 - Image is signed, SBOM published and digest pinned.
@@ -125,17 +125,17 @@ No distributed transactions. The platform uses:
 ## 9. Deployment descriptor
 
 `quantrule.deploy/v3` places services on hosts and failure domains, references
-secrets by file, renders the Swarm stack and pinned stateful units, and rejects:
+secrets by file, and rejects a second public port, an internal public bind, a
+missing digest, co-located replicas or quorum members, inline secrets,
+unsupported stateful placement, and missing backup or TLS configuration.
 
-- a second public port;
-- internal services on a public bind;
-- one image digest missing;
-- replicas or quorum members co-located on one failure domain;
-- secrets in the descriptor;
-- unsupported stateful placement;
-- A missing backup or TLS configuration.
-
-`qr-deploy validate`, `render`, `bootstrap` and `check` are the operator path; v2 remains readable for the older multi-host profile.
+`qr-deploy validate`, `render`, and `check` are implemented; `render` writes the
+Swarm stack, pinned per-host Patroni/etcd/HAProxy/RabbitMQ/MinIO/observability
+skeletons, job scripts, secret/PKI copies, and `render.json`. `bootstrap.sh`
+execution is PLAT-001, unit configuration PLAT-003..006, and registry signing
+PLAT-007. The contract is [deploy/v3](../config/2026-11-22/deploy-v3.md) and the
+operator path is [manual 15](../manual/15-ha-deployment.md). v2 remains readable
+for the older multi-host profile.
 ## 10. Failure behaviour
 
 | Failure | Behaviour |

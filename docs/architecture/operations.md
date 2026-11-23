@@ -19,8 +19,7 @@ make down    # stop, keep data
 alive. `GET /ready` is the routing authority: it returns `503` when a dependency
 is down, when a response has a different `service` identity, or immediately when
 the process is draining. The gateway probes each upstream `/ready`; the backtest
-worker exposes both routes on its internal listener. A service is healthy when
-its check passes, not when its container is running.
+worker exposes both routes on its internal listener. A service is healthy when its check passes, not when its container is running. The v3 Swarm check is [manual 15](../manual/15-ha-deployment.md); rotate its token by a new secret name and rolling update, not `SIGHUP`.
 
 | Signal | Healthy | Action |
 |---|---|---|

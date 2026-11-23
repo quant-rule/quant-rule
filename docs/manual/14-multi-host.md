@@ -3,8 +3,8 @@
 - Status: Current
 - Audience: operator placing the six services on more than one Linux host
 - Boundary: the v2 descriptor places six services; the seventh `strategy`
-  service is single-host Compose only, and its v3 placement is HA-012. The
-  gateway accepts an absent `QR_STRATEGY_URL`, so v2 still starts. Pack
+  service is placed by the v3 Swarm profile in [chapter 15](15-ha-deployment.md).
+  The gateway accepts an absent `QR_STRATEGY_URL`, so v2 still starts. Pack
   lifecycle, signal reads, and run lineage work on v2; `signal create` answers
   `503 service.unavailable` until the strategy service is deployed.
 
@@ -59,13 +59,14 @@ still reads `secrets.env` on the operator host.
 Rotate the gateway token with the [manual 08 steps](08-operations.md): replace
 `env/secrets/bearer_token` on the gateway host, copy it into the gateway's
 staged path, and send `SIGHUP`. The next request sees the new value without a
-restart; an invalid file keeps the last good token. The v3 Swarm secret objects
-and `secrets.files` are HA-012.
+restart; an invalid file keeps the last good token. The v3 Swarm profile uses a
+new secret name and a rolling update instead; see
+[chapter 15](15-ha-deployment.md#token-rotation-under-swarm).
 
 The v2 profile requires TLS on PostgreSQL, RabbitMQ and MinIO. The descriptor
 uses `sslmode=verify-full`, `amqps://` and `https://`, and render copies each CA
 bundle into `env/pki/`; a plaintext stateful endpoint is refused. Internal HTTP
-stays plaintext on the private overlay. Full mTLS is HA-012.
+stays plaintext on the private overlay. Full mTLS remains deferred beyond HA-012.
 
 The v2 profile runs one data, one simulation and one evidence instance. Two
 data replicas are an HA capability and require the
@@ -138,6 +139,8 @@ or the service, not the trust boundary.
 ## Related
 
 - [Multi-host architecture](../architecture/multi-host.md)
+- [HA deployment chapter](15-ha-deployment.md)
+- [Deployment v3 contract](../config/2026-11-22/deploy-v3.md)
 - [Deployment](../architecture/deployment.md)
 - [Security](../architecture/security.md)
 - [Agent runbook](agent-runbook.md)

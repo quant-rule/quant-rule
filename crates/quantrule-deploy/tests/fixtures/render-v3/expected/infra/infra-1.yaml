@@ -1,0 +1,155 @@
+name: "quantrule-infra-infra-1"
+networks:
+  quantrule:
+    external: true
+    name: "quantrule"
+services:
+  etcd:
+    container_name: "quantrule-etcd-infra-1"
+    image: "quay.io/coreos/etcd@sha256:a6cec115044c30857d8458d120facbaa2251f21fd4ad39296a99017468d482dc"
+    networks:
+      -
+        "quantrule"
+    restart: "unless-stopped"
+    stop_grace_period: "40s"
+    volumes:
+      -
+        read_only: false
+        source: "/srv/quantrule/etcd/data"
+        target: "/etcd-data"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/etcd/etcd.conf.yml"
+        target: "/etc/etcd/etcd.conf.yml"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/pki/etcd"
+        target: "/etc/quantrule/pki"
+        type: "bind"
+  grafana:
+    container_name: "quantrule-grafana-infra-1"
+    image: "grafana/grafana@sha256:2e28e87d9b98ca68880a966df73ad63f90db6b4df6ae86637e130f52f48264ba"
+    networks:
+      -
+        "quantrule"
+    restart: "unless-stopped"
+    stop_grace_period: "40s"
+    volumes:
+      -
+        read_only: false
+        source: "/srv/quantrule/grafana/data"
+        target: "/var/lib/grafana"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/grafana"
+        target: "/etc/grafana/provisioning"
+        type: "bind"
+  minio:
+    container_name: "quantrule-minio-infra-1"
+    image: "minio/minio@sha256:bdf0781acceb93983c15eec9e56bfbd59dcadc98ea57467022d61aeee074a2cc"
+    networks:
+      quantrule:
+        aliases:
+          -
+            "minio"
+    restart: "unless-stopped"
+    stop_grace_period: "40s"
+    volumes:
+      -
+        read_only: false
+        source: "/srv/quantrule/minio/infra-1/drive1"
+        target: "/data1"
+        type: "bind"
+      -
+        read_only: false
+        source: "/srv/quantrule/minio/infra-1/drive2"
+        target: "/data2"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/minio/minio.conf"
+        target: "/etc/minio/minio.conf"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/pki/minio"
+        target: "/etc/quantrule/pki"
+        type: "bind"
+  patroni:
+    container_name: "quantrule-patroni-infra-1"
+    image: "postgres@sha256:dc184ed86a2b6421fd5ea1bf2ffa3d6e9f1df86796bf0830a7476eb064a186ff"
+    networks:
+      -
+        "quantrule"
+    restart: "unless-stopped"
+    stop_grace_period: "40s"
+    volumes:
+      -
+        read_only: false
+        source: "/srv/quantrule/patroni/data"
+        target: "/var/lib/postgresql/data"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/patroni/patroni.yml"
+        target: "/etc/patroni/patroni.yml"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/pki/postgres"
+        target: "/etc/quantrule/pki"
+        type: "bind"
+  prometheus:
+    container_name: "quantrule-prometheus-infra-1"
+    image: "prom/prometheus@sha256:c4bfb1e3ef91709eca17ae08b3676ac008939765ad9cf6c2b4617f363b1354be"
+    networks:
+      -
+        "quantrule"
+    restart: "unless-stopped"
+    stop_grace_period: "40s"
+    volumes:
+      -
+        read_only: false
+        source: "/srv/quantrule/prometheus/data"
+        target: "/prometheus"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/prometheus/prometheus.yml"
+        target: "/etc/prometheus/prometheus.yml"
+        type: "bind"
+  rabbitmq:
+    container_name: "quantrule-rabbitmq-infra-1"
+    image: "rabbitmq@sha256:605a57a95a166325381f132867163eafc20cb0ece6039504e45681136550e6b7"
+    networks:
+      quantrule:
+        aliases:
+          -
+            "rabbitmq"
+    restart: "unless-stopped"
+    stop_grace_period: "40s"
+    volumes:
+      -
+        read_only: false
+        source: "/srv/quantrule/rabbitmq/data"
+        target: "/var/lib/rabbitmq"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/rabbitmq/rabbitmq.conf"
+        target: "/etc/rabbitmq/rabbitmq.conf"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/pki/rabbitmq"
+        target: "/etc/quantrule/pki"
+        type: "bind"
+x-quantrule:
+  evidence: "HA profile (unverified)"
+  network: "overlay, attachable, encrypted; created by bootstrap.sh"
+  owner: "HA-012"
+  platform: "unit configuration belongs to PLAT-003/004/005/006; this file only pins the image, host volumes, and overlay attachment"
+  profile: "swarm-ha"

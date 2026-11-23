@@ -1,0 +1,295 @@
+{
+  "v": "quantrule.deploy/v3",
+  "profile": "swarm-ha",
+  "name": "quantrule-ha",
+  "image": {
+    "reference": "registry.quantrule.dev/quantrule/server",
+    "digest": "sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
+  },
+  "images": {
+    "traefik": {
+      "reference": "traefik",
+      "digest": "sha256:8330e8d28853641532609f63676dc2eec8d19e2bc7fadd5505a1d0c8c254d042"
+    },
+    "postgres": {
+      "reference": "postgres",
+      "digest": "sha256:dc184ed86a2b6421fd5ea1bf2ffa3d6e9f1df86796bf0830a7476eb064a186ff"
+    },
+    "etcd": {
+      "reference": "quay.io/coreos/etcd",
+      "digest": "sha256:a6cec115044c30857d8458d120facbaa2251f21fd4ad39296a99017468d482dc"
+    },
+    "haproxy": {
+      "reference": "haproxy",
+      "digest": "sha256:2a88fcd69de33b07362a9b98f822f2b31f7607932356829cee9a5d44d851a2db"
+    },
+    "rabbitmq": {
+      "reference": "rabbitmq",
+      "digest": "sha256:605a57a95a166325381f132867163eafc20cb0ece6039504e45681136550e6b7"
+    },
+    "minio": {
+      "reference": "minio/minio",
+      "digest": "sha256:bdf0781acceb93983c15eec9e56bfbd59dcadc98ea57467022d61aeee074a2cc"
+    },
+    "prometheus": {
+      "reference": "prom/prometheus",
+      "digest": "sha256:c4bfb1e3ef91709eca17ae08b3676ac008939765ad9cf6c2b4617f363b1354be"
+    },
+    "grafana": {
+      "reference": "grafana/grafana",
+      "digest": "sha256:2e28e87d9b98ca68880a966df73ad63f90db6b4df6ae86637e130f52f48264ba"
+    },
+    "loki": {
+      "reference": "grafana/loki",
+      "digest": "sha256:e13e67451cba9b2074bf13220303cb12e4ef2316709cd6f0fbd6f8f76b59e2d5"
+    },
+    "alertmanager": {
+      "reference": "prom/alertmanager",
+      "digest": "sha256:62187e72213c4a4a0d1e1634c2350b73f3a1320777fb2274827a1f8c524f0ff2"
+    }
+  },
+  "network": {
+    "overlay": "quantrule",
+    "encrypted": true
+  },
+  "ingress": {
+    "dns": "quantrule.dev",
+    "port": 443,
+    "tls": "acme",
+    "files": {},
+    "replicas": 2,
+    "hosts": [
+      "edge-1",
+      "edge-2"
+    ]
+  },
+  "auth": {
+    "gateway_token_secret": "gateway_token"
+  },
+  "hosts": {
+    "edge-1": {
+      "address": "10.0.1.11",
+      "failure_domain": "az1",
+      "public_address": "203.0.113.10"
+    },
+    "edge-2": {
+      "address": "10.0.1.12",
+      "failure_domain": "az2",
+      "public_address": "203.0.113.11"
+    },
+    "core-1": {
+      "address": "10.0.1.21",
+      "failure_domain": "az1"
+    },
+    "core-2": {
+      "address": "10.0.1.22",
+      "failure_domain": "az2"
+    },
+    "compute-1": {
+      "address": "10.0.1.31",
+      "failure_domain": "az1"
+    },
+    "compute-2": {
+      "address": "10.0.1.32",
+      "failure_domain": "az2"
+    },
+    "compute-3": {
+      "address": "10.0.1.33",
+      "failure_domain": "az3"
+    },
+    "infra-1": {
+      "address": "10.0.1.41",
+      "failure_domain": "az1"
+    },
+    "infra-2": {
+      "address": "10.0.1.42",
+      "failure_domain": "az2"
+    },
+    "infra-3": {
+      "address": "10.0.1.43",
+      "failure_domain": "az3"
+    }
+  },
+  "endpoints": {
+    "database": {
+      "host": "postgres",
+      "port": 5432,
+      "sslmode": "verify-full",
+      "tls_ca": "/etc/quantrule/pki/ca.crt"
+    },
+    "queue": {
+      "host": "rabbitmq",
+      "port": 5671,
+      "scheme": "amqps",
+      "tls_ca": "/etc/quantrule/pki/ca.crt"
+    },
+    "object_store": {
+      "host": "minio",
+      "port": 9000,
+      "scheme": "https",
+      "tls_ca": "/etc/quantrule/pki/ca.crt"
+    }
+  },
+  "databases": {
+    "gateway": {
+      "database": "qr_gateway",
+      "owner_role": "qr_gateway_owner",
+      "app_role": "qr_gateway_app"
+    },
+    "catalog": {
+      "database": "qr_catalog",
+      "owner_role": "qr_catalog_owner",
+      "app_role": "qr_catalog_app"
+    },
+    "evidence": {
+      "database": "qr_evidence",
+      "owner_role": "qr_evidence_owner",
+      "app_role": "qr_evidence_app"
+    },
+    "simulation": {
+      "database": "qr_simulation",
+      "owner_role": "qr_simulation_owner",
+      "app_role": "qr_simulation_app"
+    }
+  },
+  "services": {
+    "gateway": {
+      "replicas": 2,
+      "hosts": [
+        "edge-1",
+        "edge-2"
+      ],
+      "port": 8080
+    },
+    "data": {
+      "replicas": 2,
+      "hosts": [
+        "core-1",
+        "core-2"
+      ],
+      "port": 8080
+    },
+    "model": {
+      "replicas": 3,
+      "hosts": [
+        "compute-1",
+        "compute-2",
+        "compute-3"
+      ],
+      "port": 8080
+    },
+    "strategy": {
+      "replicas": 3,
+      "hosts": [
+        "compute-1",
+        "compute-2",
+        "compute-3"
+      ],
+      "port": 8080
+    },
+    "backtest": {
+      "replicas": 3,
+      "hosts": [
+        "compute-1",
+        "compute-2",
+        "compute-3"
+      ],
+      "port": 9090
+    },
+    "evidence": {
+      "replicas": 2,
+      "hosts": [
+        "core-1",
+        "core-2"
+      ],
+      "port": 8080
+    },
+    "simulation": {
+      "replicas": 2,
+      "hosts": [
+        "core-1",
+        "core-2"
+      ],
+      "port": 8080
+    }
+  },
+  "stateful": {
+    "postgres": {
+      "nodes": [
+        "infra-1",
+        "infra-2",
+        "infra-3"
+      ],
+      "synchronous_standby": 1,
+      "pitr": true
+    },
+    "etcd": {
+      "nodes": [
+        "infra-1",
+        "infra-2",
+        "infra-3"
+      ]
+    },
+    "haproxy": {
+      "nodes": [
+        "edge-1",
+        "edge-2"
+      ]
+    },
+    "rabbitmq": {
+      "nodes": [
+        "infra-1",
+        "infra-2",
+        "infra-3"
+      ],
+      "quorum": true
+    },
+    "minio": {
+      "nodes": [
+        "infra-1",
+        "infra-2",
+        "infra-3"
+      ],
+      "drives": [
+        2,
+        1,
+        1
+      ]
+    }
+  },
+  "observability": {
+    "prometheus": {
+      "host": "infra-1"
+    },
+    "grafana": {
+      "host": "infra-1"
+    },
+    "loki": {
+      "host": "infra-2"
+    },
+    "alertmanager": {
+      "host": "infra-2"
+    }
+  },
+  "backup": {
+    "pitr": true,
+    "retention_days": 30,
+    "object_replication": true
+  },
+  "secrets": {
+    "files": {
+      "gateway_token": "/etc/quantrule/secrets/gateway_token",
+      "gateway_database_url": "/etc/quantrule/secrets/gateway_database_url",
+      "gateway_owner_database_url": "/etc/quantrule/secrets/gateway_owner_database_url",
+      "data_database_url": "/etc/quantrule/secrets/data_database_url",
+      "data_owner_database_url": "/etc/quantrule/secrets/data_owner_database_url",
+      "evidence_database_url": "/etc/quantrule/secrets/evidence_database_url",
+      "evidence_owner_database_url": "/etc/quantrule/secrets/evidence_owner_database_url",
+      "simulation_database_url": "/etc/quantrule/secrets/simulation_database_url",
+      "simulation_owner_database_url": "/etc/quantrule/secrets/simulation_owner_database_url",
+      "queue_url": "/etc/quantrule/secrets/queue_url",
+      "object_store_access_key": "/etc/quantrule/secrets/object_store_access_key",
+      "object_store_secret_key": "/etc/quantrule/secrets/object_store_secret_key"
+    }
+  }
+}

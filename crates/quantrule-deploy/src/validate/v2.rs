@@ -1,8 +1,9 @@
-//! Descriptor validation and placeholder expansion.
+//! `quantrule.deploy/v2` validation and placeholder expansion.
 //!
 //! Validation is deliberately strict: a descriptor that reaches a host has
 //! already been checked for one image digest, one public service, private
-//! internal binds, unique host ports, and required secrets.
+//! internal binds, unique host ports, and required secrets. The v2 behavior is
+//! frozen; v3 rules live in [`super::v3`].
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::net::IpAddr;
@@ -627,7 +628,7 @@ mod tests {
 
     fn example() -> serde_json::Value {
         serde_json::from_str(include_str!(
-            "../../../deploy/multi-host/deploy.example.json"
+            "../../../../deploy/multi-host/deploy.example.json"
         ))
         .expect("the example parses")
     }
@@ -924,12 +925,13 @@ mod tests {
 
     #[test]
     fn the_dotenv_parser_handles_comments_quotes_and_duplicates() {
-        let env = crate::descriptor::parse_env("# comment\nA=one\n\nB='two words'\nC=\"three\"\n")
-            .expect("dotenv");
+        let env =
+            crate::descriptor::v2::parse_env("# comment\nA=one\n\nB='two words'\nC=\"three\"\n")
+                .expect("dotenv");
         assert_eq!(env["A"], "one");
         assert_eq!(env["B"], "two words");
         assert_eq!(env["C"], "three");
-        assert!(crate::descriptor::parse_env("A=1\nA=2\n").is_err());
-        assert!(crate::descriptor::parse_env("no-equals\n").is_err());
+        assert!(crate::descriptor::v2::parse_env("A=1\nA=2\n").is_err());
+        assert!(crate::descriptor::v2::parse_env("no-equals\n").is_err());
     }
 }

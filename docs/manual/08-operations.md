@@ -84,6 +84,7 @@ evidence are permanent.
 | Shell | `--token <token>`, `QUANTRULE_TOKEN` or `QUANTRULE_TOKEN_FILE`; the token is never printed |
 | Exposure | Private network or TLS; plain HTTP exposes the header |
 | Rotate | Run `make remote` with a new value, or copy the file into the gateway and send `SIGHUP`; no restart; the old token is rejected after the swap |
+| Swarm rotate | New secret name plus a rolling gateway update; see [manual 15](15-ha-deployment.md#token-rotation-under-swarm) |
 | Invalid edit | The gateway keeps the last good token and increments `quantrule_auth_reload_failures_total`; it never disables authentication |
 
 The gateway reads only `QR_BEARER_TOKEN_FILE`; a plain `QR_BEARER_TOKEN` in the

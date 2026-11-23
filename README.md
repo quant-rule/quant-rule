@@ -186,8 +186,8 @@ browser ── HTTP ── gateway ── postgres
 - **Two planes.** A synchronous, deterministic data plane computes one run. An
   asynchronous control plane decides which run happens when.
 - **Seven services.** `gateway`, `data`, `model`, `backtest`, `evidence`,
-  `simulation`, `strategy`; the v2 multi-host profile places six and v3 adds the
-  strategy service.
+  `simulation`, `strategy`; the v2 multi-host profile places six and the v3
+  Swarm HA profile places all seven behind one 443-only ingress.
 - **One image.** One digest pins the whole compute stack, so version skew cannot
   occur.
 - **References, not payloads.** Stages exchange content hashes; bytes live in
@@ -314,6 +314,8 @@ run detail. The contract is
 | [`docs/architecture/characteristics.md`](docs/architecture/characteristics.md) | Measurable qualities and fitness functions |
 | [`docs/architecture/deployment.md`](docs/architecture/deployment.md) | How to run it |
 | [`docs/architecture/multi-host.md`](docs/architecture/multi-host.md) | How the six services of the v2 profile run across hosts; v3 adds the seventh |
+| [Deployment v3](docs/config/2026-11-22/deploy-v3.md) | The Swarm HA descriptor, render targets, pinned stateful units, and check |
+| [HA deployment manual](docs/manual/15-ha-deployment.md) | Render, bootstrap, check, and rotate the v3 profile |
 | [`docs/architecture/cross-database-consistency.md`](docs/architecture/cross-database-consistency.md) | Outbox, dataset references, reconciliation and tombstones across four databases |
 | [`docs/architecture/observability.md`](docs/architecture/observability.md) | Metrics, JSON logs, request/trace ids, and their non-goals |
 | [User manual](docs/manual/README.md) | Every journey, command, screen, term, and error |

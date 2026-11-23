@@ -3,7 +3,8 @@
 //! The descriptor is the single source of truth for a multi-host deployment.
 //! It is JSON so the tool needs no YAML dependency and the schema is the Rust
 //! type. Secrets stay in a separate dotenv file and are referenced from
-//! endpoints as `${NAME}` placeholders.
+//! endpoints as `${NAME}` placeholders. The v2 contract is frozen; v3 lives in
+//! [`super::v3`] and is selected by the `v` field before either type is parsed.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -199,23 +200,6 @@ pub struct Descriptor {
     /// Diagnostic stage retention in days; default 30.
     #[serde(default)]
     pub stage_retention_days: Option<u64>,
-}
-
-/// Read and parse a descriptor.
-///
-/// # Errors
-///
-/// Returns [`Error::Read`] when the file is absent and [`Error::Parse`] when it
-/// is not valid JSON.
-pub fn load(path: &Path) -> Result<Descriptor, Error> {
-    let text = std::fs::read_to_string(path).map_err(|source| Error::Read {
-        path: path.to_path_buf(),
-        source,
-    })?;
-    serde_json::from_str(&text).map_err(|error| Error::Parse {
-        path: path.to_path_buf(),
-        message: error.to_string(),
-    })
 }
 
 /// Read a dotenv file into a map.
