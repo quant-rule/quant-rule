@@ -3,9 +3,13 @@
 //! Content addressing is the caller's rule: the key is the digest exposed by
 //! `quantrule-api`. This adapter only moves bytes.
 
+use std::path::Path;
+
 use aws_sdk_s3::Client;
 use aws_sdk_s3::config::{BehaviorVersion, Credentials, Region};
 use aws_sdk_s3::primitives::ByteStream;
+use aws_smithy_http_client::Builder as HttpClientBuilder;
+use aws_smithy_http_client::tls::{Provider, TlsContext, TrustStore, rustls_provider::CryptoMode};
 
 use crate::adapters::{Backend, BoxFuture, ObjectStore, StoreError};
 
@@ -37,25 +41,49 @@ impl S3Store {
     /// it would be a second, unaudited secret reader with its own environment
     /// variables, config files and instance metadata. Path-style addressing is
     /// forced because the endpoint is not `amazonaws.com`.
-    pub(crate) fn new(
+    ///
+    /// When `ca` names a PEM bundle, the client trusts only that bundle and
+    /// verifies the endpoint hostname. A missing or malformed bundle is a
+    /// constructor error: the caller fails closed rather than silently
+    /// connecting to a server it cannot authenticate.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] when the CA bundle cannot be read or the TLS
+    /// context cannot be built.
+    pub fn new(
         endpoint: &str,
         bucket: impl Into<String>,
         access_key: impl Into<String>,
         secret_key: impl Into<String>,
-    ) -> Self {
+        ca: Option<&Path>,
+    ) -> Result<Self, StoreError> {
         let credentials =
             Credentials::new(access_key, secret_key, None, None, "quantrule-secret-file");
-        let config = aws_sdk_s3::config::Builder::new()
+        let mut config = aws_sdk_s3::config::Builder::new()
             .behavior_version(BehaviorVersion::latest())
             .endpoint_url(endpoint)
             .region(Region::new("us-east-1"))
             .credentials_provider(credentials)
-            .force_path_style(true)
-            .build();
-        Self {
-            client: Client::from_conf(config),
-            bucket: bucket.into(),
+            .force_path_style(true);
+        if let Some(ca) = ca {
+            let pem = std::fs::read(ca).map_err(|error| {
+                StoreError(format!("cannot read the object-store CA bundle: {error}"))
+            })?;
+            let context = TlsContext::builder()
+                .with_trust_store(TrustStore::empty().with_pem_certificate(pem))
+                .build()
+                .map_err(|error| StoreError(error.to_string()))?;
+            let client = HttpClientBuilder::new()
+                .tls_provider(Provider::Rustls(CryptoMode::AwsLc))
+                .tls_context(context)
+                .build_https();
+            config = config.http_client(client);
         }
+        Ok(Self {
+            client: Client::from_conf(config.build()),
+            bucket: bucket.into(),
+        })
     }
 
     /// Whether the bucket answers.
@@ -158,6 +186,8 @@ impl ObjectStore for S3Store {
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use super::S3Store;
 
     #[test]
@@ -167,12 +197,27 @@ mod tests {
             "quantrule",
             "quantrule",
             "sentinel-secret",
-        );
+            None,
+        )
+        .expect("plain endpoint");
         assert_eq!(store.bucket, "quantrule");
         assert!(
             !format!("{store:?}").contains("sentinel-secret"),
             "the secret leaked through Debug"
         );
+    }
+
+    #[test]
+    fn a_missing_ca_bundle_fails_closed() {
+        let error = S3Store::new(
+            "https://minio:9000",
+            "quantrule",
+            "quantrule",
+            "sentinel-secret",
+            Some(Path::new("/nonexistent/quantrule-ca.crt")),
+        )
+        .expect_err("a missing CA must not fall back to the platform roots");
+        assert!(error.to_string().contains("CA bundle"), "{error}");
     }
 
     #[test]

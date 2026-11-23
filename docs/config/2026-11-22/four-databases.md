@@ -42,7 +42,11 @@ The role names are fixed:
 
 Both variables name a mode-600 file mounted at `/run/secrets`; a plain
 `QR_DATABASE_URL` or `QR_DATABASE_OWNER_URL` is a startup error. The contract is
-[file-backed secrets](../2026-11-23/secret-files.md).
+[file-backed secrets](../2026-11-23/secret-files.md). Every URL carries
+`sslmode=verify-full` and the service reads `QR_DATABASE_TLS_CA_PATH`; the
+migration job uses the same CA path. `prefer`, `require` and `verify-ca` are
+refused because they fall back to plaintext or skip hostname verification. The
+full contract is [internal TLS](../2026-11-23/internal-tls.md).
 
 The long-running service must have `QR_MIGRATE=0` and no owner URL. The runtime
 refuses to start if either is present, and a database-owning service without its
@@ -156,4 +160,6 @@ another service. The contract is
   object guard are specified in
   [`data-active-active.md`](../../architecture/data-active-active.md).
 - `docker compose config` validates the local topology; `qr-deploy render`
-  writes the v2 env files and the four migration envs.
+  writes the v2 env files and the four migration envs with their CA path.
+- `cargo test -p quantrule-runtime` proves the `verify-full`/CA pairing and the
+  migration job's CA path; `tools/pki.sh` creates the bundle.

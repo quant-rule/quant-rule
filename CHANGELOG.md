@@ -20,6 +20,7 @@ history is in Git and the pull requests.
 
 ### Added
 
+- PostgreSQL, RabbitMQ and MinIO now use TLS in the Compose and v2 multi-host profiles. `QR_DATABASE_TLS_CA_PATH` requires `sslmode=verify-full`, `QR_QUEUE_TLS_CA_PATH` requires `amqps://`, and `QR_OBJECT_STORE_TLS_CA_PATH` requires `https://`; a missing CA or a handshake failure fails closed with no plaintext fallback. `tools/pki.sh` and `make pki` create the offline-root/intermediate/180-day-leaf bundle, `pki-init` stages the key for the stock non-root services, and `make compose-check`, CI and `tools/remote.sh` create a disposable PKI. Internal HTTP, mTLS and client certificates remain deferred to HA-012; the residual risk is recorded.
 - Every application secret now arrives as a `*_FILE` value naming an absolute, mode-600 file: `QR_DATABASE_URL_FILE`, `QR_DATABASE_OWNER_URL_FILE`, `QR_QUEUE_URL_FILE`, `QR_BEARER_TOKEN_FILE`, `QR_OBJECT_STORE_ACCESS_KEY_FILE` and `QR_OBJECT_STORE_SECRET_KEY_FILE`. A plain secret variable, both sources together, a relative/missing/oversized file, invalid UTF-8, NUL, an empty value or surrounding whitespace fails startup without printing the value; a database- or queue-owning service without its file fails closed.
 - `make secrets` creates the local `secrets/` directory (mode 700, files 600) with random infrastructure passwords and the per-service secret files; `make up` depends on it and reuses existing values, `FORCE=1` rotates deliberately. `make compose-check` validates both Compose files with disposable secrets. The image entrypoint stages the mounted files for UID 10001 and drops privileges; no service binary runs as root.
 - `qr-deploy render` writes `env/secrets/` at mode 700 with one mode-600 file per secret and renders `_FILE` keys; the multi-host role files mount them at `/run/secrets`.
@@ -111,6 +112,7 @@ history is in Git and the pull requests.
 ### Security
 
 - A plain secret environment variable is refused in the server profile, so `docker inspect` and `/proc/<pid>/environ` never carry a DSN, queue URL, token or S3 key. An invalid token file cannot silently disable gateway authentication.
+- The private CA and server keys are Git-ignored and a `private-keys` governance checker refuses a committed key file or PEM private-key block. PostgreSQL and RabbitMQ do not request client certificates; a compromised overlay host can still impersonate a service over plaintext internal HTTP, as recorded in the TLS contract.
 
 ### Fixed
 

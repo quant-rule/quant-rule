@@ -29,14 +29,41 @@ services:
       PGUSER: ${QR_POSTGRES_USER:?QR_POSTGRES_USER must be set}
       PGPASSWORD: ${QR_POSTGRES_PASSWORD:?QR_POSTGRES_PASSWORD must be set}
       PGDATABASE: ${QR_POSTGRES_DB:?QR_POSTGRES_DB must be set}
+      PGSSLMODE: verify-full
+      PGSSLROOTCERT: /pki/ca.crt
       QR_DB_ROLE_PASSWORD: ${QR_POSTGRES_PASSWORD:?QR_POSTGRES_PASSWORD must be set}
     volumes:
       # Relative to this Compose file, not the caller's working directory.
       - ../../deploy/postgres/bootstrap.sh:/bootstrap/bootstrap.sh:ro
+      - ./pki/ca.crt:/pki/ca.crt:ro
     entrypoint: ["/bin/sh", "/bootstrap/bootstrap.sh"]
     depends_on:
       postgres:
         condition: service_healthy
+
+  # One-shot root init that stages the host PKI into service-owned volumes.
+  # The database, broker and store keep their stock non-root users.
+  pki-init:
+    image: ${QR_POSTGRES_IMAGE:-postgres@sha256:846a7ddaa67a4b354ae1d21087b683901aa6113a4ed626d3787cfbf6c85e3e07}
+    restart: "no"
+    networks:
+      - quantrule
+    environment:
+      QR_PKI_POSTGRES_UID: ${QR_PKI_POSTGRES_UID:-999}
+      QR_PKI_POSTGRES_GID: ${QR_PKI_POSTGRES_GID:-999}
+      QR_PKI_RABBITMQ_UID: ${QR_PKI_RABBITMQ_UID:-999}
+      QR_PKI_RABBITMQ_GID: ${QR_PKI_RABBITMQ_GID:-999}
+      QR_PKI_MINIO_UID: ${QR_PKI_MINIO_UID:-1001}
+      QR_PKI_MINIO_GID: ${QR_PKI_MINIO_GID:-1001}
+    volumes:
+      - ../../deploy/pki/init.sh:/pki/init.sh:ro
+      - ./pki/postgres:/src/postgres:ro
+      - ./pki/rabbitmq:/src/rabbitmq:ro
+      - ./pki/minio:/src/minio:ro
+      - pgpki:/pki/postgres
+      - mqpki:/pki/rabbitmq
+      - miniopki:/pki/minio
+    entrypoint: ["/bin/sh", "/pki/init.sh"]
 
   postgres:
     # Same pin and override as the single-host stack.
@@ -47,6 +74,18 @@ services:
     # Every value is required: the single-host loopback defaults must not
     # become a multi-host default. A missing render fails here, not with a
     # database that accepts a well-known password.
+    command:
+      - postgres
+      - -c
+      - ssl=on
+      - -c
+      - ssl_cert_file=/var/lib/postgresql/pki/server.crt
+      - -c
+      - ssl_key_file=/var/lib/postgresql/pki/server.key
+      - -c
+      - ssl_ca_file=/var/lib/postgresql/pki/ca.crt
+      - -c
+      - ssl_min_protocol_version=TLSv1.2
     environment:
       POSTGRES_USER: ${QR_POSTGRES_USER:?QR_POSTGRES_USER must be set}
       POSTGRES_PASSWORD: ${QR_POSTGRES_PASSWORD:?QR_POSTGRES_PASSWORD must be set}
@@ -55,6 +94,10 @@ services:
       - "${QR_BIND_IP:?QR_BIND_IP must be set}:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - pgpki:/var/lib/postgresql/pki:ro
+    depends_on:
+      pki-init:
+        condition: service_completed_successfully
     healthcheck:
       # The container's own environment names the user and database, so the
       # probe does not depend on the Compose-level variables being present.
@@ -77,12 +120,18 @@ services:
       # start. The bucket name is part of the rendered contract.
       MINIO_DEFAULT_BUCKETS: ${QR_OBJECT_BUCKET:?QR_OBJECT_BUCKET must be set}
       MINIO_BROWSER: "off"
+      MINIO_SCHEME: https
+      CURL_CA_BUNDLE: /certs/CAs/ca.crt
     ports:
       - "${QR_BIND_IP:?QR_BIND_IP must be set}:9000:9000"
     volumes:
       - objects:/bitnami/minio/data
+      - miniopki:/certs:ro
+    depends_on:
+      pki-init:
+        condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9000/minio/health/ready"]
+      test: ["CMD-SHELL", "curl -fsS https://127.0.0.1:9000/minio/health/ready"]
       interval: 5s
       timeout: 5s
       retries: 12
@@ -97,10 +146,16 @@ services:
       RABBITMQ_DEFAULT_USER: ${QR_QUEUE_USER:?QR_QUEUE_USER must be set}
       RABBITMQ_DEFAULT_PASS: ${QR_QUEUE_PASSWORD:?QR_QUEUE_PASSWORD must be set}
       RABBITMQ_DEFAULT_VHOST: ${QR_QUEUE_VHOST:?QR_QUEUE_VHOST must be set}
+      RABBITMQ_CONFIG_FILE: /etc/rabbitmq/rabbitmq.conf
     ports:
-      - "${QR_BIND_IP:?QR_BIND_IP must be set}:5672:5672"
+      - "${QR_BIND_IP:?QR_BIND_IP must be set}:5671:5671"
     volumes:
       - mqdata:/var/lib/rabbitmq
+      - mqpki:/var/lib/rabbitmq/pki:ro
+      - ../../deploy/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    depends_on:
+      pki-init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 5s
@@ -115,3 +170,6 @@ volumes:
   pgdata:
   objects:
   mqdata:
+  pgpki:
+  mqpki:
+  miniopki:

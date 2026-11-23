@@ -29,9 +29,12 @@
     "backtest": { "host": "compute", "replicas": 2 }
   },
   "endpoints": {
-    "database": "postgres://${QR_POSTGRES_USER}:${QR_POSTGRES_PASSWORD}@10.10.0.20:5432/${QR_POSTGRES_DB}",
-    "object_store": "http://10.10.0.20:9000",
-    "queue": "amqp://${QR_QUEUE_USER}:${QR_QUEUE_PASSWORD}@10.10.0.20:5672/%2f",
+    "database": "postgres://${QR_POSTGRES_USER}:${QR_POSTGRES_PASSWORD}@10.10.0.20:5432/${QR_POSTGRES_DB}?sslmode=verify-full",
+    "database_tls_ca": "/opt/quantrule/pki/ca.crt",
+    "object_store": "https://10.10.0.20:9000",
+    "object_store_tls_ca": "/opt/quantrule/pki/ca.crt",
+    "queue": "amqps://${QR_QUEUE_USER}:${QR_QUEUE_PASSWORD}@10.10.0.20:5671/%2f",
+    "queue_tls_ca": "/opt/quantrule/pki/ca.crt",
     "object_bucket": "quantrule"
   },
   "infra_host": "infra",

@@ -10,6 +10,10 @@
 #   - the fixture run completes and the canonical digest matches across two
 #     runs with one and two backtest workers.
 #
+# This harness is a placement approximation, not the TLS contract: it starts
+# the stateful services without certificates and is not evidence for HA-010.
+# Composed TLS handshakes and CA overlap are later composed/HA evidence.
+#
 # The real LAN verification (host firewall, overlay, cross-host failure) is
 # tracked separately in #964. Run this from the repository root:
 #

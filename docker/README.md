@@ -2,7 +2,8 @@
 
 - Status: Implements `DIST-022` (#643); seven of seven binaries exist and the
   single-host default stack starts ten long-running containers plus the one-shot
-  database bootstrap. The v2 multi-host profile still places six services. The
+  PKI staging job and database bootstrap. The v2 multi-host profile still places
+  six services. The
   permanent object-store registry remains a human decision.
 - Claim type: Behaviour Claim
 
@@ -28,8 +29,10 @@ The seven binaries come from seven packages, one per service:
 
 The runtime is Debian slim with `ca-certificates`, `curl` and `setpriv`. The
 entrypoint starts as root only to stage mode-600 file secrets for the service
-user, then every service binary runs as UID 10001. It carries no Python
-interpreter, no Bun runtime, no Rust toolchain, and no `tools/` directory.
+user, then every service binary runs as UID 10001. The internal TLS CA bundles
+are public files mounted at `/run/pki`; they do not pass through the entrypoint.
+The image carries no Python interpreter, Bun runtime, Rust toolchain or `tools/`
+directory.
 
 ## 2. Build and run
 
@@ -41,8 +44,11 @@ curl -fsS -H 'X-QuantRule-Profile: default' http://localhost:8080/catalog/datase
 docker compose down
 ```
 
-`make up` is #644. `docker compose config` validates the default stack. There is
-no partial-stack profile: every one of the ten services starts by default.
+`make up` is #644. `docker compose config` validates the default stack; `make
+compose-check` adds a disposable PKI. There is no partial-stack profile: every
+one of the ten services starts by default. PostgreSQL, RabbitMQ and MinIO use
+TLS and the one-shot `pki-init` stages their certificates for the non-root
+service UIDs.
 
 | Container | Binary | Surface |
 |---|---|---|
@@ -147,6 +153,7 @@ environment. `make secrets` creates the local set:
 | `QR_QUEUE_URL_FILE` | Broker URL file used by evidence and backtest |
 | `QR_OBJECT_STORE_ACCESS_KEY_FILE` / `QR_OBJECT_STORE_SECRET_KEY_FILE` | The explicit S3 credential files |
 | `QR_BEARER_TOKEN_FILE` | Gateway token file; unset keeps the local unauthenticated profile |
+| `QR_DATABASE_TLS_CA_PATH` / `QR_QUEUE_TLS_CA_PATH` / `QR_OBJECT_STORE_TLS_CA_PATH` | Private CA bundles at `/run/pki/ca.crt`; a TLS endpoint without its CA is a startup error |
 | `QR_POSTGRES_PASSWORD` / `QR_OBJECT_STORE_PASSWORD` / `QR_RABBITMQ_PASSWORD` | Local infrastructure bootstrap values, written by `make secrets` |
 | `QR_OBJECT_STORE_IMAGE` | Object-store image reference |
 
@@ -163,6 +170,7 @@ Windows (Docker Desktop with the WSL2 Linux backend):
 ```powershell
 docker context use desktop-linux
 wsl bash tools/secrets.sh
+wsl bash tools/pki.sh
 docker compose --env-file secrets/compose.env config
 docker compose --env-file secrets/compose.env build
 docker compose --env-file secrets/compose.env create gateway

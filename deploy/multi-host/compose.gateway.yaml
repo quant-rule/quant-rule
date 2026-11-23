@@ -25,6 +25,8 @@ services:
       - env/gateway-migrate.env
     secrets:
       - gateway_owner_database_url
+    volumes:
+      - ./env/pki:/run/pki:ro
 
   gateway:
     stop_grace_period: 40s
@@ -37,6 +39,8 @@ services:
     secrets:
       - gateway_database_url
       - bearer_token
+    volumes:
+      - ./env/pki:/run/pki:ro
     restart: unless-stopped
     depends_on:
       gateway-migrate:

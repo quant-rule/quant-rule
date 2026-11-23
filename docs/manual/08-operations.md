@@ -20,6 +20,28 @@ recorded digest, and operate the deployment remotely without losing evidence.
 Operations is operational metadata. It is not a model measurement, a run
 artifact, or research evidence.
 
+## Internal TLS
+
+`make up` runs `make pki` first and creates `pki/` (mode 700) with a 10-year
+offline root, a 5-year intermediate, 180-day server leaves for `postgres`,
+`minio` and `rabbitmq`, and a bundled `ca.crt`. The stack mounts only `ca.crt`
+into the application containers; the one-shot `pki-init` copies the server key
+and certificate into a service-owned volume (key 0600) before the stock
+non-root database, broker and store start.
+
+| Task | Command | Expect |
+|---|---|---|
+| Inspect the bundle | `openssl x509 -in pki/ca.crt -noout -subject -dates` | Intermediate subject and dates |
+| Verify a leaf | `openssl verify -CAfile pki/ca.crt pki/postgres/server.crt` | `OK` |
+| Add a deployment name | `PKI_EXTRA_SANS=10.10.0.20 make pki FORCE=1` | New SANs; restart the stack |
+| Rotate a leaf | `make pki FORCE=1` | New certificates; `make down && make up` |
+| Rotate the CA | Re-issue, overlap the intermediate in `ca.crt`, rolling restart | Old and new leaves verify during the overlap |
+
+A missing CA, wrong CA, hostname mismatch or expired leaf fails closed: the pool
+does not open, the migration job fails, or `/ready` reports the dependency down.
+There is no plaintext fallback. Internal service-to-service HTTP stays plaintext
+on the overlay ([TLS contract](../config/2026-11-23/internal-tls.md)).
+
 ## Steps
 
 | # | Shell | Browser | Expect |
@@ -34,10 +56,9 @@ artifact, or research evidence.
 | 8 | `make backup` | — | One timestamped archive and a SHA-256 sidecar |
 | 9 | `make restore FILE=<archive>` | — | A clean stack restored from the verified archive |
 
-`make remote` creates missing files under `secrets/` and refuses a documented
-default infrastructure password. It checks the 401/401/200 token matrix before it
-prints the token. The browser stores the token in local storage and sends it only
-as `Authorization: Bearer`; it never enters the URL or page text.
+`make remote` creates missing files under `secrets/`, refuses a documented
+default password, and checks the 401/401/200 token matrix. The browser keeps the
+token in local storage and sends it only as `Authorization: Bearer`.
 
 ## Retention fields
 
@@ -67,9 +88,9 @@ evidence are permanent.
 
 The gateway reads only `QR_BEARER_TOKEN_FILE`; a plain `QR_BEARER_TOKEN` in the
 server environment is a startup error. Application secrets are files under
-`/run/secrets`; the image entrypoint stages them for UID 10001 and drops
-privileges. `make secrets` creates the local set and `make up` reuses it
-idempotently. See [file-backed secrets](../config/2026-11-23/secret-files.md).
+`/run/secrets`; the entrypoint stages them for UID 10001 and drops privileges.
+`make secrets` creates the local set; see
+[file-backed secrets](../config/2026-11-23/secret-files.md).
 
 The simplest rotation is a new operator value and `make remote` again:
 
@@ -294,6 +315,9 @@ None of this is research evidence or an edge claim.
 | `run.not_found` | The digest form names an unknown run | Re-read the run list |
 | `service.unavailable` | A service is unreachable, restarting, or draining | Read `health`; wait for `/ready`; stop only if it stays down |
 | `queue.unavailable` | The broker or the service queue is unavailable | Read `health`; run submissions are retried from the outbox, so do not resubmit a run |
+| `pki-init` failed | `make pki` was not run or a mount is wrong | Run `make pki`, then `make down && make up` |
+| `must use sslmode=verify-full` | A database URL uses `prefer`, `require` or `verify-ca` | Fix the URL; do not weaken the mode |
+| TLS handshake/CA error | Wrong CA, SAN, or expired leaf | Run `openssl verify`; re-issue with `make pki FORCE=1` and restart |
 | Retention error | The last cleanup failed | Read the error; do not delete evidence by hand |
 | Backup archive exists | The timestamped name already exists | Re-run later; never overwrite the archive |
 | Restore refused | Sidecar, payload, or stack state failed verification | Stop; do not force without a human decision |

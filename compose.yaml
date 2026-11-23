@@ -1,9 +1,10 @@
 # QuantRule deployment — quantrule.deploy/v1
 #
-# One bridge network, one published port, three named volumes. The default
-# topology is ten long-running containers: the seven service binaries from one
-# image plus Postgres, the object store, and the broker. A one-shot db-bootstrap
-# container creates the four logical databases and their owner/app roles, then
+# One bridge network, one published port. The default topology is ten
+# long-running containers: the seven service binaries from one image plus
+# Postgres, the object store, and the broker, all three over TLS. `pki-init`
+# stages the certificates for the stock non-root service UIDs; a one-shot
+# db-bootstrap creates the four logical databases and their owner/app roles, then
 # four one-shot migration jobs apply each owner ledger. The database-owning
 # services start with only their application credential. `data`, `model`,
 # `evidence`, and `simulation` serve the catalog, model compute, runs/research,
@@ -50,7 +51,7 @@ x-server: &server
     # The gateway probes the seventh service only when this URL is set. The v2
     # multi-host profile leaves it absent and still starts.
     QR_STRATEGY_URL: http://strategy:8080
-    QR_OBJECT_STORE_URL: http://minio:9000
+    QR_OBJECT_STORE_URL: https://minio:9000
     QR_OBJECT_BUCKET: quantrule
     # Every declared queue name carries this generation. A changed queue
     # declaration moves to a new generation instead of redeclaring a live name;
@@ -116,9 +117,13 @@ services:
       # the owner URL. Every application secret arrives as a mounted file:
       # `docker inspect` and `/proc/<pid>/environ` never carry the value.
       QR_DATABASE_URL_FILE: /run/secrets/qr_gateway_database_url
+      QR_DATABASE_TLS_CA_PATH: /run/pki/ca.crt
+      QR_OBJECT_STORE_TLS_CA_PATH: /run/pki/ca.crt
       QR_MIGRATE: "0"
     secrets:
       - qr_gateway_database_url
+    volumes:
+      - ${QR_PKI_DIR:-./pki}/ca.crt:/run/pki/ca.crt:ro
     ports:
       - "8080:8080"
     depends_on:
@@ -150,8 +155,10 @@ services:
       # qr-data owns the catalog database. The long-running process has the
       # application role only; data-migrate has the owner URL.
       QR_DATABASE_URL_FILE: /run/secrets/qr_catalog_database_url
+      QR_DATABASE_TLS_CA_PATH: /run/pki/ca.crt
       QR_OBJECT_STORE_ACCESS_KEY_FILE: /run/secrets/object_store_access_key
       QR_OBJECT_STORE_SECRET_KEY_FILE: /run/secrets/object_store_secret_key
+      QR_OBJECT_STORE_TLS_CA_PATH: /run/pki/ca.crt
       QR_MIGRATE: "0"
     secrets:
       - qr_catalog_database_url
@@ -161,6 +168,7 @@ services:
       # The repository config/ is the read-only catalog source. qr-data owns it
       # now; the gateway proxies the public config routes.
       - ./config:/srv/config:ro
+      - ${QR_PKI_DIR:-./pki}/ca.crt:/run/pki/ca.crt:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -179,10 +187,13 @@ services:
       # catalog through qr-data and the dataset objects from the object store.
       QR_OBJECT_STORE_ACCESS_KEY_FILE: /run/secrets/object_store_access_key
       QR_OBJECT_STORE_SECRET_KEY_FILE: /run/secrets/object_store_secret_key
+      QR_OBJECT_STORE_TLS_CA_PATH: /run/pki/ca.crt
       QR_MIGRATE: "0"
     secrets:
       - object_store_access_key
       - object_store_secret_key
+    volumes:
+      - ${QR_PKI_DIR:-./pki}/ca.crt:/run/pki/ca.crt:ro
     depends_on:
       data:
         condition: service_healthy
@@ -199,10 +210,11 @@ services:
     environment:
       QR_DATA_URL: http://data:8080
       QR_MODEL_URL: http://model:8080
-      QR_OBJECT_STORE_URL: http://minio:9000
+      QR_OBJECT_STORE_URL: https://minio:9000
       QR_OBJECT_BUCKET: quantrule
       QR_OBJECT_STORE_ACCESS_KEY_FILE: /run/secrets/object_store_access_key
       QR_OBJECT_STORE_SECRET_KEY_FILE: /run/secrets/object_store_secret_key
+      QR_OBJECT_STORE_TLS_CA_PATH: /run/pki/ca.crt
       QR_MIGRATE: "0"
       QR_LOG_FORMAT: json
       QR_METRICS_BIND: 0.0.0.0:9090
@@ -211,6 +223,8 @@ services:
     secrets:
       - object_store_access_key
       - object_store_secret_key
+    volumes:
+      - ${QR_PKI_DIR:-./pki}/ca.crt:/run/pki/ca.crt:ro
     depends_on:
       data:
         condition: service_healthy
@@ -232,12 +246,16 @@ services:
       # consumer always keeps its own slot.
       QR_BACKTEST_CONCURRENCY: ${QR_BACKTEST_CONCURRENCY:-1}
       QR_QUEUE_URL_FILE: /run/secrets/queue_url
+      QR_QUEUE_TLS_CA_PATH: /run/pki/ca.crt
       QR_OBJECT_STORE_ACCESS_KEY_FILE: /run/secrets/object_store_access_key
       QR_OBJECT_STORE_SECRET_KEY_FILE: /run/secrets/object_store_secret_key
+      QR_OBJECT_STORE_TLS_CA_PATH: /run/pki/ca.crt
     secrets:
       - queue_url
       - object_store_access_key
       - object_store_secret_key
+    volumes:
+      - ${QR_PKI_DIR:-./pki}/ca.crt:/run/pki/ca.crt:ro
     depends_on:
       data:
         condition: service_healthy
@@ -271,15 +289,20 @@ services:
       # including the run-attempts ledger (0013). The long-running process has
       # the application role only; evidence-migrate has the owner URL.
       QR_DATABASE_URL_FILE: /run/secrets/qr_evidence_database_url
+      QR_DATABASE_TLS_CA_PATH: /run/pki/ca.crt
       QR_QUEUE_URL_FILE: /run/secrets/queue_url
+      QR_QUEUE_TLS_CA_PATH: /run/pki/ca.crt
       QR_OBJECT_STORE_ACCESS_KEY_FILE: /run/secrets/object_store_access_key
       QR_OBJECT_STORE_SECRET_KEY_FILE: /run/secrets/object_store_secret_key
+      QR_OBJECT_STORE_TLS_CA_PATH: /run/pki/ca.crt
       QR_MIGRATE: "0"
     secrets:
       - qr_evidence_database_url
       - queue_url
       - object_store_access_key
       - object_store_secret_key
+    volumes:
+      - ${QR_PKI_DIR:-./pki}/ca.crt:/run/pki/ca.crt:ro
     depends_on:
       data:
         condition: service_healthy
@@ -301,13 +324,17 @@ services:
       # qr-simulation owns the simulation database. The long-running process
       # has the application role only; simulation-migrate has the owner URL.
       QR_DATABASE_URL_FILE: /run/secrets/qr_simulation_database_url
+      QR_DATABASE_TLS_CA_PATH: /run/pki/ca.crt
       QR_OBJECT_STORE_ACCESS_KEY_FILE: /run/secrets/object_store_access_key
       QR_OBJECT_STORE_SECRET_KEY_FILE: /run/secrets/object_store_secret_key
+      QR_OBJECT_STORE_TLS_CA_PATH: /run/pki/ca.crt
       QR_MIGRATE: "0"
     secrets:
       - qr_simulation_database_url
       - object_store_access_key
       - object_store_secret_key
+    volumes:
+      - ${QR_PKI_DIR:-./pki}/ca.crt:/run/pki/ca.crt:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -330,9 +357,12 @@ services:
       PGUSER: quantrule
       PGPASSWORD: ${QR_POSTGRES_PASSWORD:-quantrule}
       PGDATABASE: quantrule
+      PGSSLMODE: verify-full
+      PGSSLROOTCERT: /run/pki/ca.crt
       QR_DB_ROLE_PASSWORD: ${QR_POSTGRES_PASSWORD:-quantrule}
     volumes:
       - ./deploy/postgres/bootstrap.sh:/bootstrap/bootstrap.sh:ro
+      - ${QR_PKI_DIR:-./pki}/ca.crt:/run/pki/ca.crt:ro
     entrypoint: ["/bin/sh", "/bootstrap/bootstrap.sh"]
     depends_on:
       postgres:
@@ -348,8 +378,12 @@ services:
     environment:
       QR_DATABASE_OWNER_URL_FILE: /run/secrets/qr_gateway_owner_database_url
       QR_MIGRATE: "0"
+      QR_DATABASE_TLS_CA_PATH: /run/pki/ca.crt
+      QR_OBJECT_STORE_TLS_CA_PATH: /run/pki/ca.crt
     secrets:
       - qr_gateway_owner_database_url
+    volumes:
+      - ${QR_PKI_DIR:-./pki}/ca.crt:/run/pki/ca.crt:ro
     depends_on:
       db-bootstrap:
         condition: service_completed_successfully
@@ -363,8 +397,12 @@ services:
     environment:
       QR_DATABASE_OWNER_URL_FILE: /run/secrets/qr_catalog_owner_database_url
       QR_MIGRATE: "0"
+      QR_DATABASE_TLS_CA_PATH: /run/pki/ca.crt
+      QR_OBJECT_STORE_TLS_CA_PATH: /run/pki/ca.crt
     secrets:
       - qr_catalog_owner_database_url
+    volumes:
+      - ${QR_PKI_DIR:-./pki}/ca.crt:/run/pki/ca.crt:ro
     depends_on:
       db-bootstrap:
         condition: service_completed_successfully
@@ -378,8 +416,12 @@ services:
     environment:
       QR_DATABASE_OWNER_URL_FILE: /run/secrets/qr_evidence_owner_database_url
       QR_MIGRATE: "0"
+      QR_DATABASE_TLS_CA_PATH: /run/pki/ca.crt
+      QR_OBJECT_STORE_TLS_CA_PATH: /run/pki/ca.crt
     secrets:
       - qr_evidence_owner_database_url
+    volumes:
+      - ${QR_PKI_DIR:-./pki}/ca.crt:/run/pki/ca.crt:ro
     depends_on:
       db-bootstrap:
         condition: service_completed_successfully
@@ -393,13 +435,42 @@ services:
     environment:
       QR_DATABASE_OWNER_URL_FILE: /run/secrets/qr_simulation_owner_database_url
       QR_MIGRATE: "0"
+      QR_DATABASE_TLS_CA_PATH: /run/pki/ca.crt
+      QR_OBJECT_STORE_TLS_CA_PATH: /run/pki/ca.crt
     secrets:
       - qr_simulation_owner_database_url
+    volumes:
+      - ${QR_PKI_DIR:-./pki}/ca.crt:/run/pki/ca.crt:ro
     depends_on:
       db-bootstrap:
         condition: service_completed_successfully
       postgres:
         condition: service_healthy
+
+  # One-shot root init that stages the mounted PKI into service-owned volumes.
+  # The database, broker and store keep their stock non-root users; only this
+  # copy step runs as root, and the private key stays 0600.
+  pki-init:
+    image: ${QR_POSTGRES_IMAGE:-postgres@sha256:846a7ddaa67a4b354ae1d21087b683901aa6113a4ed626d3787cfbf6c85e3e07}
+    restart: "no"
+    networks:
+      - quantrule
+    environment:
+      QR_PKI_POSTGRES_UID: ${QR_PKI_POSTGRES_UID:-999}
+      QR_PKI_POSTGRES_GID: ${QR_PKI_POSTGRES_GID:-999}
+      QR_PKI_RABBITMQ_UID: ${QR_PKI_RABBITMQ_UID:-999}
+      QR_PKI_RABBITMQ_GID: ${QR_PKI_RABBITMQ_GID:-999}
+      QR_PKI_MINIO_UID: ${QR_PKI_MINIO_UID:-1001}
+      QR_PKI_MINIO_GID: ${QR_PKI_MINIO_GID:-1001}
+    volumes:
+      - ./deploy/pki/init.sh:/pki/init.sh:ro
+      - ${QR_PKI_DIR:-./pki}/postgres:/src/postgres:ro
+      - ${QR_PKI_DIR:-./pki}/rabbitmq:/src/rabbitmq:ro
+      - ${QR_PKI_DIR:-./pki}/minio:/src/minio:ro
+      - pgpki:/pki/postgres
+      - mqpki:/pki/rabbitmq
+      - miniopki:/pki/minio
+    entrypoint: ["/bin/sh", "/pki/init.sh"]
 
   postgres:
     # Pinned so a fresh `make up` resolves the same database image; override
@@ -408,12 +479,28 @@ services:
     restart: unless-stopped
     networks:
       - quantrule
+    command:
+      - postgres
+      - -c
+      - ssl=on
+      - -c
+      - ssl_cert_file=/var/lib/postgresql/pki/server.crt
+      - -c
+      - ssl_key_file=/var/lib/postgresql/pki/server.key
+      - -c
+      - ssl_ca_file=/var/lib/postgresql/pki/ca.crt
+      - -c
+      - ssl_min_protocol_version=TLSv1.2
     environment:
       POSTGRES_USER: quantrule
       POSTGRES_PASSWORD: ${QR_POSTGRES_PASSWORD:-quantrule}
       POSTGRES_DB: quantrule
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - pgpki:/var/lib/postgresql/pki:ro
+    depends_on:
+      pki-init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U quantrule -d quantrule"]
       interval: 5s
@@ -435,10 +522,18 @@ services:
       # start.
       MINIO_DEFAULT_BUCKETS: quantrule
       MINIO_BROWSER: "off"
+      MINIO_SCHEME: https
+      # The image's own liveness probe calls curl over https; the private CA is
+      # not in the system store, so curl reads it from the staged CAs directory.
+      CURL_CA_BUNDLE: /certs/CAs/ca.crt
     volumes:
       - objects:/bitnami/minio/data
+      - miniopki:/certs:ro
+    depends_on:
+      pki-init:
+        condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9000/minio/health/ready"]
+      test: ["CMD-SHELL", "curl -fsS https://127.0.0.1:9000/minio/health/ready"]
       interval: 5s
       timeout: 5s
       retries: 12
@@ -454,8 +549,14 @@ services:
       RABBITMQ_DEFAULT_USER: quantrule
       RABBITMQ_DEFAULT_PASS: ${QR_RABBITMQ_PASSWORD:-quantrule}
       RABBITMQ_DEFAULT_VHOST: /
+      RABBITMQ_CONFIG_FILE: /etc/rabbitmq/rabbitmq.conf
     volumes:
       - mqdata:/var/lib/rabbitmq
+      - mqpki:/var/lib/rabbitmq/pki:ro
+      - ./deploy/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    depends_on:
+      pki-init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 5s
@@ -494,3 +595,6 @@ volumes:
   pgdata:
   objects:
   mqdata:
+  pgpki:
+  mqpki:
+  miniopki:

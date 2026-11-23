@@ -91,23 +91,23 @@ write_secret() {
 }
 
 write_secret qr_gateway_database_url \
-  "postgres://qr_gateway_app:$QR_POSTGRES_PASSWORD@postgres:5432/qr_gateway"
+  "postgres://qr_gateway_app:$QR_POSTGRES_PASSWORD@postgres:5432/qr_gateway?sslmode=verify-full"
 write_secret qr_catalog_database_url \
-  "postgres://qr_catalog_app:$QR_POSTGRES_PASSWORD@postgres:5432/qr_catalog"
+  "postgres://qr_catalog_app:$QR_POSTGRES_PASSWORD@postgres:5432/qr_catalog?sslmode=verify-full"
 write_secret qr_evidence_database_url \
-  "postgres://qr_evidence_app:$QR_POSTGRES_PASSWORD@postgres:5432/qr_evidence"
+  "postgres://qr_evidence_app:$QR_POSTGRES_PASSWORD@postgres:5432/qr_evidence?sslmode=verify-full"
 write_secret qr_simulation_database_url \
-  "postgres://qr_simulation_app:$QR_POSTGRES_PASSWORD@postgres:5432/qr_simulation"
+  "postgres://qr_simulation_app:$QR_POSTGRES_PASSWORD@postgres:5432/qr_simulation?sslmode=verify-full"
 write_secret qr_gateway_owner_database_url \
-  "postgres://qr_gateway_owner:$QR_POSTGRES_PASSWORD@postgres:5432/qr_gateway"
+  "postgres://qr_gateway_owner:$QR_POSTGRES_PASSWORD@postgres:5432/qr_gateway?sslmode=verify-full"
 write_secret qr_catalog_owner_database_url \
-  "postgres://qr_catalog_owner:$QR_POSTGRES_PASSWORD@postgres:5432/qr_catalog"
+  "postgres://qr_catalog_owner:$QR_POSTGRES_PASSWORD@postgres:5432/qr_catalog?sslmode=verify-full"
 write_secret qr_evidence_owner_database_url \
-  "postgres://qr_evidence_owner:$QR_POSTGRES_PASSWORD@postgres:5432/qr_evidence"
+  "postgres://qr_evidence_owner:$QR_POSTGRES_PASSWORD@postgres:5432/qr_evidence?sslmode=verify-full"
 write_secret qr_simulation_owner_database_url \
-  "postgres://qr_simulation_owner:$QR_POSTGRES_PASSWORD@postgres:5432/qr_simulation"
+  "postgres://qr_simulation_owner:$QR_POSTGRES_PASSWORD@postgres:5432/qr_simulation?sslmode=verify-full"
 write_secret queue_url \
-  "amqp://quantrule:$QR_RABBITMQ_PASSWORD@rabbitmq:5672/%2f"
+  "amqps://quantrule:$QR_RABBITMQ_PASSWORD@rabbitmq:5671/%2f"
 write_secret object_store_access_key "quantrule"
 write_secret object_store_secret_key "$QR_OBJECT_STORE_PASSWORD"
 

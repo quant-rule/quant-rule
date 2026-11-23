@@ -147,4 +147,5 @@ the evidence tier.
 ## 6. Non-goals
 
 No Kubernetes, autoscaling, accounts, tenancy, live trading, desktop packaging or
-a second public port.
+a second public port. Internal TLS and the CA model are in the
+[internal TLS contract](../2026-11-23/internal-tls.md).

@@ -43,7 +43,7 @@ pub async fn migrate_owner_database(
         .ok_or(ConfigError::Missing {
             name: "QR_DATABASE_OWNER_URL",
         })?;
-    let owner = PgDatabase::connect(owner_url)
+    let owner = PgDatabase::connect_with_tls(owner_url, config.database_tls_ca.as_deref())
         .await
         .map_err(|error| RuntimeError::Database(error.to_string()))?;
     let applied = apply_postgres_migrations(owner.pool(), ledger, postgres_migrations)
@@ -85,7 +85,7 @@ pub async fn open_service_database(
     }
 
     let database_url = config.require_database_url()?;
-    match PgDatabase::connect(database_url).await {
+    match PgDatabase::connect_with_tls(database_url, config.database_tls_ca.as_deref()).await {
         Ok(database) => {
             let ping = database.clone();
             health.register("postgres", move || {
@@ -135,14 +135,24 @@ impl Objects {
             .ok_or(ConfigError::Missing {
                 name: "QR_OBJECT_STORE_SECRET_KEY_FILE",
             })?;
-        Ok(Self {
-            store: S3Store::new(
-                &config.object_store_url,
-                &config.object_store_bucket,
-                access_key,
-                secret_key,
-            ),
-        })
+        let store = S3Store::new(
+            &config.object_store_url,
+            &config.object_store_bucket,
+            access_key,
+            secret_key,
+            config.object_store_tls_ca.as_deref(),
+        )
+        .map_err(|_error| {
+            RuntimeError::Config(ConfigError::Invalid {
+                name: "QR_OBJECT_STORE_TLS_CA_PATH",
+                value: config
+                    .object_store_tls_ca
+                    .as_ref()
+                    .map_or_else(|| "<unset>".to_owned(), |path| path.display().to_string()),
+                reason: "must be a readable PEM bundle; the TLS client could not be built",
+            })
+        })?;
+        Ok(Self { store })
     }
 
     /// The wire name of the selected backend, for logs and tests.
@@ -200,9 +210,13 @@ impl ControlQueue {
         let queue_url = config.require_queue_url()?;
         Ok(Self {
             queue: Arc::new(
-                RabbitQueue::connect(queue_url, config.queue_names())
-                    .await
-                    .map_err(|error| RuntimeError::Queue(error.to_string()))?,
+                RabbitQueue::connect_with_tls(
+                    queue_url,
+                    config.queue_names(),
+                    config.queue_tls_ca.as_deref(),
+                )
+                .await
+                .map_err(|error| RuntimeError::Queue(error.to_string()))?,
             ),
         })
     }
@@ -359,5 +373,23 @@ mod tests {
             .await
             .expect("explicit credentials");
         assert_eq!(objects.name(), "s3");
+    }
+
+    #[tokio::test]
+    async fn the_object_store_requires_a_readable_tls_ca() {
+        let config = Config {
+            object_store_url: "https://minio:9000".to_owned(),
+            object_store_tls_ca: Some(std::path::PathBuf::from("/nonexistent/ca.crt")),
+            object_store_access_key: Some("quantrule".to_owned()),
+            object_store_secret_key: Some("sentinel-secret".to_owned()),
+            ..Config::default()
+        };
+        let error = Objects::open(&config)
+            .await
+            .expect_err("a missing CA must fail closed");
+        assert!(
+            error.to_string().contains("QR_OBJECT_STORE_TLS_CA_PATH"),
+            "{error}"
+        );
     }
 }

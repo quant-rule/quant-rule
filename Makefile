@@ -15,19 +15,23 @@ QR_URL ?= http://localhost:8080
 CONFIG ?= config/examples/verify-mini/run.json
 REPLICA ?= config/examples/verify-mini-replica/run.json
 SECRETS_DIR ?= secrets
-COMPOSE_ENV = QR_SECRETS_DIR="$(abspath $(SECRETS_DIR))" $(COMPOSE) --env-file "$(abspath $(SECRETS_DIR))/compose.env"
+PKI_DIR ?= pki
+COMPOSE_ENV = QR_SECRETS_DIR="$(abspath $(SECRETS_DIR))" QR_PKI_DIR="$(abspath $(PKI_DIR))" $(COMPOSE) --env-file "$(abspath $(SECRETS_DIR))/compose.env"
 
-.PHONY: help secrets up down reset logs ps scale gate verify test test-fast test-composed test-parity remote token compose-check backup restore dev-web
+.PHONY: help secrets pki up down reset logs ps scale gate verify test test-fast test-composed test-parity remote token compose-check backup restore dev-web
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*## "; printf "QuantRule make targets\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
-	@printf '\nWindows: run wsl bash tools/secrets.sh, then docker compose --env-file secrets\\compose.env up -d.\n'
+	@printf '\nWindows: run wsl bash tools/secrets.sh and wsl bash tools/pki.sh, then docker compose --env-file secrets\\compose.env up -d.\n'
 	@printf 'Fedora: make up COMPOSE="podman compose".\n'
 
 secrets: ## Create the local secret files (idempotent; FORCE=1 rotates)
 	@./tools/secrets.sh --out "$(abspath $(SECRETS_DIR))" $(if $(FORCE),--force,)
 
-up: secrets ## Build and start the default stack, wait for health, print the URL
+pki: ## Create the local internal PKI (idempotent; FORCE=1 regenerates)
+	@QR_PKI_DIR="$(abspath $(PKI_DIR))" ./tools/pki.sh --out "$(abspath $(PKI_DIR))" $(if $(FORCE),--force,)
+
+up: secrets pki ## Build and start the default stack, wait for health, print the URL
 	@command -v curl >/dev/null || { echo "up: curl is required to check /health" >&2; exit 1; }
 	$(COMPOSE_ENV) build
 	$(COMPOSE_ENV) create gateway
@@ -45,10 +49,11 @@ up: secrets ## Build and start the default stack, wait for health, print the URL
 	fi; \
 	printf 'QuantRule v%s ready → %s\n' "$$version" "$(QR_URL)"
 
-compose-check: ## Validate the local and remote Compose files with disposable secrets
+compose-check: ## Validate the local and remote Compose files with disposable secrets and PKI
 	@tmp="$$(mktemp -d)"; trap 'rm -rf "$$tmp"' EXIT; \
-	./tools/secrets.sh --out "$$tmp" >/dev/null; \
-	QR_SECRETS_DIR="$$tmp" $(COMPOSE) --env-file "$$tmp/compose.env" -f compose.yaml -f compose.remote.yaml config -q; \
+	./tools/secrets.sh --out "$$tmp/secrets" >/dev/null; \
+	./tools/pki.sh --out "$$tmp/pki" >/dev/null; \
+	QR_SECRETS_DIR="$$tmp/secrets" QR_PKI_DIR="$$tmp/pki" $(COMPOSE) --env-file "$$tmp/secrets/compose.env" -f compose.yaml -f compose.remote.yaml config -q; \
 	echo "compose config ok"
 
 down: ## Stop the stack, keep volumes

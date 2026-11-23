@@ -134,6 +134,7 @@ backup_minio_run() {
   local script="$1"
   backup_compose exec -T \
     -e "QR_BACKUP_BUCKET=${QR_OBJECT_BUCKET:-quantrule}" \
+    -e "SSL_CERT_FILE=/certs/CAs/ca.crt" \
     minio sh -c "
       set -e
       export MC_CONFIG_DIR=$BACKUP_MINIO_CONFIG MC_UPDATE=off
@@ -141,7 +142,7 @@ backup_minio_run() {
         echo 'the object-store image does not provide mc; keep the pinned MinIO image' >&2
         exit 1
       }
-      mc alias set $BACKUP_MINIO_ALIAS http://127.0.0.1:9000 \
+      mc alias set $BACKUP_MINIO_ALIAS https://127.0.0.1:9000 \
         \"\$MINIO_ROOT_USER\" \"\$MINIO_ROOT_PASSWORD\" >/dev/null
       $script"
 }

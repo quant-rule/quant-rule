@@ -140,8 +140,8 @@ and compares row digests and object hashes.
    Keep the previous image loaded and the previous volumes.
 2. `make down`
 3. Load or pull the new image digest.
-4. `make up`: `db-bootstrap` runs, then the four one-shot migration jobs, then
-   each service waits for its own job.
+4. `make up`: `pki-init` stages the certificates, `db-bootstrap` runs, then the
+   four one-shot migration jobs, then each service waits for its own job.
 5. `make verify`; do not retire the previous image until the fixture and digest pass.
 6. A failed migration job leaves its service down. Do not bypass it with
    `QR_MIGRATE=1`; correct forward with a new migration version. Rollback starts

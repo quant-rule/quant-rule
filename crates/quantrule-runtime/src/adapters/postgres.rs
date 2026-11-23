@@ -10,7 +10,10 @@
 //! could land on another connection and leave the lock held by an idle session,
 //! which is what deadlocked three migrators in #772.
 
-use sqlx::postgres::PgPoolOptions;
+use std::path::Path;
+use std::str::FromStr;
+
+use sqlx::postgres::{PgConnectOptions, PgPoolOptions, PgSslMode};
 use sqlx::{Connection, PgConnection, PgPool};
 
 use crate::adapters::{Backend, BoxFuture, Database, DatabaseError};
@@ -29,15 +32,37 @@ pub struct PgDatabase {
 }
 
 impl PgDatabase {
-    /// Connect with a small pool.
+    /// Connect with a small pool over the URL's plaintext mode.
     ///
     /// # Errors
     ///
     /// Returns the driver message when the server is unreachable.
     pub async fn connect(url: &str) -> Result<Self, DatabaseError> {
+        Self::connect_with_tls(url, None).await
+    }
+
+    /// Connect with a small pool and an explicit server CA.
+    ///
+    /// When `ca` is set, the connection is forced to
+    /// [`PgSslMode::VerifyFull`] and the private bundle replaces the platform
+    /// roots for this server. A missing file, a handshake failure or a hostname
+    /// mismatch returns an error: there is no plaintext retry. The caller turns
+    /// that error into a failed migration job or a degraded `/ready`, never a
+    /// fallback connection.
+    ///
+    /// # Errors
+    ///
+    /// Returns the driver message when the URL is malformed or the server is
+    /// unreachable.
+    pub async fn connect_with_tls(url: &str, ca: Option<&Path>) -> Result<Self, DatabaseError> {
+        let mut options =
+            PgConnectOptions::from_str(url).map_err(|error| DatabaseError(error.to_string()))?;
+        if let Some(ca) = ca {
+            options = options.ssl_mode(PgSslMode::VerifyFull).ssl_root_cert(ca);
+        }
         let pool = PgPoolOptions::new()
             .max_connections(8)
-            .connect(url)
+            .connect_with(options)
             .await
             .map_err(|error| DatabaseError(error.to_string()))?;
         Ok(Self { pool })
@@ -226,6 +251,34 @@ async fn apply_locked(
     }
 
     Ok(pending.len())
+}
+
+#[cfg(test)]
+mod tls_tests {
+    use std::path::Path;
+    use std::str::FromStr;
+
+    use sqlx::postgres::{PgConnectOptions, PgSslMode};
+
+    use super::PgDatabase;
+
+    #[test]
+    fn a_tls_url_parses_as_verify_full() {
+        let options = PgConnectOptions::from_str(
+            "postgres://qr_gateway_app:secret@postgres:5432/qr_gateway?sslmode=verify-full",
+        )
+        .expect("the URL");
+        assert!(matches!(options.get_ssl_mode(), PgSslMode::VerifyFull));
+    }
+
+    #[tokio::test]
+    async fn a_tls_pool_refuses_a_malformed_url_before_connecting() {
+        let error =
+            PgDatabase::connect_with_tls("not-a-postgres-url", Some(Path::new("/run/pki/ca.crt")))
+                .await
+                .expect_err("a malformed URL must fail closed");
+        assert!(!error.to_string().is_empty());
+    }
 }
 
 #[cfg(test)]

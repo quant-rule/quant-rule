@@ -173,7 +173,6 @@ fn the_strategy_service_receives_no_database_queue_or_config_mount() {
         "QR_DATABASE_OWNER_URL",
         "QR_QUEUE_URL",
         "QR_CONFIG_ROOT",
-        "volumes:",
     ] {
         assert!(
             !block.contains(forbidden),
@@ -182,12 +181,46 @@ fn the_strategy_service_receives_no_database_queue_or_config_mount() {
     }
     assert!(block.contains("QR_DATA_URL: http://data:8080"));
     assert!(block.contains("QR_MODEL_URL: http://model:8080"));
-    assert!(block.contains("QR_OBJECT_STORE_URL: http://minio:9000"));
+    assert!(block.contains("QR_OBJECT_STORE_URL: https://minio:9000"));
+    assert!(block.contains("QR_OBJECT_STORE_TLS_CA_PATH: /run/pki/ca.crt"));
+    assert!(block.contains("/run/pki/ca.crt:ro"));
     assert!(
         block.contains("QR_OBJECT_STORE_ACCESS_KEY_FILE: /run/secrets/object_store_access_key")
     );
     assert!(
         block.contains("QR_OBJECT_STORE_SECRET_KEY_FILE: /run/secrets/object_store_secret_key")
+    );
+}
+
+#[test]
+fn the_local_stateful_endpoints_are_tls() {
+    let compose = read("compose.yaml");
+    assert!(
+        compose.contains("QR_OBJECT_STORE_URL: https://minio:9000"),
+        "the object store must use https"
+    );
+    assert!(
+        !compose.contains("QR_OBJECT_STORE_URL: http://"),
+        "a plaintext object-store URL is a defect"
+    );
+    assert!(compose.contains("QR_DATABASE_TLS_CA_PATH"));
+    assert!(compose.contains("QR_QUEUE_TLS_CA_PATH"));
+    assert!(compose.contains("QR_OBJECT_STORE_TLS_CA_PATH"));
+    assert!(compose.contains("PGSSLMODE: verify-full"));
+
+    let secrets = read("tools/secrets.sh");
+    assert_eq!(
+        secrets.matches("?sslmode=verify-full").count(),
+        8,
+        "every generated database URL must use verify-full"
+    );
+    assert!(
+        secrets.contains("amqps://quantrule:$QR_RABBITMQ_PASSWORD@rabbitmq:5671/%2f"),
+        "the generated queue URL must use amqps on 5671"
+    );
+    assert!(
+        !secrets.contains("amqp://quantrule:$QR_RABBITMQ_PASSWORD@rabbitmq:5672"),
+        "a plaintext AMQP URL is a defect"
     );
 }
 

@@ -1,6 +1,6 @@
 # Security
 
-- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); multi-host overlay added 2026-11-20 and hardened in #980; approved 2026-11-12
+- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); multi-host overlay added 2026-11-20; internal TLS added 2026-11-23 (#1108); approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Decision: [`ADR-2026-11-12-03`](../adr/2026-11-12/03-single-principal-no-accounts.md)
 - Claim type: Behaviour Claim
@@ -53,9 +53,7 @@ origin's `localStorage`, and sends it on every API call. The shell reads
 `--token`, `QUANTRULE_TOKEN` or `QUANTRULE_TOKEN_FILE`, sends it on every gateway
 request, and stores it in no file. The browser turns a `401` into a
 token-required state; the shell prints the envelope's `auth.unauthorized` code.
-A rotated token is entered again.
-
-Do not forward `:8080` to the public internet. Keep it on a private network, or
+A rotated token is entered again. Do not forward `:8080` to the public internet. Keep it on a private network, or
 terminate TLS at a reverse proxy in front of the gateway; the gateway itself
 serves plain HTTP. A reverse proxy that injects the token grants every visitor
 the same principal, so it is a private-network tool, not an account system.
@@ -76,14 +74,12 @@ container never receives them.
 ### 2.2 Client token handling
 
 The static client loads without a token so the Connection screen can ask for
-one. Every API call after that carries `Authorization: Bearer`. The token is
-held in the origin's `localStorage`, never in the URL, a cookie, or the build,
-and no page text renders it. Any script running on that origin can read the
-stored value, so the client loads no third-party script and TLS is still the
-requirement for an untrusted network. The shell accepts `--token`,
-`QUANTRULE_TOKEN` or `QUANTRULE_TOKEN_FILE`, writes the value to no file, and
-never prints it. `--token` is visible in the local process list while the command
-runs, so `QUANTRULE_TOKEN` is the better default on a shared host.
+one; every later API call carries `Authorization: Bearer`. The token lives in
+the origin's `localStorage`, never in the URL, a cookie, or the build, and no
+page text renders it. A script on that origin can read it, so the client loads
+no third-party script and TLS remains the requirement on an untrusted network.
+The shell accepts `--token`, `QUANTRULE_TOKEN` or `QUANTRULE_TOKEN_FILE`, writes
+it to no file and never prints it; `--token` is visible in the process list.
 
 ### 2.3 Multi-host overlay
 
@@ -99,8 +95,9 @@ requires a bearer token when it is on a LAN or the public internet.
 is public, unspecified, or a hostname; the serve boundary rechecks it.
 `qr-deploy validate` refuses the same placement before deployment. The overlay
 is the security boundary; a published internal port is a defect, not a
-workaround. Postgres, MinIO, and RabbitMQ bind only to the private overlay and
-use non-default credentials.
+workaround. Postgres, MinIO, and RabbitMQ bind only to the private overlay, use
+non-default credentials, and require TLS; the CA model is
+[internal TLS](../config/2026-11-23/internal-tls.md).
 
 Residual risks accepted for v1:
 
@@ -109,16 +106,15 @@ Residual risks accepted for v1:
   job. v2 still uses one Postgres password for every role and shares the MinIO
   root credentials and queue user, so a compromised service host can read all
   four databases and the bucket.
-- The overlay provides transport encryption and host authentication, not
-  service-to-service authentication. A client VPN peer must be routed to the
-  gateway only; an overlay peer can call every internal service.
-- `qr-deploy check` compares the reported digest, not the running image; confirm
-  the image ID with `docker inspect`.
-- `/ready` is unauthenticated and reveals upstream states; it stays behind the
-  same network gate as the gateway.
-- `/metrics` is unauthenticated and reveals route, status and latency
-  aggregates; it is internal only, unset by default, never proxied and never
-  published.
+- PostgreSQL and RabbitMQ do not request client certificates, so a peer with a
+  credential and the CA bundle can connect. Internal HTTP has no service
+  authentication: a compromised overlay host can impersonate any service, read
+  inter-service traffic, and set the trusted profile header.
+- The overlay provides encryption and host authentication, not service
+  authentication. Route a client VPN peer to the gateway only.
+- `qr-deploy check` compares the reported digest, not the running image.
+- `/ready` and `/metrics` are unauthenticated; `/ready` stays behind the network
+  gate and `/metrics` is internal, unset by default and never proxied.
 - The infrastructure host is a single point of failure. The profile is not HA.
 
 ## 3. Input boundaries
@@ -136,17 +132,19 @@ Every rejection returns a code a client can act on and a message a human can rea
 
 - Candle and artifact bytes live in object storage; metadata in Postgres.
 - Volumes are local; backup archives contain candle data and are sensitive.
-- No secret is committed and no token is logged; the browser keeps it in
-  `localStorage` and the shell in no file. Application secrets are files, never
-  environment values.
+- No secret is committed and no token is logged; application secrets are files,
+  never environment values. The PKI directory is Git-ignored, only the public
+  bundle is mounted, and a checker refuses a committed private key.
 - The local stack uses random store passwords from `make secrets`; `make remote`
   refuses a documented default and requires non-default values.
 
 ## 5. Data in transit
 
-- Inside the container network: plain HTTP. From a client, TLS terminates at a
-  proxy or the private network provides transport security; a bearer token
-  without TLS is readable on the path.
+- PostgreSQL, RabbitMQ and MinIO use TLS with `verify-full`/`amqps`/`https` and a
+  private CA bundle; a missing CA fails closed.
+- Internal service-to-service HTTP stays plaintext on the encrypted overlay.
+  From a client, TLS terminates at the ingress or the private network provides
+  transport security; a bearer token without TLS is readable on the path.
 - The gateway never forwards a client path or header to a worker unchecked.
 
 ## 6. Profiles are not a boundary
@@ -166,5 +164,6 @@ These are consequences of the single-principal decision, recorded not hidden.
 
 ## 8. Review triggers
 
-Invoke the Security and Privacy Reviewer when a port becomes public, a token is
-introduced or rotated, multi-tenancy appears, or candle data leaves the network.
+Invoke the Security and Privacy Reviewer when a port becomes public, a token or
+CA is introduced or rotated, multi-tenancy appears, or candle data leaves the
+network.

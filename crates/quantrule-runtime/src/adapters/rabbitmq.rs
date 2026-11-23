@@ -18,6 +18,7 @@
 //! it consumes with the same arguments; a mismatch is a broker error, not a
 //! silent second definition.
 
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -27,7 +28,9 @@ use lapin::options::{
     ConfirmSelectOptions, ExchangeDeclareOptions, QueueBindOptions, QueueDeclareOptions,
 };
 use lapin::types::{AMQPValue, FieldTable};
-use lapin::{Channel, Confirmation, Connection, ConnectionProperties, ExchangeKind};
+use lapin::{
+    Channel, Confirmation, Connection, DefaultConnectionBuilder, ExchangeKind, tcp::OwnedTLSConfig,
+};
 
 use crate::adapters::{
     Backend, BoxFuture, Message, MessageHandler, Queue, QueueConsumer, QueueError,
@@ -164,7 +167,45 @@ impl RabbitQueue {
     ///
     /// Returns the broker message when the connection or a declaration fails.
     pub async fn connect(url: &str, names: QueueNames) -> Result<Self, QueueError> {
-        let connection = Connection::connect(url, ConnectionProperties::default())
+        Self::connect_with_tls(url, names, None).await
+    }
+
+    /// Connect and declare the topology, optionally trusting one private CA.
+    ///
+    /// When `ca` names a PEM bundle, the connection uses `amqps://` and only
+    /// that bundle as the root of trust. A missing file, a handshake failure or
+    /// a hostname mismatch returns an error; there is no plaintext retry. The
+    /// queue declarations, quorum type, delivery limit and dead-letter
+    /// exchange are unchanged.
+    ///
+    /// # Errors
+    ///
+    /// Returns the broker or CA message when the connection or a declaration
+    /// fails.
+    pub async fn connect_with_tls(
+        url: &str,
+        names: QueueNames,
+        ca: Option<&Path>,
+    ) -> Result<Self, QueueError> {
+        let builder = DefaultConnectionBuilder::new()
+            .map_err(|error| QueueError(error.to_string()))?
+            .with_uri_str(url.to_owned());
+        let builder = if let Some(ca) = ca {
+            let pem = std::fs::read(ca)
+                .map_err(|error| QueueError(format!("cannot read the queue CA bundle: {error}")))?;
+            builder.with_tls_config(OwnedTLSConfig {
+                identity: None,
+                cert_chain: Some(
+                    String::from_utf8(pem).map_err(|_| {
+                        QueueError("the queue CA bundle is not UTF-8 PEM".to_owned())
+                    })?,
+                ),
+            })
+        } else {
+            builder
+        };
+        let connection = builder
+            .connect()
             .await
             .map_err(|error| QueueError(error.to_string()))?;
         let channel = connection
@@ -503,6 +544,26 @@ fn confirmed(result: Result<Confirmation, lapin::Error>) -> Result<(), QueueErro
             "the channel is not in publisher-confirm mode".to_owned(),
         )),
         Err(error) => Err(QueueError(error.to_string())),
+    }
+}
+
+#[cfg(test)]
+mod tls_tests {
+    use std::path::Path;
+
+    use super::RabbitQueue;
+    use crate::queue::QueueNames;
+
+    #[tokio::test]
+    async fn a_missing_queue_ca_fails_before_connecting() {
+        let error = RabbitQueue::connect_with_tls(
+            "amqps://quantrule:secret@rabbitmq:5671/%2f",
+            QueueNames::new(1),
+            Some(Path::new("/nonexistent/quantrule-ca.crt")),
+        )
+        .await
+        .expect_err("a missing CA must not fall back");
+        assert!(error.to_string().contains("CA bundle"), "{error}");
     }
 }
 

@@ -453,6 +453,97 @@ fn the_drain_deadlines_default_and_are_bounded() {
 }
 
 #[test]
+fn a_tls_database_url_requires_the_ca_and_verify_full() {
+    let config = config_with_files(
+        &[
+            ("QR_DATABASE_URL_FILE", "/run/secrets/database_url"),
+            ("QR_DATABASE_TLS_CA_PATH", "/run/pki/ca.crt"),
+        ],
+        &[(
+            "/run/secrets/database_url",
+            "postgres://qr_gateway_app:secret@postgres:5432/qr_gateway?sslmode=verify-full",
+        )],
+    )
+    .expect("TLS config");
+    assert_eq!(
+        config.database_tls_ca,
+        Some(PathBuf::from("/run/pki/ca.crt"))
+    );
+    assert!(format!("{config:?}").contains("/run/pki/ca.crt"));
+
+    for url in [
+        "postgres://qr_gateway_app:secret@postgres:5432/qr_gateway",
+        "postgres://qr_gateway_app:secret@postgres:5432/qr_gateway?sslmode=require",
+        "postgres://qr_gateway_app:secret@postgres:5432/qr_gateway?sslmode=verify-ca",
+    ] {
+        let error = config_with_files(
+            &[
+                ("QR_DATABASE_URL_FILE", "/run/secrets/database_url"),
+                ("QR_DATABASE_TLS_CA_PATH", "/run/pki/ca.crt"),
+            ],
+            &[("/run/secrets/database_url", url)],
+        )
+        .expect_err("a TLS endpoint without verify-full");
+        assert!(
+            error.to_string().contains("QR_DATABASE_URL_FILE"),
+            "{error}"
+        );
+    }
+
+    let error = config_with_files(
+        &[("QR_DATABASE_URL_FILE", "/run/secrets/database_url")],
+        &[(
+            "/run/secrets/database_url",
+            "postgres://qr_gateway_app:secret@postgres:5432/qr_gateway?sslmode=verify-full",
+        )],
+    )
+    .expect_err("verify-full without a CA");
+    assert!(
+        error.to_string().contains("QR_DATABASE_TLS_CA_PATH"),
+        "{error}"
+    );
+}
+
+#[test]
+fn a_tls_queue_and_object_store_pair_with_their_ca_paths() {
+    let config = config_with_files(
+        &[
+            ("QR_QUEUE_URL_FILE", "/run/secrets/queue_url"),
+            ("QR_QUEUE_TLS_CA_PATH", "/run/pki/ca.crt"),
+            ("QR_OBJECT_STORE_TLS_CA_PATH", "/run/pki/ca.crt"),
+            ("QR_OBJECT_STORE_URL", "https://minio:9000"),
+        ],
+        &[(
+            "/run/secrets/queue_url",
+            "amqps://quantrule:secret@rabbitmq:5671/%2f",
+        )],
+    )
+    .expect("TLS queue");
+    assert_eq!(config.queue_tls_ca, Some(PathBuf::from("/run/pki/ca.crt")));
+    assert_eq!(
+        config.object_store_tls_ca,
+        Some(PathBuf::from("/run/pki/ca.crt"))
+    );
+
+    let error = config_with_files(
+        &[
+            ("QR_QUEUE_URL_FILE", "/run/secrets/queue_url"),
+            ("QR_QUEUE_TLS_CA_PATH", "/run/pki/ca.crt"),
+        ],
+        &[(
+            "/run/secrets/queue_url",
+            "amqp://quantrule:secret@rabbitmq:5672/%2f",
+        )],
+    )
+    .expect_err("amqp with a CA");
+    assert!(error.to_string().contains("amqps"), "{error}");
+
+    let error = config_with_files(&[("QR_OBJECT_STORE_TLS_CA_PATH", "pki/ca.crt")], &[])
+        .expect_err("a relative CA path");
+    assert!(error.to_string().contains("absolute"), "{error}");
+}
+
+#[test]
 fn a_manually_built_config_cannot_bypass_the_metrics_bind_guard() {
     let config = Config {
         internal_only: true,
