@@ -2,7 +2,7 @@
 
 - Date: 2026-11-23 (UTC)
 - Status: Current for the Compose stack, the v2 multi-host profile, and the v3
-  Patroni/etcd/HAProxy tier; pgBackRest TLS is HA-013
+  Patroni/etcd/HAProxy and RabbitMQ tiers; pgBackRest TLS is HA-013
 - Issue: [#1108](https://github.com/quant-rule/quant-rule/issues/1108)
 - Claim type: Behaviour Claim
 - Related: [ADR](../../adr/2026-11-23/1108-internal-tls.md),
@@ -27,6 +27,7 @@ failover result.
 | PostgreSQL/RabbitMQ client certificates | none | HA-012 |
 | Swarm secret objects, v3 `secrets.files` | none | HA-012 |
 | Patroni REST, etcd client/peer, HAProxy | mTLS or basic auth | PLAT-003 (this contract) |
+| RabbitMQ broker/front door | TLS-only 5671, shared `rabbitmq` alias | PLAT-004 (this contract) |
 | pgBackRest repository TLS | none | HA-013 |
 
 The TLS contract is deliberately ready for Patroni and HAProxy: it names a CA
@@ -144,7 +145,7 @@ evidence. The exact sample set is in the
 
 ## 5. RabbitMQ
 
-Server (`deploy/rabbitmq/rabbitmq.conf`):
+Server (`rabbitmq-<host>.conf` in v3; `deploy/rabbitmq/rabbitmq.conf` in Compose):
 
 ```text
 listeners.tcp = none
@@ -158,15 +159,26 @@ ssl_options.versions.1 = tlsv1.2
 ssl_options.versions.2 = tlsv1.3
 ```
 
+The v3 unit copies the leaf from `/etc/quantrule/pki/rabbitmq` into
+`/var/lib/rabbitmq/pki` with the broker owner before it starts. There is no
+plaintext listener, no management listener, and no published port. The leaf
+covers `rabbitmq` plus every `rabbitmq-<host>`; `PKI_EXTRA_SANS` supplies the
+unique broker names. The Erlang distribution between brokers is not TLS in
+v1.6.0: it uses the encrypted overlay and is a separate issue. The queue check
+rows verify this listener, the broker leaf SAN/expiry, and the HAProxy
+`rabbitmq:5671` front door; `tools/queue-definitions.sh` strips users and
+permissions before storing topology.
+
 Client:
 
 | Item | Rule |
 |---|---|
-| URL | `amqps://user:password@rabbitmq:5671/%2f` |
-| CA | `QR_QUEUE_TLS_CA_PATH`, absolute, read before the connection |
+| URL | `amqps://qr_queue:password@rabbitmq:5671/%2f` |
+| CA | `QR_QUEUE_TLS_CA_PATH`, absolute, re-read on reconnect |
 | Client cert | none (`verify_none`, `fail_if_no_peer_cert=false`) |
 | Topology | quorum queues, delivery limit 3, DLX and the generation suffix are unchanged |
-| Failure | connection fails; the consumer restart budget applies; no plaintext retry |
+| Front door | HAProxy TCP `rabbitmq:5671` on the edge pair; brokers use `rabbitmq-<host>` only |
+| Failure | connection fails; the consumer rebuilds it from the stored URL/CA; no plaintext retry |
 
 ## 6. MinIO
 
@@ -259,12 +271,13 @@ option B with this residual risk; human acceptance remains the final gate.
 | `amqps:// requires QR_QUEUE_TLS_CA_PATH` | missing queue CA | mount the bundle |
 | `cannot read the object-store CA bundle` | missing or unreadable file | fix the mount; do not fall back to HTTP |
 | `stateful ... certificate ... does not cover` | A Postgres/etcd leaf lacks an overlay alias | Re-issue with `PKI_EXTRA_SANS`; never weaken `verify-full` |
+| `queue ... rabbitmq certificate ... does not cover` | The RabbitMQ leaf lacks `rabbitmq` or a broker alias | Re-issue with `PKI_EXTRA_SANS=rabbitmq-<host>,…` |
 | Pool opens but `/ready` is degraded | the database rejected the handshake | check SAN, expiry and CA |
 | `pki-init` exits non-zero | `make pki` was not run or the mount is wrong | run `make pki`, restart the stack |
 
 Fast evidence: `cargo test -p quantrule-runtime` (config pairing, S3/RabbitMQ
 seams, `rcgen` success/wrong-CA/hostname/expiry fixture) and
-`cargo test -p quantrule-deploy` (descriptor and render).
+`cargo test -p quantrule-deploy` (descriptor, render, queue rows, definitions).
 `make compose-check` validates both Compose files with a disposable PKI and
 `docker compose config -q`. Composed handshakes and CA overlap remain later
 evidence; the Patroni/etcd/HAProxy paths are rendered, and a live handshake is

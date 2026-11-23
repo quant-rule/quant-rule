@@ -8,6 +8,7 @@
 
 mod ingress;
 mod local;
+mod queue;
 mod remote;
 mod report;
 mod stateful;

@@ -48,6 +48,7 @@ fn stage_pki(directory: &Path) -> PathBuf {
     let root = directory.join("pki");
     std::fs::create_dir_all(root.join("postgres")).expect("postgres pki");
     std::fs::create_dir_all(root.join("etcd")).expect("etcd pki");
+    std::fs::create_dir_all(root.join("rabbitmq")).expect("rabbitmq pki");
     let ca = root.join("ca.crt");
     write_mode(&ca, "fixture CA\n", 0o644);
     for (directory, name) in [
@@ -55,6 +56,7 @@ fn stage_pki(directory: &Path) -> PathBuf {
         ("etcd", "server"),
         ("etcd", "peer"),
         ("etcd", "client"),
+        ("rabbitmq", "server"),
     ] {
         write_mode(
             &root.join(directory).join(format!("{name}.crt")),

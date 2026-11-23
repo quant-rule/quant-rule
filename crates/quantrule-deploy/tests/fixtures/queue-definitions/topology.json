@@ -1,0 +1,164 @@
+{
+  "global_parameters": [],
+  "parameters": [],
+  "vhosts": [
+    {
+      "name": "/"
+    }
+  ],
+  "queues": [
+    {
+      "name": "runs.backtest.g1",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-delivery-limit": 3,
+        "x-dead-letter-exchange": "quantrule.runs.dlx"
+      }
+    },
+    {
+      "name": "runs.evidence.g1",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-delivery-limit": 3,
+        "x-dead-letter-exchange": "quantrule.runs.dlx"
+      }
+    },
+    {
+      "name": "runs.dead-letter.g1",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum"
+      }
+    },
+    {
+      "name": "stages.worker.g1",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "quorum",
+        "x-delivery-limit": 3,
+        "x-dead-letter-exchange": "quantrule.runs.dlx"
+      }
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "quantrule.runs",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "quantrule.runs.dlx",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "bindings": [
+    {
+      "source": "quantrule.runs",
+      "vhost": "/",
+      "destination": "runs.backtest.g1",
+      "destination_type": "queue",
+      "routing_key": "run.requested",
+      "arguments": {}
+    },
+    {
+      "source": "quantrule.runs",
+      "vhost": "/",
+      "destination": "runs.backtest.g1",
+      "destination_type": "queue",
+      "routing_key": "run.cancelled",
+      "arguments": {}
+    },
+    {
+      "source": "quantrule.runs",
+      "vhost": "/",
+      "destination": "runs.evidence.g1",
+      "destination_type": "queue",
+      "routing_key": "run.computed",
+      "arguments": {}
+    },
+    {
+      "source": "quantrule.runs",
+      "vhost": "/",
+      "destination": "runs.dead-letter.g1",
+      "destination_type": "queue",
+      "routing_key": "run.dead",
+      "arguments": {}
+    },
+    {
+      "source": "quantrule.runs",
+      "vhost": "/",
+      "destination": "stages.worker.g1",
+      "destination_type": "queue",
+      "routing_key": "stage.requested",
+      "arguments": {}
+    },
+    {
+      "source": "quantrule.runs",
+      "vhost": "/",
+      "destination": "stages.worker.g1",
+      "destination_type": "queue",
+      "routing_key": "stage.cancelled",
+      "arguments": {}
+    },
+    {
+      "source": "quantrule.runs.dlx",
+      "vhost": "/",
+      "destination": "runs.dead-letter.g1",
+      "destination_type": "queue",
+      "routing_key": "run.requested",
+      "arguments": {}
+    },
+    {
+      "source": "quantrule.runs.dlx",
+      "vhost": "/",
+      "destination": "runs.dead-letter.g1",
+      "destination_type": "queue",
+      "routing_key": "run.cancelled",
+      "arguments": {}
+    },
+    {
+      "source": "quantrule.runs.dlx",
+      "vhost": "/",
+      "destination": "runs.dead-letter.g1",
+      "destination_type": "queue",
+      "routing_key": "run.computed",
+      "arguments": {}
+    },
+    {
+      "source": "quantrule.runs.dlx",
+      "vhost": "/",
+      "destination": "runs.dead-letter.g1",
+      "destination_type": "queue",
+      "routing_key": "stage.requested",
+      "arguments": {}
+    },
+    {
+      "source": "quantrule.runs.dlx",
+      "vhost": "/",
+      "destination": "runs.dead-letter.g1",
+      "destination_type": "queue",
+      "routing_key": "stage.cancelled",
+      "arguments": {}
+    }
+  ],
+  "policies": []
+}

@@ -95,10 +95,17 @@ The generated `bootstrap.sh` runs on a manager in this order:
    443 in host mode, and verify every app service publishes nothing.
 
 The database bootstrap and migrations run **before** the stack, because the
-cluster and the HAProxy aliases are PLAT-003 infrastructure and the app services
-must not start against an unmigrated schema. The units must be running; the
-job's bounded retry covers their startup. A failed job stops the run before
-`docker stack deploy`; no partial app stack is published.
+cluster and the HAProxy aliases are PLAT-003 infrastructure and the RabbitMQ
+cluster is PLAT-004; the app services must not start against an unmigrated schema
+or an absent queue user. The units and `tools/stateful.sh queue-bootstrap` must
+be running; the job's bounded retry covers their startup. A failed job stops the
+run before `docker stack deploy`; no partial app stack is published.
+
+`tools/stateful.sh` must have started etcd -> Patroni -> HAProxy -> the three
+brokers and run `queue-bootstrap` before this script; it does not start or
+configure a stateful unit. `tools/queue-definitions.sh` separately exports the
+stripped topology and owns verify/import/retention; it is not part of the stack
+bootstrap.
 
 ## 5. Secret and config drift
 

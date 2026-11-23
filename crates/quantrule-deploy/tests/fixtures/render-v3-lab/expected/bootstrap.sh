@@ -3,11 +3,11 @@
 #
 # The script creates only the external objects the deployment owns. The two
 # Traefik configs are PLAT-002; Patroni, etcd, and HAProxy files are PLAT-003;
-# RabbitMQ, MinIO, and observability are PLAT-004..006. The four stateful secrets
-# are copied to the hosts by tools/stateful.sh, never created as app Swarm
-# secrets. No secret value is read, printed, or passed as an argument. A changed
-# rendered file is refused: rotation is a new object name plus a rolling service
-# update, never an in-place overwrite.
+# RabbitMQ is PLAT-004; MinIO and observability are PLAT-005/006. The five
+# stateful secrets are copied to the hosts by tools/stateful.sh, never created
+# as app Swarm secrets. No secret value is read, printed, or passed as an
+# argument. A changed rendered file is refused: rotation is a new object name
+# plus a rolling service update, never an in-place overwrite.
 set -eu
 NETWORK_ONLY=0
 if [ "${1:-}" = "--network-only" ]; then

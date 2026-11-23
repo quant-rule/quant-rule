@@ -165,8 +165,8 @@ Internal GET reads and the audited dataset-reference writes retry three times
 with a 200 ms base delay, factor four, a 5 s maximum delay and a 15 s total
 deadline. A claim, a model compute, a signal create, a stage create, a decision,
 a cancel and a streaming body never retry. A queue consumer that errors
-reconnects with 1, 2, 4, 8, 16 and 30 s backoff; after that the container
-restarts. A drain during a backoff is a clean stop, not a reconnect.
+reconnects with 1–30 s backoff and rebuilds the connection; it then restarts
+with `restart_policy: any`, and a drain during a backoff is a clean stop.
 
 The shell retries GET reads on 3 attempts, 200 ms base, factor four, 5 s cap and
 15 s deadline; the browser uses 3 attempts, 250 ms base, factor four and 4 s cap.
@@ -190,17 +190,14 @@ three-redelivery limit and dead-letters to `runs.dead-letter.g<n>`; the
 dead-letter queue is quorum and has no dead-letter target. Inspect the state:
 
 ```bash
-docker compose exec -T rabbitmq rabbitmqctl list_queues name type messages consumers arguments --formatter json
-docker compose exec -T rabbitmq rabbitmqctl list_bindings source_name destination_name routing_key --formatter json
+docker compose exec -T rabbitmq rabbitmqctl list_queues name type messages consumers arguments --formatter json && docker compose exec -T rabbitmq rabbitmqctl list_bindings source_name destination_name routing_key --formatter json
 ```
 
-A delivery that keeps failing is rejected and eventually appears in the
-dead-letter queue with its original routing key and an `x-death` header; the run
-row is the record. Every service in one deployment must use the same
-`QR_QUEUE_GENERATION`. Do not purge or delete a live queue. A topology change is
-a new `QR_QUEUE_GENERATION`: stop new submissions, drain the old generation with
-its consumers, stop them, then unbind or delete the empty queues before the new
-generation publishes.
+A failing delivery is rejected and appears in the dead-letter queue with its
+routing key and an `x-death` header; the run row is the record. Every service in
+one deployment must use the same `QR_QUEUE_GENERATION`. A topology change is a
+new generation: drain the old one, stop its consumers, then unbind or delete the
+empty queues; never purge or delete a live queue.
 
 ### Evidence leader
 
@@ -220,27 +217,25 @@ finalisation is refused and the run record does not change.
 
 ### Definitions backup and restore
 
-The archive does not contain the broker. Export the topology separately; the
-file contains the broker users and password hashes, so keep it mode 600 and out
-of Git.
+PLAT-004 exports the topology from a broker, strips `users`, `permissions`, and
+`topic_permissions`, verifies the four HA-005 queues, quorum, delivery limit 3,
+the DLX/DLQ, bindings, and no `runs.*`/`stages.*` policy, and stores it mode 600
+on every broker. HA-013 owns archive/off-host copy and the empty-broker drill.
 
 ```bash
-definitions="qr-definitions-$(date -u +%Y%m%dT%H%M%SZ).json"
-docker compose exec -T rabbitmq rabbitmqctl export_definitions /tmp/qr-definitions.json
-docker compose cp rabbitmq:/tmp/qr-definitions.json "$definitions"
-chmod 600 "$definitions"
-docker compose exec -T rabbitmq rm -f /tmp/qr-definitions.json
+tools/queue-definitions.sh export
+tools/queue-definitions.sh verify /srv/quantrule/rabbitmq/definitions/<UTC>.json
+tools/queue-definitions.sh verify --live
+tools/queue-definitions.sh prune --now <UTC> --days 30
 ```
 
-Restore into an empty broker with:
-
-```bash
-docker compose cp qr-definitions.json rabbitmq:/tmp/qr-definitions.json
-docker compose exec -T rabbitmq rabbitmqctl import_definitions /tmp/qr-definitions.json
-```
-
-Definitions restore queues and bindings, not messages; rebuild queued runs from
-run rows. Importing one over a live queue generation is not the upgrade path.
+`import <file>` accepts an empty broker/cluster only; a live `.g*` generation
+needs `--force`, and the tool never purges a queue or deletes a user or vhost.
+Definitions restore topology, not messages; an acknowledged message survives one
+broker loss, and a lost queue is rebuilt from run rows. The app user is recreated
+from `queue_url` by `tools/stateful.sh queue-bootstrap`. The v1/v2 Compose broker
+still uses `rabbitmqctl export_definitions`; keep that legacy file mode 600 and
+out of Git because it contains users and password hashes.
 
 ## Backup and restore
 
@@ -250,10 +245,12 @@ run rows. Importing one over a live queue generation is not the upgrade path.
 | `make restore FILE=<archive>` | Verifies the sidecar and every payload, then restores into a clean stack |
 | `tools/restore.sh <archive> --force --yes` | Explicitly replaces a non-empty stack |
 
-The queue is not archived; messages are rebuilt from run rows. Restore writes
+The queue is not archived; an acknowledged message survives one broker loss,
+and a lost queue is rebuilt from run rows. Restore writes
 objects before rows, so an interrupted copy leaves unreferenced blobs rather
-than a run that looks present but cannot verify. Export the broker topology
-separately; definitions restore queues and bindings, not messages.
+than a run that looks present but cannot verify. Export the stripped topology
+with `tools/queue-definitions.sh export`; definitions restore queues and
+bindings, not messages.
 
 `tools/backup.sh` and `tools/restore.sh` still dump and restore one database,
 so a backup is incomplete until all four are covered. The database and role

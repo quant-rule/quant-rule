@@ -90,6 +90,11 @@ fn expected_files(descriptor: &Descriptor) -> Vec<String> {
         files.push(format!("haproxy-{host}.cfg"));
         files.push(format!("infra/{host}.yaml"));
     }
+    for host in &descriptor.stateful.rabbitmq.nodes {
+        files.push(format!("rabbitmq-{host}.conf"));
+        files.push(format!("infra/{host}.yaml"));
+    }
+    files.push("rabbitmq-enabled_plugins".to_owned());
     files.push("stateful-manifest.json".to_owned());
     for name in [
         "pki/database-ca.crt",
@@ -101,6 +106,9 @@ fn expected_files(descriptor: &Descriptor) -> Vec<String> {
         "pki/etcd/peer.key",
         "pki/etcd/client.crt",
         "pki/etcd/client.key",
+        "pki/rabbitmq/ca.crt",
+        "pki/rabbitmq/server.crt",
+        "pki/rabbitmq/server.key",
     ] {
         files.push(name.to_owned());
     }
@@ -288,6 +296,10 @@ fn expected_sources(descriptor: &Descriptor) -> Vec<String> {
     for host in &descriptor.stateful.haproxy.nodes {
         sources.push(format!("haproxy-{host}.cfg"));
     }
+    for host in &descriptor.stateful.rabbitmq.nodes {
+        sources.push(format!("rabbitmq-{host}.conf"));
+    }
+    sources.push("rabbitmq-enabled_plugins".to_owned());
     for secret in stateful::STATEFUL_SECRETS {
         sources.push(format!("secrets/{secret}"));
     }
@@ -301,6 +313,9 @@ fn expected_sources(descriptor: &Descriptor) -> Vec<String> {
         "pki/etcd/peer.key",
         "pki/etcd/client.crt",
         "pki/etcd/client.key",
+        "pki/rabbitmq/ca.crt",
+        "pki/rabbitmq/server.crt",
+        "pki/rabbitmq/server.key",
     ] {
         sources.push(name.to_owned());
     }

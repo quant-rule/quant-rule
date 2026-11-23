@@ -155,6 +155,11 @@ services:
         source: "/etc/quantrule/secrets/patroni_rest_password"
         target: "/run/secrets/patroni_rest_password"
         type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/secrets/rabbitmq_erlang_cookie"
+        target: "/run/secrets/rabbitmq_erlang_cookie"
+        type: "bind"
   prometheus:
     container_name: "quantrule-prometheus-infra-1"
     image: "prom/prometheus@sha256:c4bfb1e3ef91709eca17ae08b3676ac008939765ad9cf6c2b4617f363b1354be"
@@ -174,21 +179,44 @@ services:
         source: "/etc/quantrule/prometheus/prometheus.yml"
         target: "/etc/prometheus/prometheus.yml"
         type: "bind"
-  rabbitmq:
+  rabbitmq-broker-infra-1:
+    command:
+      -
+        "/bin/sh"
+      -
+        "-c"
+      -
+        "set -eu\numask 077\ninstall -d -o rabbitmq -g rabbitmq -m 700 /var/lib/rabbitmq/pki\ninstall -o rabbitmq -g rabbitmq -m 600 /etc/quantrule/rabbitmq/erlang.cookie /var/lib/rabbitmq/.erlang.cookie\ninstall -o rabbitmq -g rabbitmq -m 600 /etc/quantrule/rabbitmq/rabbitmq.conf /var/lib/rabbitmq/rabbitmq.conf\ninstall -o rabbitmq -g rabbitmq -m 600 /etc/quantrule/rabbitmq/enabled_plugins /var/lib/rabbitmq/enabled_plugins\ninstall -o rabbitmq -g rabbitmq -m 644 /etc/quantrule/pki/rabbitmq/ca.crt /var/lib/rabbitmq/pki/ca.crt\ninstall -o rabbitmq -g rabbitmq -m 644 /etc/quantrule/pki/rabbitmq/server.crt /var/lib/rabbitmq/pki/server.crt\ninstall -o rabbitmq -g rabbitmq -m 600 /etc/quantrule/pki/rabbitmq/server.key /var/lib/rabbitmq/pki/server.key\nchown -R rabbitmq:rabbitmq /var/lib/rabbitmq /srv/quantrule/rabbitmq/definitions\nexport RABBITMQ_CONFIG_FILE=/var/lib/rabbitmq/rabbitmq.conf\nexport RABBITMQ_ENABLED_PLUGINS_FILE=/var/lib/rabbitmq/enabled_plugins\nexec gosu rabbitmq rabbitmq-server"
     container_name: "quantrule-rabbitmq-infra-1"
+    environment:
+      RABBITMQ_CONFIG_FILE: "/var/lib/rabbitmq/rabbitmq.conf"
+      RABBITMQ_ENABLED_PLUGINS_FILE: "/var/lib/rabbitmq/enabled_plugins"
+      RABBITMQ_NODENAME: "rabbit@rabbitmq-infra-1"
+    hostname: "rabbitmq-infra-1"
     image: "rabbitmq@sha256:605a57a95a166325381f132867163eafc20cb0ece6039504e45681136550e6b7"
     networks:
       quantrule:
         aliases:
           -
-            "rabbitmq"
+            "rabbitmq-infra-1"
     restart: "unless-stopped"
     stop_grace_period: "40s"
+    user: "0:0"
     volumes:
       -
         read_only: false
         source: "/srv/quantrule/rabbitmq/data"
         target: "/var/lib/rabbitmq"
+        type: "bind"
+      -
+        read_only: false
+        source: "/srv/quantrule/rabbitmq/definitions"
+        target: "/srv/quantrule/rabbitmq/definitions"
+        type: "bind"
+      -
+        read_only: true
+        source: "/srv/quantrule/rabbitmq/conf.d"
+        target: "/etc/rabbitmq/conf.d"
         type: "bind"
       -
         read_only: true
@@ -197,12 +225,22 @@ services:
         type: "bind"
       -
         read_only: true
+        source: "/etc/quantrule/rabbitmq/enabled_plugins"
+        target: "/etc/rabbitmq/enabled_plugins"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/rabbitmq/erlang.cookie"
+        target: "/etc/quantrule/rabbitmq/erlang.cookie"
+        type: "bind"
+      -
+        read_only: true
         source: "/etc/quantrule/pki/rabbitmq"
-        target: "/etc/quantrule/pki"
+        target: "/etc/quantrule/pki/rabbitmq"
         type: "bind"
 x-quantrule:
   evidence: "HA profile (unverified)"
   network: "overlay, attachable, encrypted; created by bootstrap.sh"
-  owner: "PLAT-003"
-  platform: "keepalived is PLAT-002; Patroni, etcd, and HAProxy are configured by PLAT-003; RabbitMQ, MinIO, and observability remain PLAT-004..006"
+  owner: "PLAT-003/PLAT-004"
+  platform: "keepalived is PLAT-002; Patroni, etcd, and HAProxy are configured by PLAT-003; RabbitMQ is PLAT-004; MinIO and observability remain PLAT-005/006"
   profile: "swarm-ha"

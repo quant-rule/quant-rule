@@ -1,10 +1,12 @@
-//! The stateful PKI leaves Patroni and etcd present.
+//! The stateful PKI leaves Patroni, etcd, and RabbitMQ present.
 //!
-//! `tools/pki.sh` writes the Postgres server leaf and the etcd server, peer, and
-//! client leaves under the same internal CA. The descriptor names the CA bundle
-//! (`endpoints.database.tls_ca`); this module treats its parent as the PKI root
-//! and reads the leaves once so validation and rendering share one read. A
-//! missing, symlinked, oversized, or world-readable private key fails closed.
+//! `tools/pki.sh` writes the Postgres server leaf, the etcd server, peer, and
+//! client leaves, and the RabbitMQ server leaf under the same internal CA. The
+//! descriptor names the database CA bundle (`endpoints.database.tls_ca`) and the
+//! queue CA bundle (`endpoints.queue.tls_ca`); this module treats each parent as
+//! its PKI root and reads the leaves once so validation and rendering share one
+//! read. A missing, symlinked, oversized, or world-readable private key fails
+//! closed.
 
 use std::path::Path;
 
@@ -41,6 +43,8 @@ pub struct StatefulFiles {
     pub postgres: Leaf,
     /// The etcd leaves.
     pub etcd: EtcdLeaves,
+    /// The RabbitMQ server certificate and key.
+    pub rabbitmq: Leaf,
 }
 
 /// Read the stateful PKI leaves from the CA bundle's parent directory.
@@ -51,19 +55,16 @@ pub struct StatefulFiles {
 /// symlinked, not a regular file, oversized, unreadable, or when a private key
 /// is not mode 600.
 pub fn load(descriptor: &Descriptor) -> Result<StatefulFiles, Error> {
-    let root = Path::new(&descriptor.endpoints.database.tls_ca)
-        .parent()
-        .ok_or_else(|| {
-            rule(
-                "deploy.endpoint.tls_ca",
-                "endpoints.database.tls_ca",
-                "must name a file inside a PKI directory",
-            )
-        })?;
-    let postgres = leaf(root, "postgres", "server", "pki.postgres.server")?;
-    let etcd_server = leaf(root, "etcd", "server", "pki.etcd.server")?;
-    let etcd_peer = leaf(root, "etcd", "peer", "pki.etcd.peer")?;
-    let etcd_client = leaf(root, "etcd", "client", "pki.etcd.client")?;
+    let database_root = tls_root(
+        &descriptor.endpoints.database.tls_ca,
+        "endpoints.database.tls_ca",
+    )?;
+    let queue_root = tls_root(&descriptor.endpoints.queue.tls_ca, "endpoints.queue.tls_ca")?;
+    let postgres = leaf(database_root, "postgres", "server", "pki.postgres.server")?;
+    let etcd_server = leaf(database_root, "etcd", "server", "pki.etcd.server")?;
+    let etcd_peer = leaf(database_root, "etcd", "peer", "pki.etcd.peer")?;
+    let etcd_client = leaf(database_root, "etcd", "client", "pki.etcd.client")?;
+    let rabbitmq = leaf(queue_root, "rabbitmq", "server", "pki.rabbitmq.server")?;
     Ok(StatefulFiles {
         postgres,
         etcd: EtcdLeaves {
@@ -71,6 +72,18 @@ pub fn load(descriptor: &Descriptor) -> Result<StatefulFiles, Error> {
             peer: etcd_peer,
             client: etcd_client,
         },
+        rabbitmq,
+    })
+}
+
+/// The PKI directory that holds a TLS endpoint's CA bundle.
+fn tls_root<'a>(path: &'a str, field: &str) -> Result<&'a Path, Error> {
+    Path::new(path).parent().ok_or_else(|| {
+        rule(
+            "deploy.endpoint.tls_ca",
+            field,
+            "must name a file inside a PKI directory",
+        )
     })
 }
 
@@ -136,12 +149,14 @@ mod tests {
         let root = directory.join("pki");
         std::fs::create_dir_all(root.join("postgres")).expect("postgres");
         std::fs::create_dir_all(root.join("etcd")).expect("etcd");
+        std::fs::create_dir_all(root.join("rabbitmq")).expect("rabbitmq");
         write(&root.join("ca.crt"), "ca\n", 0o644);
         for (directory, name) in [
             ("postgres", "server"),
             ("etcd", "server"),
             ("etcd", "peer"),
             ("etcd", "client"),
+            ("rabbitmq", "server"),
         ] {
             write(
                 &root.join(directory).join(format!("{name}.crt")),
@@ -158,6 +173,7 @@ mod tests {
             serde_json::from_str(include_str!("../../../../deploy/v3/deploy.example.json"))
                 .expect("example");
         value["endpoints"]["database"]["tls_ca"] = serde_json::json!(root.join("ca.crt"));
+        value["endpoints"]["queue"]["tls_ca"] = serde_json::json!(root.join("ca.crt"));
         serde_json::from_value(value).expect("descriptor")
     }
 

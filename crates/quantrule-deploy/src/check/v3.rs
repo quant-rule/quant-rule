@@ -201,6 +201,12 @@ pub fn check_with(
         options.out.as_deref(),
         &certificates,
     );
+    super::queue::append(
+        &mut report,
+        descriptor,
+        options.out.as_deref(),
+        &certificates,
+    );
     for row in ingress::local_rows(descriptor) {
         report.push(row);
     }

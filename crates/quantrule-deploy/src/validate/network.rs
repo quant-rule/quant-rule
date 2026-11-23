@@ -211,6 +211,13 @@ fn validate_endpoints(descriptor: &Descriptor) -> Result<(), Error> {
 
     let queue = &descriptor.endpoints.queue;
     validate_endpoint_host(&queue.host, "endpoints.queue.host")?;
+    if queue.host != "rabbitmq" {
+        return Err(rule(
+            "deploy.endpoint.queue.host",
+            "endpoints.queue.host",
+            "must be the shared rabbitmq alias served by the HAProxy pair",
+        ));
+    }
     if queue.port != 5671 {
         return Err(rule(
             "deploy.endpoint.queue.port",

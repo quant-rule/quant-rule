@@ -1,6 +1,6 @@
 # Deployment
 
-- Status: Current; released as v1.0.0 on 2026-11-15 (prepared as v1.1.0); current in v1.4.2; v3 render/check, the PLAT-001 remote check, the PLAT-002 ingress, and the PLAT-003 stateful tier, check rows, and failover lab harness are current; approved 2026-11-12
+- Status: Current; released as v1.0.0 on 2026-11-15 (prepared as v1.1.0); current in v1.4.2; v3 render/check, the PLAT-001 remote check, the PLAT-002 ingress, the PLAT-003 stateful tier, and the PLAT-004 RabbitMQ tier (broker, checks, definitions, lab) are current; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Decision: [`ADR-2026-11-12-01`](../adr/2026-11-12/01-adopt-distributed-service-based-architecture.md)
 - Claim type: Behaviour Claim
@@ -166,5 +166,5 @@ The split does not copy rows from the old `quantrule` database: use `make reset`
 for disposable data, or the migration runbook for kept evidence.
 ## 8. What deployment does not provide
 
-Autoscaling, registry signing, and real HA evidence are out of this profile. PostgreSQL, RabbitMQ and MinIO use internal TLS; the gateway serves plain HTTP behind the ingress ([ingress contract](../config/2026-11-23/ingress.md)). Multi-host placement is in [multi-host.md](multi-host.md); v3 render/check and the `tools/swarm.sh` control plane are in [deploy/v3](../config/2026-11-22/deploy-v3.md) and [swarm-control](../config/2026-11-23/swarm-control.md); the Patroni/etcd/HAProxy tier and `tools/stateful.sh` boot order are in [patroni-cluster](../config/2026-11-23/patroni-cluster.md); real HA is HA-014.
+Autoscaling, registry signing, and real HA evidence are out of this profile. PostgreSQL, RabbitMQ and MinIO use internal TLS; the gateway serves plain HTTP behind the ingress ([ingress contract](../config/2026-11-23/ingress.md)). Multi-host placement is in [multi-host.md](multi-host.md); v3 render/check and the `tools/swarm.sh` control plane are in [deploy/v3](../config/2026-11-22/deploy-v3.md) and [swarm-control](../config/2026-11-23/swarm-control.md); the Patroni/etcd/HAProxy tier is in [patroni-cluster](../config/2026-11-23/patroni-cluster.md), the RabbitMQ cluster, queue checks, definitions, and lab in [rabbitmq-cluster](../config/2026-11-23/rabbitmq-cluster.md); real HA is HA-014.
 The ingress and stateful check rows (`--out`/`QR_DEPLOY_OUT`), the shell `QUANTRULE_CA_CERT` trust path, the measured lab RTO, and the `Unverified` lab boundary are documented in those contracts.

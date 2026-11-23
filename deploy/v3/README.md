@@ -12,27 +12,32 @@ and the stateful database contract is
 `qr-deploy` implements the closed schema, version-first dispatch, `validate`,
 `validate --files`, `render`, and `check`. The renderer writes the seven-service
 Swarm stack, the static and dynamic Traefik files, the per-edge keepalived files,
-the per-host Patroni/etcd/HAProxy configuration, the RabbitMQ/MinIO/observability
-units, the stateful manifest, the ordered operator jobs, the secret/PKI copies,
-and `render.json`. The checker validates the descriptor,
-placement, pins, secrets, PKI, and local files and probes the one HTTPS ingress.
-`tools/swarm.sh` wraps render, bootstrap, status, upgrade, rollback, and verify;
-the control-plane contract is
+the per-host Patroni/etcd/HAProxy configuration, the per-broker RabbitMQ config
+and plugin list, the RabbitMQ/MinIO/observability units, the stateful manifest,
+the ordered operator jobs, the secret/PKI copies, and `render.json`. The checker
+validates the descriptor, placement, pins, secrets, PKI, and local files and
+probes the one HTTPS ingress. `tools/swarm.sh` wraps render, bootstrap, status,
+upgrade, rollback, and verify; the control-plane contract is
 [`docs/config/2026-11-23/swarm-control.md`](../../docs/config/2026-11-23/swarm-control.md).
 `qr-deploy check` adds the stateful rows (Patroni sync/rewind/archive/TLS/
 pg_hba/watchdog, etcd mTLS, HAProxy `/primary`, the manifest, and the Postgres/
-etcd certificate SANs). `--out <render-dir>` or `QR_DEPLOY_OUT` reads a rendered
+etcd certificate SANs) and the queue rows (TLS-only broker, three-node cluster,
+alarms, HAProxy `rabbitmq`/5671, the broker unit, manifest hosts/modes, and the
+RabbitMQ leaf SANs). `--out <render-dir>` or `QR_DEPLOY_OUT` reads a rendered
 tree; without it the configs render in memory and the certificates come from the
 descriptor CA. `--remote docker --overlay` adds the read-only Swarm, node,
 overlay, service, port, task, and ingress-mount rows; the default check stays
 Docker-free. `tools/test_tiers.sh ha` defaults to `deploy.lab.json` and runs the
 opt-in lab in `test.sh`; `--plan` is Docker-free. The harness drains the VIP
-holder, pauses the Patroni primary and one HAProxy, measures RTO, writes and
-re-reads markers through `postgres`, compares the digest/LSN, runs the
-8404/5432/8080/9000 negative controls, records the rejoin, and prints
-`UNVERIFIED` when a precondition is not met. `--skip-database` leaves the
-failover row `Unverified`. The shell trusts the private CA with
-`QUANTRULE_CA_CERT`; the browser uses the OS trust store. v2 output is unchanged.
+holder, pauses the Patroni primary and one HAProxy, stops the RabbitMQ quorum
+leader, measures RTO and the queue gap, writes and re-reads markers through
+`postgres`, proves a confirmed publish survives the queue loss, compares the
+digest/LSN, runs the 8404/5432/8080/9000/5671/15692/15672 negative controls,
+records the rejoin, and prints `UNVERIFIED` when a precondition is not met.
+`--skip-database`/`--skip-queue` leave that row `Unverified`; the queue result
+is `Simulated HA` at the queue level while the end-to-end digest stays `Blocked`
+until PLAT-005 MinIO. The shell trusts the private CA with `QUANTRULE_CA_CERT`;
+the browser uses the OS trust store. v2 output is unchanged.
 
 ## Validate, render, check
 
@@ -64,18 +69,28 @@ qr-deploy check /tmp/deploy.json --out /tmp/qr-v3-out
 `--target swarm` writes `stack.yaml`, `quantrule_traefik.yml`,
 `traefik-dynamic.yml`, `bootstrap.sh`, `jobs/`, and the shared `secrets/`,
 `pki/`, and `render.json`. `--target infra` writes `infra/<host>.yaml`,
-`keepalived-<host>.conf`, and the shared material. `--target all` writes both. A
-v3 render without `--target` is a usage error; v2 `render` is unchanged and
-rejects `--target`.
+`keepalived-<host>.conf`, `patroni-<host>.yml`, `etcd-<host>.conf.yml`,
+`haproxy-<host>.cfg`, `rabbitmq-<host>.conf`, `rabbitmq-enabled_plugins`, and the
+shared material. `--target all` writes both. A v3 render without `--target` is a
+usage error; v2 `render` is unchanged and rejects `--target`.
 
 ## Fixture secrets
 
 `secrets/` contains one fake value per required secret: the gateway token, the
 four database app/owner URLs, the queue URL, the S3 access/secret pair, and the
-four stateful Patroni/cluster passwords. Every role has a distinct password, so
-the duplicate-credential rule can be tested. The stateful values are URL-safe.
-The values are deliberately non-default but are not real secrets; never deploy
-them.
+five stateful Patroni/cluster/RabbitMQ values. Every role has a distinct
+password, so the duplicate-credential rule can be tested. The stateful values
+are URL-safe; `rabbitmq_erlang_cookie` is at least 32 characters. The values are
+deliberately non-default but are not real secrets; never deploy them.
+
+After the stateful units are up, `tools/stateful.sh queue-bootstrap` creates the
+`qr_queue` user, the default vhost, and its permissions from `queue_url`. The
+password travels on standard input and is hashed before it reaches
+`rabbitmqctl`; it is never an argument or a log line. Run it before
+`tools/swarm.sh bootstrap`. `tools/queue-definitions.sh export` stores the
+stripped topology (users, permissions, and topic permissions removed) with mode
+600 on every broker; `verify`, `import`, and 30-day `prune` are in the queue
+contract.
 
 `pki/ingress.crt` and `pki/ingress-key.pem` are fake cert-mode fixtures. The
 `.pem` name and the absent PEM key block keep the repository private-key checker

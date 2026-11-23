@@ -3,9 +3,11 @@
 //! The descriptor places the units; this renderer writes one file per host. The
 //! Patroni, etcd, and HAProxy units carry their PLAT-003 commands, config, PKI,
 //! and secret mounts; their configuration bodies live in [`super::stateful`].
-//! RabbitMQ, MinIO, Prometheus, Grafana, Loki, and Alertmanager remain pinned
-//! skeletons for PLAT-004/005/006. Every unit attaches to the encrypted overlay,
-//! publishes no port, and keeps its data on a host-local path.
+//! The RabbitMQ unit carries its PLAT-004 config, plugin list, cookie, PKI, and
+//! data/definitions directories; its configuration body lives in
+//! [`super::queue`]. MinIO, Prometheus, Grafana, Loki, and Alertmanager remain
+//! pinned skeletons for PLAT-005/006. Every unit attaches to the encrypted
+//! overlay, publishes no port, and keeps its data on a host-local path.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -14,6 +16,10 @@ use crate::descriptor::v3::{Descriptor, Watchdog};
 use crate::error::Error;
 use crate::validate::secrets::STATEFUL_SECRETS;
 
+use super::queue::{
+    RABBITMQ_CONFIG_TARGET, RABBITMQ_COOKIE_TARGET, RABBITMQ_DATA_PKI, RABBITMQ_DATA_TARGET,
+    RABBITMQ_DEFINITIONS_TARGET, RABBITMQ_PKI_TARGET, RABBITMQ_PLUGINS_TARGET,
+};
 use super::stateful::{ETCD_CONFIG_TARGET, HAPROXY_CONFIG_TARGET, PATRONI_CONFIG_TARGET};
 use super::yaml::Yaml;
 use super::{create_dir, evidence_tier, pinned, safe_component, write_public};
@@ -58,9 +64,12 @@ pub fn render(
 
 #[derive(Debug)]
 struct Unit {
-    name: &'static str,
+    name: String,
     image: String,
     container_name: String,
+    hostname: Option<String>,
+    environment: BTreeMap<String, String>,
+    user: Option<String>,
     volumes: Vec<Volume>,
     aliases: Vec<String>,
     host_network: bool,
@@ -86,16 +95,19 @@ fn volume(source: impl Into<String>, target: impl Into<String>, read_only: bool)
 
 fn unit(
     descriptor: &Descriptor,
-    name: &'static str,
+    name: &str,
     image_key: &str,
     host: &str,
     volumes: Vec<Volume>,
     aliases: Vec<String>,
 ) -> Unit {
     Unit {
-        name,
+        name: name.to_owned(),
         image: pinned(&descriptor.images[image_key]),
         container_name: format!("quantrule-{name}-{host}"),
+        hostname: None,
+        environment: BTreeMap::new(),
+        user: None,
         volumes,
         aliases,
         host_network: false,
@@ -108,15 +120,18 @@ fn unit(
 /// A host-network unit with the two capabilities keepalived needs.
 fn host_unit(
     descriptor: &Descriptor,
-    name: &'static str,
+    name: &str,
     image_key: &str,
     host: &str,
     volumes: Vec<Volume>,
 ) -> Unit {
     Unit {
-        name,
+        name: name.to_owned(),
         image: pinned(&descriptor.images[image_key]),
         container_name: format!("quantrule-{name}-{host}"),
+        hostname: None,
+        environment: BTreeMap::new(),
+        user: None,
         volumes,
         aliases: Vec::new(),
         host_network: true,
@@ -215,6 +230,7 @@ fn host_units(descriptor: &Descriptor) -> BTreeMap<String, Vec<Unit>> {
         hosts.entry(host.clone()).or_default().push(etcd);
     }
     let database_host = descriptor.endpoints.database.host.clone();
+    let queue_host = descriptor.endpoints.queue.host.clone();
     for host in &descriptor.stateful.haproxy.nodes {
         let mut haproxy = unit(
             descriptor,
@@ -233,7 +249,11 @@ fn host_units(descriptor: &Descriptor) -> BTreeMap<String, Vec<Unit>> {
                     true,
                 ),
             ],
-            vec![format!("haproxy-{host}"), database_host.clone()],
+            vec![
+                format!("haproxy-{host}"),
+                database_host.clone(),
+                queue_host.clone(),
+            ],
         );
         haproxy.command = vec![
             "/bin/sh".to_owned(),
@@ -242,7 +262,6 @@ fn host_units(descriptor: &Descriptor) -> BTreeMap<String, Vec<Unit>> {
         ];
         hosts.entry(host.clone()).or_default().push(haproxy);
     }
-    let queue_host = descriptor.endpoints.queue.host.clone();
     for host in &descriptor.ingress.hosts {
         hosts.entry(host.clone()).or_default().push(host_unit(
             descriptor,
@@ -257,22 +276,84 @@ fn host_units(descriptor: &Descriptor) -> BTreeMap<String, Vec<Unit>> {
         ));
     }
     for host in &descriptor.stateful.rabbitmq.nodes {
-        hosts.entry(host.clone()).or_default().push(unit(
+        let service = format!("rabbitmq-broker-{host}");
+        let mut rabbitmq = unit(
             descriptor,
-            "rabbitmq",
+            &service,
             "rabbitmq",
             host,
             vec![
-                volume("/srv/quantrule/rabbitmq/data", "/var/lib/rabbitmq", false),
+                volume("/srv/quantrule/rabbitmq/data", RABBITMQ_DATA_TARGET, false),
                 volume(
-                    "/etc/quantrule/rabbitmq/rabbitmq.conf",
-                    "/etc/rabbitmq/rabbitmq.conf",
+                    "/srv/quantrule/rabbitmq/definitions",
+                    RABBITMQ_DEFINITIONS_TARGET,
+                    false,
+                ),
+                volume(
+                    "/srv/quantrule/rabbitmq/conf.d",
+                    "/etc/rabbitmq/conf.d",
                     true,
                 ),
-                volume("/etc/quantrule/pki/rabbitmq", "/etc/quantrule/pki", true),
+                volume(
+                    "/etc/quantrule/rabbitmq/rabbitmq.conf",
+                    RABBITMQ_CONFIG_TARGET,
+                    true,
+                ),
+                volume(
+                    "/etc/quantrule/rabbitmq/enabled_plugins",
+                    RABBITMQ_PLUGINS_TARGET,
+                    true,
+                ),
+                volume(
+                    "/etc/quantrule/rabbitmq/erlang.cookie",
+                    RABBITMQ_COOKIE_TARGET,
+                    true,
+                ),
+                volume("/etc/quantrule/pki/rabbitmq", RABBITMQ_PKI_TARGET, true),
             ],
-            vec![queue_host.clone()],
-        ));
+            vec![format!("rabbitmq-{host}")],
+        );
+        // The Compose service key must not be `rabbitmq`: Compose adds the
+        // service name as an implicit network alias, which would put the shared
+        // front-door name on a broker. It is unique per host for the same
+        // reason. The container name stays stable for the operator tool.
+        rabbitmq.container_name = format!("quantrule-rabbitmq-{host}");
+        rabbitmq.hostname = Some(format!("rabbitmq-{host}"));
+        rabbitmq.environment.insert(
+            "RABBITMQ_NODENAME".to_owned(),
+            format!("rabbit@rabbitmq-{host}"),
+        );
+        rabbitmq.environment.insert(
+            "RABBITMQ_CONFIG_FILE".to_owned(),
+            format!("{RABBITMQ_DATA_TARGET}/rabbitmq.conf"),
+        );
+        rabbitmq.environment.insert(
+            "RABBITMQ_ENABLED_PLUGINS_FILE".to_owned(),
+            format!("{RABBITMQ_DATA_TARGET}/enabled_plugins"),
+        );
+        // The official image runs as the rabbitmq user. The unit starts as root
+        // only to install the cookie and the PKI copy, then drops to rabbitmq.
+        rabbitmq.user = Some("0:0".to_owned());
+        rabbitmq.command = vec![
+            "/bin/sh".to_owned(),
+            "-c".to_owned(),
+            format!(
+                "set -eu\n\
+                 umask 077\n\
+                 install -d -o rabbitmq -g rabbitmq -m 700 {RABBITMQ_DATA_PKI}\n\
+                 install -o rabbitmq -g rabbitmq -m 600 {RABBITMQ_COOKIE_TARGET} {RABBITMQ_DATA_TARGET}/.erlang.cookie\n\
+                 install -o rabbitmq -g rabbitmq -m 600 /etc/quantrule/rabbitmq/rabbitmq.conf {RABBITMQ_DATA_TARGET}/rabbitmq.conf\n\
+                 install -o rabbitmq -g rabbitmq -m 600 /etc/quantrule/rabbitmq/enabled_plugins {RABBITMQ_DATA_TARGET}/enabled_plugins\n\
+                 install -o rabbitmq -g rabbitmq -m 644 {RABBITMQ_PKI_TARGET}/ca.crt {RABBITMQ_DATA_PKI}/ca.crt\n\
+                 install -o rabbitmq -g rabbitmq -m 644 {RABBITMQ_PKI_TARGET}/server.crt {RABBITMQ_DATA_PKI}/server.crt\n\
+                 install -o rabbitmq -g rabbitmq -m 600 {RABBITMQ_PKI_TARGET}/server.key {RABBITMQ_DATA_PKI}/server.key\n\
+                 chown -R rabbitmq:rabbitmq {RABBITMQ_DATA_TARGET} {RABBITMQ_DEFINITIONS_TARGET}\n\
+                 export RABBITMQ_CONFIG_FILE={RABBITMQ_DATA_TARGET}/rabbitmq.conf\n\
+                 export RABBITMQ_ENABLED_PLUGINS_FILE={RABBITMQ_DATA_TARGET}/enabled_plugins\n\
+                 exec gosu rabbitmq rabbitmq-server"
+            ),
+        ];
+        hosts.entry(host.clone()).or_default().push(rabbitmq);
     }
     let object_host = descriptor.endpoints.object_store.host.clone();
     for (index, host) in descriptor.stateful.minio.nodes.iter().enumerate() {
@@ -392,6 +473,23 @@ fn host_yaml(descriptor: &Descriptor, host: &str, units: &[Unit]) -> String {
             )
             .with("restart", Yaml::string("unless-stopped"))
             .with("stop_grace_period", Yaml::string("40s"));
+        if let Some(hostname) = &value.hostname {
+            service = service.with("hostname", Yaml::string(hostname.as_str()));
+        }
+        if let Some(user) = &value.user {
+            service = service.with("user", Yaml::string(user.as_str()));
+        }
+        if !value.environment.is_empty() {
+            service = service.with(
+                "environment",
+                Yaml::mapping(
+                    value
+                        .environment
+                        .iter()
+                        .map(|(key, value)| (key.clone(), Yaml::string(value))),
+                ),
+            );
+        }
         if value.host_network {
             service = service.with("network_mode", Yaml::string("host"));
         }
@@ -444,7 +542,7 @@ fn host_yaml(descriptor: &Descriptor, host: &str, units: &[Unit]) -> String {
                 );
             }
         }
-        services.insert(value.name.to_owned(), service);
+        services.insert(value.name.clone(), service);
     }
     let root = Yaml::map()
         .with(
@@ -454,7 +552,7 @@ fn host_yaml(descriptor: &Descriptor, host: &str, units: &[Unit]) -> String {
         .with(
             "x-quantrule",
             Yaml::map()
-                .with("owner", Yaml::string("PLAT-003"))
+                .with("owner", Yaml::string("PLAT-003/PLAT-004"))
                 .with("profile", Yaml::string(descriptor.profile.as_str()))
                 .with("evidence", Yaml::string(evidence_tier(descriptor.profile)))
                 .with(
@@ -464,7 +562,7 @@ fn host_yaml(descriptor: &Descriptor, host: &str, units: &[Unit]) -> String {
                 .with(
                     "platform",
                     Yaml::string(
-                        "keepalived is PLAT-002; Patroni, etcd, and HAProxy are configured by PLAT-003; RabbitMQ, MinIO, and observability remain PLAT-004..006",
+                        "keepalived is PLAT-002; Patroni, etcd, and HAProxy are configured by PLAT-003; RabbitMQ is PLAT-004; MinIO and observability remain PLAT-005/006",
                     ),
                 ),
         )
@@ -559,12 +657,49 @@ mod tests {
         assert!(haproxy.contains("\n  haproxy:\n"), "{haproxy}");
         assert!(haproxy.contains("\"haproxy-edge-1\""), "{haproxy}");
         assert!(haproxy.contains("\"postgres\""), "{haproxy}");
+        assert!(haproxy.contains("\"rabbitmq\""), "{haproxy}");
         assert!(
             haproxy.contains("/run/secrets/patroni_rest_password"),
             "{haproxy}"
         );
         assert!(haproxy.contains("command:"), "{haproxy}");
         assert!(!haproxy.contains("ports:"), "{haproxy}");
+    }
+
+    #[test]
+    fn the_rabbitmq_unit_uses_the_short_node_name_and_broker_only_alias() {
+        let descriptor = descriptor();
+        let units = host_units(&descriptor);
+        let text = host_yaml(&descriptor, "infra-1", &units["infra-1"]);
+        for expected in [
+            "\n  rabbitmq-broker-infra-1:\n",
+            "hostname: \"rabbitmq-infra-1\"",
+            "RABBITMQ_NODENAME: \"rabbit@rabbitmq-infra-1\"",
+            "RABBITMQ_CONFIG_FILE: \"/var/lib/rabbitmq/rabbitmq.conf\"",
+            "RABBITMQ_ENABLED_PLUGINS_FILE: \"/var/lib/rabbitmq/enabled_plugins\"",
+            "user: \"0:0\"",
+            "/etc/quantrule/rabbitmq/rabbitmq.conf",
+            "/etc/quantrule/rabbitmq/enabled_plugins",
+            "/etc/quantrule/rabbitmq/erlang.cookie",
+            "/etc/quantrule/pki/rabbitmq",
+            "/srv/quantrule/rabbitmq/data",
+            "/srv/quantrule/rabbitmq/definitions",
+            "/srv/quantrule/rabbitmq/conf.d",
+            "install -o rabbitmq -g rabbitmq -m 600 /etc/quantrule/rabbitmq/rabbitmq.conf /var/lib/rabbitmq/rabbitmq.conf",
+            "export RABBITMQ_CONFIG_FILE=/var/lib/rabbitmq/rabbitmq.conf",
+            "gosu rabbitmq rabbitmq-server",
+            "rabbitmq-infra-1",
+        ] {
+            assert!(text.contains(expected), "{expected}: {text}");
+        }
+        assert!(!text.contains("\"rabbitmq\""), "{text}");
+        assert!(!text.contains("\n  rabbitmq:\n"), "{text}");
+        assert!(text.contains("\n  rabbitmq-broker-infra-1:\n"), "{text}");
+        assert!(!text.contains("RABBITMQ_USE_LONGNAME"), "{text}");
+        assert!(!text.contains("ports:"), "{text}");
+        assert!(!text.contains("RABBITMQ_ERLANG_COOKIE:"), "{text}");
+        let edge = host_yaml(&descriptor, "edge-1", &units["edge-1"]);
+        assert!(edge.contains("\"rabbitmq\""), "{edge}");
     }
 
     #[test]

@@ -74,6 +74,14 @@ fn the_plan_names_the_database_failover_and_the_skip_opt_out() {
         "QR_SWARM_EVIDENCE",
         "Unverified",
         "--skip-database",
+        "queue preflight",
+        "queue baseline",
+        "queue loss",
+        "quorum leader",
+        "qr.lab.queue-probe",
+        "queue restore",
+        "--skip-queue",
+        "PLAT-005 MinIO",
         "Real HA is HA-014",
     ] {
         assert!(printed.contains(expected), "{expected}: {printed}");
@@ -113,6 +121,96 @@ fn the_failover_helper_is_valid_bash() {
         output.status.success(),
         "{}",
         String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn the_queue_failover_helper_is_valid_bash() {
+    let output = Command::new("bash")
+        .args([
+            "-n",
+            repo("deploy/v3/queue-failover.sh").to_str().expect("path"),
+        ])
+        .output()
+        .expect("bash -n");
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn the_queue_phase_refuses_a_non_lab_profile() {
+    let script = format!(
+        "unverified() {{ printf 'UNVERIFIED: %s\\n' \"$*\" >&2; exit 1; }}\n\
+         profile='swarm-ha'\n\
+         descriptor='{}'\n\
+         . '{}'\n\
+         queue_preflight\n",
+        repo("deploy/v3/deploy.lab.json").display(),
+        repo("deploy/v3/queue-failover.sh").display()
+    );
+    let output = Command::new("bash")
+        .arg("-c")
+        .arg(script)
+        .output()
+        .expect("run queue_preflight");
+    assert_eq!(output.status.code(), Some(1));
+    assert!(stderr(&output).contains("lab-only"), "{}", stderr(&output));
+}
+
+#[test]
+fn the_queue_cleanup_starts_the_stopped_broker() {
+    let directory = temp_dir();
+    let marker = directory.join("started");
+    let script = format!(
+        "unverified() {{ exit 1; }}\n\
+         remote() {{ printf '%s\\n' \"$*\" > '{}'; }}\n\
+         docker_bin=docker\n\
+         . '{}'\n\
+         q_stopped_host=infra-1\n\
+         q_cleanup\n",
+        marker.display(),
+        repo("deploy/v3/queue-failover.sh").display()
+    );
+    let output = Command::new("bash")
+        .arg("-c")
+        .arg(script)
+        .output()
+        .expect("run q_cleanup");
+    assert!(output.status.success(), "{}", stderr(&output));
+    let text = std::fs::read_to_string(&marker).expect("marker");
+    assert!(text.contains("start"), "{text}");
+    assert!(text.contains("quantrule-rabbitmq-infra-1"), "{text}");
+    let _ = std::fs::remove_dir_all(directory);
+}
+
+#[test]
+fn the_queue_script_keeps_the_evidence_scoped_and_value_free() {
+    let text = std::fs::read_to_string(repo("deploy/v3/queue-failover.sh")).expect("queue");
+    for expected in [
+        "scope: $scope",
+        "queue_level: \"Simulated HA\"",
+        "end_to_end: $end_to_end",
+        "Blocked/Unverified until PLAT-005 MinIO",
+        "HA-014 only",
+        "users/permissions stripped",
+        "q_cleanup",
+        "docker_bin stop",
+        "docker_bin start",
+        "q_survivor_host",
+        "probe_host=${q_survivor_host:-$q_first_broker}",
+    ] {
+        assert!(text.contains(expected), "{expected}");
+    }
+    assert!(
+        !text.contains("docker rm")
+            && !text.contains("docker volume")
+            && !text.contains("purge_queue")
+            && !text.contains("delete_user")
+            && !text.contains("delete_vhost"),
+        "{text}"
     );
 }
 

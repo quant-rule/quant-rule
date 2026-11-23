@@ -163,6 +163,78 @@ fn an_undeclared_stateful_node_is_refused() {
 }
 
 #[test]
+fn rabbitmq_nodes_must_be_odd_and_at_least_three() {
+    let mut value = sample();
+    value["stateful"]["rabbitmq"]["nodes"] =
+        serde_json::json!(["infra-1", "infra-2", "infra-3", "infra-4"]);
+    let error = reject(value);
+    assert!(
+        error.to_string().contains("deploy.stateful.rabbitmq.nodes"),
+        "{error}"
+    );
+    assert!(error.to_string().contains("odd"), "{error}");
+}
+
+#[test]
+fn rabbitmq_alarm_defaults_and_ranges_are_enforced() {
+    let mut value = sample();
+    value["stateful"]["rabbitmq"]
+        .as_object_mut()
+        .expect("rabbitmq")
+        .remove("disk_free_limit_mib");
+    value["stateful"]["rabbitmq"]
+        .as_object_mut()
+        .expect("rabbitmq")
+        .remove("memory_high_watermark_percent");
+    let descriptor = descriptor(value);
+    assert_eq!(descriptor.stateful.rabbitmq.disk_free_limit_mib, 5120);
+    assert_eq!(
+        descriptor.stateful.rabbitmq.memory_high_watermark_percent,
+        60
+    );
+    validate(&descriptor).expect("the defaults validate");
+
+    for (field, bad, code) in [
+        (
+            "disk_free_limit_mib",
+            serde_json::json!(0),
+            "deploy.stateful.rabbitmq.disk_free_limit_mib",
+        ),
+        (
+            "disk_free_limit_mib",
+            serde_json::json!(10_485_761),
+            "deploy.stateful.rabbitmq.disk_free_limit_mib",
+        ),
+        (
+            "memory_high_watermark_percent",
+            serde_json::json!(9),
+            "deploy.stateful.rabbitmq.memory_high_watermark_percent",
+        ),
+        (
+            "memory_high_watermark_percent",
+            serde_json::json!(91),
+            "deploy.stateful.rabbitmq.memory_high_watermark_percent",
+        ),
+    ] {
+        let mut value = sample();
+        value["stateful"]["rabbitmq"][field] = bad;
+        let error = reject(value);
+        assert!(error.to_string().contains(code), "{field}: {error}");
+    }
+}
+
+#[test]
+fn the_queue_endpoint_must_use_the_shared_rabbitmq_alias() {
+    let mut value = sample();
+    value["endpoints"]["queue"]["host"] = serde_json::json!("rabbitmq-infra-1");
+    let error = reject(value);
+    assert!(
+        error.to_string().contains("deploy.endpoint.queue.host"),
+        "{error}"
+    );
+}
+
+#[test]
 fn a_stateful_unit_below_quorum_is_refused() {
     for (unit, minimum) in [
         ("postgres", 3),
