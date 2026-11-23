@@ -14,24 +14,29 @@ COMPOSE ?= docker compose
 QR_URL ?= http://localhost:8080
 CONFIG ?= config/examples/verify-mini/run.json
 REPLICA ?= config/examples/verify-mini-replica/run.json
+SECRETS_DIR ?= secrets
+COMPOSE_ENV = QR_SECRETS_DIR="$(abspath $(SECRETS_DIR))" $(COMPOSE) --env-file "$(abspath $(SECRETS_DIR))/compose.env"
 
-.PHONY: help up down reset logs ps scale gate verify test test-fast test-composed test-parity remote token backup restore dev-web
+.PHONY: help secrets up down reset logs ps scale gate verify test test-fast test-composed test-parity remote token compose-check backup restore dev-web
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*## "; printf "QuantRule make targets\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
-	@printf '\nWindows: docker compose up -d (make is optional).\n'
+	@printf '\nWindows: run wsl bash tools/secrets.sh, then docker compose --env-file secrets\\compose.env up -d.\n'
 	@printf 'Fedora: make up COMPOSE="podman compose".\n'
 
-up: ## Build and start the default stack, wait for health, print the URL
+secrets: ## Create the local secret files (idempotent; FORCE=1 rotates)
+	@./tools/secrets.sh --out "$(abspath $(SECRETS_DIR))" $(if $(FORCE),--force,)
+
+up: secrets ## Build and start the default stack, wait for health, print the URL
 	@command -v curl >/dev/null || { echo "up: curl is required to check /health" >&2; exit 1; }
-	$(COMPOSE) build
-	$(COMPOSE) create gateway
-	@digest="$$($(COMPOSE) images -q gateway | head -n1)"; \
+	$(COMPOSE_ENV) build
+	$(COMPOSE_ENV) create gateway
+	@digest="$$($(COMPOSE_ENV) images -q gateway | head -n1)"; \
 	if [ -z "$$digest" ]; then \
 		echo "up: the built gateway image has no id; cannot record the run identity" >&2; \
 		exit 1; \
 	fi; \
-	QR_IMAGE_DIGEST="$$digest" $(COMPOSE) up -d --wait
+	QR_IMAGE_DIGEST="$$digest" $(COMPOSE_ENV) up -d --wait
 	@curl -fsS "$(QR_URL)/health" >/dev/null
 	@version="$$(curl -fsS "$(QR_URL)/version" | sed -n 's/.*"product":"\([^"]*\)".*/\1/p')"; \
 	if [ -z "$$version" ]; then \
@@ -39,6 +44,12 @@ up: ## Build and start the default stack, wait for health, print the URL
 		exit 1; \
 	fi; \
 	printf 'QuantRule v%s ready → %s\n' "$$version" "$(QR_URL)"
+
+compose-check: ## Validate the local and remote Compose files with disposable secrets
+	@tmp="$$(mktemp -d)"; trap 'rm -rf "$$tmp"' EXIT; \
+	./tools/secrets.sh --out "$$tmp" >/dev/null; \
+	QR_SECRETS_DIR="$$tmp" $(COMPOSE) --env-file "$$tmp/compose.env" -f compose.yaml -f compose.remote.yaml config -q; \
+	echo "compose config ok"
 
 down: ## Stop the stack, keep volumes
 	$(COMPOSE) down
@@ -82,7 +93,7 @@ test-parity: ## Run the port-parity tier
 	./tools/test_tiers.sh parity
 
 remote: ## Start with only :8080 published and a bearer token
-	COMPOSE="$(COMPOSE)" ./tools/remote.sh
+	QR_SECRETS_DIR="$(abspath $(SECRETS_DIR))" COMPOSE="$(COMPOSE)" ./tools/remote.sh
 
 token: ## Print a new bearer token
 	./tools/token.sh

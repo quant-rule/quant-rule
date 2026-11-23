@@ -37,11 +37,16 @@ The role names are fixed:
 
 | Variable | Role | Process |
 |---|---|---|
-| `QR_DATABASE_URL` | the service's `<database>_app` | the long-running gateway, data, evidence, or simulation service |
-| `QR_DATABASE_OWNER_URL` | the service's `<database>_owner` | only the one-shot `<service>-migrate` job |
+| `QR_DATABASE_URL_FILE` | the service's `<database>_app` | the long-running gateway, data, evidence, or simulation service |
+| `QR_DATABASE_OWNER_URL_FILE` | the service's `<database>_owner` | only the one-shot `<service>-migrate` job |
+
+Both variables name a mode-600 file mounted at `/run/secrets`; a plain
+`QR_DATABASE_URL` or `QR_DATABASE_OWNER_URL` is a startup error. The contract is
+[file-backed secrets](../2026-11-23/secret-files.md).
 
 The long-running service must have `QR_MIGRATE=0` and no owner URL. The runtime
-refuses to start if either is present. It opens only the application pool, so a
+refuses to start if either is present, and a database-owning service without its
+application file fails closed. It opens only the application pool, so a
 compromised service process never holds a DDL credential.
 
 The migration job runs the same binary with `--migrate-only`. It opens the owner
@@ -85,11 +90,13 @@ cluster:
 docker compose run --rm db-bootstrap
 ```
 
-The local stack seeds every role from `QR_POSTGRES_PASSWORD`; it is one password
-for eight roles because the local stack is a single-operator development
-deployment. The v2 multi-host profile does the same, so per-role passwords
-remain a v3 (`quantrule.deploy/v3`) concern. The forward-only migration
-contract, the checksum pin, and the failed-job and rollback runbook are in
+The local stack seeds every role from `QR_POSTGRES_PASSWORD`, which
+`make secrets` writes to `secrets/compose.env`; it is one password for eight
+roles because the local stack is a single-operator development deployment. The
+v2 multi-host profile does the same, so per-role passwords remain a v3
+(`quantrule.deploy/v3`) concern. The service URLs are rendered into mode-600
+files, not env values. The forward-only migration contract, the checksum pin,
+and the failed-job and rollback runbook are in
 [`migrations.md`](../../architecture/migrations.md).
 
 ## 5. What changed locally
@@ -111,7 +118,7 @@ that must keep them needs the migration path in the release runbook, or
 | Contract | State | Consequence |
 |---|---|---|
 | `tools/backup.sh`, `tools/restore.sh` | Dump and restore one `quantrule` database | They do not yet archive the four databases; a restore drill must be re-run after the backup change |
-| `qr-deploy` descriptor | v2 remains readable and renders per-service URLs plus migration envs | Per-role password files need v3 (HA-012) |
+| `qr-deploy` descriptor | v2 remains readable and renders per-service `_FILE` envs, mode-600 secret files, and migration envs | Per-role passwords still need v3 (HA-012) |
 | Existing `quantrule` rows | Not migrated | A disposable local stack is reset; a kept stack needs a data migration |
 | Multi-host backup wrapper | Calls the single-database tools | Same limitation |
 
@@ -128,11 +135,11 @@ another service. The contract is
 [`cross-database-consistency.md`](../../architecture/cross-database-consistency.md).
 
 - `cargo test -p quantrule-runtime --test database_topology` checks the Compose
-  URLs, the migration jobs, the stateless services, and the bootstrap's
-  databases, roles, schemas, and grants. It fails when an owner URL appears in a
-  long-running service.
+  `_FILE` variables, the migration jobs, the stateless services, and the
+  bootstrap's databases, roles, schemas, and grants. It fails when a plain
+  secret or an owner URL appears in a long-running service.
 - `cargo test -p quantrule-deploy` checks the rendered service and migration env
-  files and the role URL builder.
+  files, the mode-600 secret files, and the role URL builder.
 - `cargo test -p quantrule-evidence-service --test outbox_conformance` checks
   the notification outbox, the restart re-arm, and the release tombstone against
   the memory store, and the same body against Postgres when

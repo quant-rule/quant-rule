@@ -34,11 +34,10 @@ artifact, or research evidence.
 | 8 | `make backup` | — | One timestamped archive and a SHA-256 sidecar |
 | 9 | `make restore FILE=<archive>` | — | A clean stack restored from the verified archive |
 
-`make remote` requires `QR_POSTGRES_PASSWORD`, `QR_RABBITMQ_PASSWORD`, and
-`QR_OBJECT_STORE_PASSWORD` to be non-default; the local stack keeps the
-documented loopback defaults. It checks the 401/401/200 token matrix before it
-prints the token. The browser stores the token in local storage and sends it
-only as `Authorization: Bearer`; it never enters the URL or page text.
+`make remote` creates missing files under `secrets/` and refuses a documented
+default infrastructure password. It checks the 401/401/200 token matrix before it
+prints the token. The browser stores the token in local storage and sends it only
+as `Authorization: Bearer`; it never enters the URL or page text.
 
 ## Retention fields
 
@@ -59,11 +58,39 @@ evidence are permanent.
 
 | Step | Rule |
 |---|---|
-| Start | `make remote` generates a token when `QR_BEARER_TOKEN` is unset |
+| Start | `make remote` reuses `QR_BEARER_TOKEN` or generates one and writes `secrets/bearer_token` at mode 600 |
 | Browser | Enter it on Connection; **Forget token** removes it |
-| Shell | `--token <token>` or `QUANTRULE_TOKEN`; the token is never printed |
+| Shell | `--token <token>`, `QUANTRULE_TOKEN` or `QUANTRULE_TOKEN_FILE`; the token is never printed |
 | Exposure | Private network or TLS; plain HTTP exposes the header |
-| Reset | Revoke by restarting with a new token; old tokens stop working |
+| Rotate | Run `make remote` with a new value, or copy the file into the gateway and send `SIGHUP`; no restart; the old token is rejected after the swap |
+| Invalid edit | The gateway keeps the last good token and increments `quantrule_auth_reload_failures_total`; it never disables authentication |
+
+The gateway reads only `QR_BEARER_TOKEN_FILE`; a plain `QR_BEARER_TOKEN` in the
+server environment is a startup error. Application secrets are files under
+`/run/secrets`; the image entrypoint stages them for UID 10001 and drops
+privileges. `make secrets` creates the local set and `make up` reuses it
+idempotently. See [file-backed secrets](../config/2026-11-23/secret-files.md).
+
+The simplest rotation is a new operator value and `make remote` again:
+
+```bash
+export QR_BEARER_TOKEN="$(tools/token.sh)"
+make remote
+export QUANTRULE_TOKEN="$QR_BEARER_TOKEN"
+```
+
+To rotate from a file without starting the stack again, copy it into the staged
+path and signal the gateway:
+
+```bash
+tools/token.sh --out secrets/bearer_token
+docker compose -f compose.yaml -f compose.remote.yaml \
+  cp secrets/bearer_token gateway:/run/quantrule-secrets/bearer_token
+docker compose -f compose.yaml -f compose.remote.yaml exec -T -u 0 gateway \
+  sh -c 'chown 10001:10001 /run/quantrule-secrets/bearer_token && chmod 400 /run/quantrule-secrets/bearer_token'
+docker compose -f compose.yaml -f compose.remote.yaml kill -s HUP gateway
+export QUANTRULE_TOKEN="$(cat secrets/bearer_token)"
+```
 
 On a second machine that runs no containers, point the shell at the server and
 use the same token:
@@ -94,9 +121,11 @@ docker compose exec -T data curl -fsS http://127.0.0.1:9090/metrics
 The common families are build identity, process start, readiness, draining,
 dependency health, HTTP request counts, a duration histogram, and in-flight
 requests. The workers add queue depth, worker count, run/stage outcome counters,
-retry and reconnect counters; evidence adds the leader gauge and outbox depth.
-Labels use the route template (`/runs/{id}`) or a fixed queue kind; never a raw
-path, generated queue name or id.
+retry and reconnect counters; evidence adds the leader gauge and outbox depth; the
+gateway adds `quantrule_auth_reload_failures_total` and
+`quantrule_auth_token_age_seconds`. Labels use the route template
+(`/runs/{id}`) or a fixed queue kind; never a raw path, generated queue name or
+id.
 
 `quantrule_ready` is `0` and `quantrule_draining` is `1` as soon as a SIGTERM
 arrives. `/ready` answers `503` with a `draining` detail immediately; `/health`
@@ -225,6 +254,12 @@ schema.
 The exact commands and the rollback conditions are in
 [`migrations.md`](../architecture/migrations.md) section 5.
 
+An existing local stack created before file-backed secrets keeps its old store
+passwords. Export `QR_POSTGRES_PASSWORD`, `QR_RABBITMQ_PASSWORD` and
+`QR_OBJECT_STORE_PASSWORD` with those values before the first `make secrets`, or
+reset a disposable stack with `make reset`. A kept stack needs the coordinated
+password change, not a volume wipe.
+
 ### Queue generation cutover
 
 An upgrade that changes the queue topology does not reuse the old names. Stop
@@ -252,7 +287,8 @@ None of this is research evidence or an edge claim.
 
 | Code or symptom | Cause | Next action |
 |---|---|---|
-| `auth.unauthorized` | Missing or wrong bearer token | Enter the token on Connection, or pass `--token` |
+| `auth.unauthorized` | Missing or wrong bearer token | Enter the token on Connection, or pass `--token`; after a rotation, re-export it |
+| Bearer token reload failure | The token file is missing, empty, short or malformed | Fix the file; the last good token stays active and the reason is counted |
 | `profile.not_found` | The active profile does not exist | Create it, or select an existing one |
 | `profile.invalid` | The profile name failed validation | Use lowercase letters, digits, and hyphens |
 | `run.not_found` | The digest form names an unknown run | Re-read the run list |

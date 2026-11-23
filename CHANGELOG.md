@@ -20,6 +20,11 @@ history is in Git and the pull requests.
 
 ### Added
 
+- Every application secret now arrives as a `*_FILE` value naming an absolute, mode-600 file: `QR_DATABASE_URL_FILE`, `QR_DATABASE_OWNER_URL_FILE`, `QR_QUEUE_URL_FILE`, `QR_BEARER_TOKEN_FILE`, `QR_OBJECT_STORE_ACCESS_KEY_FILE` and `QR_OBJECT_STORE_SECRET_KEY_FILE`. A plain secret variable, both sources together, a relative/missing/oversized file, invalid UTF-8, NUL, an empty value or surrounding whitespace fails startup without printing the value; a database- or queue-owning service without its file fails closed.
+- `make secrets` creates the local `secrets/` directory (mode 700, files 600) with random infrastructure passwords and the per-service secret files; `make up` depends on it and reuses existing values, `FORCE=1` rotates deliberately. `make compose-check` validates both Compose files with disposable secrets. The image entrypoint stages the mounted files for UID 10001 and drops privileges; no service binary runs as root.
+- `qr-deploy render` writes `env/secrets/` at mode 700 with one mode-600 file per secret and renders `_FILE` keys; the multi-host role files mount them at `/run/secrets`.
+- The gateway re-reads `QR_BEARER_TOKEN_FILE` every `QR_TOKEN_RELOAD_SECONDS` (default 5) and on `SIGHUP`, swaps one immutable snapshot, keeps the last good token on an invalid file, and counts `quantrule_auth_reload_failures_total{reason}` with `quantrule_auth_token_age_seconds`. A file present but invalid at startup fails closed.
+- The shell accepts `QUANTRULE_TOKEN_FILE` in addition to `QUANTRULE_TOKEN` and `--token`.
 - SIGTERM starts a real drain: `quantrule_ready=0` and `quantrule_draining=1` immediately, `/ready` answers `503 draining` without probing, `/health` stays live, the HTTP server waits `QR_DRAIN_TIMEOUT_HTTP` (20 s) and a worker `QR_DRAIN_TIMEOUT_WORK` (25 s), and the deadline exits `0` with `drain.deadline_exceeded`. Compose keeps a `40s` stop grace period and the image declares `STOPSIGNAL SIGTERM`.
 - Every service serves `/ready`; the gateway probes each upstream `/ready` instead of `/health`, and the backtest worker gains an internal `/health`, `/ready` and `/metrics` listener.
 - An evidence drain stops the leader consumer, outbox, reconcile, retention and leader election, releases the lease for immediate standby takeover, and never marks an in-flight run failed; the worker leaves an aborted run `running` with its lease for expiry recovery.
@@ -92,13 +97,20 @@ history is in Git and the pull requests.
 - A run claim is lease-based: a queued run is claimable, a running run only when its lease is absent, expired, or continued by the same holder, and a live lease is never stolen. Cancellation increments the term and clears the lease; a terminal run releases it.
 - Evidence finalisation is leader-only: a standby does not consume `run.computed`, and a finalisation that loses the lease is refused instead of acknowledging the delivery.
 - A run erase releases its dataset reference from the committed tombstone rather than a best-effort call, so a crash between the databases leaves a retry instead of a reference that blocks the dataset forever.
-- Each database-owning service receives only its own `QR_DATABASE_URL` and `QR_MIGRATE=0`; model and backtest receive no database URL. The long-running process never receives `QR_DATABASE_OWNER_URL`, so a compromised service cannot reconnect with DDL rights.
+- Each database-owning service receives only its own `QR_DATABASE_URL_FILE` and `QR_MIGRATE=0`; model and backtest receive no database URL. The long-running process never receives `QR_DATABASE_OWNER_URL_FILE`, so a compromised service cannot reconnect with DDL rights.
+- The S3 adapter builds its client from the two file credentials and no longer calls `aws_config::defaults()`; `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and the shared AWS config are not a second secret reader. `QR_OBJECT_STORE_URL` rejects userinfo.
+- `tools/remote.sh` writes the gateway token file instead of exporting it, and `tools/token.sh --out` writes a mode-600 token. The shell reads its own `QUANTRULE_TOKEN_FILE`, never the gateway's mounted file.
+- An existing local volume created with the documented `quantrule` store passwords keeps them. Export `QR_POSTGRES_PASSWORD`, `QR_RABBITMQ_PASSWORD` and `QR_OBJECT_STORE_PASSWORD` with the old values before the first `make secrets`, or reset the disposable stack with `make reset`.
 - A rollback starts the previous image without its migration job: the runner refuses a database ahead of the binary, and the previous image must tolerate the expanded schema.
 - No role is granted connect on another service's database.
 - The multi-host `qr-deploy render` derives the four application URLs, the four migration owner URLs, and the eight role names from the v2 Postgres endpoint, so v2 remains readable.
 
 - The pull-request CI gate is scope-aware: docs, governance, and web scopes skip Rust or web work they cannot observe, and a `gate` aggregator fails when a needed job failed or was wrongly skipped.
 - The policy is now “No Python” repository-wide; current docs, the manual, the registry, and the verification evidence name `qr-governance` checkers instead of the deleted Python scripts.
+
+### Security
+
+- A plain secret environment variable is refused in the server profile, so `docker inspect` and `/proc/<pid>/environ` never carry a DSN, queue URL, token or S3 key. An invalid token file cannot silently disable gateway authentication.
 
 ### Fixed
 

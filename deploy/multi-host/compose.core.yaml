@@ -26,6 +26,8 @@ services:
     restart: "no"
     env_file:
       - env/data-migrate.env
+    secrets:
+      - data_owner_database_url
 
   evidence-migrate:
     image: ${QR_IMAGE}
@@ -35,6 +37,8 @@ services:
     restart: "no"
     env_file:
       - env/evidence-migrate.env
+    secrets:
+      - evidence_owner_database_url
 
   simulation-migrate:
     image: ${QR_IMAGE}
@@ -44,6 +48,8 @@ services:
     restart: "no"
     env_file:
       - env/simulation-migrate.env
+    secrets:
+      - simulation_owner_database_url
 
   data:
     stop_grace_period: 40s
@@ -55,6 +61,10 @@ services:
       QR_INTERNAL_ONLY: "1"
     env_file:
       - env/data.env
+    secrets:
+      - data_database_url
+      - object_store_access_key
+      - object_store_secret_key
     restart: unless-stopped
     depends_on:
       data-migrate:
@@ -82,6 +92,11 @@ services:
       QR_INTERNAL_ONLY: "1"
     env_file:
       - env/evidence.env
+    secrets:
+      - evidence_database_url
+      - queue_url
+      - object_store_access_key
+      - object_store_secret_key
     restart: unless-stopped
     depends_on:
       evidence-migrate:
@@ -103,6 +118,10 @@ services:
       QR_INTERNAL_ONLY: "1"
     env_file:
       - env/simulation.env
+    secrets:
+      - simulation_database_url
+      - object_store_access_key
+      - object_store_secret_key
     restart: unless-stopped
     depends_on:
       simulation-migrate:
@@ -113,3 +132,23 @@ services:
       timeout: 5s
       retries: 6
       start_period: 10s
+
+secrets:
+  data_database_url:
+    file: env/secrets/data_database_url
+  data_owner_database_url:
+    file: env/secrets/data_owner_database_url
+  evidence_database_url:
+    file: env/secrets/evidence_database_url
+  evidence_owner_database_url:
+    file: env/secrets/evidence_owner_database_url
+  simulation_database_url:
+    file: env/secrets/simulation_database_url
+  simulation_owner_database_url:
+    file: env/secrets/simulation_owner_database_url
+  queue_url:
+    file: env/secrets/queue_url
+  object_store_access_key:
+    file: env/secrets/object_store_access_key
+  object_store_secret_key:
+    file: env/secrets/object_store_secret_key

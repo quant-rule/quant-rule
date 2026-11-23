@@ -303,8 +303,9 @@ jobs:
           IMAGE: ${{ steps.reference.outputs.ref }}
         run: |
           digest="$(docker image inspect "$IMAGE" --format '{{.Id}}')"
+          bash tools/secrets.sh
           QR_IMAGE="$IMAGE" QR_IMAGE_DIGEST="$digest" \
-            docker compose up -d --wait --no-build
+            docker compose --env-file secrets/compose.env up -d --wait --no-build
           trap 'docker compose down --volumes --remove-orphans' EXIT
           bash tools/test_tiers.sh composed
 
@@ -347,8 +348,9 @@ jobs:
           IMAGE: ${{ steps.reference.outputs.ref }}
           DIGEST: ${{ steps.digest.outputs.digest }}
         run: |
+          bash tools/secrets.sh
           QR_IMAGE="$IMAGE" QR_IMAGE_DIGEST="$DIGEST" \
-            docker compose up -d --wait --no-build
+            docker compose --env-file secrets/compose.env up -d --wait --no-build
           trap 'docker compose down --volumes --remove-orphans' EXIT
           for attempt in $(seq 1 20); do
             if curl -fsS http://127.0.0.1:8080/health -o health.json; then

@@ -41,6 +41,10 @@ Thumbs.db
 !/data/improvement/index.md
 !/data/improvement/index.json
 
+# Local deployment secrets created by `make secrets`. The values are random and
+# never committed; only `secrets.example`/documentation is tracked.
+/secrets/
+
 # Client build output
 apps/web/node_modules/
 apps/web/dist/

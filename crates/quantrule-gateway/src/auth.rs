@@ -2,13 +2,15 @@
 //!
 //! Remote exposure is a network decision: a private network needs no
 //! application check, and a public port needs one shared secret. When
-//! `QR_BEARER_TOKEN` is set, every API request except health, version, and the
-//! static client must present it. When it is unset there is no check, which is
-//! the documented private-network configuration rather than an implicit
-//! default.
+//! `QR_BEARER_TOKEN_FILE` is configured, every API request except health,
+//! version, and the static client must present the current token. When it is
+//! absent there is no check, which is the documented private-network
+//! configuration rather than an implicit default.
 //!
-//! The token is compared without an early exit so a probe cannot learn the
-//! matching prefix from response timing. It is never logged.
+//! The middleware compares against one immutable snapshot, so a rotation that
+//! lands mid-request cannot change that request's answer. The token is compared
+//! without an early exit so a probe cannot learn the matching prefix from
+//! response timing. It is never logged.
 
 use std::sync::Arc;
 
@@ -39,9 +41,10 @@ pub(crate) async fn authorize(
     request: Request,
     next: Next,
 ) -> Response {
-    let Some(expected) = state.bearer_token.as_deref() else {
+    let Some(source) = state.token_source.as_ref() else {
         return next.run(request).await;
     };
+    let expected = source.current();
     if OPEN_PATHS.contains(&request.uri().path()) {
         return next.run(request).await;
     }

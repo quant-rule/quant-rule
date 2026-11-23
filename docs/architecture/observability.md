@@ -1,6 +1,6 @@
 # Observability
 
-- Status: Current for HA-009 slices 1–2 (metrics, JSON logs, request/trace IDs, drain, readiness, bounded retries, consumer reconnect); `*_FILE` secrets and token rotation remain target for slice 3
+- Status: Current for HA-009 slices 1–3 (metrics, JSON logs, request/trace IDs, drain, readiness, retries, reconnect, file secrets and token rotation)
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 - Issue: [#1107](https://github.com/quant-rule/quant-rule/issues/1107)
@@ -33,6 +33,8 @@ metric name.
 | `quantrule_stages_total` | counter | `state` | Worker stage outcomes |
 | `quantrule_leader` | gauge | `service` | Whether this replica holds the evidence lease |
 | `quantrule_outbox_pending` | gauge | — | Run notifications still to publish |
+| `quantrule_auth_reload_failures_total` | counter | `reason` | Bearer-token reload failures (`read`, `empty`, `format`, `short`) |
+| `quantrule_auth_token_age_seconds` | gauge | — | Age of the token currently in use |
 
 The histogram buckets are fixed at `0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5,
 1, 2.5, 5, 10` seconds plus `+Inf`. The encoder writes families in the table
@@ -80,9 +82,7 @@ object per line.
 | `level` | always | `INFO`, `WARN`, and so on |
 | `target` | always | Rust module target |
 | `message` | when present | Event message |
-| `service` | always | `gateway`, `data`, `model`, `evidence`, `simulation`, `strategy`, `backtest` |
-| `version` | always | Product version |
-| `image_digest` | always | Empty when the process has none |
+| `service`, `version`, `image_digest` | always | Process identity; digest is empty when absent |
 | `instance` | optional | `QR_INSTANCE_ID` or the hostname |
 | `request_id`, `trace_id` | completion event | Boundary identifiers |
 | `method`, `route`, `status`, `duration_ms` | completion event | Request result |
@@ -164,7 +164,7 @@ or the canonical digest.
 
 ## 8. Non-goals and later slices
 
-- Slice 3 owns `*_FILE` secrets, explicit S3 credentials and token rotation.
-- Queue depth is read with a passive declare; a broker management query, a
-  dashboard, an alert and a scrape configuration belong to PLAT-006.
-- No database migration, public API route or command changes in slices 1–2.
+- A token rotation logs a stable reason and never a value, fingerprint or
+  generation; the auth series are gateway-only.
+- Queue depth is read with a passive declare; a broker management query, a dashboard, an alert and a scrape configuration belong to PLAT-006.
+- No database migration, public API route or command changes in HA-009.

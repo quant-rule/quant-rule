@@ -12,6 +12,7 @@ use std::sync::Arc;
 use quantrule_gateway::adapters::postgres::PgProfileStore;
 use quantrule_gateway::profile::ProfileStore;
 use quantrule_gateway::server::{self, AppState, Services};
+use quantrule_gateway::token::TokenSource;
 use quantrule_runtime::backends::{migrate_owner_database, open_service_database};
 use quantrule_runtime::client::{ClientError, DataClient, HttpServiceClient, Service};
 use quantrule_runtime::config::{ConfigError, migrate_only_requested};
@@ -49,6 +50,12 @@ async fn main() -> Result<(), RuntimeError> {
     );
     metrics::start(&config, &metrics).await?;
     tracing::info!("starting gateway");
+
+    let token_source = TokenSource::start(&config, metrics.clone())?;
+    if let Some(source) = &token_source {
+        let _reload = source.spawn_reload(shutdown.clone());
+        tracing::info!("gateway bearer token rotation is armed");
+    }
 
     let mut health = HealthRegistry::named("gateway").with_shutdown(shutdown.clone());
     let profiles: Option<Arc<dyn ProfileStore>> = open_service_database(&config, &mut health)
@@ -100,6 +107,7 @@ async fn main() -> Result<(), RuntimeError> {
             strategy_upstream,
             runs: Some(evidence_upstream),
             simulations: Some(simulation_upstream),
+            token_source,
         },
         drain,
     ));

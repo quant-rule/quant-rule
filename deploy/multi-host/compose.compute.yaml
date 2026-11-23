@@ -20,6 +20,9 @@ services:
       QR_INTERNAL_ONLY: "1"
     env_file:
       - env/model.env
+    secrets:
+      - object_store_access_key
+      - object_store_secret_key
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://$${QR_BIND_IP}:$${QR_BIND_PORT}/health | grep -q '\"state\":\"healthy\"'"]
@@ -36,7 +39,19 @@ services:
     network_mode: host
     env_file:
       - env/backtest.env
+    secrets:
+      - queue_url
+      - object_store_access_key
+      - object_store_secret_key
     restart: unless-stopped
     # A worker serves no HTTP and publishes no liveness probe, so it has no
     # healthcheck. Docker reports the process state; the gateway's /ready
     # reports whether the run path has a worker.
+
+secrets:
+  queue_url:
+    file: env/secrets/queue_url
+  object_store_access_key:
+    file: env/secrets/object_store_access_key
+  object_store_secret_key:
+    file: env/secrets/object_store_secret_key

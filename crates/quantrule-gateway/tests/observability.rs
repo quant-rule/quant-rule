@@ -199,6 +199,8 @@ async fn the_gateway_registry_has_only_its_own_families_and_no_raw_path() {
             "quantrule_stages_total",
             "quantrule_leader",
             "quantrule_outbox_pending",
+            "quantrule_auth_reload_failures_total",
+            "quantrule_auth_token_age_seconds",
         ])
     );
     assert!(

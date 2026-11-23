@@ -22,7 +22,7 @@ the same canonical digest as the single-host stack.
 | Container runtime | Docker Engine and Compose on every host |
 | Image | The same `quantrule-server` image on every host; build once and distribute |
 | Repository | The tree that contains `deploy/multi-host/` and `qr-deploy` |
-| Secrets | A `secrets.env` file with non-default database, object-store, queue, and token values |
+| Secrets | A `secrets.env` file with non-default database, object-store, queue, and token values; `qr-deploy render` turns them into mode-600 files |
 | Network | Private overlay addresses for every host; no public port except the gateway |
 
 Do not start this profile while the single-host stack owns
@@ -38,11 +38,11 @@ Do not start this profile while the single-host stack owns
 | 4 | build host | Copy `deploy.example.json` to `deploy.json`; set the image reference/digest, host addresses, and ports | One descriptor |
 | 5 | build host | Create `secrets.env` from `secrets.example.env`; replace every placeholder | Owner-only file |
 | 6 | build host | `qr-deploy validate deploy.json --secrets secrets.env` | `ok: …`, no error |
-| 7 | build host | `qr-deploy render deploy.json --out deploy/multi-host/env --secrets secrets.env` | Eleven env files: six services, four migrations, and infra; the services carry app URLs only |
+| 7 | build host | `qr-deploy render deploy.json --out deploy/multi-host/env --secrets secrets.env` | Eleven env files plus `env/secrets/`; the services name `_FILE` paths, never a plain secret |
 | 8 | infra host | Copy the `deploy/` directory, `compose.infra.yaml`, and `env/infra.env`; start the infra role | Postgres, MinIO, RabbitMQ healthy; `db-bootstrap` created the four databases and roles |
-| 9 | core host | Copy `compose.core.yaml`, `env/data.env`, `env/data-migrate.env`, `env/evidence.env`, `env/evidence-migrate.env`, `env/simulation.env`, `env/simulation-migrate.env`, and `config/`; start the three services | Migration jobs complete; three healthy endpoints |
-| 10 | compute host | Copy `compose.compute.yaml`, `env/model.env`, `env/backtest.env`; start `model` and `--scale backtest=<replicas>` | Model healthy; workers consuming |
-| 11 | gateway host | Copy `compose.gateway.yaml`, `env/gateway.env`, `env/gateway-migrate.env`; start the gateway | `gateway-migrate` completes; `/ready` healthy |
+| 9 | core host | Copy `compose.core.yaml`, the four core env files, and `env/secrets/`; start the three services | Migration jobs complete; three healthy endpoints |
+| 10 | compute host | Copy `compose.compute.yaml`, `env/model.env`, `env/backtest.env`, and the needed `env/secrets/` files; start `model` and `--scale backtest=<replicas>` | Model healthy; workers consuming |
+| 11 | gateway host | Copy `compose.gateway.yaml`, `env/gateway.env`, `env/gateway-migrate.env`, and `env/secrets/`; start the gateway | `gateway-migrate` completes; `/ready` healthy |
 | 12 | gateway or overlay host | `qr-deploy check deploy.json --secrets secrets.env` | HTTP services `ok`, one reported digest; worker `SKIP` |
 | 13 | compute host | `docker ps --filter name=backtest`; `docker image inspect --format '{{.Id}}' <image>` | Worker present; image ID matches |
 | 14 | client | `QUANTRULE_API_URL=http://<gateway>:8080/api/v1`; `quantrule health` | Connected |
@@ -51,7 +51,15 @@ Do not start this profile while the single-host stack owns
 
 Each host needs only the files for the services it runs. The image is already
 loaded; the Compose files use `network_mode: host` and the env file's
-`QR_BIND_IP`/`QR_BIND_PORT`.
+`QR_BIND_IP`/`QR_BIND_PORT`. Copy the `env/secrets/` files a role mounts at mode
+600; an env file names `/run/secrets/<name>`, never the value. `qr-deploy check`
+still reads `secrets.env` on the operator host.
+
+Rotate the gateway token with the [manual 08 steps](08-operations.md): replace
+`env/secrets/bearer_token` on the gateway host, copy it into the gateway's
+staged path, and send `SIGHUP`. The next request sees the new value without a
+restart; an invalid file keeps the last good token. The v3 Swarm secret objects
+and `secrets.files` are HA-012.
 
 The v2 profile runs one data, one simulation and one evidence instance. Two
 data replicas are an HA capability and require the

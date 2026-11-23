@@ -97,7 +97,7 @@ older multi-host profile.
 | `network.public_port` | Exactly `443` |
 | `ingress.dns` | `quantrule.dev` |
 | `ingress.tls` | `cert` or `acme`; no plain HTTP |
-| `auth.gateway_token_file` | A file, never a literal secret |
+| `auth.gateway_token_file` | A file, never a literal secret; the HA-009 `QR_BEARER_TOKEN_FILE` rotation contract applies |
 | `hosts` | Address and failure domain for every host |
 | `databases` | Four logical databases and app roles |
 | `services` | Replica count and host placement for seven services |

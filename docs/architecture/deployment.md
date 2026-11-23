@@ -15,7 +15,8 @@ cd quant-rule
 make up
 ```
 
-`make up` builds the image, starts the stack, waits for health, and prints:
+`make up` creates missing local secret files under `secrets/`, builds the image,
+starts the stack, waits for health, and prints:
 
 ```text
 QuantRule v1.4.2 ready → http://localhost:8080
@@ -26,7 +27,7 @@ confirmation, and `yes | make reset` is the scripted form. Windows runs the same
 Compose file without make:
 
 ```powershell
-docker compose up -d --build --wait
+wsl bash tools/secrets.sh; docker compose --env-file secrets/compose.env up -d --build --wait
 ```
 
 Fedora may use Docker Engine or Podman: `make up COMPOSE="podman compose"`. The
@@ -64,24 +65,25 @@ simulation replica; HA requires [data active/active](data-active-active.md) and
 [simulation concurrency](simulation-concurrency.md). The MinIO image and the
 database/migration contracts are pinned in
 [four-databases](../config/2026-11-22/four-databases.md) and [migrations.md](migrations.md).
+
 ## 3. Make targets
 
 | Target | Effect |
 |---|---|
 | `make` / `make help` | List every target |
-| `make up` | Build, start, wait for health, print URL |
+| `make up` / `make secrets` | Create missing secret files (`FORCE=1` rotates), build, start, wait for health, print URL |
 | `make down` | Stop, keep volumes |
 | `make reset` | Stop and delete volumes, after confirmation |
-| `make logs` | Tail all services |
-| `make ps` | Status table |
+| `make logs` / `make ps` | Tail all services / status table |
 | `make scale N=4` | Scale `model` and `backtest` to `N` |
 | `make verify` | Submit the two fixture configs through the gateway and print the canonical digest |
 | `make test` / `make test-fast` | Fast unit and integration tier, no network |
 | `make test-composed` | Composed tier against a running stack |
 | `make test-parity` | Port-parity tier |
 | `make gate` | Full workspace gate |
-| `make remote` | Start with only `:8080` published and a bearer token; print the token and usage |
-| `make token` | Print a new 256-bit bearer token; writes no file |
+| `make remote` | Layer `compose.remote.yaml`, write `secrets/bearer_token`, publish only `:8080`, print the token and usage |
+| `make token` | Print a new 256-bit bearer token; `--out` writes a mode-600 file |
+| `make compose-check` | Validate both Compose files with disposable secrets |
 | `make backup` | Dump Postgres (one database until the four-database archive lands) and mirror objects |
 | `make restore FILE=…` | Restore into a clean stack |
 | `make dev-web` | Bun dev server for the web client, proxying `localhost:8080` |
@@ -89,16 +91,18 @@ database/migration contracts are pinned in
 ## 3.1 Remote profile
 
 `make remote` reads `QR_BEARER_TOKEN` or generates one with `tools/token.sh`,
-exports it to the gateway, starts the stack, and prints the token plus a `curl`
-example. Only the gateway publishes `:8080`; every other container stays on the
-bridge network. The script checks the 401/401/200 matrix and the published port
-set on every start.
+writes `secrets/bearer_token` at mode 600, layers `compose.remote.yaml`, starts
+the stack, and prints the token plus a `curl` example. Only the gateway publishes
+`:8080`; every other container stays on the bridge network. The script checks the
+401/401/200 matrix and the published ports. Rotate by running `make remote` with a
+new `QR_BEARER_TOKEN`; it installs the staged file and signals a reload.
 
 Never expose `:8080` to the public internet: use WireGuard or Tailscale, or
 terminate TLS at a reverse proxy. The browser enters the token on the Connection
-screen and the shell accepts `--token` or `QUANTRULE_TOKEN`; both send
-`Authorization: Bearer` on every gateway request. API clients do the same; details
-in [`security.md`](security.md) §2.
+screen and the shell accepts `--token`, `QUANTRULE_TOKEN` or
+`QUANTRULE_TOKEN_FILE`; both send `Authorization: Bearer` on every gateway
+request. API clients do the same; details in [`security.md`](security.md) §2.
+
 ## 4. Configuration
 
 Two sources, one catalog:
@@ -108,43 +112,39 @@ Two sources, one catalog:
 | Repository `config/`, mounted read-only | Git-tracked run configs; the research loop, unchanged |
 | `POST /catalog/configs` | A config that is not in the repository |
 
-The mount is read-only and resolved by the `data` service. A config outside the
-mount is never read from an arbitrary path. Every config receives a
-`config_hash`, so the origin does not affect reproducibility.
-
-Environment variables only for service configuration. No config file is required
-to start.
+The mount is read-only and resolved by `data`; a path outside it is never read.
+Every config receives a `config_hash`, so origin does not affect reproducibility.
+Service configuration is environment variables only; no config file is required.
 
 | Variable | Default | Purpose |
 |---|---|---|
 | `QR_IMAGE_DIGEST` | image label; `make up` records the built image id | Required for a run/stage submission; reported by `/health` and written to provenance. A server without it refuses the submission. |
 | `QR_INTERNAL_ONLY` | unset | When `1`, an HTTP service refuses a public or unspecified bind; the multi-host profile sets it on the internal services. |
-| `QR_DATABASE_URL` / `QR_DATABASE_OWNER_URL` | compose value | The long-running service's `<database>_app` / the one-shot `<service>-migrate` job's `<database>_owner`; model and backtest receive neither; long-running services require `QR_MIGRATE=0` |
+| `QR_DATABASE_URL_FILE` / `QR_DATABASE_OWNER_URL_FILE` | secret file | The app role of a long-running service / the owner role of its one-shot migration job; model and backtest receive neither; long-running services require `QR_MIGRATE=0` |
 | `QR_DATA_URL` | compose value | Data service, used by the gateway, worker and strategy service |
 | `QR_MODEL_URL` / `QR_SIMULATION_URL` | compose value | Model service / simulation service, used by the gateway |
 | `QR_EVIDENCE_URL` | compose value | Evidence service, used by the gateway and the backtest worker |
 | `QR_STRATEGY_URL` | compose value | Optional strategy probe; v2 leaves it absent and still starts |
-| `QR_OBJECT_STORE_URL` | compose value | MinIO endpoint |
-| `QR_QUEUE_URL` / `QR_QUEUE_GENERATION` | compose value / `1` | RabbitMQ endpoint / queue-generation suffix; a changed queue declaration uses a new generation |
+| `QR_OBJECT_STORE_URL` | compose value | MinIO endpoint without userinfo |
+| `QR_OBJECT_STORE_ACCESS_KEY_FILE` / `QR_OBJECT_STORE_SECRET_KEY_FILE` | secret file | The explicit S3 credentials; no AWS default chain |
+| `QR_QUEUE_URL_FILE` / `QR_QUEUE_GENERATION` | secret file / `1` | RabbitMQ endpoint / queue-generation suffix; a changed queue declaration uses a new generation |
 | `QR_LEADER_ID` | hostname + process id | Evidence leader holder; a distinct value per replica makes logs clear, and the term, not the holder, is the fence |
 | `QR_UPLOAD_LIMIT_BYTES` | `536870912` | Dataset upload cap; a config bundle is capped at 4 MiB separately |
-| `QR_BEARER_TOKEN` | empty | Enables the token check when set |
+| `QR_BEARER_TOKEN_FILE` | unset | Enables authentication when set; the gateway re-reads it every `QR_TOKEN_RELOAD_SECONDS` and on `SIGHUP` |
 | `QR_BACKTEST_CONCURRENCY` | `1` | Runs per worker |
 | `QR_STAGE_RETENTION_DAYS` | `30` | Diagnostic stage retention in days |
 | `QR_DRAIN_TIMEOUT_HTTP` / `QR_DRAIN_TIMEOUT_WORK` | `20` / `25` | SIGTERM grace for a request and a run; `1`–`300` seconds; Compose waits `40s` |
 | `QR_LOG_FORMAT` / `QR_METRICS_BIND` | `json` / unset | JSON logs (`text` opt-in) / internal Prometheus listener; unset disables it, and it is never published |
-| Store passwords | `quantrule` on the loopback stack | `QR_POSTGRES_PASSWORD` seeds every database role; `QR_RABBITMQ_PASSWORD` and `QR_OBJECT_STORE_PASSWORD`; all required non-default for `make remote` |
+| Store passwords | random from `make secrets` | `QR_POSTGRES_PASSWORD` seeds every database role; `QR_RABBITMQ_PASSWORD` and `QR_OBJECT_STORE_PASSWORD`; `FORCE=1` rotates deliberately |
 
-A config bundle is capped at 4 MiB by the config route, independently of `QR_UPLOAD_LIMIT_BYTES`; a larger config returns `413 upload.too_large`. Secrets come from the environment; no secret is committed.
+A config bundle is capped at 4 MiB by the config route, independently of `QR_UPLOAD_LIMIT_BYTES`; a larger config returns `413 upload.too_large`. Secrets come from files; no secret is committed.
 ## 5. Distribution profile
 
 QuantRule ships one deployment profile: the Linux image with Postgres, S3, and
-RabbitMQ. The embedded desktop profile, SQLite, filesystem CAS, and in-process
-queue are retired.
-
-Clients are the browser and the `quantrule` CLI on Windows and Linux. macOS is
-unsupported in the next release. A local server uses Docker or Podman Compose on Linux, or
-Docker Desktop on Windows.
+RabbitMQ; the embedded desktop profile, SQLite, filesystem CAS, and in-process
+queue are retired. Clients are the browser and the `quantrule` CLI on Windows and
+Linux; macOS is unsupported next release. A local server uses Docker or Podman
+Compose on Linux, or Docker Desktop on Windows.
 
 ## 6. Split host
 

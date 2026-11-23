@@ -75,7 +75,7 @@ LABEL org.opencontainers.image.title="quantrule-server" \
 # interpreter and the constraint is no `.py` file, so the debugger helpers are
 # removed rather than left as dead weight.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl \
+    && apt-get install -y --no-install-recommends ca-certificates curl util-linux \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --system --gid 10001 quantrule \
     && useradd --system --uid 10001 --gid quantrule \
@@ -101,7 +101,11 @@ ENV QR_STATIC_DIR=/srv/static \
     QR_CONFIG_ROOT=/srv/config \
     QR_BIND=0.0.0.0:8080
 
-USER 10001:10001
+# The entrypoint starts as root only to stage mode-600 file secrets into a
+# private directory owned by the service user, then drops to UID 10001 before
+# exec. No service binary runs as root; the host and Compose secret mounts stay
+# owner-only.
+USER 0:0
 WORKDIR /srv/quantrule
 EXPOSE 8080
 

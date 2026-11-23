@@ -21,3 +21,4 @@ pub mod profile;
 pub mod server;
 mod signal_proxy;
 pub mod static_files;
+pub mod token;

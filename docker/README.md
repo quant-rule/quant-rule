@@ -26,9 +26,10 @@ The seven binaries come from seven packages, one per service:
 `quantrule-evidence-service`, `quantrule-simulation-service`, and
 `quantrule-strategy-service`.
 
-The runtime is Debian slim with `ca-certificates` and `curl`, and it runs as
-UID 10001. It carries no Python interpreter, no Bun runtime, no Rust toolchain,
-and no `tools/` directory.
+The runtime is Debian slim with `ca-certificates`, `curl` and `setpriv`. The
+entrypoint starts as root only to stage mode-600 file secrets for the service
+user, then every service binary runs as UID 10001. It carries no Python
+interpreter, no Bun runtime, no Rust toolchain, and no `tools/` directory.
 
 ## 2. Build and run
 
@@ -128,9 +129,10 @@ docker run --rm quantrule-server:test sh -c 'find / -name "*.py" 2>/dev/null | h
 ## 6. Configuration
 
 The image sets only paths: `QR_STATIC_DIR=/srv/static` and
-`QR_CONFIG_ROOT=/srv/config`. Compose supplies the database, object store, and
-broker URLs plus the MinIO credentials through the AWS environment. Every
-credential has a local default and can be overridden:
+`QR_CONFIG_ROOT=/srv/config`. Compose supplies the non-secret service URLs and
+mounts every application secret as a mode-600 file; the env variable names the
+path through `_FILE`. The S3 client uses those two file credentials, not the AWS
+environment. `make secrets` creates the local set:
 
 | Variable | Purpose |
 |---|---|
@@ -140,12 +142,16 @@ credential has a local default and can be overridden:
 | `QR_MODEL_URL` | Model-service base URL used by the gateway |
 | `QR_EVIDENCE_URL` | Evidence-service base URL used by the gateway and the backtest worker |
 | `QR_SIMULATION_URL` | Simulation-service base URL used by the gateway |
-| `QR_DATABASE_URL` | The long-running service's `<database>_app` role; model and backtest receive none |
-| `QR_DATABASE_OWNER_URL` | The one-shot `<service>-migrate` job's `<database>_owner` role; never set on a long-running service |
-| `QR_POSTGRES_PASSWORD` | Seeds every database role in the local stack |
-| `QR_OBJECT_STORE_PASSWORD` | MinIO root password and the S3 secret |
-| `QR_RABBITMQ_PASSWORD` | Broker password and the service URL |
+| `QR_DATABASE_URL_FILE` | The long-running service's `<database>_app` role file; model and backtest receive none |
+| `QR_DATABASE_OWNER_URL_FILE` | The one-shot `<service>-migrate` job's `<database>_owner` role file; never set on a long-running service |
+| `QR_QUEUE_URL_FILE` | Broker URL file used by evidence and backtest |
+| `QR_OBJECT_STORE_ACCESS_KEY_FILE` / `QR_OBJECT_STORE_SECRET_KEY_FILE` | The explicit S3 credential files |
+| `QR_BEARER_TOKEN_FILE` | Gateway token file; unset keeps the local unauthenticated profile |
+| `QR_POSTGRES_PASSWORD` / `QR_OBJECT_STORE_PASSWORD` / `QR_RABBITMQ_PASSWORD` | Local infrastructure bootstrap values, written by `make secrets` |
 | `QR_OBJECT_STORE_IMAGE` | Object-store image reference |
+
+A plain `QR_DATABASE_URL`, `QR_QUEUE_URL`, `QR_BEARER_TOKEN`,
+`QR_OBJECT_STORE_ACCESS_KEY` or `QR_OBJECT_STORE_SECRET_KEY` is a startup error.
 
 ## 7. Host smoke notes
 
@@ -156,13 +162,14 @@ Windows (Docker Desktop with the WSL2 Linux backend):
 
 ```powershell
 docker context use desktop-linux
-docker compose config
-docker compose build
-docker compose create gateway
-$env:QR_IMAGE_DIGEST = (docker compose images -q gateway | Select-Object -First 1)
-docker compose up -d --wait
+wsl bash tools/secrets.sh
+docker compose --env-file secrets/compose.env config
+docker compose --env-file secrets/compose.env build
+docker compose --env-file secrets/compose.env create gateway
+$env:QR_IMAGE_DIGEST = (docker compose --env-file secrets/compose.env images -q gateway | Select-Object -First 1)
+docker compose --env-file secrets/compose.env up -d --wait
 curl.exe -fsS http://localhost:8080/health
-docker compose down
+docker compose --env-file secrets/compose.env down
 ```
 
 The explicit `QR_IMAGE_DIGEST` is the Windows equivalent of `make up`. Without

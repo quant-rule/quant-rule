@@ -63,8 +63,8 @@ pub async fn migrate_owner_database(
 ///
 /// # Errors
 ///
-/// Returns [`RuntimeError::Config`] when migration is enabled or an owner URL is
-/// present.
+/// Returns [`RuntimeError::Config`] when migration is enabled, an owner URL is
+/// present, or the application URL did not come from its file.
 pub async fn open_service_database(
     config: &Config,
     health: &mut HealthRegistry,
@@ -84,7 +84,8 @@ pub async fn open_service_database(
         }));
     }
 
-    match PgDatabase::connect(&config.database_url).await {
+    let database_url = config.require_database_url()?;
+    match PgDatabase::connect(database_url).await {
         Ok(database) => {
             let ping = database.clone();
             health.register("postgres", move || {
@@ -112,10 +113,35 @@ pub struct Objects {
 impl Objects {
     /// Build the S3-compatible object store.
     ///
-    /// An unreachable endpoint is a health report, not a startup error.
+    /// The two credentials are required: the runtime resolved them from
+    /// `QR_OBJECT_STORE_ACCESS_KEY_FILE` and `QR_OBJECT_STORE_SECRET_KEY_FILE`,
+    /// and a missing pair fails startup closed instead of falling back to the
+    /// AWS default chain. An unreachable endpoint is a health report, not a
+    /// startup error.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RuntimeError::Config`] when either credential is absent.
     pub async fn open(config: &Config) -> Result<Self, RuntimeError> {
+        let access_key = config
+            .object_store_access_key
+            .as_deref()
+            .ok_or(ConfigError::Missing {
+                name: "QR_OBJECT_STORE_ACCESS_KEY_FILE",
+            })?;
+        let secret_key = config
+            .object_store_secret_key
+            .as_deref()
+            .ok_or(ConfigError::Missing {
+                name: "QR_OBJECT_STORE_SECRET_KEY_FILE",
+            })?;
         Ok(Self {
-            store: S3Store::new(&config.object_store_url, &config.object_store_bucket).await,
+            store: S3Store::new(
+                &config.object_store_url,
+                &config.object_store_bucket,
+                access_key,
+                secret_key,
+            ),
         })
     }
 
@@ -168,11 +194,13 @@ impl ControlQueue {
     ///
     /// # Errors
     ///
-    /// Returns [`RuntimeError::Queue`] when the broker cannot be reached.
+    /// Returns [`RuntimeError::Config`] when the queue URL did not come from its
+    /// file, and [`RuntimeError::Queue`] when the broker cannot be reached.
     pub async fn open(config: &Config) -> Result<Self, RuntimeError> {
+        let queue_url = config.require_queue_url()?;
         Ok(Self {
             queue: Arc::new(
-                RabbitQueue::connect(&config.queue_url, config.queue_names())
+                RabbitQueue::connect(queue_url, config.queue_names())
                     .await
                     .map_err(|error| RuntimeError::Queue(error.to_string()))?,
             ),
@@ -270,5 +298,66 @@ mod tests {
             .await
             .expect_err("QR_MIGRATE=1 must be refused");
         assert!(error.to_string().contains("QR_MIGRATE"));
+    }
+
+    #[tokio::test]
+    async fn a_long_running_service_requires_a_file_backed_database_url() {
+        let config = Config {
+            migrate: false,
+            ..Config::default()
+        };
+        let mut health = HealthRegistry::new();
+        let error = open_service_database(&config, &mut health)
+            .await
+            .expect_err("a default URL must not be a secret fallback");
+        assert!(
+            error.to_string().contains("QR_DATABASE_URL_FILE"),
+            "{error}"
+        );
+    }
+
+    #[tokio::test]
+    async fn the_control_queue_requires_a_file_backed_queue_url() {
+        let error = ControlQueue::open(&Config::default())
+            .await
+            .expect_err("a default queue URL must not be a secret fallback");
+        assert!(error.to_string().contains("QR_QUEUE_URL_FILE"), "{error}");
+    }
+
+    #[tokio::test]
+    async fn the_object_store_requires_both_file_backed_credentials() {
+        let missing = Objects::open(&Config::default())
+            .await
+            .expect_err("no credentials must fail closed");
+        assert!(
+            missing
+                .to_string()
+                .contains("QR_OBJECT_STORE_ACCESS_KEY_FILE"),
+            "{missing}"
+        );
+
+        let only_access = Config {
+            object_store_access_key: Some("quantrule".to_owned()),
+            ..Config::default()
+        };
+        let missing = Objects::open(&only_access)
+            .await
+            .expect_err("a lone access key must fail closed");
+        assert!(
+            missing
+                .to_string()
+                .contains("QR_OBJECT_STORE_SECRET_KEY_FILE"),
+            "{missing}"
+        );
+
+        let configured = Config {
+            object_store_access_key: Some("quantrule".to_owned()),
+            object_store_secret_key: Some("sentinel-secret".to_owned()),
+            ..Config::default()
+        };
+        let objects = Objects::open(&configured)
+            .await
+            .expect("explicit credentials");
+        assert_eq!(objects.name(), "s3");
     }
 }
