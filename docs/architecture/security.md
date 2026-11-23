@@ -1,6 +1,6 @@
 # Security
 
-- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); multi-host overlay added 2026-11-20; internal TLS added 2026-11-23 (#1108); approved 2026-11-12
+- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); multi-host overlay added 2026-11-20; internal TLS added 2026-11-23 (#1108); PLAT-002 ingress check rows, private-CA client trust, and ingress-loss lab added 2026-11-23; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Decision: [`ADR-2026-11-12-03`](../adr/2026-11-12/03-single-principal-no-accounts.md)
 - Claim type: Behaviour Claim
@@ -53,7 +53,7 @@ origin's `localStorage`, and sends it on every API call. The shell reads
 `--token`, `QUANTRULE_TOKEN` or `QUANTRULE_TOKEN_FILE`, sends it on every gateway
 request, and stores it in no file. The browser turns a `401` into a
 token-required state; the shell prints the envelope's `auth.unauthorized` code.
-A rotated token is entered again. Do not forward `:8080` to the public internet. Keep it on a private network, or
+A rotated token is entered again; during a two-replica rotation either token can be accepted for a short overlap, a recorded residual risk rather than a second auth layer. Do not forward `:8080` to the public internet. Keep it on a private network, or
 terminate TLS at a reverse proxy in front of the gateway; the gateway itself
 serves plain HTTP. A reverse proxy that injects the token grants every visitor
 the same principal, so it is a private-network tool, not an account system.
@@ -143,7 +143,7 @@ Every rejection returns a code a client can act on and a message a human can rea
 
 - PostgreSQL, RabbitMQ and MinIO use TLS with `verify-full`/`amqps`/`https` and a
   private CA bundle; a missing CA fails closed.
-- Internal service-to-service HTTP stays plaintext on the encrypted overlay.
+- Internal HTTP stays plaintext on the encrypted overlay; ingress TLS 1.2+ terminates at Traefik behind a keepalived VIP, port 80 is closed, and HSTS is set. `qr-deploy check` proves the cert SAN/expiry, headers, port-80 closure, and ingress mounts; the shell trusts the private CA with `QUANTRULE_CA_CERT`, the browser through its OS trust store.
   From a client, TLS terminates at the ingress or the private network provides
   transport security; a bearer token without TLS is readable on the path.
 - The gateway never forwards a client path or header to a worker unchecked.

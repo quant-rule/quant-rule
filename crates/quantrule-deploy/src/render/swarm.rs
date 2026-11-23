@@ -13,6 +13,9 @@ use std::path::PathBuf;
 use crate::descriptor::v3::{Descriptor, IngressTls, Profile, Service};
 use crate::error::Error;
 
+use super::ingress::{
+    INGRESS_CERT_CONFIG, INGRESS_KEY_SECRET, TRAEFIK_CONFIG, TRAEFIK_DYNAMIC_CONFIG,
+};
 use super::yaml::Yaml;
 use super::{
     APP_SERVICES, app_image, create_dir, evidence_tier, pinned, safe_component,
@@ -35,12 +38,6 @@ pub const DATABASE_CA_CONFIG: &str = "quantrule_database_ca";
 pub const QUEUE_CA_CONFIG: &str = "quantrule_queue_ca";
 /// The external config name for the object-store CA.
 pub const OBJECT_STORE_CA_CONFIG: &str = "quantrule_object_store_ca";
-/// The external config name PLAT-002 owns for the Traefik file provider.
-pub const TRAEFIK_CONFIG: &str = "quantrule_traefik";
-/// The external config name for an operator-supplied ingress certificate.
-pub const INGRESS_CERT_CONFIG: &str = "quantrule_ingress_cert";
-/// The external secret name for an operator-supplied ingress key.
-pub const INGRESS_KEY_SECRET: &str = "quantrule_ingress_key";
 
 /// Write the Swarm stack, its bootstrap script, and the ordered job scripts.
 pub fn render(
@@ -98,6 +95,7 @@ pub fn stack_yaml(descriptor: &Descriptor) -> Result<String, Error> {
         QUEUE_CA_CONFIG,
         OBJECT_STORE_CA_CONFIG,
         TRAEFIK_CONFIG,
+        TRAEFIK_DYNAMIC_CONFIG,
     ] {
         configs.insert(name.to_owned(), external(name));
     }
@@ -139,7 +137,7 @@ fn metadata(descriptor: &Descriptor) -> Yaml {
         .with(
             "platform",
             Yaml::string(
-                "Traefik/ACME, Patroni, RabbitMQ, MinIO, and observability configuration belong to PLAT-002..006",
+                "Traefik ingress configuration is PLAT-002; Patroni, RabbitMQ, MinIO, and observability configuration belong to PLAT-003..006",
             ),
         )
 }
@@ -477,11 +475,14 @@ fn mount_yaml(mount: &Mount) -> Yaml {
 }
 
 fn ingress_yaml(descriptor: &Descriptor) -> Yaml {
-    let mut configs = vec![config_mount(TRAEFIK_CONFIG, "/etc/traefik/traefik.yml")];
+    let mut configs = vec![
+        config_mount(TRAEFIK_CONFIG, "/etc/traefik/traefik.yml"),
+        config_mount(TRAEFIK_DYNAMIC_CONFIG, "/etc/traefik/dynamic/dynamic.yml"),
+    ];
     if descriptor.ingress.tls == IngressTls::Cert {
         configs.push(config_mount(
             INGRESS_CERT_CONFIG,
-            "/etc/quantrule/tls/tls.crt",
+            "/etc/traefik/certs/ingress.crt",
         ));
     }
     let mut service = Yaml::map()
@@ -514,7 +515,10 @@ fn ingress_yaml(descriptor: &Descriptor) -> Yaml {
     if descriptor.ingress.tls == IngressTls::Cert {
         service = service.with(
             "secrets",
-            Yaml::list([mount_yaml(&secret(INGRESS_KEY_SECRET, INGRESS_KEY_SECRET))]),
+            Yaml::list([mount_yaml(&secret(
+                INGRESS_KEY_SECRET,
+                "/etc/traefik/certs/ingress.key",
+            ))]),
         );
     }
     service
@@ -686,6 +690,25 @@ mod tests {
             1,
             "{text}"
         );
+    }
+
+    #[test]
+    fn the_ingress_mounts_the_static_dynamic_and_cert_objects() {
+        let text = stack_yaml(&descriptor()).expect("stack");
+        for expected in [
+            "source: \"quantrule_traefik\"",
+            "target: \"/etc/traefik/traefik.yml\"",
+            "source: \"quantrule_traefik_dynamic\"",
+            "target: \"/etc/traefik/dynamic/dynamic.yml\"",
+            "source: \"quantrule_ingress_cert\"",
+            "target: \"/etc/traefik/certs/ingress.crt\"",
+            "source: \"quantrule_ingress_key\"",
+            "target: \"/etc/traefik/certs/ingress.key\"",
+        ] {
+            assert!(text.contains(expected), "{expected}: {text}");
+        }
+        assert!(!text.contains("/etc/quantrule/tls"), "{text}");
+        assert!(!text.contains("published: 80"), "{text}");
     }
 
     #[test]

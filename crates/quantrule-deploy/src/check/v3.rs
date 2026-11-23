@@ -17,9 +17,13 @@ use crate::descriptor::v3::{Descriptor, IngressTls};
 use crate::error::Error;
 use crate::render::{app_image, evidence_tier};
 
+use super::ingress;
 use super::local;
 use super::remote;
 use super::report::{CheckReport, CheckRow};
+
+/// The recorded-fixture marker: a missing fixture entry is not a transport error.
+pub(crate) const FIXTURE_MISSING: &str = "fixture-missing:";
 
 /// What the check is allowed to open or inspect.
 #[derive(Debug, Clone, Copy, Default)]
@@ -35,6 +39,8 @@ pub struct CheckOptions {
 pub struct ProbeResponse {
     /// The HTTP status.
     pub status: u16,
+    /// The response headers, with lower-case names.
+    pub headers: BTreeMap<String, String>,
     /// The response body.
     pub body: Vec<u8>,
 }
@@ -89,11 +95,25 @@ impl Probe for HttpProbe {
             .call()
             .map_err(|error| error.to_string())?;
         let status = response.status().as_u16();
+        let headers = response
+            .headers()
+            .iter()
+            .map(|(name, value)| {
+                (
+                    name.as_str().to_ascii_lowercase(),
+                    value.to_str().unwrap_or_default().to_owned(),
+                )
+            })
+            .collect();
         let body = response
             .into_body()
             .read_to_vec()
             .map_err(|error| error.to_string())?;
-        Ok(ProbeResponse { status, body })
+        Ok(ProbeResponse {
+            status,
+            headers,
+            body,
+        })
     }
 }
 
@@ -108,6 +128,8 @@ struct FixtureEntry {
     #[serde(default)]
     status: u16,
     #[serde(default)]
+    headers: BTreeMap<String, String>,
+    #[serde(default)]
     body: String,
     #[serde(default)]
     error: Option<String>,
@@ -115,15 +137,19 @@ struct FixtureEntry {
 
 impl Probe for FixtureProbe {
     fn get(&self, url: &str) -> Result<ProbeResponse, String> {
-        let entry = self
-            .responses
-            .get(url)
-            .ok_or_else(|| format!("the probe fixture has no response for {url}"))?;
+        let entry = self.responses.get(url).ok_or_else(|| {
+            format!("{FIXTURE_MISSING} the recorded probe fixture has no response for {url}")
+        })?;
         if let Some(error) = &entry.error {
             return Err(error.clone());
         }
         Ok(ProbeResponse {
             status: entry.status,
+            headers: entry
+                .headers
+                .iter()
+                .map(|(name, value)| (name.to_ascii_lowercase(), value.clone()))
+                .collect(),
             body: entry.body.as_bytes().to_vec(),
         })
     }
@@ -164,8 +190,11 @@ pub fn check_with(
         app_image(descriptor),
     );
     local::add(&mut report, descriptor);
+    for row in ingress::local_rows(descriptor) {
+        report.push(row);
+    }
     match probe(descriptor) {
-        Ok(probe) => probe_ingress(&mut report, descriptor, probe.as_ref()),
+        Ok(probe) => ingress::probe_rows(&mut report, descriptor, probe.as_ref()),
         Err(error) => report.push(CheckRow::failed(
             "ingress",
             descriptor.ingress.dns.clone(),
@@ -175,6 +204,9 @@ pub fn check_with(
     }
     if options.remote_docker {
         remote::append_docker(&mut report, descriptor, docker);
+        for row in ingress::remote_rows(descriptor, docker) {
+            report.push(row);
+        }
     }
     if options.overlay {
         remote::append_overlay(&mut report, descriptor, docker);
@@ -198,74 +230,6 @@ fn probe(descriptor: &Descriptor) -> Result<Box<dyn Probe>, Error> {
     Ok(Box::new(HttpProbe::new(descriptor)?))
 }
 
-fn probe_ingress(report: &mut CheckReport, descriptor: &Descriptor, probe: &dyn Probe) {
-    let base = format!("https://{}", descriptor.ingress.dns);
-    for (path, kind) in [
-        ("/health", "health"),
-        ("/ready", "ready"),
-        ("/version", "version"),
-    ] {
-        let url = format!("{base}{path}");
-        match probe.get(&url) {
-            Err(error) => report.push(CheckRow::failed("ingress", url, kind, error)),
-            Ok(response) if !(200..300).contains(&response.status) => report.push(
-                CheckRow::failed("ingress", url, kind, format!("HTTP {}", response.status)),
-            ),
-            Ok(response) if kind == "version" => {
-                match parse_version(&response.body, &descriptor.image.digest) {
-                    Ok(()) => {
-                        let mut row = CheckRow::ok("ingress", url, kind, "digest matches");
-                        row.digest = Some(descriptor.image.digest.clone());
-                        report.push(row);
-                    }
-                    Err(error) => report.push(CheckRow::failed("ingress", url, kind, error)),
-                }
-            }
-            Ok(response) => match parse_health(&response.body) {
-                Ok(state) if state == "healthy" => {
-                    report.push(CheckRow::ok("ingress", url, kind, state));
-                }
-                Ok(state) => {
-                    report.push(CheckRow::failed(
-                        "ingress",
-                        url,
-                        kind,
-                        format!("state is {state}"),
-                    ));
-                }
-                Err(error) => report.push(CheckRow::failed("ingress", url, kind, error)),
-            },
-        }
-    }
-}
-
-#[derive(Deserialize)]
-struct VersionBody {
-    #[serde(default)]
-    image_digest: Option<String>,
-}
-
-fn parse_version(body: &[u8], expected: &str) -> Result<(), String> {
-    let version: VersionBody =
-        serde_json::from_slice(body).map_err(|error| format!("invalid JSON: {error}"))?;
-    match version.image_digest.as_deref() {
-        Some(actual) if actual == expected => Ok(()),
-        Some(actual) => Err(format!("image digest {actual} does not match {expected}")),
-        None => Err("version response has no image_digest".to_owned()),
-    }
-}
-
-#[derive(Deserialize)]
-struct HealthBody {
-    state: String,
-}
-
-fn parse_health(body: &[u8]) -> Result<String, String> {
-    let health: HealthBody =
-        serde_json::from_slice(body).map_err(|error| format!("invalid JSON: {error}"))?;
-    Ok(health.state)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -284,8 +248,19 @@ mod tests {
             self.responses
                 .get(url)
                 .cloned()
-                .unwrap_or_else(|| Err(format!("no fixture for {url}")))
+                .unwrap_or_else(|| Err(format!("{FIXTURE_MISSING} no fixture for {url}")))
         }
+    }
+
+    fn secure_headers() -> BTreeMap<String, String> {
+        BTreeMap::from([
+            (
+                "strict-transport-security".to_owned(),
+                "max-age=31536000; includeSubDomains".to_owned(),
+            ),
+            ("x-content-type-options".to_owned(), "nosniff".to_owned()),
+            ("referrer-policy".to_owned(), "no-referrer".to_owned()),
+        ])
     }
 
     fn healthy_fixture(descriptor: &Descriptor) -> Fake {
@@ -296,6 +271,7 @@ mod tests {
                     format!("{base}/health"),
                     Ok(ProbeResponse {
                         status: 200,
+                        headers: secure_headers(),
                         body: br#"{"state":"healthy"}"#.to_vec(),
                     }),
                 ),
@@ -303,6 +279,7 @@ mod tests {
                     format!("{base}/ready"),
                     Ok(ProbeResponse {
                         status: 200,
+                        headers: BTreeMap::new(),
                         body: br#"{"state":"healthy"}"#.to_vec(),
                     }),
                 ),
@@ -310,9 +287,14 @@ mod tests {
                     format!("{base}/version"),
                     Ok(ProbeResponse {
                         status: 200,
+                        headers: BTreeMap::new(),
                         body: format!(r#"{{"image_digest":"{}"}}"#, descriptor.image.digest)
                             .into_bytes(),
                     }),
+                ),
+                (
+                    format!("http://{}/", descriptor.ingress.dns),
+                    Err("connection refused".to_owned()),
                 ),
             ]),
         }
@@ -324,7 +306,7 @@ mod tests {
             evidence_tier(descriptor.profile),
             app_image(descriptor),
         );
-        probe_ingress(&mut report, descriptor, probe);
+        ingress::probe_rows(&mut report, descriptor, probe);
         report
     }
 
@@ -344,6 +326,7 @@ mod tests {
             format!("https://{}/version", descriptor.ingress.dns),
             Ok(ProbeResponse {
                 status: 200,
+                headers: BTreeMap::new(),
                 body: br#"{"image_digest":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}"#.to_vec(),
             }),
         );
@@ -360,6 +343,7 @@ mod tests {
             format!("https://{}/ready", descriptor.ingress.dns),
             Ok(ProbeResponse {
                 status: 200,
+                headers: BTreeMap::new(),
                 body: br#"{"state":"down"}"#.to_vec(),
             }),
         );

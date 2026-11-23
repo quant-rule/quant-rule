@@ -6,6 +6,7 @@
 //! Docker and overlay inspectors as explicit opt-ins. The default check never
 //! starts Docker.
 
+mod ingress;
 mod local;
 mod remote;
 mod report;

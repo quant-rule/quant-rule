@@ -379,19 +379,103 @@ fn the_ingress_is_443_only_and_needs_public_addresses() {
 }
 
 #[test]
+fn the_ingress_vip_is_a_required_valid_distinct_ipv4() {
+    let mut value = sample();
+    value["ingress"]
+        .as_object_mut()
+        .expect("ingress")
+        .remove("vip");
+    let error = reject(value);
+    assert!(error.to_string().contains("deploy.ingress.vip"), "{error}");
+
+    for bad in ["", "not-an-ip", "203.0.113.999", "2001:db8::10"] {
+        let mut value = sample();
+        value["ingress"]["vip"] = serde_json::json!(bad);
+        let error = reject(value);
+        assert!(
+            error.to_string().contains("deploy.ingress.vip"),
+            "{bad}: {error}"
+        );
+    }
+    for bad in ["0.0.0.0", "127.0.0.1", "224.0.0.1", "255.255.255.255"] {
+        let mut value = sample();
+        value["ingress"]["vip"] = serde_json::json!(bad);
+        let error = reject(value);
+        assert!(
+            error.to_string().contains("deploy.ingress.vip"),
+            "{bad}: {error}"
+        );
+    }
+    let mut value = sample();
+    value["ingress"]["vip"] = serde_json::json!("203.0.113.20");
+    validate(&descriptor(value)).expect("a distinct public IPv4 VIP");
+}
+
+#[test]
+fn the_ingress_vip_cannot_equal_an_ingress_public_address() {
+    for host in ["edge-1", "edge-2"] {
+        let public = sample()["hosts"][host]["public_address"]
+            .as_str()
+            .expect("public address")
+            .to_owned();
+        let mut value = sample();
+        value["ingress"]["vip"] = serde_json::json!(public);
+        let error = reject(value);
+        assert!(
+            error.to_string().contains("deploy.ingress.vip"),
+            "{host}: {error}"
+        );
+        assert!(error.to_string().contains(host), "{host}: {error}");
+    }
+}
+
+#[test]
+fn the_ingress_interface_defaults_to_eth0_and_is_narrow() {
+    let mut value = sample();
+    value["ingress"]
+        .as_object_mut()
+        .expect("ingress")
+        .remove("interface");
+    let parsed = descriptor(value);
+    assert_eq!(parsed.ingress.interface, "eth0");
+    validate(&parsed).expect("the default interface");
+
+    for bad in ["", "eth 0", "eth/0", "eth0:1", "..", "1234567890123456"] {
+        let mut value = sample();
+        value["ingress"]["interface"] = serde_json::json!(bad);
+        let error = reject(value);
+        assert!(
+            error.to_string().contains("deploy.ingress.interface"),
+            "{bad:?}: {error}"
+        );
+    }
+    for good in ["eth0", "enp3s0", "eth0.100", "br-abc_1"] {
+        let mut value = sample();
+        value["ingress"]["interface"] = serde_json::json!(good);
+        validate(&descriptor(value)).expect("a simple interface name");
+    }
+}
+
+#[test]
+fn acme_is_reserved_and_refused_until_the_future_path() {
+    for files in [
+        serde_json::json!({}),
+        serde_json::json!({"certificate": "/etc/quantrule/tls/fullchain.pem"}),
+    ] {
+        let mut value = sample();
+        value["ingress"]["tls"] = serde_json::json!("acme");
+        value["ingress"]["files"] = files;
+        let error = reject(value);
+        assert!(error.to_string().contains("deploy.ingress.tls"), "{error}");
+        assert!(error.to_string().contains("acme"), "{error}");
+        assert!(error.to_string().contains("cert"), "{error}");
+    }
+}
+
+#[test]
 fn the_ingress_certificate_mode_is_closed() {
     let mut value = sample();
     value["ingress"]["tls"] = serde_json::json!("cert");
-    value["ingress"]["files"] = serde_json::json!({
-        "certificate": "/etc/quantrule/tls/fullchain.pem"
-    });
-    let error = reject(value);
-    assert!(
-        error.to_string().contains("deploy.ingress.files"),
-        "{error}"
-    );
-
-    let mut value = sample();
     value["ingress"]["files"] = serde_json::json!({
         "certificate": "/etc/quantrule/tls/fullchain.pem"
     });

@@ -2,6 +2,9 @@ configs:
   quantrule_database_ca:
     external: true
     name: "quantrule_database_ca"
+  quantrule_ingress_cert:
+    external: true
+    name: "quantrule_ingress_cert"
   quantrule_object_store_ca:
     external: true
     name: "quantrule_object_store_ca"
@@ -11,6 +14,9 @@ configs:
   quantrule_traefik:
     external: true
     name: "quantrule_traefik"
+  quantrule_traefik_dynamic:
+    external: true
+    name: "quantrule_traefik_dynamic"
 networks:
   quantrule:
     external: true
@@ -43,6 +49,9 @@ secrets:
   object_store_secret_key:
     external: true
     name: "object_store_secret_key"
+  quantrule_ingress_key:
+    external: true
+    name: "quantrule_ingress_key"
   queue_url:
     external: true
     name: "queue_url"
@@ -449,6 +458,14 @@ services:
         mode: 292
         source: "quantrule_traefik"
         target: "/etc/traefik/traefik.yml"
+      -
+        mode: 292
+        source: "quantrule_traefik_dynamic"
+        target: "/etc/traefik/dynamic/dynamic.yml"
+      -
+        mode: 292
+        source: "quantrule_ingress_cert"
+        target: "/etc/traefik/certs/ingress.crt"
     deploy:
       labels:
         quantrule.evidence: "HA profile (unverified)"
@@ -496,6 +513,11 @@ services:
         protocol: "tcp"
         published: 443
         target: 443
+    secrets:
+      -
+        mode: 256
+        source: "quantrule_ingress_key"
+        target: "/etc/traefik/certs/ingress.key"
     stop_grace_period: "40s"
   model:
     command:
@@ -768,5 +790,5 @@ x-quantrule:
   network_attachable: true
   network_encrypted: true
   owner: "HA-012"
-  platform: "Traefik/ACME, Patroni, RabbitMQ, MinIO, and observability configuration belong to PLAT-002..006"
+  platform: "Traefik ingress configuration is PLAT-002; Patroni, RabbitMQ, MinIO, and observability configuration belong to PLAT-003..006"
   profile: "swarm-ha"

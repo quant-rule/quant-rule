@@ -5,6 +5,7 @@
 //! endpoint is refused before a service starts.
 
 use std::collections::BTreeSet;
+use std::net::Ipv4Addr;
 use std::path::Path;
 
 use crate::descriptor::v3::{Descriptor, IngressTls};
@@ -59,15 +60,15 @@ fn validate_ingress(descriptor: &Descriptor) -> Result<(), Error> {
             "must be 443; no other public port is supported",
         ));
     }
+    let vip = validate_vip(ingress.vip.as_deref())?;
+    validate_interface(&ingress.interface)?;
     match ingress.tls {
         IngressTls::Acme => {
-            if !ingress.files.is_empty() {
-                return Err(rule(
-                    "deploy.ingress.files",
-                    "ingress.files",
-                    "must be empty for ACME; PLAT-002 issues and renews the certificate",
-                ));
-            }
+            return Err(rule(
+                "deploy.ingress.tls",
+                "ingress.tls",
+                "v1.5.10 requires tls: cert; acme is reserved for a future path and is not implemented",
+            ));
         }
         IngressTls::Cert => {
             let names: BTreeSet<&str> = ingress.files.keys().map(String::as_str).collect();
@@ -107,6 +108,84 @@ fn validate_ingress(descriptor: &Descriptor) -> Result<(), Error> {
                 "an ingress host must declare the public address DNS resolves to",
             ));
         }
+        if host
+            .public_address
+            .as_deref()
+            .and_then(|public| public.parse::<Ipv4Addr>().ok())
+            == Some(vip)
+        {
+            return Err(rule(
+                "deploy.ingress.vip",
+                "ingress.vip",
+                format!("must not equal the public address of ingress host {host_name}"),
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Parse the floating IPv4 address and refuse addresses that cannot be a VIP.
+fn validate_vip(value: Option<&str>) -> Result<Ipv4Addr, Error> {
+    let Some(value) = value else {
+        return Err(rule(
+            "deploy.ingress.vip",
+            "ingress.vip",
+            "must declare the floating IPv4 address",
+        ));
+    };
+    let vip = value.parse::<Ipv4Addr>().map_err(|_| {
+        rule(
+            "deploy.ingress.vip",
+            "ingress.vip",
+            format!("{value} is not an IPv4 address"),
+        )
+    })?;
+    if vip.is_unspecified() {
+        return Err(rule(
+            "deploy.ingress.vip",
+            "ingress.vip",
+            "must not be 0.0.0.0",
+        ));
+    }
+    if vip.is_loopback() {
+        return Err(rule(
+            "deploy.ingress.vip",
+            "ingress.vip",
+            "must not be a loopback address",
+        ));
+    }
+    if vip.is_multicast() {
+        return Err(rule(
+            "deploy.ingress.vip",
+            "ingress.vip",
+            "must not be a multicast address",
+        ));
+    }
+    if vip == Ipv4Addr::BROADCAST {
+        return Err(rule(
+            "deploy.ingress.vip",
+            "ingress.vip",
+            "must not be the limited broadcast address",
+        ));
+    }
+    Ok(vip)
+}
+
+/// A simple Linux interface name: 1–15 ASCII letters, digits, `_`, `-`, or `.`.
+fn validate_interface(value: &str) -> Result<(), Error> {
+    if value.is_empty()
+        || value.len() > 15
+        || value == "."
+        || value == ".."
+        || !value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.'))
+    {
+        return Err(rule(
+            "deploy.ingress.interface",
+            "ingress.interface",
+            "must be 1-15 ASCII letters, digits, underscores, hyphens, or dots",
+        ));
     }
     Ok(())
 }

@@ -25,9 +25,26 @@ services:
         source: "/etc/quantrule/pki/haproxy"
         target: "/etc/quantrule/pki"
         type: "bind"
+  keepalived:
+    cap_add:
+      -
+        "NET_ADMIN"
+      -
+        "NET_BROADCAST"
+    container_name: "quantrule-keepalived-edge-2"
+    image: "osixia/keepalived@sha256:67a5f8c8ca46f83c69a30376f47eaa4704f29a0495675433812d5216b0171682"
+    network_mode: "host"
+    restart: "unless-stopped"
+    stop_grace_period: "40s"
+    volumes:
+      -
+        read_only: true
+        source: "/etc/quantrule/keepalived.conf"
+        target: "/etc/keepalived/keepalived.conf"
+        type: "bind"
 x-quantrule:
   evidence: "HA profile (unverified)"
   network: "overlay, attachable, encrypted; created by bootstrap.sh"
   owner: "HA-012"
-  platform: "unit configuration belongs to PLAT-003/004/005/006; this file only pins the image, host volumes, and overlay attachment"
+  platform: "keepalived is PLAT-002; the remaining unit configuration belongs to PLAT-003/004/005/006; this file only pins the image, host volumes, and overlay attachment"
   profile: "swarm-ha"

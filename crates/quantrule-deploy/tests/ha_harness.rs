@@ -91,6 +91,10 @@ fn the_plan_is_docker_free_and_names_the_sequence() {
         "bootstrap",
         "drain",
         "stop",
+        "ingress baseline",
+        "ingress loss",
+        "negative control",
+        "VIP",
         "Simulated HA",
         "Real HA is HA-014",
         "not evidence",
@@ -186,6 +190,66 @@ esac
     assert!(printed.contains("UNVERIFIED"), "{printed}");
     assert!(printed.contains("manager count 2"), "{printed}");
     let _ = std::fs::remove_dir_all(directory);
+}
+
+#[test]
+fn a_missing_vip_is_unverified() {
+    let directory = temp_dir();
+    let mut value: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(repo("deploy/v3/deploy.example.json")).expect("v3 example"),
+    )
+    .expect("v3 JSON");
+    value["ingress"]["vip"] = serde_json::Value::Null;
+    let descriptor = directory.join("deploy.json");
+    std::fs::write(&descriptor, value.to_string()).expect("descriptor");
+    let docker = directory.join("fake-docker");
+    write_mode(
+        &docker,
+        r#"#!/bin/sh
+set -eu
+case "$1" in
+    info)
+        case "${3:-}" in
+            *LocalNodeState*) printf 'active\n' ;;
+            *ControlAvailable*) printf 'true\n' ;;
+            *) exit 0 ;;
+        esac
+        ;;
+    *) exit 0 ;;
+esac
+"#,
+        0o755,
+    );
+    let output = Command::new("bash")
+        .arg(repo("deploy/v3/test.sh"))
+        .env("QR_SWARM_DOCKER", &docker)
+        .env("DESCRIPTOR", &descriptor)
+        .output()
+        .expect("run ha harness");
+    assert_eq!(output.status.code(), Some(1));
+    let printed = stderr(&output);
+    assert!(printed.contains("UNVERIFIED"), "{printed}");
+    assert!(printed.contains("ingress.vip is missing"), "{printed}");
+    let _ = std::fs::remove_dir_all(directory);
+}
+
+#[test]
+fn the_direct_edge_control_uses_the_public_address() {
+    let text = std::fs::read_to_string(repo("deploy/v3/test.sh")).expect("harness");
+    let start = text
+        .find("negative_controls() {")
+        .expect("negative controls");
+    let end = text.find("ingress_loss() {").expect("ingress loss");
+    let controls = &text[start..end];
+    assert!(controls.contains("public_address \"$host\""), "{controls}");
+    assert!(
+        controls.contains("has no public_address"),
+        "a missing public address must be UNVERIFIED: {controls}"
+    );
+    assert!(
+        !controls.contains("host_address \"$host\""),
+        "the direct-edge control must not test the private SSH/Swarm address: {controls}"
+    );
 }
 
 #[test]

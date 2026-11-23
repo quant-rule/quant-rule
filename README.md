@@ -188,7 +188,8 @@ browser ── HTTP ── gateway ── postgres
   asynchronous control plane decides which run happens when.
 - **Seven services.** `gateway`, `data`, `model`, `backtest`, `evidence`,
   `simulation`, `strategy`; the v2 multi-host profile places six and the v3
-  Swarm HA profile places all seven behind one 443-only ingress.
+  Swarm HA profile places all seven behind one 443-only ingress and a
+  keepalived VIP.
 - **One image.** One digest pins the whole compute stack, so version skew cannot
   occur.
 - **References, not payloads.** Stages exchange content hashes; bytes live in
@@ -316,6 +317,7 @@ run detail. The contract is
 | [`docs/architecture/deployment.md`](docs/architecture/deployment.md) | How to run it |
 | [`docs/architecture/multi-host.md`](docs/architecture/multi-host.md) | How the six services of the v2 profile run across hosts; v3 adds the seventh |
 | [Deployment v3](docs/config/2026-11-22/deploy-v3.md) | The Swarm HA descriptor, render targets, pinned stateful units, check, and remote/overlay inspector |
+| [Ingress](docs/config/2026-11-23/ingress.md) | Traefik behind a keepalived VIP, DNS/TLS, cert rotation, headers, body limits, ingress check rows, private-CA client trust, and the VIP-loss lab |
 | [Swarm control plane](docs/config/2026-11-23/swarm-control.md) | Managers, node labels, drift refusal, rolling update, remote check, `ha` tier, and `tools/swarm.sh` |
 | [HA deployment manual](docs/manual/15-ha-deployment.md) | Render, bootstrap, check, upgrade, and rotate the v3 profile |
 | [`docs/architecture/cross-database-consistency.md`](docs/architecture/cross-database-consistency.md) | Outbox, dataset references, reconciliation and tombstones across four databases |

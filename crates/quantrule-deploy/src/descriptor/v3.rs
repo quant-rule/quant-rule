@@ -76,6 +76,12 @@ pub struct Ingress {
     pub dns: String,
     /// The only public port; must be 443.
     pub port: u16,
+    /// The floating IPv4 address keepalived assigns to the healthy edge host.
+    #[serde(default)]
+    pub vip: Option<String>,
+    /// The Linux interface that carries the VIP; `eth0` unless the host says otherwise.
+    #[serde(default = "default_ingress_interface")]
+    pub interface: String,
     /// ACME or operator-supplied certificate files.
     pub tls: IngressTls,
     /// Certificate files by logical name; empty for ACME.
@@ -85,6 +91,11 @@ pub struct Ingress {
     pub replicas: u32,
     /// The host keys that run the ingress.
     pub hosts: Vec<String>,
+}
+
+/// The default VIP interface for the reference topology.
+fn default_ingress_interface() -> String {
+    "eth0".to_owned()
 }
 
 /// The Swarm control plane.

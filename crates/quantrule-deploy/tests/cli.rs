@@ -41,11 +41,33 @@ fn run(args: &[&str]) -> Output {
 }
 
 fn run_env(args: &[&str], key: &str, value: &str) -> Output {
-    Command::new(binary())
-        .args(args)
-        .env(key, value)
-        .output()
-        .expect("run qr-deploy")
+    run_envs(args, &[(key, value)])
+}
+
+fn run_envs(args: &[&str], envs: &[(&str, &str)]) -> Output {
+    let mut command = Command::new(binary());
+    command.args(args);
+    for (key, value) in envs {
+        command.env(key, value);
+    }
+    if !envs.iter().any(|(key, _)| *key == "QR_DEPLOY_OPENSSL") {
+        command.env("QR_DEPLOY_OPENSSL", default_openssl());
+    }
+    command.output().expect("run qr-deploy")
+}
+
+/// One fake `openssl` per test process; the fixture certificate is not a real one.
+fn default_openssl() -> &'static Path {
+    static PATH: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+    PATH.get_or_init(|| {
+        let path = std::env::temp_dir().join(format!("qr-fake-openssl-{}", std::process::id()));
+        write_mode(
+            &path,
+            "#!/bin/sh\nprintf 'Certificate will not expire\\nX509v3 Subject Alternative Name:\\n    DNS:quantrule.dev\\n'\nexit 0\n",
+            0o755,
+        );
+        path
+    })
 }
 
 fn stdout(output: &Output) -> String {
@@ -90,6 +112,22 @@ fn local_descriptor(directory: &Path) -> PathBuf {
     for endpoint in ["database", "queue", "object_store"] {
         value["endpoints"][endpoint]["tls_ca"] = serde_json::json!(ca.display().to_string());
     }
+    let certificate = directory.join("ingress.crt");
+    let key = directory.join("ingress.key");
+    write_mode(
+        &certificate,
+        &std::fs::read_to_string(repo("deploy/v3/pki/ingress.crt")).expect("fixture cert"),
+        0o644,
+    );
+    write_mode(
+        &key,
+        &std::fs::read_to_string(repo("deploy/v3/pki/ingress-key.pem")).expect("fixture key"),
+        0o600,
+    );
+    value["ingress"]["files"] = serde_json::json!({
+        "certificate": certificate.display().to_string(),
+        "key": key.display().to_string(),
+    });
     let path = directory.join("deploy.json");
     std::fs::write(&path, value.to_string()).expect("descriptor");
     path
@@ -112,12 +150,24 @@ fn probe_fixture(
     for path in ["health", "ready"] {
         responses.insert(
             format!("https://{dns}/{path}"),
-            serde_json::json!({"status": 200, "body": body}),
+            serde_json::json!({
+                "status": 200,
+                "headers": {
+                    "strict-transport-security": "max-age=31536000; includeSubDomains",
+                    "x-content-type-options": "nosniff",
+                    "referrer-policy": "no-referrer"
+                },
+                "body": body
+            }),
         );
     }
     responses.insert(
         format!("https://{dns}/version"),
         serde_json::json!({"status": 200, "body": version}),
+    );
+    responses.insert(
+        format!("http://{dns}/"),
+        serde_json::json!({"error": "connection refused"}),
     );
     let path = directory.join("probe.json");
     std::fs::write(&path, serde_json::Value::Object(responses).to_string()).expect("fixture");
@@ -130,6 +180,7 @@ fn error_fixture(directory: &Path, error: &str) -> PathBuf {
         "https://quantrule.dev/health": {"error": error},
         "https://quantrule.dev/ready": {"error": error},
         "https://quantrule.dev/version": {"error": error},
+        "http://quantrule.dev/": {"error": error},
     });
     std::fs::write(&path, fixture.to_string()).expect("fixture");
     path
@@ -234,11 +285,18 @@ fn v3_render_all_writes_the_stack_infra_jobs_and_manifest() {
     for path in [
         "stack.yaml",
         "infra/infra-1.yaml",
+        "infra/edge-1.yaml",
         "bootstrap.sh",
         "jobs/db-bootstrap.sh",
         "jobs/migrate.sh",
         "secrets/manifest.json",
         "pki/database-ca.crt",
+        "pki/ingress.crt",
+        "pki/ingress.key",
+        "quantrule_traefik.yml",
+        "traefik-dynamic.yml",
+        "keepalived-edge-1.conf",
+        "keepalived-edge-2.conf",
         "render.json",
     ] {
         assert!(out.join(path).is_file(), "missing {path}");
@@ -249,12 +307,42 @@ fn v3_render_all_writes_the_stack_infra_jobs_and_manifest() {
     assert_eq!(stack.matches("published:").count(), 1, "{stack}");
     assert!(!stack.contains("QR_DATABASE_URL="), "{stack}");
     assert!(!stack.contains("postgres://"), "{stack}");
+    assert!(stack.contains("quantrule_traefik_dynamic"), "{stack}");
+    assert!(
+        stack.contains("target: \"/etc/traefik/dynamic/dynamic.yml\""),
+        "{stack}"
+    );
+    assert!(
+        stack.contains("target: \"/etc/traefik/certs/ingress.key\""),
+        "{stack}"
+    );
     assert_eq!(
         stack.matches("order: \"stop-first\"").count(),
         16,
         "{stack}"
     );
     assert_eq!(stack.matches("healthcheck:").count(), 7, "{stack}");
+    let dynamic = std::fs::read_to_string(out.join("traefik-dynamic.yml")).expect("dynamic");
+    assert!(dynamic.contains("Host(`quantrule.dev`)"), "{dynamic}");
+    assert!(
+        dynamic.contains("http://quantrule-ha_gateway:8080"),
+        "{dynamic}"
+    );
+    let static_config = std::fs::read_to_string(out.join("quantrule_traefik.yml")).expect("static");
+    assert!(
+        static_config.contains("address: \":443\""),
+        "{static_config}"
+    );
+    assert!(
+        !static_config.contains("address: \":80\""),
+        "{static_config}"
+    );
+    let keepalived =
+        std::fs::read_to_string(out.join("keepalived-edge-1.conf")).expect("keepalived");
+    assert!(
+        keepalived.contains("203.0.113.20/32 dev eth0"),
+        "{keepalived}"
+    );
     for script in ["bootstrap.sh", "jobs/db-bootstrap.sh", "jobs/migrate.sh"] {
         let checked = Command::new("sh")
             .args(["-n", out.join(script).to_str().expect("path")])
@@ -269,6 +357,14 @@ fn v3_render_all_writes_the_stack_infra_jobs_and_manifest() {
     let manifest = std::fs::read_to_string(out.join("render.json")).expect("manifest");
     assert!(manifest.contains("descriptor_hash"), "{manifest}");
     assert!(!manifest.contains("timestamp"), "{manifest}");
+    for path in [
+        "quantrule_traefik.yml",
+        "traefik-dynamic.yml",
+        "keepalived-edge-1.conf",
+        "keepalived-edge-2.conf",
+    ] {
+        assert!(manifest.contains(path), "{path}: {manifest}");
+    }
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -277,6 +373,11 @@ fn v3_render_all_writes_the_stack_infra_jobs_and_manifest() {
             (out.join("secrets"), 0o700),
             (out.join("secrets/gateway_token"), 0o600),
             (out.join("pki/database-ca.crt"), 0o644),
+            (out.join("pki/ingress.crt"), 0o644),
+            (out.join("pki/ingress.key"), 0o600),
+            (out.join("quantrule_traefik.yml"), 0o644),
+            (out.join("traefik-dynamic.yml"), 0o644),
+            (out.join("keepalived-edge-1.conf"), 0o644),
             (out.join("bootstrap.sh"), 0o700),
             (out.join("jobs/migrate.sh"), 0o700),
             (out.join("render.json"), 0o644),
@@ -405,6 +506,14 @@ fn v3_render_cert_mode_keeps_the_ingress_key_private() {
     let stack = std::fs::read_to_string(out.join("stack.yaml")).expect("stack");
     assert!(stack.contains("quantrule_ingress_cert"), "{stack}");
     assert!(stack.contains("quantrule_ingress_key"), "{stack}");
+    assert!(
+        stack.contains("target: \"/etc/traefik/certs/ingress.crt\""),
+        "{stack}"
+    );
+    assert!(
+        stack.contains("target: \"/etc/traefik/certs/ingress.key\""),
+        "{stack}"
+    );
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -614,6 +723,37 @@ fn v3_check_refuses_a_second_public_port() {
         "{}",
         stderr(&output)
     );
+    let _ = std::fs::remove_dir_all(directory);
+}
+
+#[test]
+fn v3_check_reports_a_missing_openssl_as_limited() {
+    let directory = temp_dir();
+    let descriptor_path = local_descriptor(&directory);
+    let descriptor = descriptor_value(&descriptor_path);
+    let digest = descriptor["image"]["digest"].as_str().expect("digest");
+    let fixture = probe_fixture(&directory, &descriptor, digest, "healthy");
+    let missing = directory.join("no-openssl-here");
+    let output = run_envs(
+        &["check", descriptor_path.to_str().expect("path")],
+        &[
+            (
+                "QR_DEPLOY_PROBE_FIXTURE",
+                fixture.to_str().expect("fixture"),
+            ),
+            (
+                "QR_DEPLOY_OPENSSL",
+                missing.to_str().expect("missing openssl"),
+            ),
+        ],
+    );
+    assert_eq!(output.status.code(), Some(1));
+    let printed = stdout(&output);
+    assert!(
+        printed.contains("FAIL\tingress\tcertificate\tlimited"),
+        "{printed}"
+    );
+    assert!(printed.contains("cannot run"), "{printed}");
     let _ = std::fs::remove_dir_all(directory);
 }
 

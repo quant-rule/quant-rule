@@ -61,10 +61,37 @@ fn pinned_image(value: &Value) -> String {
 }
 
 fn write_service(fixtures: &Path, name: &str, image: &str, replicas: u64, ports: Vec<Value>) {
+    write_service_with_mounts(
+        fixtures,
+        name,
+        image,
+        replicas,
+        ports,
+        Value::Null,
+        Value::Null,
+    );
+}
+
+fn write_service_with_mounts(
+    fixtures: &Path,
+    name: &str,
+    image: &str,
+    replicas: u64,
+    ports: Vec<Value>,
+    configs: Value,
+    secrets: Value,
+) {
+    let mut container = serde_json::json!({"Image": image});
+    if !configs.is_null() {
+        container["Configs"] = configs;
+    }
+    if !secrets.is_null() {
+        container["Secrets"] = secrets;
+    }
     let service = serde_json::json!({
         "Spec": {
             "Name": name,
-            "TaskTemplate": {"ContainerSpec": {"Image": image}},
+            "TaskTemplate": {"ContainerSpec": container},
             "Mode": {"Replicated": {"Replicas": replicas}}
         },
         "Endpoint": {"Ports": ports},
@@ -187,7 +214,7 @@ fn fake_docker(directory: &Path, descriptor: &Value) -> (PathBuf, PathBuf, PathB
     let ingress_replicas = descriptor["ingress"]["replicas"]
         .as_u64()
         .expect("ingress replicas");
-    write_service(
+    write_service_with_mounts(
         &fixtures,
         &format!("{stack}_ingress"),
         &ingress_image,
@@ -198,6 +225,14 @@ fn fake_docker(directory: &Path, descriptor: &Value) -> (PathBuf, PathBuf, PathB
             "PublishedPort": 443,
             "PublishMode": "host"
         })],
+        serde_json::json!([
+            {"ConfigName": "quantrule_traefik", "File": {"Name": "/etc/traefik/traefik.yml", "Mode": 292}},
+            {"ConfigName": "quantrule_traefik_dynamic", "File": {"Name": "/etc/traefik/dynamic/dynamic.yml", "Mode": 292}},
+            {"ConfigName": "quantrule_ingress_cert", "File": {"Name": "/etc/traefik/certs/ingress.crt", "Mode": 292}}
+        ]),
+        serde_json::json!([
+            {"SecretName": "quantrule_ingress_key", "File": {"Name": "/etc/traefik/certs/ingress.key", "Mode": 256}}
+        ]),
     );
     let script = directory.join("fake-docker");
     write_mode(
@@ -245,7 +280,28 @@ fn remote_envs<'a>(
         ("QR_DEPLOY_DOCKER", script.to_str().expect("script")),
         ("QR_FAKE_DOCKER_DIR", fixtures.to_str().expect("fixtures")),
         ("QR_FAKE_DOCKER_LOG", log.to_str().expect("log")),
+        (
+            "QR_DEPLOY_OPENSSL",
+            default_openssl().to_str().expect("openssl"),
+        ),
     ]
+}
+
+/// One fake `openssl` per test process; the fixture certificate is not real.
+fn default_openssl() -> &'static Path {
+    static PATH: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+    PATH.get_or_init(|| {
+        let path = std::env::temp_dir().join(format!(
+            "qr-fake-openssl-remote-{}",
+            std::process::id()
+        ));
+        write_mode(
+            &path,
+            "#!/bin/sh\nprintf 'Certificate will not expire\\nX509v3 Subject Alternative Name:\\n    DNS:quantrule.dev\\n'\nexit 0\n",
+            0o755,
+        );
+        path
+    })
 }
 
 fn stdout(output: &Output) -> String {
@@ -290,6 +346,22 @@ fn local_descriptor(directory: &Path) -> PathBuf {
     for endpoint in ["database", "queue", "object_store"] {
         value["endpoints"][endpoint]["tls_ca"] = serde_json::json!(ca.display().to_string());
     }
+    let certificate = directory.join("ingress.crt");
+    let key = directory.join("ingress.key");
+    write_mode(
+        &certificate,
+        &std::fs::read_to_string(repo("deploy/v3/pki/ingress.crt")).expect("fixture cert"),
+        0o644,
+    );
+    write_mode(
+        &key,
+        &std::fs::read_to_string(repo("deploy/v3/pki/ingress-key.pem")).expect("fixture key"),
+        0o600,
+    );
+    value["ingress"]["files"] = serde_json::json!({
+        "certificate": certificate.display().to_string(),
+        "key": key.display().to_string(),
+    });
     let path = directory.join("deploy.json");
     std::fs::write(&path, value.to_string()).expect("descriptor");
     path
@@ -312,12 +384,24 @@ fn probe_fixture(
     for path in ["health", "ready"] {
         responses.insert(
             format!("https://{dns}/{path}"),
-            serde_json::json!({"status": 200, "body": body}),
+            serde_json::json!({
+                "status": 200,
+                "headers": {
+                    "strict-transport-security": "max-age=31536000; includeSubDomains",
+                    "x-content-type-options": "nosniff",
+                    "referrer-policy": "no-referrer"
+                },
+                "body": body
+            }),
         );
     }
     responses.insert(
         format!("https://{dns}/version"),
         serde_json::json!({"status": 200, "body": version}),
+    );
+    responses.insert(
+        format!("http://{dns}/"),
+        serde_json::json!({"error": "connection refused"}),
     );
     let path = directory.join("probe.json");
     std::fs::write(&path, serde_json::Value::Object(responses).to_string()).expect("fixture");
@@ -362,6 +446,43 @@ fn v3_check_remote_docker_passes_with_a_healthy_fixture() {
         "{printed}"
     );
     assert!(!printed.contains("FAIL"), "{printed}");
+    let _ = std::fs::remove_dir_all(directory);
+}
+
+#[test]
+fn v3_check_remote_docker_fails_when_an_ingress_mount_is_missing() {
+    let directory = temp_dir();
+    let descriptor_path = local_descriptor(&directory);
+    let descriptor = descriptor_value(&descriptor_path);
+    let digest = descriptor["image"]["digest"].as_str().expect("digest");
+    let probe = probe_fixture(&directory, &descriptor, digest, "healthy");
+    let (script, fixtures, log) = fake_docker(&directory, &descriptor);
+    let service = fixtures.join("service-quantrule-ha_ingress.json");
+    let mut value: Value =
+        serde_json::from_str(&std::fs::read_to_string(&service).expect("ingress service"))
+            .expect("service JSON");
+    value["Spec"]["TaskTemplate"]["ContainerSpec"]["Configs"]
+        .as_array_mut()
+        .expect("configs")
+        .pop();
+    std::fs::write(&service, value.to_string()).expect("write service");
+    let envs = remote_envs(&probe, &script, &fixtures, &log);
+    let output = run_envs(
+        &[
+            "check",
+            descriptor_path.to_str().expect("path"),
+            "--remote",
+            "docker",
+        ],
+        &envs,
+    );
+    assert_eq!(output.status.code(), Some(1));
+    let printed = stdout(&output);
+    assert!(
+        printed.contains("FAIL\tingress\tservice mounts\tmount"),
+        "{printed}"
+    );
+    assert!(printed.contains("quantrule_ingress_cert"), "{printed}");
     let _ = std::fs::remove_dir_all(directory);
 }
 
@@ -452,6 +573,10 @@ fn v3_check_remote_docker_fails_on_a_docker_command_error() {
         &[
             ("QR_DEPLOY_PROBE_FIXTURE", probe.to_str().expect("probe")),
             ("QR_DEPLOY_DOCKER", script.to_str().expect("script")),
+            (
+                "QR_DEPLOY_OPENSSL",
+                default_openssl().to_str().expect("openssl"),
+            ),
         ],
     );
     assert_eq!(output.status.code(), Some(1));
@@ -520,6 +645,10 @@ fn the_default_check_never_invokes_docker() {
             ("QR_DEPLOY_PROBE_FIXTURE", probe.to_str().expect("probe")),
             ("QR_DEPLOY_DOCKER", script.to_str().expect("script")),
             ("QR_FAKE_DOCKER_MARKER", marker.to_str().expect("marker")),
+            (
+                "QR_DEPLOY_OPENSSL",
+                default_openssl().to_str().expect("openssl"),
+            ),
         ],
     );
     assert!(

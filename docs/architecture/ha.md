@@ -1,6 +1,6 @@
 # Highly Available Runtime
 
-- Status: Target for the next release; the evidence leader (HA-006), data active/active (HA-007), runtime drain/readiness/retries/file secrets/token rotation (HA-009), internal TLS for PostgreSQL/RabbitMQ/MinIO (HA-010), v3 render/check (HA-012), and the PLAT-001 bootstrap/rolling-update control plane, remote check, and `ha` tier are current; accepted by [ADR-HA](../adr/2026-11-22/1082-ha-deployment-profile.md)
+- Status: Target for the next release; the evidence leader (HA-006), data active/active (HA-007), runtime drain/readiness/retries/file secrets/token rotation (HA-009), internal TLS for PostgreSQL/RabbitMQ/MinIO (HA-010), v3 render/check (HA-012), the PLAT-001 bootstrap/rolling-update control plane, remote check, and `ha` tier, and the PLAT-002 cert-mode ingress, check rows, client CA trust, and ingress-loss lab are current; accepted by [ADR-HA](../adr/2026-11-22/1082-ha-deployment-profile.md)
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 
@@ -110,7 +110,7 @@ No distributed transactions. The platform uses:
 ## 8. Ingress and security
 
 - `https://quantrule.dev` resolves to Traefik ×2 behind a VIP or cloud LB.
-- TLS on 443; HTTP redirects; only 443 public.
+- TLS 1.2+ on 443 behind a keepalived VIP; port 80 is closed; only 443 public. `qr-deploy check` reads the static/dynamic/keepalived bytes, the certificate SAN/expiry, the HSTS/nosniff/no-referrer headers, port-80 closure, and the four ingress mounts; the shell trusts the private CA through `QUANTRULE_CA_CERT`, the browser through its OS store.
 - Gateway token is the only human auth; no accounts or tenancy. Secrets are files under `/run/secrets`; the S3 client uses only the two file credentials. v3 assembles `secrets.files` into external Swarm secrets; rotation uses a new secret name and a rolling update ([contract](../config/2026-11-23/secret-files.md)).
 - The gateway re-reads `QR_BEARER_TOKEN_FILE` every `QR_TOKEN_RELOAD_SECONDS` and on `SIGHUP`; an invalid edit keeps the last good token and counts the reason.
 - Postgres, RabbitMQ and MinIO use TLS with a private CA; per-service credentials.
@@ -133,9 +133,9 @@ stack, pinned unit skeletons, jobs, secret/PKI copies, and `render.json`.
 deployment, runs the jobs before the stack, and waits for the pinned image and
 443. `tools/swarm.sh` wraps upgrade/rollback/verify and snapshots the previous
 stack; stop-first fills every slot. `--remote docker --overlay` checks the live
-Swarm, nodes, overlay, replicas, ports, and digest; `ha` drains a worker and
-stops a manager. Unit configuration is PLAT-003..006, remote inspection/`ha` are
-PLAT-001, signing is PLAT-007. Contracts: [deploy/v3](../config/2026-11-22/deploy-v3.md), [swarm-control](../config/2026-11-23/swarm-control.md), [manual 15](../manual/15-ha-deployment.md).
+Swarm, nodes, overlay, replicas, ports, digest, and ingress mounts; `ha` drains
+a worker, stops a manager, drains the VIP holder, and probes 1 Hz while it moves.
+Unit configuration is PLAT-003..006; remote inspection/`ha` are PLAT-001; signing is PLAT-007. Contracts: [deploy/v3](../config/2026-11-22/deploy-v3.md), [swarm-control](../config/2026-11-23/swarm-control.md), [manual 15](../manual/15-ha-deployment.md).
 ## 10. Failure behaviour
 
 | Failure | Behaviour |

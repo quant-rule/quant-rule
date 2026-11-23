@@ -23,6 +23,10 @@
       "reference": "haproxy",
       "digest": "sha256:2a88fcd69de33b07362a9b98f822f2b31f7607932356829cee9a5d44d851a2db"
     },
+    "keepalived": {
+      "reference": "osixia/keepalived",
+      "digest": "sha256:67a5f8c8ca46f83c69a30376f47eaa4704f29a0495675433812d5216b0171682"
+    },
     "rabbitmq": {
       "reference": "rabbitmq",
       "digest": "sha256:605a57a95a166325381f132867163eafc20cb0ece6039504e45681136550e6b7"
@@ -55,8 +59,13 @@
   "ingress": {
     "dns": "quantrule.dev",
     "port": 443,
-    "tls": "acme",
-    "files": {},
+    "vip": "203.0.113.20",
+    "interface": "eth0",
+    "tls": "cert",
+    "files": {
+      "certificate": "/etc/quantrule/pki/ingress.crt",
+      "key": "/etc/quantrule/pki/ingress-key.pem"
+    },
     "replicas": 2,
     "hosts": [
       "edge-1",

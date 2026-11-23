@@ -66,6 +66,22 @@ fn local_descriptor(directory: &Path) -> PathBuf {
     for endpoint in ["database", "queue", "object_store"] {
         value["endpoints"][endpoint]["tls_ca"] = serde_json::json!(ca.display().to_string());
     }
+    let certificate = directory.join("ingress.crt");
+    let key = directory.join("ingress.key");
+    write_mode(
+        &certificate,
+        &std::fs::read_to_string(repo("deploy/v3/pki/ingress.crt")).expect("fixture cert"),
+        0o644,
+    );
+    write_mode(
+        &key,
+        &std::fs::read_to_string(repo("deploy/v3/pki/ingress-key.pem")).expect("fixture key"),
+        0o600,
+    );
+    value["ingress"]["files"] = serde_json::json!({
+        "certificate": certificate.display().to_string(),
+        "key": key.display().to_string(),
+    });
     let path = directory.join("deploy.json");
     std::fs::write(&path, value.to_string()).expect("descriptor");
     path
@@ -381,7 +397,7 @@ fn fake_state(directory: &Path, nodes: &str) -> PathBuf {
     std::fs::create_dir_all(&state).expect("state");
     std::fs::write(state.join("nodes.tsv"), nodes).expect("nodes");
     std::fs::write(state.join("secrets.tsv"), "").expect("secrets");
-    std::fs::write(state.join("configs.tsv"), "quantrule_traefik|external\n").expect("configs");
+    std::fs::write(state.join("configs.tsv"), "").expect("configs");
     state
 }
 
@@ -495,9 +511,29 @@ fn bootstrap_labels_nodes_migrates_before_deploying_and_never_prints_a_secret() 
     assert!(!text.contains(&token), "docker received the token");
 
     let secrets = std::fs::read_to_string(state.join("secrets.tsv")).expect("secrets");
-    assert_eq!(secrets.lines().count(), 12, "{secrets}");
+    assert_eq!(secrets.lines().count(), 13, "{secrets}");
     let configs = std::fs::read_to_string(state.join("configs.tsv")).expect("configs");
-    assert_eq!(configs.lines().count(), 4, "{configs}");
+    assert_eq!(configs.lines().count(), 6, "{configs}");
+    for name in [
+        "quantrule_traefik",
+        "quantrule_traefik_dynamic",
+        "quantrule_ingress_cert",
+    ] {
+        assert!(
+            configs
+                .lines()
+                .any(|line| line.starts_with(&format!("{name}|"))),
+            "{name}: {configs}"
+        );
+    }
+    assert!(
+        configs
+            .lines()
+            .all(|line| line.contains('|') && !line.contains("external")),
+        "{configs}"
+    );
+    let config_create = index_of(&lines, "config create");
+    assert!(config_create < deploy, "{text}");
     let _ = std::fs::remove_dir_all(directory);
 }
 
@@ -515,6 +551,7 @@ fn a_second_bootstrap_is_idempotent() {
         String::from_utf8_lossy(&first.stderr)
     );
     let first_creates = log_text(&log).matches("secret create").count();
+    let first_configs = log_text(&log).matches("config create").count();
     let second = run_bootstrap(&out, bin.parent().expect("bin"), &state, &log);
     assert!(
         second.status.success(),
@@ -522,8 +559,11 @@ fn a_second_bootstrap_is_idempotent() {
         String::from_utf8_lossy(&second.stderr)
     );
     let second_creates = log_text(&log).matches("secret create").count();
-    assert_eq!(first_creates, 12);
+    let second_configs = log_text(&log).matches("config create").count();
+    assert_eq!(first_creates, 13);
+    assert_eq!(first_configs, 6);
     assert_eq!(second_creates, first_creates, "a rerun recreated an object");
+    assert_eq!(second_configs, first_configs, "a rerun recreated a config");
     let _ = std::fs::remove_dir_all(directory);
 }
 
@@ -545,6 +585,35 @@ fn a_changed_secret_file_is_refused_as_drift() {
         .open(out.join("secrets/gateway_token"))
         .expect("token")
         .write_all(b"rotated\n")
+        .expect("append");
+    let second = run_bootstrap(&out, bin.parent().expect("bin"), &state, &log);
+    assert_eq!(second.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&second.stderr);
+    assert!(
+        stderr.contains("already exists with a different rendered file"),
+        "{stderr}"
+    );
+    let _ = std::fs::remove_dir_all(directory);
+}
+
+#[test]
+fn a_changed_config_file_is_refused_as_drift() {
+    let directory = temp_dir();
+    let out = render(&directory);
+    let bin = fake_docker_bin(&directory);
+    let state = fake_state(&directory, &node_table());
+    let log = directory.join("docker.log");
+    let first = run_bootstrap(&out, bin.parent().expect("bin"), &state, &log);
+    assert!(
+        first.status.success(),
+        "{}",
+        String::from_utf8_lossy(&first.stderr)
+    );
+    std::fs::OpenOptions::new()
+        .append(true)
+        .open(out.join("traefik-dynamic.yml"))
+        .expect("dynamic")
+        .write_all(b"# changed\n")
         .expect("append");
     let second = run_bootstrap(&out, bin.parent().expect("bin"), &state, &log);
     assert_eq!(second.status.code(), Some(1));

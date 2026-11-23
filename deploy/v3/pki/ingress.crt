@@ -1,0 +1,4 @@
+-----BEGIN CERTIFICATE-----
+FIXTURE ONLY: this is not a certificate and must never serve TLS.
+The test suite copies this file to a mode-644 temporary path.
+-----END CERTIFICATE-----

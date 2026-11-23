@@ -12,14 +12,19 @@
 //! stable code is preserved. After the final attempt the transport failure names
 //! the attempt count and never the URL, token, or body.
 
+use std::path::{Path, PathBuf};
 use std::thread;
 use std::time::{Duration, Instant};
 
 use quantrule_api::{PROFILE_HEADER, ProfileId};
+use ureq::tls::{Certificate, RootCerts, TlsConfig};
 
 use crate::error::RunError;
 use crate::retry;
 use crate::token::BearerToken;
+
+/// The environment variable naming a PEM CA bundle for a private deployment.
+pub(crate) const CA_CERT_ENV: &str = "QUANTRULE_CA_CERT";
 
 /// The gateway base used when `QUANTRULE_API_URL` is unset.
 pub(crate) const DEFAULT_API_URL: &str = "http://127.0.0.1:8080/api/v1";
@@ -55,12 +60,20 @@ impl Client {
         profile: ProfileId,
         token: Option<BearerToken>,
     ) -> Result<Self, RunError> {
-        let config = ureq::Agent::config_builder()
+        let mut config = ureq::Agent::config_builder()
             .http_status_as_error(false)
-            .timeout_global(Some(REQUEST_TIMEOUT))
-            .build();
+            .timeout_global(Some(REQUEST_TIMEOUT));
+        if let Some(path) = std::env::var_os(CA_CERT_ENV) {
+            let path = PathBuf::from(path);
+            let certificate = load_ca(&path)?;
+            config = config.tls_config(
+                TlsConfig::builder()
+                    .root_certs(RootCerts::from(vec![certificate]))
+                    .build(),
+            );
+        }
         Ok(Self {
-            agent: ureq::Agent::new_with_config(config),
+            agent: ureq::Agent::new_with_config(config.build()),
             base_url: base_url.trim_end_matches('/').to_owned(),
             profile,
             token,
@@ -199,6 +212,20 @@ impl Client {
     }
 }
 
+/// Read one PEM CA bundle for a private deployment.
+///
+/// The default `ureq` roots are a fixed webpki set, so a private CA is not
+/// trusted without this override. When the variable is unset the agent keeps
+/// the default roots; when it is set only the named CA is trusted, exactly as
+/// `qr-deploy check` trusts `endpoints.database.tls_ca`.
+fn load_ca(path: &Path) -> Result<Certificate<'static>, RunError> {
+    let pem = std::fs::read(path).map_err(|error| RunError::file(path.display(), error))?;
+    Certificate::from_pem(&pem).map_err(|error| RunError::File {
+        path: path.display().to_string(),
+        message: format!("is not a PEM CA certificate: {error}"),
+    })
+}
+
 /// Read one exchange into status and bytes.
 ///
 /// A transport or body failure is `Err(())`: the caller retries a GET and turns
@@ -264,7 +291,44 @@ fn checked(response: Response, path: &str) -> Result<Response, RunError> {
 
 #[cfg(test)]
 mod tests {
-    use super::encode;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    use super::{encode, load_ca};
+
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+
+    fn temp_file(name: &str, content: &str) -> std::path::PathBuf {
+        let path = std::env::temp_dir().join(format!(
+            "qr-shell-ca-{}-{}-{name}",
+            std::process::id(),
+            COUNTER.fetch_add(1, Ordering::Relaxed)
+        ));
+        std::fs::write(&path, content).expect("temp file");
+        path
+    }
+
+    #[test]
+    fn a_missing_ca_file_is_a_local_error() {
+        let path = std::env::temp_dir().join(format!(
+            "qr-shell-missing-ca-{}-{}",
+            std::process::id(),
+            COUNTER.fetch_add(1, Ordering::Relaxed)
+        ));
+        let error = load_ca(&path).expect_err("a missing CA");
+        assert!(error.to_string().contains("cannot use"), "{}", error);
+    }
+
+    #[test]
+    fn a_file_that_is_not_a_pem_certificate_is_refused() {
+        let path = temp_file("not-a-cert", "not a certificate\n");
+        let error = load_ca(&path).expect_err("a malformed CA");
+        assert!(
+            error.to_string().contains("PEM CA certificate"),
+            "{}",
+            error
+        );
+        let _ = std::fs::remove_file(path);
+    }
 
     #[test]
     fn a_digest_becomes_one_encoded_segment() {

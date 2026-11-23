@@ -22,6 +22,8 @@
 #   QR_SWARM_VERIFY        verification script (default tools/verify.sh)
 #   QR_SWARM_API_URL       gateway API base (default https://<ingress.dns>/api/v1)
 #   QR_SWARM_VERIFY_TIMEOUT seconds per verification run (default 300)
+#   QR_SWARM_CACERT        CA bundle for HTTPS (default endpoints.database.tls_ca,
+#                          then the rendered out/pki/database-ca.crt)
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -36,6 +38,7 @@ start_cmd=${QR_SWARM_START_CMD:-sudo systemctl start docker}
 verify=${QR_SWARM_VERIFY:-tools/verify.sh}
 verify_timeout=${QR_SWARM_VERIFY_TIMEOUT:-300}
 api_url=${QR_SWARM_API_URL:-}
+cacert=${QR_SWARM_CACERT:-}
 
 plan=0
 confirm=0
@@ -97,13 +100,16 @@ done
 if [ "$plan" -eq 1 ]; then
   cat <<'PLAN'
 ha: plan (no Docker is contacted)
-ha: 1. preflight: docker info, active Swarm manager, 3 odd managers, descriptor hosts resolve
+ha: 1. preflight: docker info, active Swarm manager, 3 odd managers, descriptor hosts resolve, VIP and CA present
 ha: 2. deploy: tools/swarm.sh bootstrap (render, labels, jobs, stack)
-ha: 3. check: qr-deploy check --remote docker --overlay; ingress /health /ready /version
-ha: 4. loss: drain one worker-capacity node; stop one manager on a distinct host
-ha: 5. verify: manager quorum, gateway/ingress, one 443 port, pinned digest, verification run
-ha: 6. verify: stateful containers and bind mounts on survivors; no stateful unit moves
-ha: 7. restore: start the manager, activate the worker, full check again
+ha: 3. check: qr-deploy check --remote docker --overlay; ingress /health /ready /version over the private CA
+ha: 4. ingress baseline: VIP holder, 2/2 ingress, targeted check and tools/verify.sh digest
+ha: 5. ingress loss: drain the VIP holder; bounded 1 Hz HTTPS /health loop; the VIP moves to the survivor
+ha: 6. negative controls: no port 80, each direct edge public 443 refused, VIP 443 answers, app ports 8080/5432/9000 refused
+ha: 7. loss: drain one worker-capacity node; stop one manager on a distinct host
+ha: 8. verify: manager quorum, gateway/ingress, one 443 port, pinned digest, verification run
+ha: 9. verify: stateful containers and bind mounts on survivors; no stateful unit moves
+ha: 10. restore: activate the ingress holder and worker, start the manager, full check again
 ha: evidence: Simulated HA for lab-single-host; Real HA is HA-014 only
 ha: this plan is not evidence
 PLAN
@@ -124,10 +130,82 @@ host_address() {
   jq -r --arg host "$1" '.hosts[$host].address' "$descriptor"
 }
 
+public_address() {
+  jq -r --arg host "$1" '.hosts[$host].public_address // empty' "$descriptor"
+}
+
 remote() {
   local host=$1
   shift
   $ssh_bin "$(host_address "$host")" "$@"
+}
+
+curl_ingress() {
+  if [ -n "$cacert" ]; then
+    curl --cacert "$cacert" "$@"
+  else
+    curl "$@"
+  fi
+}
+
+resolve_cacert() {
+  local candidate
+  if [ -n "$cacert" ]; then
+    [ -r "$cacert" ] || unverified "QR_SWARM_CACERT $cacert is not readable"
+    return 0
+  fi
+  candidate=$(jq -r '.endpoints.database.tls_ca // empty' "$descriptor" 2>/dev/null || true)
+  if [ -n "$candidate" ] && [ -r "$candidate" ]; then
+    cacert=$candidate
+    say "CA: $cacert"
+    return 0
+  fi
+  candidate="$out/pki/database-ca.crt"
+  if [ -r "$candidate" ]; then
+    cacert=$candidate
+    say "CA: $cacert"
+    return 0
+  fi
+  unverified "no readable CA bundle; set QR_SWARM_CACERT"
+}
+
+# The one ingress host that currently holds the VIP, or empty.
+ingress_holder() {
+  local host address output
+  for host in $ingress_hosts; do
+    address=$(host_address "$host")
+    output=$(remote "$host" "ip -4 -o addr show dev $ingress_iface" 2>/dev/null || true)
+    if printf '%s\n' "$output" | grep -Fq "inet $vip/"; then
+      printf '%s' "$host"
+      return 0
+    fi
+  done
+  return 0
+}
+
+node_id_for_host() {
+  local host=$1 id
+  for id in $node_ids; do
+    if [ "${node_host[$id]}" = "$host" ]; then
+      printf '%s' "$id"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Wait for any VIP holder, or for a holder different from $1 when one is given.
+wait_vip() {
+  local old=${1:-} attempt holder
+  for attempt in $(seq 1 90); do
+    holder=$(ingress_holder)
+    if [ -n "$holder" ] && { [ -z "$old" ] || [ "$holder" != "$old" ]; }; then
+      printf '%s' "$holder"
+      return 0
+    fi
+    sleep 1
+  done
+  unverified "the VIP did not appear${old:+ on a host other than $old} within 90 s"
 }
 
 stateful_containers() {
@@ -263,7 +341,7 @@ targeted_check() {
     esac
   done
   for path in health ready version; do
-    body=$(curl -fsS --max-time 10 "https://$dns/$path" 2>/dev/null) \
+    body=$(curl_ingress -fsS --max-time 10 "https://$dns/$path" 2>/dev/null) \
       || unverified "$phase: ingress /$path is unreachable"
     case "$path" in
       version)
@@ -279,13 +357,189 @@ targeted_check() {
 }
 
 verify_run() {
-  local phase=$1 output digest
+  local phase=$1 output digest args
   [ -x "$verify" ] || unverified "$phase: verification script $verify is not executable"
-  output=$("$verify" --api-url "$api_url" --timeout "$verify_timeout") \
+  args=(--api-url "$api_url" --timeout "$verify_timeout")
+  [ -n "$cacert" ] && args+=(--cacert "$cacert")
+  output=$("$verify" "${args[@]}") \
     || unverified "$phase: the verification run failed"
   digest=$(printf '%s\n' "$output" | sed -n 's/^canonical digest sha256:\([0-9a-f]*\)$/\1/p')
   [ -n "$digest" ] || unverified "$phase: the verification run printed no canonical digest"
+  last_digest=$digest
   say "$phase: verification run digest sha256:$digest"
+}
+
+ingress_preflight() {
+  local holder count host address expected replicas
+  resolve_cacert
+  ingress_hosts=$(jq -r '.ingress.hosts[]' "$descriptor") \
+    || unverified "cannot read the ingress hosts"
+  [ -n "$ingress_hosts" ] || unverified "the descriptor declares no ingress hosts"
+  for host in $ingress_hosts; do
+    address=$(host_address "$host")
+    $ssh_bin "$address" true >/dev/null 2>&1 \
+      || unverified "cannot SSH to ingress host $host ($address); set QR_SWARM_SSH"
+    remote "$host" "command -v nc" >/dev/null 2>&1 \
+      || unverified "nc is not available on ingress host $host"
+    remote "$host" "command -v curl" >/dev/null 2>&1 \
+      || unverified "curl is not available on ingress host $host"
+  done
+  "$docker_bin" config inspect quantrule_traefik >/dev/null 2>&1 \
+    || unverified "config quantrule_traefik is missing; bootstrap the ingress first"
+  wait_converged
+  holder=$(ingress_holder)
+  [ -n "$holder" ] || unverified "no ingress host holds the VIP $vip"
+  count=0
+  for host in $ingress_hosts; do
+    if [ -n "$(vip_on_host "$host")" ]; then
+      count=$((count + 1))
+    fi
+  done
+  [ "$count" -eq 1 ] \
+    || unverified "the VIP $vip is held by $count ingress hosts; expected exactly one"
+  expected=$(jq -r '.ingress.replicas' "$descriptor")
+  replicas=$("$docker_bin" service inspect --format \
+    '{{.ServiceStatus.RunningTasks}}/{{.ServiceStatus.DesiredTasks}}' "${stack}_ingress" 2>/dev/null || true)
+  [ "$replicas" = "$expected/$expected" ] \
+    || unverified "the ingress is $replicas; expected $expected/$expected"
+  vip_holder=$holder
+  say "ingress preflight: VIP $vip on $vip_holder; ingress $replicas; CA $cacert"
+}
+
+vip_on_host() {
+  local host=$1 address output
+  address=$(host_address "$host")
+  output=$(remote "$host" "ip -4 -o addr show dev $ingress_iface" 2>/dev/null || true)
+  if printf '%s\n' "$output" | grep -Fq "inet $vip/"; then
+    printf '%s' "$host"
+  fi
+}
+
+negative_closed_http() {
+  local label=$1 url=$2 code
+  code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$url" 2>/dev/null || true)
+  [ -n "$code" ] || code=000
+  [ "$code" = "000" ] || unverified "$label answered HTTP $code; it must not answer"
+  say "negative control: $label closed"
+}
+
+negative_closed_tcp() {
+  local label=$1 host=$2 port=$3
+  if nc -z -w 5 "$host" "$port" >/dev/null 2>&1; then
+    unverified "$label is reachable from outside"
+  fi
+  say "negative control: $label closed"
+}
+
+negative_controls() {
+  local host address
+  negative_closed_http "port 80" "http://$dns/"
+  for host in $ingress_hosts; do
+    address=$(public_address "$host")
+    [ -n "$address" ] \
+      || unverified "ingress host $host has no public_address; the direct-edge control cannot run"
+    negative_closed_tcp "direct edge public $host:443" "$address" 443
+  done
+  nc -z -w 5 "$vip" 443 >/dev/null 2>&1 \
+    || unverified "the VIP $vip does not answer 443"
+  curl_ingress -fsS --max-time 10 --resolve "$dns:443:$vip" "https://$dns/health" >/dev/null 2>&1 \
+    || unverified "https://$dns/health does not answer through VIP $vip"
+  say "negative control: VIP $vip:443 answers"
+  negative_closed_tcp "gateway 8080" "$vip" 8080
+  negative_closed_tcp "postgres 5432" "$vip" 5432
+  negative_closed_tcp "object store 9000" "$vip" 9000
+}
+
+ingress_loss() {
+  local baseline holder other holder_id
+  local failures server_errors unexpected window probe_dir probe_log probe_stop probe_pid
+  targeted_check "ingress baseline"
+  verify_run "ingress baseline"
+  baseline=$last_digest
+  holder=$(ingress_holder)
+  [ -n "$holder" ] || unverified "the ingress baseline has no VIP holder"
+  vip_holder=$holder
+  say "ingress baseline: VIP $vip on $vip_holder; digest sha256:$baseline"
+
+  probe_dir=$(mktemp -d "${TMPDIR:-/tmp}/quantrule-ingress-probe.XXXXXX")
+  probe_log=$probe_dir/health.log
+  probe_stop=$probe_dir/stop
+  probe_pid=""
+  cleanup_probe() {
+    : > "${probe_stop:-/dev/null}"
+    if [ -n "${probe_pid:-}" ]; then
+      wait "$probe_pid" 2>/dev/null || true
+    fi
+    if [ -n "${probe_dir:-}" ]; then
+      rm -rf "$probe_dir"
+    fi
+  }
+  trap cleanup_probe EXIT
+  : > "$probe_log"
+  (
+    tick=0
+    while [ ! -e "$probe_stop" ]; do
+      tick=$((tick + 1))
+      code=$(curl_ingress -sS -o /dev/null -w '%{http_code}' --max-time 2 \
+        "https://$dns/health" 2>/dev/null || true)
+      [ -n "$code" ] || code=000
+      printf '%s %s\n' "$tick" "$code" >> "$probe_log"
+      sleep 1
+    done
+  ) &
+  probe_pid=$!
+
+  holder_id=$(node_id_for_host "$holder") \
+    || unverified "cannot map the VIP holder $holder to a Swarm node"
+  say "ingress loss: drain the VIP holder $holder ($holder_id)"
+  "$docker_bin" node update --availability drain "$holder_id" >/dev/null
+  other=$(wait_vip "$holder")
+  : > "$probe_stop"
+  wait "$probe_pid" || true
+  [ -n "$other" ] && [ "$other" != "$holder" ] \
+    || unverified "the VIP did not move from $holder"
+  say "ingress loss: VIP moved from $holder to $other"
+
+  failures=$(awk '$2 == "000" { n++ } END { print n + 0 }' "$probe_log")
+  server_errors=$(awk '$2 ~ /^5/ { n++ } END { print n + 0 }' "$probe_log")
+  unexpected=$(awk '$2 != "000" && $2 != "200" { n++ } END { print n + 0 }' "$probe_log")
+  [ "$server_errors" -eq 0 ] \
+    || unverified "the move produced $server_errors HTTP 5xx response(s)"
+  [ "$unexpected" -eq 0 ] \
+    || unverified "the move produced $unexpected unexpected HTTP response(s)"
+  window=$(awk '
+    $2 == "000" && !failed { first = $1; failed = 1 }
+    failed && $2 == "200" && !done { window = $1 - first; done = 1 }
+    END {
+      if (!failed) print 0
+      else if (!done) print -1
+      else print window
+    }
+  ' "$probe_log")
+  [ "$window" -ge 0 ] \
+    || unverified "the 1 Hz HTTPS probe never recovered after the VIP moved"
+  say "ingress loss: $failures failed probe(s), outage window ${window}s, no 5xx"
+
+  targeted_check "after ingress move"
+  verify_run "after ingress move"
+  [ "$last_digest" = "$baseline" ] \
+    || unverified "the digest changed after the ingress move"
+  stateful_check_all
+  stateful_no_move
+  negative_controls
+
+  say "restore: activate the ingress holder $holder"
+  "$docker_bin" node update --availability active "$holder_id" >/dev/null
+  wait_converged
+  wait_vip >/dev/null
+  targeted_check "after ingress restore"
+  verify_run "after ingress restore"
+  [ "$last_digest" = "$baseline" ] \
+    || unverified "the digest changed after the ingress restore"
+  cleanup_probe
+  probe_dir=""
+  probe_pid=""
+  trap - EXIT
 }
 
 preflight() {
@@ -295,6 +549,7 @@ preflight() {
   "$docker_bin" info >/dev/null 2>&1 || unverified "cannot reach the Docker daemon"
   command -v jq >/dev/null 2>&1 || unverified "jq is required to read the descriptor"
   command -v curl >/dev/null 2>&1 || unverified "curl is required to probe the ingress"
+  command -v nc >/dev/null 2>&1 || unverified "nc is required for the ingress negative controls"
   [ -f "$descriptor" ] || unverified "descriptor $descriptor is missing"
   local_state=$("$docker_bin" info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null || true)
   control=$("$docker_bin" info --format '{{.Swarm.ControlAvailable}}' 2>/dev/null || true)
@@ -307,6 +562,12 @@ preflight() {
     || unverified "cannot read the ingress DNS"
   stack=$(jq -r '.name // "quantrule"' "$descriptor") \
     || unverified "cannot read the stack name"
+  vip=$(jq -r '.ingress.vip // empty' "$descriptor") \
+    || unverified "cannot read the ingress VIP"
+  [ -n "$vip" ] \
+    || unverified "ingress.vip is missing; the ingress-loss phase needs the floating VIP"
+  ingress_iface=$(jq -r '.ingress.interface // "eth0"' "$descriptor") \
+    || unverified "cannot read the ingress interface"
   nodes=$("$docker_bin" node ls --format '{{.ID}} {{.Hostname}} {{.Role}} {{.Availability}} {{.ManagerStatus}}' 2>/dev/null) \
     || unverified "cannot list Swarm nodes"
   manager_count=$(printf '%s\n' "$nodes" | awk '$3 == "manager" { count++ } END { print count+0 }')
@@ -404,6 +665,8 @@ local_id=""
 profile=""
 dns=""
 stack=""
+vip=""
+ingress_iface="eth0"
 evidence=""
 stateful_hosts=""
 ingress_hosts=""
@@ -412,6 +675,8 @@ worker_host=""
 manager_id=""
 manager_host=""
 manager_addr=""
+vip_holder=""
+last_digest=""
 
 preflight
 
@@ -433,6 +698,8 @@ if [ "$confirm" -eq 0 ]; then
   say "  $ssh_bin $manager_addr '$stop_cmd'   # $manager_host"
   say "  $ssh_bin $manager_addr '$start_cmd'"
   say "  $docker_bin node update --availability active $worker_id"
+  say "  $docker_bin node update --availability drain <vip-holder-id>   # ingress loss"
+  say "  $docker_bin node update --availability active <vip-holder-id>  # ingress restore"
   exit 2
 fi
 
@@ -467,6 +734,11 @@ stateful_check_all
 stateful_no_move
 targeted_check "after manager restore"
 verify_run "after manager restore"
+
+say "ingress: preflight"
+ingress_preflight
+say "ingress: VIP loss and negative controls"
+ingress_loss
 
 say "check: full remote/overlay after restore"
 qr_deploy check "$descriptor" --remote docker --overlay \
