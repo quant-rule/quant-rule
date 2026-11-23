@@ -12,7 +12,9 @@
 # digest route are cross-checks.
 #
 # The script holds no engine and never runs a pipeline stage. Every run is
-# submitted and read through the gateway; the shell is a thin HTTP client.
+# submitted and read through the gateway; the shell is a thin HTTP client. A
+# private-CA deployment passes `--cacert <bundle>` or sets QUANTRULE_CA_CERT
+# (or CURL_CA_BUNDLE); every curl call and the shell client then trust it.
 set -euo pipefail
 
 root="$(git rev-parse --show-toplevel)"
@@ -27,6 +29,7 @@ profile="default"
 timeout=300
 self_test=0
 evidence_dir=""
+cacert=""
 
 # The canonical digest of the fixture artifact list used by --self-test.
 self_test_digest="773aea9ea27012c85ebaebe6661c5917ad8fe7c5bbc9d2e8ee22308c548f2ab2"
@@ -36,7 +39,7 @@ usage() {
 usage: tools/verify.sh [--config <run.json>] [--replica <run.json>]
                        [--data <candles.csv>] [--expected <digest>]
                        [--profile <id>] [--api-url <url>] [--timeout <seconds>]
-                       [--evidence-dir <dir>] [--self-test]
+                       [--evidence-dir <dir>] [--cacert <bundle>] [--self-test]
 
 Submits two configs with the same effective behavior through the gateway,
 compares their canonical digests, and prints one line. The default pair is
@@ -53,6 +56,8 @@ run name. The data defaults to candles.csv next to the first config.
                  every run status under <dir>/status, the assigned config and
                  run ids in <dir>/runs.tsv, and the digest in <dir>/digest, so a
                  parity harness can compare the artifact bytes of two profiles.
+  --cacert       A PEM CA bundle for HTTPS; defaults to QUANTRULE_CA_CERT, then
+                 CURL_CA_BUNDLE. Every curl call and the shell client trust it.
   --self-test    Compare a fixed artifact list; no gateway is contacted.
 
 The strategy is part of the run config; the old --strategy flag is gone.
@@ -114,6 +119,11 @@ while [ $# -gt 0 ]; do
     --evidence-dir)
       [ $# -ge 2 ] || usage_error "--evidence-dir needs a value"
       evidence_dir="$2"
+      shift 2
+      ;;
+    --cacert)
+      [ $# -ge 2 ] || usage_error "--cacert needs a value"
+      cacert="$2"
       shift 2
       ;;
     --self-test)
@@ -212,6 +222,16 @@ if [ "$self_test" -eq 1 ]; then
   exit 0
 fi
 
+if [ -z "$cacert" ]; then
+  cacert="${QUANTRULE_CA_CERT:-${CURL_CA_BUNDLE:-}}"
+fi
+curl_args=()
+if [ -n "$cacert" ]; then
+  [ -r "$cacert" ] || fail "--cacert $cacert is not readable"
+  curl_args+=(--cacert "$cacert")
+  export QUANTRULE_CA_CERT="$cacert"
+fi
+
 if [ -n "${QUANTRULE_SHELL:-}" ]; then
   shell="$QUANTRULE_SHELL"
 else
@@ -243,7 +263,7 @@ say() {
 
 require_stack() {
   local health
-  health="$(curl -fsS --max-time 5 "$api_url/health" 2>/dev/null)" \
+  health="$(curl "${curl_args[@]}" -fsS --max-time 5 "$api_url/health" 2>/dev/null)" \
     || fail "the gateway is not reachable at $api_url; run 'make up' first"
   printf '%s' "$health" | grep -q '"state":"healthy"' \
     || fail "the gateway at $api_url is not healthy; run 'make up' first"
@@ -290,7 +310,7 @@ upload_config() {
   response="$work/bundle-response.json"
   bundle_json "$directory" "$label" > "$body" \
     || fail "cannot build the config bundle for $run_path"
-  status="$(curl -sS -o "$response" -w '%{http_code}' \
+  status="$(curl "${curl_args[@]}" -sS -o "$response" -w '%{http_code}' \
     -X POST -H "X-QuantRule-Profile: $profile" \
     -H 'content-type: application/json' \
     --data-binary @"$body" "$api_url/catalog/configs")" \
@@ -382,7 +402,7 @@ fetch_artifacts() {
     esac
     file="$directory/$name"
     mkdir -p "$(dirname "$file")"
-    code="$(curl -sS -o "$file" -w '%{http_code}' \
+    code="$(curl "${curl_args[@]}" -sS -o "$file" -w '%{http_code}' \
       -H "X-QuantRule-Profile: $profile" \
       "$api_url/runs/${run_id//:/%3A}/artifacts/$name")" \
       || fail "cannot reach the gateway for $name"

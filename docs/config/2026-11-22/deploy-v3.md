@@ -2,14 +2,16 @@
 
 - Date: 2026-11-22 (UTC)
 - Status: Current for schema, validation, render, check, the remote/overlay
-  inspector, and the PLAT-001 bootstrap/rolling-update control plane; platform
-  unit configuration belongs to PLAT-002..007
+  inspector, the PLAT-001 bootstrap/rolling-update control plane, and the
+  PLAT-002 cert-mode ingress; platform unit configuration belongs to
+  PLAT-003..006
 - Claim type: Behaviour Claim
 - Issue: [#1110](https://github.com/quant-rule/quant-rule/issues/1110)
 - Related: [ADR-HA](../../adr/2026-11-22/1082-ha-deployment-profile.md),
   [HA architecture](../../architecture/ha.md),
   [Multi-host](../../architecture/multi-host.md),
   [Swarm control plane](../2026-11-23/swarm-control.md),
+  [ingress](../2026-11-23/ingress.md),
   [secret files](../2026-11-23/secret-files.md),
   [internal TLS](../2026-11-23/internal-tls.md),
   [HA deployment chapter](../../manual/15-ha-deployment.md)
@@ -43,7 +45,7 @@ the other profiles keep `1`.
 ## 2. Shape
 
 The sample is authoritative. This excerpt repeats one host, one database, and
-two services and omits the ten pinned infrastructure images to show the other
+two services and omits the eleven pinned infrastructure images to show the other
 blocks; the sample lists every pin.
 
 ```json
@@ -56,8 +58,10 @@ blocks; the sample lists every pin.
   "ingress": {
     "dns": "quantrule.dev",
     "port": 443,
-    "tls": "acme",
-    "files": {},
+    "vip": "203.0.113.20",
+    "interface": "eth0",
+    "tls": "cert",
+    "files": { "certificate": "/etc/quantrule/pki/ingress.crt", "key": "/etc/quantrule/pki/ingress-key.pem" },
     "replicas": 2,
     "hosts": ["edge-1", "edge-2"]
   },
@@ -110,13 +114,7 @@ blocks; the sample lists every pin.
 }
 ```
 
-The sample has eleven hosts: two edge (ingress and gateway), two core (data,
-evidence, simulation), three compute (model, strategy, backtest), and four
-infrastructure hosts (PostgreSQL, etcd, HAProxy on the edge pair, RabbitMQ,
-MinIO, observability). Compute hosts span `az1`..`az3`; the four infrastructure
-hosts span `az1`..`az4`, so four MinIO nodes each contribute one drive in a
-distinct failure domain. The six HTTP services use `8080`; backtest uses `9090`
-for its internal listener; no service port is published.
+The sample has eleven hosts: two edge (ingress, gateway, keepalived), two core (data, evidence, simulation), three compute (model, strategy, backtest), and four infrastructure hosts (PostgreSQL, etcd, HAProxy on the edge pair, RabbitMQ, MinIO, observability). Compute hosts span `az1`..`az3`; the four infrastructure hosts span `az1`..`az4`, so four MinIO nodes each contribute one drive in a distinct failure domain. The six HTTP services use `8080`; backtest uses `9090`; no service port is published.
 
 ## 3. Fields
 
@@ -126,11 +124,13 @@ for its internal listener; no service port is published.
 | `profile` | `swarm-ha`, `single-az`, or `lab-single-host`. |
 | `name` | Optional lowercase DNS label; the default stack name is `quantrule`. |
 | `image` | The server image every service runs; `sha256:` digest required. |
-| `images` | Pins for `traefik`, `postgres`, `etcd`, `haproxy`, `rabbitmq`, `minio`, `prometheus`, `grafana`, `loki`, `alertmanager`; no other key. |
+| `images` | Pins for `traefik`, `postgres`, `etcd`, `haproxy`, `keepalived`, `rabbitmq`, `minio`, `prometheus`, `grafana`, `loki`, `alertmanager`; no other key. |
 | `network.overlay` | Overlay name; `encrypted` must be true. |
 | `ingress.dns` | Exactly `quantrule.dev`. |
 | `ingress.port` | Exactly `443`; no second public port. |
-| `ingress.tls` | `acme` (empty `files`) or `cert` (exactly `certificate` and `key`). |
+| `ingress.vip` | Required IPv4; not loopback, multicast, unspecified, or broadcast; distinct from every ingress host `public_address`. |
+| `ingress.interface` | Optional Linux interface name, default `eth0`; 1–15 characters with no whitespace or slash. |
+| `ingress.tls` | `cert` only in v1.5.10; `acme` is reserved and refused with `deploy.ingress.tls` until the future path lands. |
 | `ingress.replicas` / `hosts` | At least one; `swarm-ha` needs two and two failure domains; every host needs `public_address`. |
 | `auth.gateway_token_secret` | A key in `secrets.files`; never an inline token. |
 | `hosts` | Private `address`, `failure_domain`, and an optional `public_address` only on an ingress host. |
@@ -152,6 +152,8 @@ files and credential quality.
 | Rule | Code |
 |---|---|
 | Exactly seven services, four databases, one ingress, 443 only | `deploy.service.*`, `deploy.database.*`, `deploy.ingress.port` |
+| VIP is IPv4, routable, and distinct; interface is a simple 1–15 character name | `deploy.ingress.vip`, `deploy.ingress.interface` |
+| `ingress.tls` is `cert`; `acme` is reserved and refused until the future path lands | `deploy.ingress.tls` |
 | No service port 443 and no published service port | `deploy.service.public_port` |
 | `swarm-ha` has at least three failure domains | `deploy.profile.failure_domains` |
 | Replicas <= distinct hosts and distinct domains in `swarm-ha` and `single-az` | `deploy.service.anti_affinity` |
@@ -186,8 +188,8 @@ usage errors.
 
 | Target | Writes |
 |---|---|
-| `swarm` | `stack.yaml`, `bootstrap.sh`, `jobs/db-bootstrap.sh`, `jobs/migrate.sh`, `secrets/`, `pki/`, `render.json` |
-| `infra` | `infra/<host>.yaml`, `secrets/`, `pki/`, `render.json` |
+| `swarm` | `stack.yaml`, `quantrule_traefik.yml`, `traefik-dynamic.yml`, `bootstrap.sh`, `jobs/db-bootstrap.sh`, `jobs/migrate.sh`, `secrets/`, `pki/`, `render.json` |
+| `infra` | `infra/<host>.yaml`, `keepalived-<host>.conf`, `secrets/`, `pki/`, `render.json` |
 | `all` | Both sets |
 
 `secrets/` is the one copy of the source `secrets.files` values: one mode-600
@@ -204,34 +206,37 @@ bind and metrics ports, service URLs, object-store bucket, queue generation,
 stage retention, and backtest concurrency. No secret value is present. The
 gateway publishes no port; the ingress is the only `ports` entry: 443/443,
 `mode: host`. External secrets and configs are mounted read-only; CA bundles
-land under `/run/quantrule/pki`. For `tls: cert`, the ingress mounts the
-certificate config and key secret at the paths the PLAT-002 Traefik config
-references. Placement uses the host/domain/deployment labels,
-`max_replicas_per_node: 1` (except the lab), a domain spread preference,
-`stop_grace_period: 40s`, and a bounded restart policy. Each HTTP service has a
-`/health` check (`8080`; backtest `9090`); a spare slot selects `start-first`,
-otherwise `stop-first` with `monitor: 180s` and `max_failure_ratio: 0`. The
-overlay is external, attachable, and encrypted.
+land under `/run/quantrule/pki`. In cert mode the ingress mounts the static and
+dynamic Traefik configs, the certificate config, and the key secret at the paths
+in [ingress](../2026-11-23/ingress.md). Placement uses the
+host/domain/deployment labels, `max_replicas_per_node: 1` (except the lab), a
+domain spread preference, `stop_grace_period: 40s`, and a bounded restart
+policy. Each HTTP service has a `/health` check (`8080`; backtest `9090`); a
+spare slot selects `start-first`, otherwise `stop-first` with `monitor: 180s`
+and `max_failure_ratio: 0`. The overlay is external, attachable, and encrypted.
 
 `infra/<host>.yaml` is a pinned skeleton per host for Patroni/PostgreSQL, etcd,
-HAProxy, RabbitMQ, MinIO, Prometheus, Grafana, Loki, and Alertmanager. Each
-unit has a pinned image, host-local bind volumes, config-file references, no
-`ports`, `restart: unless-stopped`, and the attachable overlay. The unit
-configuration itself is PLAT-003/004/005/006; the renderer does not invent it.
+HAProxy, RabbitMQ, MinIO, Prometheus, Grafana, Loki, Alertmanager, and keepalived
+on each ingress host. Each unit has a pinned image, host-local bind volumes,
+config-file references, no `ports`, `restart: unless-stopped`, and the
+attachable overlay. The keepalived unit is host-network with `NET_ADMIN` and
+`NET_BROADCAST` and no `deploy` block. The unit configuration itself is
+PLAT-003/004/005/006 (keepalived is PLAT-002); the renderer does not invent it.
 The HAProxy unit carries the database endpoint alias, RabbitMQ the queue alias,
 and MinIO the object-store alias; the MinIO drive list comes from
 `stateful.minio.drives`.
 
 `bootstrap.sh` runs on a manager: it checks the daemon and manager role, creates
 or verifies the encrypted attachable overlay, creates external secrets/configs
-and refuses a changed file by `quantrule.source_sha256`, checks the PLAT-002
-Traefik config, labels nodes (`quantrule.host`, `.domain`, `.profile`, `.deploy`,
-per-service, `.ingress`), resolves each host by label then hostname then unique
-address, refuses ambiguity/drain/foreign deployment, checks counts, runs the jobs
-before the stack, and waits for the pinned digest and one 443 port. It prints no
-secret value. `tools/swarm.sh` wraps validate/render/bootstrap/status/upgrade/
-rollback/verify, snapshots before upgrade, and never removes a stack, secret,
-config, or volume. Contract: [swarm-control](../2026-11-23/swarm-control.md).
+(including the static and dynamic Traefik configs) and refuses a changed file by
+`quantrule.source_sha256`, labels nodes (`quantrule.host`, `.domain`, `.profile`,
+`.deploy`, per-service, `.ingress`), resolves each host by label then hostname
+then unique address, refuses ambiguity/drain/foreign deployment, checks counts,
+runs the jobs before the stack, and waits for the pinned digest and one 443 port.
+It prints no secret value. `tools/swarm.sh` wraps validate/render/bootstrap/
+status/upgrade/rollback/verify, snapshots before upgrade, and never removes a
+stack, secret, config, or volume. Contract:
+[swarm-control](../2026-11-23/swarm-control.md).
 
 `jobs/db-bootstrap.sh` applies each database's schema and grants through its
 **owner** URL, in gateway, data, evidence, simulation order. PLAT-003 owns the
@@ -250,15 +255,10 @@ the canonical `sha256:` descriptor hash, the pinned image, and the sorted file l
 qr-deploy check deploy.json [--remote docker] [--overlay]
 ```
 
-The default check validates the descriptor and placement, reads every local
-secret and ingress file with the `validate --files` rules, rejects a second public port
-or an internal published port in the rendered model, and probes
-`https://quantrule.dev/health`, `/ready`, and `/version` through the ingress.
-The probe trusts the CA named by `endpoints.database.tls_ca` in `tls: cert`
-mode and the bundled system roots in `acme` mode. It compares the reported
-image digest with the descriptor. The report prints the profile, evidence tier,
-image digest, placement counts, every secret name and path, and each probe
-result; it never prints a secret value.
+The default check validates the descriptor, placement, and local files, rejects a
+second public port, and probes `https://quantrule.dev/health`, `/ready`, and
+`/version` through the ingress. The trust anchor and recorded-fixture seam are in
+[ingress](../2026-11-23/ingress.md); the report never prints a secret value.
 
 `--remote docker` and `--overlay` are explicit read-only opt-ins. The Docker
 adapter runs `docker info`, `node ls`, and `node|network|service inspect`, parses
@@ -314,13 +314,17 @@ HA-009. The gateway token code is unchanged; both paths still use
 node failure only. The `ha` tier (`tools/test_tiers.sh ha`) deploys, loses one
 worker and one manager, and records `Simulated HA`; `swarm-ha` and `single-az`
 say unverified until HA-014. The release note, `render.json`, and `qr-deploy
-check` never say `Real HA`.
+check` never say `Real HA`. The ingress rows and client CA trust are PLAT-002; an
+unavailable ingress-loss lab is `Unverified`, never a pass.
 
 ## 11. Non-goals
 
 No Kubernetes, autoscaling, accounts, tenancy, live trading, desktop packaging,
-a second public port, or inline secrets. Patroni/RabbitMQ/MinIO/observability
-configuration is PLAT-003/004/005/006; registry signing is PLAT-007; backup is
-HA-013; failure evidence is HA-014. Internal TLS and the CA model are in the
-[internal TLS contract](../2026-11-23/internal-tls.md); secret files and rotation
-are in the [file-backed secrets contract](../2026-11-23/secret-files.md).
+a second public port, or inline secrets. Ingress, keepalived, DNS/TLS, certificate
+storage, headers, and body limits are in the
+[ingress contract](../2026-11-23/ingress.md). Patroni/RabbitMQ/MinIO/
+observability configuration is PLAT-003/004/005/006; registry signing is
+PLAT-007; backup is HA-013; failure evidence is HA-014. Internal TLS and the CA
+model are in the [internal TLS contract](../2026-11-23/internal-tls.md); secret
+files and rotation are in the
+[file-backed secrets contract](../2026-11-23/secret-files.md).

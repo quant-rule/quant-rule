@@ -40,6 +40,8 @@ struct Unit {
     container_name: String,
     volumes: Vec<Volume>,
     aliases: Vec<String>,
+    host_network: bool,
+    cap_add: Vec<&'static str>,
 }
 
 #[derive(Debug)]
@@ -71,6 +73,27 @@ fn unit(
         container_name: format!("quantrule-{name}-{host}"),
         volumes,
         aliases,
+        host_network: false,
+        cap_add: Vec::new(),
+    }
+}
+
+/// A host-network unit with the two capabilities keepalived needs.
+fn host_unit(
+    descriptor: &Descriptor,
+    name: &'static str,
+    image_key: &str,
+    host: &str,
+    volumes: Vec<Volume>,
+) -> Unit {
+    Unit {
+        name,
+        image: pinned(&descriptor.images[image_key]),
+        container_name: format!("quantrule-{name}-{host}"),
+        volumes,
+        aliases: Vec::new(),
+        host_network: true,
+        cap_add: vec!["NET_ADMIN", "NET_BROADCAST"],
     }
 }
 
@@ -136,6 +159,19 @@ fn host_units(descriptor: &Descriptor) -> BTreeMap<String, Vec<Unit>> {
         ));
     }
     let queue_host = descriptor.endpoints.queue.host.clone();
+    for host in &descriptor.ingress.hosts {
+        hosts.entry(host.clone()).or_default().push(host_unit(
+            descriptor,
+            "keepalived",
+            "keepalived",
+            host,
+            vec![volume(
+                "/etc/quantrule/keepalived.conf",
+                "/etc/keepalived/keepalived.conf",
+                true,
+            )],
+        ));
+    }
     for host in &descriptor.stateful.rabbitmq.nodes {
         hosts.entry(host.clone()).or_default().push(unit(
             descriptor,
@@ -261,6 +297,15 @@ fn host_yaml(descriptor: &Descriptor, host: &str, units: &[Unit]) -> String {
             )
             .with("restart", Yaml::string("unless-stopped"))
             .with("stop_grace_period", Yaml::string("40s"));
+        if value.host_network {
+            service = service.with("network_mode", Yaml::string("host"));
+        }
+        if !value.cap_add.is_empty() {
+            service = service.with(
+                "cap_add",
+                Yaml::list(value.cap_add.iter().map(|cap| Yaml::string(*cap))),
+            );
+        }
         if !value.volumes.is_empty() {
             service = service.with(
                 "volumes",
@@ -273,22 +318,24 @@ fn host_yaml(descriptor: &Descriptor, host: &str, units: &[Unit]) -> String {
                 })),
             );
         }
-        if value.aliases.is_empty() {
-            service = service.with(
-                "networks",
-                Yaml::list([Yaml::string(descriptor.network.overlay.as_str())]),
-            );
-        } else {
-            service = service.with(
-                "networks",
-                Yaml::mapping([(
-                    descriptor.network.overlay.clone(),
-                    Yaml::map().with(
-                        "aliases",
-                        Yaml::list(value.aliases.iter().map(Yaml::string)),
-                    ),
-                )]),
-            );
+        if !value.host_network {
+            if value.aliases.is_empty() {
+                service = service.with(
+                    "networks",
+                    Yaml::list([Yaml::string(descriptor.network.overlay.as_str())]),
+                );
+            } else {
+                service = service.with(
+                    "networks",
+                    Yaml::mapping([(
+                        descriptor.network.overlay.clone(),
+                        Yaml::map().with(
+                            "aliases",
+                            Yaml::list(value.aliases.iter().map(Yaml::string)),
+                        ),
+                    )]),
+                );
+            }
         }
         services.insert(value.name.to_owned(), service);
     }
@@ -310,7 +357,7 @@ fn host_yaml(descriptor: &Descriptor, host: &str, units: &[Unit]) -> String {
                 .with(
                     "platform",
                     Yaml::string(
-                        "unit configuration belongs to PLAT-003/004/005/006; this file only pins the image, host volumes, and overlay attachment",
+                        "keepalived is PLAT-002; the remaining unit configuration belongs to PLAT-003/004/005/006; this file only pins the image, host volumes, and overlay attachment",
                     ),
                 ),
         )
@@ -351,6 +398,26 @@ mod tests {
             assert!(text.contains("external: true"), "{host}");
             assert!(text.contains("overlay, attachable, encrypted"), "{host}");
         }
+    }
+
+    #[test]
+    fn the_edge_hosts_run_keepalived_with_host_networking() {
+        let units = host_units(&descriptor());
+        for host in ["edge-1", "edge-2"] {
+            let text = host_yaml(&descriptor(), host, &units[host]);
+            assert!(text.contains("\n  keepalived:\n"), "{host}: {text}");
+            assert!(text.contains("network_mode: \"host\""), "{host}: {text}");
+            assert!(text.contains("NET_ADMIN"), "{host}: {text}");
+            assert!(text.contains("NET_BROADCAST"), "{host}: {text}");
+            assert!(
+                text.contains("/etc/quantrule/keepalived.conf"),
+                "{host}: {text}"
+            );
+            assert!(!text.contains("ports:"), "{host}: {text}");
+            assert!(!text.contains("deploy:"), "{host}: {text}");
+        }
+        let core = host_yaml(&descriptor(), "core-1", &[]);
+        assert!(!core.contains("keepalived:"), "{core}");
     }
 
     #[test]

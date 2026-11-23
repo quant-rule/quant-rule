@@ -1,6 +1,6 @@
 # Deployment
 
-- Status: Current; released as v1.0.0 on 2026-11-15 (prepared as v1.1.0); current in v1.4.2; v3 render/check and the PLAT-001 remote check current; approved 2026-11-12
+- Status: Current; released as v1.0.0 on 2026-11-15 (prepared as v1.1.0); current in v1.4.2; v3 render/check, the PLAT-001 remote check, and the PLAT-002 cert-mode ingress current; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Decision: [`ADR-2026-11-12-01`](../adr/2026-11-12/01-adopt-distributed-service-based-architecture.md)
 - Claim type: Behaviour Claim
@@ -166,4 +166,5 @@ The split does not copy rows from the old `quantrule` database: use `make reset`
 for disposable data, or the migration runbook for kept evidence.
 ## 8. What deployment does not provide
 
-Autoscaling, registry signing, and real HA evidence are out of this profile. PostgreSQL, RabbitMQ and MinIO use internal TLS; the gateway serves plain HTTP behind the ingress. Multi-host placement is in [multi-host.md](multi-host.md); the v3 render/check, read-only remote check, and `tools/swarm.sh` control plane are in [deploy/v3](../config/2026-11-22/deploy-v3.md) and [swarm-control](../config/2026-11-23/swarm-control.md); real HA is HA-014.
+Autoscaling, registry signing, and real HA evidence are out of this profile. PostgreSQL, RabbitMQ and MinIO use internal TLS; the gateway serves plain HTTP behind the ingress ([ingress contract](../config/2026-11-23/ingress.md)). Multi-host placement is in [multi-host.md](multi-host.md); the v3 render/check, read-only remote check, and `tools/swarm.sh` control plane are in [deploy/v3](../config/2026-11-22/deploy-v3.md) and [swarm-control](../config/2026-11-23/swarm-control.md); real HA is HA-014.
+The ingress static/dynamic/keepalived files, certificate/header/port-80/mount check rows, and the shell `QUANTRULE_CA_CERT` trust path are PLAT-002 and documented in the ingress contract; a lab that is unavailable records `Unverified`.

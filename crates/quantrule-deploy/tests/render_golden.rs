@@ -63,6 +63,22 @@ fn local_descriptor(directory: &Path) -> PathBuf {
     for endpoint in ["database", "queue", "object_store"] {
         value["endpoints"][endpoint]["tls_ca"] = serde_json::json!(ca.display().to_string());
     }
+    let certificate = directory.join("ingress.crt");
+    let key = directory.join("ingress.key");
+    write_mode(
+        &certificate,
+        &std::fs::read_to_string(repo("deploy/v3/pki/ingress.crt")).expect("fixture cert"),
+        0o644,
+    );
+    write_mode(
+        &key,
+        &std::fs::read_to_string(repo("deploy/v3/pki/ingress-key.pem")).expect("fixture key"),
+        0o600,
+    );
+    value["ingress"]["files"] = serde_json::json!({
+        "certificate": certificate.display().to_string(),
+        "key": key.display().to_string(),
+    });
     let path = directory.join("deploy.json");
     std::fs::write(&path, value.to_string()).expect("descriptor");
     path
@@ -104,6 +120,19 @@ fn the_render_matches_its_checked_in_golden_files() {
             "{}",
             relative.display()
         );
+    }
+
+    let key = out.join("pki/ingress.key");
+    assert!(key.is_file(), "the cert-mode key is rendered");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = std::fs::metadata(&key)
+            .expect("key metadata")
+            .permissions()
+            .mode()
+            & 0o777;
+        assert_eq!(mode, 0o600);
     }
 
     for name in [
@@ -171,6 +200,7 @@ fn regenerate_the_golden_fixture() {
     for path in rendered {
         let relative = path.strip_prefix(&out).expect("relative");
         if relative == Path::new("render.json")
+            || relative == Path::new("pki/ingress.key")
             || (relative.starts_with("secrets") && relative != Path::new("secrets/manifest.json"))
         {
             continue;

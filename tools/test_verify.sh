@@ -12,7 +12,7 @@ root="$(git rev-parse --show-toplevel)"
 cd "$root"
 
 verify="$root/tools/verify.sh"
-expected="sha256:4acf7e9c323e2c30f293169bf96a41ee0387fb323d20950ad8e9ae043f2f9bb7"
+expected="sha256:773aea9ea27012c85ebaebe6661c5917ad8fe7c5bbc9d2e8ee22308c548f2ab2"
 wrong="sha256:$(printf '0%.0s' {1..64})"
 work="$(mktemp -d "${TMPDIR:-/tmp}/quantrule-verify-test.XXXXXX")"
 trap 'rm -rf "$work"' EXIT
@@ -52,5 +52,30 @@ fi
 if "$verify" --strategy config/examples/verify-mini/strategy.json >/dev/null 2>&1; then
   fail "the retired --strategy flag was accepted"
 fi
+
+if "$verify" --cacert >/dev/null 2>&1; then
+  fail "--cacert without a value was accepted"
+fi
+
+if "$verify" --cacert "$work/missing-ca.pem" >"$work/out" 2>"$work/err"; then
+  fail "an unreadable --cacert exited zero"
+fi
+grep -q "is not readable" "$work/err" || fail "the unreadable --cacert was not named"
+
+ca="$work/ca.pem"
+printf '%s\n' "-----BEGIN CERTIFICATE-----" "fixture" "-----END CERTIFICATE-----" > "$ca"
+mkdir -p "$work/bin"
+cat > "$work/bin/curl" <<'FAKE'
+#!/bin/sh
+printf '%s\n' "$*" >> "$QR_FAKE_CURL_LOG"
+exit 7
+FAKE
+chmod +x "$work/bin/curl"
+: > "$work/curl.log"
+if PATH="$work/bin:$PATH" QR_FAKE_CURL_LOG="$work/curl.log" QUANTRULE_SHELL=/bin/true \
+  "$verify" --cacert "$ca" --api-url http://127.0.0.1:1 >/dev/null 2>"$work/err"; then
+  fail "the fake curl failure was reported as success"
+fi
+grep -q -- "--cacert $ca" "$work/curl.log" || fail "curl did not receive --cacert"
 
 printf 'verify self-test ok\n'

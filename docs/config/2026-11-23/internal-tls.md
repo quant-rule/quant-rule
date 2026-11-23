@@ -18,7 +18,7 @@ failover result.
 
 | Link | Transport | Status |
 |---|---|---|
-| Client → gateway | HTTPS at the ingress | PLAT-002 (Traefik + ACME); the gateway itself serves HTTP |
+| Client → gateway | HTTPS at the ingress | PLAT-002 (Traefik, cert mode; ACME reserved and refused); the gateway itself serves HTTP |
 | Gateway/internal services → PostgreSQL | TLS, `verify-full` | This contract |
 | Evidence/backtest → RabbitMQ | TLS on 5671 | This contract |
 | Services → MinIO | HTTPS | This contract |
@@ -219,7 +219,7 @@ option B with this residual risk; human acceptance remains the final gate.
 | Internal HTTP TLS/mTLS | no | yes |
 | Swarm secrets, v3 `secrets.files` | no | yes |
 | Patroni, HAProxy, pgBackRest | no | yes |
-| Traefik/ACME for `https://quantrule.dev` | no | PLAT-002 |
+| Ingress TLS for `https://quantrule.dev` | no | PLAT-002 (cert mode; ACME reserved and refused) |
 | CA overlap and HA failover handshakes | not claimed | composed/HA evidence |
 
 ## 11. Failure and verification

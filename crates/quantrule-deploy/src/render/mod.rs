@@ -12,6 +12,7 @@ pub mod v2;
 
 mod bootstrap;
 mod infra;
+pub(crate) mod ingress;
 mod jobs;
 mod secrets;
 pub(crate) mod swarm;
@@ -130,9 +131,11 @@ pub fn render_v3(
     let mut files = Vec::new();
     secrets::render(descriptor, &values, out, &mut files)?;
     if target.wants_swarm() {
+        ingress::render_swarm(descriptor, out, &mut files)?;
         swarm::render(descriptor, out, &mut files)?;
     }
     if target.wants_infra() {
+        ingress::render_infra(descriptor, out, &mut files)?;
         infra::render(descriptor, out, &mut files)?;
     }
     let files = canonical_files(&files);
@@ -289,8 +292,33 @@ fn prepare_output(out: &Path) -> Result<(), Error> {
         "secrets",
         "pki",
         "render.json",
+        "quantrule_traefik.yml",
+        "traefik-dynamic.yml",
     ] {
         remove_existing(&out.join(name))?;
+    }
+    remove_stale_keepalived(out)?;
+    Ok(())
+}
+
+/// Remove every rendered keepalived file, including a host that left the descriptor.
+fn remove_stale_keepalived(out: &Path) -> Result<(), Error> {
+    let entries = match std::fs::read_dir(out) {
+        Ok(entries) => entries,
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(source) => {
+            return Err(Error::Write {
+                path: out.to_path_buf(),
+                source,
+            });
+        }
+    };
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if name.starts_with("keepalived-") && name.ends_with(".conf") {
+            remove_existing(&entry.path())?;
+        }
     }
     Ok(())
 }
@@ -465,11 +493,19 @@ mod tests {
     fn stale_renderer_output_is_removed_but_operator_files_survive() {
         let out = temp_dir();
         std::fs::write(out.join("stack.yaml"), "stale").expect("stale stack");
+        std::fs::write(out.join("quantrule_traefik.yml"), "stale").expect("stale static");
+        std::fs::write(out.join("traefik-dynamic.yml"), "stale").expect("stale dynamic");
+        std::fs::write(out.join("keepalived-edge-1.conf"), "stale").expect("stale keepalived");
+        std::fs::write(out.join("keepalived-edge-old.conf"), "stale").expect("stale keepalived");
         std::fs::create_dir_all(out.join("infra")).expect("stale infra");
         std::fs::write(out.join("infra/old.yaml"), "stale").expect("stale unit");
         std::fs::write(out.join("keep.txt"), "keep").expect("operator file");
         prepare_output(&out).expect("prepare");
         assert!(!out.join("stack.yaml").exists());
+        assert!(!out.join("quantrule_traefik.yml").exists());
+        assert!(!out.join("traefik-dynamic.yml").exists());
+        assert!(!out.join("keepalived-edge-1.conf").exists());
+        assert!(!out.join("keepalived-edge-old.conf").exists());
         assert!(!out.join("infra").exists());
         assert_eq!(
             std::fs::read_to_string(out.join("keep.txt")).expect("operator file"),

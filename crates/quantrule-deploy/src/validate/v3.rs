@@ -35,11 +35,12 @@ pub const REQUIRED_SERVICES: [&str; 7] = [
 pub const REQUIRED_DATABASES: [&str; 4] = ["gateway", "catalog", "evidence", "simulation"];
 
 /// Every infrastructure unit the v3 renderer places must be pinned.
-pub const REQUIRED_IMAGES: [&str; 10] = [
+pub const REQUIRED_IMAGES: [&str; 11] = [
     "traefik",
     "postgres",
     "etcd",
     "haproxy",
+    "keepalived",
     "rabbitmq",
     "minio",
     "prometheus",

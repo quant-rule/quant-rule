@@ -83,16 +83,16 @@ The generated `bootstrap.sh` runs on a manager in this order:
 1. Check `docker info` and manager access.
 2. Create the overlay if absent; refuse one that is not overlay, attachable, or
    encrypted.
-3. Create or verify every external secret and config; stop on drift.
-4. Check the PLAT-002 `quantrule_traefik` config exists.
-5. Resolve and label every declared host; check manager roles.
-6. Check service host counts, failure-domain counts, and the ingress count.
-7. Run `jobs/db-bootstrap.sh` with bounded retry (30 attempts, 2 s apart).
-8. Run `jobs/migrate.sh` once; stop on failure.
-9. `docker stack deploy` the rendered stack.
-10. Wait up to 10 minutes for every service to report its desired replicas and
-    the pinned image digest, reject a failed task, verify the ingress publishes
-    443 in host mode, and verify every app service publishes nothing.
+3. Create or verify every external secret and config, including the static and
+   dynamic Traefik configs; stop on drift.
+4. Resolve and label every declared host; check manager roles.
+5. Check service host counts, failure-domain counts, and the ingress count.
+6. Run `jobs/db-bootstrap.sh` with bounded retry (30 attempts, 2 s apart).
+7. Run `jobs/migrate.sh` once; stop on failure.
+8. `docker stack deploy` the rendered stack.
+9. Wait up to 10 minutes for every service to report its desired replicas and
+   the pinned image digest, reject a failed task, verify the ingress publishes
+   443 in host mode, and verify every app service publishes nothing.
 
 The database bootstrap and migrations run **before** the stack, because the
 cluster and the HAProxy aliases are PLAT-003 infrastructure and the app services
@@ -113,8 +113,9 @@ Every external secret and config the script creates carries
 
 A Swarm secret and a Swarm config are immutable. Rotation is a new name plus a
 rolling service update; the old object is removed only after every replica has
-drained. The script never removes, overwrites, or prints an object value. The
-operator-owned `quantrule_traefik` config is checked for existence only.
+drained. The script never removes, overwrites, or prints an object value. It
+creates `quantrule_traefik` and `quantrule_traefik_dynamic` from the rendered
+static and dynamic files; a changed file stops the run like any other object.
 
 ## 6. Rolling update
 
@@ -187,6 +188,8 @@ environment value, a secret or config payload, a token, or a full inspect body.
 | `remote ports` | Exactly one published 443/tcp port in host mode; no app service port |
 | `remote tasks` | No failed, rejected, or errored desired-running task |
 | `remote health` | Limited: `service ps` exposes task state, not container health; `/health` rows and the 180 s monitor cover it |
+| `ingress service mounts` | `quantrule_traefik`, `quantrule_traefik_dynamic`, `quantrule_ingress_cert`, and `quantrule_ingress_key` at their documented targets; a missing or wrong mount fails |
+| `ingress vip/firewall` | Limited: VIP ownership and firewall exposure are lab-only; the `ha` tier proves them |
 | `overlay network` | The same network facts when `--overlay` is used alone |
 | `overlay dns-route` | Limited: no read-only DNS or route probe; the ingress `/ready` row and the `ha` tier cover discovery |
 
@@ -204,15 +207,20 @@ tools/test_tiers.sh ha --confirm --skip-deploy
 ```
 
 `deploy/v3/test.sh` is the opt-in harness. It preflights Docker, an active
-Swarm manager, three odd managers, every descriptor host, `jq`, `curl`, and SSH
-to the manager it will stop. It deploys with `tools/swarm.sh bootstrap`, runs
-`qr-deploy check --remote docker --overlay`, drains one worker-capacity node,
-stops one manager on a distinct host, and verifies manager quorum, surviving
-gateway/ingress delivery, the one 443 port, the pinned digest, and a
-`tools/verify.sh` run digest. On the survivors it checks every stateful
-container is running, every mount is a bind, every bind source exists, and no
-stateful container moved. It then restarts the manager, activates the worker,
-and runs the full check again.
+Swarm manager, three odd managers, every descriptor host, `jq`, `curl`, `nc`,
+SSH, the VIP, and a readable CA (`QR_SWARM_CACERT`, else
+`endpoints.database.tls_ca`, else the rendered PKI copy). It deploys with
+`tools/swarm.sh bootstrap`, runs `qr-deploy check --remote docker --overlay`,
+drains one worker-capacity node, stops one manager on a distinct host, and
+verifies manager quorum, surviving gateway/ingress delivery, the one 443 port,
+the pinned digest, and a `tools/verify.sh` run digest. On the survivors it
+checks every stateful container is running, every mount is a bind, every bind
+source exists, and no stateful container moved. The ingress phase then records
+the VIP holder and 2/2 ingress, drains that holder, runs a bounded 1 Hz HTTPS
+`/health` loop while the VIP moves, re-checks the digest and stateful mounts,
+and runs the negative controls: port 80 and direct-edge 443 answer nothing,
+`vip:443` answers, and 8080/5432/9000 refuse. It then restarts the manager,
+activates the ingress holder and worker, and runs the full check again.
 
 `--confirm` is required for the loss phase; without it the harness prints the
 exact commands and exits 2. It never runs `stack rm`, `volume rm`, `secret rm`,
