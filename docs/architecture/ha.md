@@ -1,6 +1,6 @@
 # Highly Available Runtime
 
-- Status: Target for the next release; the evidence leader (HA-006) and data active/active (HA-007) are current; accepted by [ADR-HA](../adr/2026-11-22/1082-ha-deployment-profile.md)
+- Status: Target for the next release; the evidence leader (HA-006), data active/active (HA-007), and runtime drain/readiness/retries (HA-009 slices 1–2) are current; secrets remain slice 3; accepted by [ADR-HA](../adr/2026-11-22/1082-ha-deployment-profile.md)
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 
@@ -34,7 +34,7 @@ The stateful and ingress layers are described in sections 4–8.
 | `data` | 2 | `qr_catalog` + object store | [Idempotent upload](data-active-active.md) (HA-007) |
 | `model` | N | Object store | Stateless compute |
 | `strategy` | N | Object store + evidence lineage | Stateless signal compiler |
-| `backtest` | N | Object store + queue | Per-run fold, internal metrics only |
+| `backtest` | N | Object store + queue | Per-run fold, internal metrics/health/ready |
 | `evidence` | 2+ | `qr_evidence` + object store | One leader finalises |
 | `simulation` | 2 | `qr_simulation` + object store | [Row locks](simulation-concurrency.md) (HA-008) |
 
@@ -74,6 +74,7 @@ RabbitMQ:
 - Publisher confirms, manual ack, `x-delivery-limit=3`, DLX and a quorum DLQ.
 - `QR_QUEUE_GENERATION` suffixes every queue; definitions export backs up topology, not messages.
 - One broker loss loses no acknowledged message; queues rebuild from run and stage rows.
+- A consumer error reconnects in-process with 1–30 s backoff; a drain is a clean stop.
 
 MinIO:
 
@@ -94,11 +95,9 @@ runs.leader_lease
 ```
 
 - Acquisition and renewal use database time; the term increments on acquisition.
-- Finalisation locks the row, requires the live term, and records one digest.
-- A new leader increments the term; a stale leader's write is refused.
+- Finalisation locks the row, requires the live term, and records one digest; a stale leader is refused.
 - Only the leader consumes `run.computed`; both replicas serve reads.
-- A leader loss expires the lease; the standby takes over and the outbox re-arms.
-- A duplicate delivery is a lookup: one run record, one canonical digest.
+- A leader loss or clean drain expires the lease; the standby takes over, re-arms the outbox, and a duplicate is one digest.
 
 ## 7. Cross-database consistency
 
@@ -119,9 +118,9 @@ No distributed transactions. The platform uses:
 - Postgres, RabbitMQ and MinIO use TLS; per-service credentials.
 - Internal HTTP mTLS is decided in Phase 0. If deferred, encrypted overlay,
   per-service credentials and gateway token are recorded residual risk.
-- Each service serves `/metrics` only on its internal listener and writes JSON logs; request ids never enter evidence.
+- Every service serves `/ready`; a drain flips it before the process stops, and `/metrics` stays internal.
+- JSON logs carry request ids as observability only; they never enter evidence.
 - Image is signed, SBOM published and digest pinned.
-
 ## 9. Deployment descriptor
 
 `quantrule.deploy/v3` places services on hosts and failure domains, references
@@ -137,7 +136,6 @@ secrets by file, renders the Swarm stack and pinned stateful units, and rejects:
 
 `qr-deploy validate`, `render`, `bootstrap` and `check` are the operator path.
 v2 remains readable for the older multi-host profile.
-
 ## 10. Failure behaviour
 
 | Failure | Behaviour |
@@ -146,7 +144,9 @@ v2 remains readable for the older multi-host profile.
 | Data/model/strategy loss | Other replica serves; retry is idempotent |
 | Simulation replica loss | Other replica serves; per-run row locks keep one decision |
 | Backtest worker kill | Lease expires; outbox re-arms; no partial publish |
-| Evidence leader kill | Lease expires; new leader; one finalisation |
+| Rolling restart / SIGTERM | `/ready` 503; HTTP 20 s, worker 25 s; an in-flight run keeps its lease, never `failed` |
+| Consumer channel error | Reconnect 1–30 s; an exhausted budget exits so the container restarts |
+| Evidence leader kill or drain | Lease expires or is released; new leader; one finalisation |
 | PostgreSQL primary loss | Patroni promotes a synchronous standby; RPO 0 |
 | PostgreSQL standby loss | Primary continues on the remaining synchronous standby |
 | No synchronous standby | Writes block; reads may continue; alert fires |

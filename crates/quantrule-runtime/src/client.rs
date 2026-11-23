@@ -9,26 +9,19 @@
 //! Timeouts, retries, and the 503 mapping are transport policy, not contract.
 //! They are applied by the concrete client, never by a caller.
 
-use std::collections::BTreeMap;
-use std::time::Duration;
-
-use axum::body::Body;
-use http::{Request, Response, Uri, header};
-use http_body_util::{BodyExt, Limited};
-use hyper_util::client::legacy::Client;
-use hyper_util::client::legacy::connect::HttpConnector;
-use hyper_util::rt::TokioExecutor;
 use quantrule_api::{
-    DatasetReferenceCount, DatasetReferenceKind, DatasetReferenceRequest, HealthReport,
-    PROFILE_HEADER, ProfileId, ReleaseDatasetReferenceRequest,
+    DatasetReferenceCount, DatasetReferenceKind, DatasetReferenceRequest, ProfileId,
+    ReleaseDatasetReferenceRequest,
 };
 use quantrule_service_api::{ConfigBundle, DatasetObject};
+use std::collections::BTreeMap;
 
 use crate::adapters::BoxFuture;
 
 mod artifacts;
 mod counts;
 mod evidence;
+mod http;
 mod memory;
 mod model;
 mod packs;
@@ -37,6 +30,8 @@ mod stage;
 pub use artifacts::{ArtifactClient, MemoryArtifacts};
 pub use counts::{COUNT_PAGE, MemoryCounts, RunCounter, SimulationCounter};
 pub use evidence::{EvidenceClient, MemoryEvidence};
+pub(crate) use http::upstream_message;
+pub use http::{HttpServiceClient, REQUEST_TIMEOUT};
 pub use memory::MemoryClient;
 pub use model::{MemoryModel, ModelClient};
 pub use packs::{MemoryPacks, PackClient};
@@ -221,6 +216,11 @@ pub enum ClientError {
         /// What was wrong.
         message: String,
     },
+    /// The call stopped because the process began draining.
+    Interrupted {
+        /// Which service.
+        service: Service,
+    },
 }
 
 impl std::fmt::Display for ClientError {
@@ -257,6 +257,11 @@ impl std::fmt::Display for ClientError {
                     service.name()
                 )
             }
+            Self::Interrupted { service } => write!(
+                formatter,
+                "the {} call stopped because the process is draining",
+                service.name()
+            ),
         }
     }
 }
@@ -312,368 +317,6 @@ pub trait DataClient: Send + Sync {
         data_version: quantrule_api::Digest,
         reference_id: String,
     ) -> BoxFuture<Result<DatasetReferenceCount, ClientError>>;
-}
-
-const CONNECT_TIMEOUT: Duration = Duration::from_secs(2);
-/// The default deadline for one internal request.
-pub const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
-const MAX_INTERNAL_BODY: usize = 8 * 1024 * 1024;
-
-/// The concrete HTTP transport for the internal surface.
-///
-/// One client owns one base URL per service. `forward` passes a request and its
-/// streaming body through unchanged; `send` collects a small internal envelope.
-/// The caller owns the header allowlist and the 503 mapping.
-#[derive(Clone)]
-pub struct HttpServiceClient {
-    bases: std::sync::Arc<BTreeMap<Service, Uri>>,
-    client: Client<HttpConnector, Body>,
-}
-
-impl std::fmt::Debug for HttpServiceClient {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("HttpServiceClient")
-            .field("services", &self.bases.keys().collect::<Vec<_>>())
-            .finish()
-    }
-}
-
-impl HttpServiceClient {
-    /// Build a client for one service from an absolute base URL.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`ClientError::InvalidBase`] when the URL is not an absolute
-    /// HTTP or HTTPS URL.
-    pub fn new(service: Service, base: &str) -> Result<Self, ClientError> {
-        let base = base.trim_end_matches('/');
-        let uri: Uri = base.parse().map_err(|error| ClientError::InvalidBase {
-            service,
-            message: format!("{base:?}: {error}"),
-        })?;
-        if uri.scheme().is_none() || uri.authority().is_none() {
-            return Err(ClientError::InvalidBase {
-                service,
-                message: format!("{base:?} is not absolute"),
-            });
-        }
-        let mut connector = HttpConnector::new();
-        connector.set_connect_timeout(Some(CONNECT_TIMEOUT));
-        let client = Client::builder(TokioExecutor::new()).build(connector);
-        Ok(Self {
-            bases: std::sync::Arc::new(BTreeMap::from([(service, uri)])),
-            client,
-        })
-    }
-
-    /// Build a client for one service from its `QR_*_URL` variable.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`ClientError::Unconfigured`] when the variable is absent and
-    /// [`ClientError::InvalidBase`] when it is not an absolute URL.
-    pub fn from_env(service: Service) -> Result<Self, ClientError> {
-        let value = std::env::var(service.url_variable())
-            .map_err(|_| ClientError::Unconfigured { service })?;
-        if value.trim().is_empty() {
-            return Err(ClientError::Unconfigured { service });
-        }
-        Self::new(service, &value)
-    }
-
-    /// Forward one request with its streaming body, preserving status, headers,
-    /// and body.
-    ///
-    /// # Errors
-    ///
-    /// Returns a transport error when the service is unreachable or does not
-    /// answer headers inside the request deadline.
-    pub async fn forward(
-        &self,
-        service: Service,
-        request: Request<Body>,
-    ) -> Result<Response<Body>, ClientError> {
-        self.forward_with_deadline(service, request, REQUEST_TIMEOUT)
-            .await
-    }
-
-    /// Forward with an explicit deadline.
-    ///
-    /// A streaming upload, a download, or a model compute may outlive the
-    /// default read deadline; the caller names the bound for that work.
-    ///
-    /// # Errors
-    ///
-    /// Returns a transport error when the service is unreachable or does not
-    /// answer headers inside `deadline`.
-    pub async fn forward_with_deadline(
-        &self,
-        service: Service,
-        request: Request<Body>,
-        deadline: Duration,
-    ) -> Result<Response<Body>, ClientError> {
-        let (mut parts, body) = request.into_parts();
-        parts.uri = self.endpoint(
-            service,
-            parts
-                .uri
-                .path_and_query()
-                .map_or("/", http::uri::PathAndQuery::as_str),
-        )?;
-        let request = Request::from_parts(parts, body);
-        let response = tokio::time::timeout(deadline, self.client.request(request))
-            .await
-            .map_err(|_| ClientError::Timeout { service })?
-            .map_err(|error| ClientError::Unreachable {
-                service,
-                message: error.to_string(),
-            })?;
-        Ok(response.map(Body::new))
-    }
-
-    fn endpoint(&self, service: Service, path: &str) -> Result<Uri, ClientError> {
-        let base = self
-            .bases
-            .get(&service)
-            .ok_or(ClientError::Unconfigured { service })?;
-        let base = base.to_string();
-        let base = base.trim_end_matches('/');
-        let joined = format!("{}{}", base, if path.starts_with('/') { path } else { "/" });
-        joined
-            .parse()
-            .map_err(|error| ClientError::InvalidResponse {
-                service,
-                message: format!("the joined URL {joined:?} is invalid: {error}"),
-            })
-    }
-
-    fn request(
-        &self,
-        service: Service,
-        request: ServiceRequest,
-    ) -> Result<Request<Body>, ClientError> {
-        let uri = self.endpoint(service, &request.path)?;
-        let method = match request.method {
-            Method::Get => http::Method::GET,
-            Method::Post => http::Method::POST,
-        };
-        let mut builder = Request::builder().method(method).uri(uri);
-        for (name, value) in &request.headers {
-            let name = header::HeaderName::from_bytes(name.as_bytes()).map_err(|error| {
-                ClientError::InvalidResponse {
-                    service,
-                    message: format!("a request header name is invalid: {error}"),
-                }
-            })?;
-            let value = header::HeaderValue::from_str(value).map_err(|error| {
-                ClientError::InvalidResponse {
-                    service,
-                    message: format!("a request header value is invalid: {error}"),
-                }
-            })?;
-            builder = builder.header(name, value);
-        }
-        if !request.body.is_empty() && !request.headers.contains_key("content-type") {
-            builder = builder.header(header::CONTENT_TYPE, "application/json");
-        }
-        builder
-            .body(Body::from(request.body))
-            .map_err(|error| ClientError::InvalidResponse {
-                service,
-                message: error.to_string(),
-            })
-    }
-}
-
-impl ServiceClient for HttpServiceClient {
-    fn send(
-        &self,
-        service: Service,
-        request: ServiceRequest,
-    ) -> BoxFuture<Result<ServiceResponse, ClientError>> {
-        let built = self.request(service, request);
-        let client = self.clone();
-        Box::pin(async move {
-            let request = built?;
-            let response = tokio::time::timeout(REQUEST_TIMEOUT, client.client.request(request))
-                .await
-                .map_err(|_| ClientError::Timeout { service })?
-                .map_err(|error| ClientError::Unreachable {
-                    service,
-                    message: error.to_string(),
-                })?;
-            let status = response.status().as_u16();
-            let content_type = response
-                .headers()
-                .get(header::CONTENT_TYPE)
-                .and_then(|value| value.to_str().ok())
-                .map(str::to_owned);
-            let etag = response
-                .headers()
-                .get(header::ETAG)
-                .and_then(|value| value.to_str().ok())
-                .map(str::to_owned);
-            let body = Limited::new(response.into_body(), MAX_INTERNAL_BODY)
-                .collect()
-                .await
-                .map_err(|error| ClientError::InvalidResponse {
-                    service,
-                    message: error.to_string(),
-                })?
-                .to_bytes()
-                .to_vec();
-            Ok(ServiceResponse {
-                status,
-                content_type,
-                etag,
-                body,
-            })
-        })
-    }
-}
-
-impl HttpServiceClient {
-    /// Read one service's own `/health` report.
-    ///
-    /// # Errors
-    ///
-    /// Returns the transport or status error; a missing `/health` is a status
-    /// error, not a healthy default.
-    pub async fn health(&self, service: Service) -> Result<HealthReport, ClientError> {
-        self.get_json::<HealthReport>(service, None, "/health".to_owned())
-            .await?
-            .ok_or(ClientError::Status {
-                service,
-                status: 404,
-                message: "/health is absent".to_owned(),
-            })
-    }
-
-    async fn get_json<T>(
-        &self,
-        service: Service,
-        profile: Option<&ProfileId>,
-        path: String,
-    ) -> Result<Option<T>, ClientError>
-    where
-        T: serde::de::DeserializeOwned,
-    {
-        let mut request = ServiceRequest::get(path);
-        if let Some(profile) = profile {
-            request = request.with_header(PROFILE_HEADER, profile.as_str());
-        }
-        let response = <Self as ServiceClient>::send(self, service, request).await?;
-        match response.status {
-            200 => serde_json::from_slice(&response.body)
-                .map(Some)
-                .map_err(|error| ClientError::InvalidResponse {
-                    service,
-                    message: error.to_string(),
-                }),
-            404 => Ok(None),
-            status => Err(ClientError::Status {
-                service,
-                status,
-                message: upstream_message(&response.body),
-            }),
-        }
-    }
-
-    /// Read one raw internal body, or `None` when the service answers `404`.
-    async fn get_bytes(
-        &self,
-        service: Service,
-        profile: Option<&ProfileId>,
-        path: String,
-    ) -> Result<Option<Vec<u8>>, ClientError> {
-        let mut request = ServiceRequest::get(path);
-        if let Some(profile) = profile {
-            request = request.with_header(PROFILE_HEADER, profile.as_str());
-        }
-        let response = <Self as ServiceClient>::send(self, service, request).await?;
-        match response.status {
-            200 => Ok(Some(response.body)),
-            404 => Ok(None),
-            status => Err(ClientError::Status {
-                service,
-                status,
-                message: upstream_message(&response.body),
-            }),
-        }
-    }
-
-    async fn post_json<T, B>(
-        &self,
-        service: Service,
-        path: String,
-        body: &B,
-    ) -> Result<T, ClientError>
-    where
-        T: serde::de::DeserializeOwned,
-        B: serde::Serialize + ?Sized,
-    {
-        let body = serde_json::to_vec(body).map_err(|error| ClientError::InvalidResponse {
-            service,
-            message: error.to_string(),
-        })?;
-        let response =
-            <Self as ServiceClient>::send(self, service, ServiceRequest::post(path, body)).await?;
-        match response.status {
-            200 => serde_json::from_slice(&response.body).map_err(|error| {
-                ClientError::InvalidResponse {
-                    service,
-                    message: error.to_string(),
-                }
-            }),
-            status => Err(ClientError::Status {
-                service,
-                status,
-                message: upstream_message(&response.body),
-            }),
-        }
-    }
-
-    async fn post_json_for<T, B>(
-        &self,
-        service: Service,
-        profile: &ProfileId,
-        path: String,
-        body: &B,
-    ) -> Result<T, ClientError>
-    where
-        T: serde::de::DeserializeOwned,
-        B: serde::Serialize + ?Sized,
-    {
-        let body = serde_json::to_vec(body).map_err(|error| ClientError::InvalidResponse {
-            service,
-            message: error.to_string(),
-        })?;
-        let request =
-            ServiceRequest::post(path, body).with_header(PROFILE_HEADER, profile.as_str());
-        let response = <Self as ServiceClient>::send(self, service, request).await?;
-        match response.status {
-            // A profile-scoped create may answer 201 for the first writer and
-            // 200 for an idempotent duplicate; the body carries `created`.
-            200 | 201 => serde_json::from_slice(&response.body).map_err(|error| {
-                ClientError::InvalidResponse {
-                    service,
-                    message: error.to_string(),
-                }
-            }),
-            status => Err(ClientError::Status {
-                service,
-                status,
-                message: upstream_message(&response.body),
-            }),
-        }
-    }
-}
-
-fn upstream_message(body: &[u8]) -> String {
-    serde_json::from_slice::<quantrule_api::ErrorEnvelope>(body)
-        .map(|envelope| envelope.error.message)
-        .unwrap_or_else(|_| String::from_utf8_lossy(body).into_owned())
 }
 
 impl DataClient for HttpServiceClient {
@@ -739,7 +382,7 @@ impl DataClient for HttpServiceClient {
         Box::pin(async move {
             let request = DatasetReferenceRequest { reference_id, kind };
             client
-                .post_json_for(
+                .post_json_for_retryable(
                     Service::Data,
                     &profile,
                     format!("/internal/v1/datasets/{data_version}/references"),
@@ -759,7 +402,7 @@ impl DataClient for HttpServiceClient {
         Box::pin(async move {
             let request = ReleaseDatasetReferenceRequest { reference_id };
             client
-                .post_json_for(
+                .post_json_for_retryable(
                     Service::Data,
                     &profile,
                     format!("/internal/v1/datasets/{data_version}/references/release"),

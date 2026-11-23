@@ -191,6 +191,14 @@ async fn the_gateway_registry_has_only_its_own_families_and_no_raw_path() {
             "quantrule_http_requests_total",
             "quantrule_http_request_duration_seconds",
             "quantrule_http_requests_in_flight",
+            "quantrule_http_retries_total",
+            "quantrule_consumer_reconnects_total",
+            "quantrule_queue_depth",
+            "quantrule_workers",
+            "quantrule_runs_total",
+            "quantrule_stages_total",
+            "quantrule_leader",
+            "quantrule_outbox_pending",
         ])
     );
     assert!(

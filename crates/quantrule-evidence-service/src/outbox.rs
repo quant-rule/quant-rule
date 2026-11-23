@@ -202,10 +202,15 @@ pub fn spawn_publisher(
     outbox: Arc<dyn RunOutbox>,
     queue: Arc<dyn Queue>,
     interval: Duration,
+    mut shutdown: quantrule_runtime::shutdown::Shutdown,
+    metrics: Option<quantrule_runtime::metrics::Metrics>,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         let mut startup = true;
         loop {
+            if shutdown.is_requested() {
+                return;
+            }
             let mode = if startup {
                 ReconcileMode::Startup
             } else {
@@ -239,7 +244,19 @@ pub fn spawn_publisher(
                     tracing::warn!(%error, "the run-notification drain will retry");
                 }
             }
-            tokio::time::sleep(interval).await;
+            if let Some(metrics) = &metrics {
+                match outbox.outstanding().await {
+                    Ok(pending) => metrics.set_outbox_pending(pending),
+                    Err(error) => {
+                        tracing::warn!(%error, "the outbox depth could not be read");
+                    }
+                }
+            }
+            tokio::select! {
+                biased;
+                () = shutdown.wait() => return,
+                () = tokio::time::sleep(interval) => {}
+            }
         }
     })
 }
@@ -254,9 +271,13 @@ pub fn spawn_leader_reconcile(
     mut leadership: tokio::sync::watch::Receiver<Leadership>,
     outbox: Arc<dyn RunOutbox>,
     queue: Arc<dyn Queue>,
+    shutdown: quantrule_runtime::shutdown::Shutdown,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         loop {
+            if shutdown.is_requested() {
+                return;
+            }
             let is_leader = matches!(*leadership.borrow_and_update(), Leadership::Leader(_));
             if is_leader {
                 match reconcile(outbox.as_ref(), ReconcileMode::Startup).await {
@@ -284,8 +305,15 @@ pub fn spawn_leader_reconcile(
                     }
                 }
             }
-            if leadership.changed().await.is_err() {
-                return;
+            let mut drain = shutdown.clone();
+            tokio::select! {
+                biased;
+                () = drain.wait() => return,
+                changed = leadership.changed() => {
+                    if changed.is_err() {
+                        return;
+                    }
+                }
             }
         }
     })
@@ -537,7 +565,8 @@ mod tests {
         let (sender, receiver) = tokio::sync::watch::channel(Leadership::Standby);
         let outbox: Arc<dyn RunOutbox> = Arc::new(store.clone());
         let queue_handle: Arc<dyn Queue> = Arc::new(queue.clone());
-        let task = spawn_leader_reconcile(receiver, outbox, queue_handle);
+        let (_, shutdown) = quantrule_runtime::shutdown::Shutdown::channel();
+        let task = spawn_leader_reconcile(receiver, outbox, queue_handle, shutdown);
         sender
             .send(Leadership::Leader(1))
             .expect("become the leader");
@@ -554,6 +583,30 @@ mod tests {
         );
         assert_eq!(store.outstanding().await.expect("outstanding"), 0);
         task.abort();
+    }
+
+    #[tokio::test]
+    async fn a_draining_publisher_stops_before_it_publishes() {
+        let store = MemoryRuns::default();
+        let queue = RecordingQueue::default();
+        store
+            .submit(profile("default"), run(b"outbox-drain-stop"))
+            .await
+            .expect("submit");
+        let (trigger, shutdown) = quantrule_runtime::shutdown::Shutdown::channel();
+        trigger.trigger();
+        let task = spawn_publisher(
+            Arc::new(store) as Arc<dyn RunOutbox>,
+            Arc::new(queue.clone()) as Arc<dyn Queue>,
+            Duration::from_millis(1),
+            shutdown,
+            None,
+        );
+        task.await.expect("publisher task");
+        assert!(
+            queue.messages().is_empty(),
+            "a draining publisher published"
+        );
     }
 
     #[tokio::test]

@@ -207,6 +207,31 @@ impl RabbitQueue {
             )))
         }
     }
+
+    /// Read a declared queue's message count with a passive declare.
+    ///
+    /// The publish channel is reused; a passive declare does not change the
+    /// queue. The caller labels the result with a fixed queue kind, never the
+    /// generated name.
+    ///
+    /// # Errors
+    ///
+    /// Returns the broker error when the queue is absent or the channel fails.
+    pub async fn depth(&self, queue: &str) -> Result<u64, QueueError> {
+        let declared = self
+            .channel
+            .queue_declare(
+                queue.into(),
+                QueueDeclareOptions {
+                    passive: true,
+                    ..QueueDeclareOptions::default()
+                },
+                FieldTable::default(),
+            )
+            .await
+            .map_err(|error| QueueError(error.to_string()))?;
+        Ok(u64::from(declared.message_count()))
+    }
 }
 
 impl Queue for RabbitQueue {
@@ -238,12 +263,19 @@ impl Queue for RabbitQueue {
     }
 }
 
-impl QueueConsumer for RabbitQueue {
-    fn backend(&self) -> Backend {
-        Backend::RabbitMq
-    }
-
-    fn consume(&self, queue: &str, handler: MessageHandler) -> BoxFuture<Result<(), QueueError>> {
+impl RabbitQueue {
+    /// The consumer loop, optionally bounded by a drain signal.
+    ///
+    /// The prefetch slot is one delivery. A drain signal observed between
+    /// deliveries returns immediately and drops the consumer, so the broker
+    /// requeues an unacknowledged message. A handler already running is never
+    /// interrupted: it finishes, and the next loop iteration sees the signal.
+    fn consume_inner(
+        &self,
+        queue: &str,
+        handler: MessageHandler,
+        shutdown: Option<crate::shutdown::Shutdown>,
+    ) -> BoxFuture<Result<(), QueueError>> {
         let connection = Arc::clone(&self.connection);
         let names = self.names.clone();
         let queue = queue.to_owned();
@@ -283,8 +315,33 @@ impl QueueConsumer for RabbitQueue {
                 )
                 .await
                 .map_err(|error| QueueError(error.to_string()))?;
-            while let Some(delivery) = consumer.next().await {
+            loop {
+                let next = if let Some(shutdown) = &shutdown {
+                    let mut wait = shutdown.clone();
+                    tokio::select! {
+                        biased;
+                        () = wait.wait() => return Ok(()),
+                        next = consumer.next() => next,
+                    }
+                } else {
+                    consumer.next().await
+                };
+                let Some(delivery) = next else {
+                    return Ok(());
+                };
                 let delivery = delivery.map_err(|error| QueueError(error.to_string()))?;
+                if shutdown
+                    .as_ref()
+                    .is_some_and(crate::shutdown::Shutdown::is_requested)
+                {
+                    // A delivery raced the signal. Requeue it instead of
+                    // starting work the deadline may abort.
+                    delivery
+                        .reject(BasicRejectOptions { requeue: true })
+                        .await
+                        .map_err(|error| QueueError(error.to_string()))?;
+                    return Ok(());
+                }
                 let message = Message {
                     routing_key: delivery.routing_key.as_str().to_owned(),
                     payload: delivery.data.clone(),
@@ -317,8 +374,26 @@ impl QueueConsumer for RabbitQueue {
                     }
                 }
             }
-            Ok(())
         })
+    }
+}
+
+impl QueueConsumer for RabbitQueue {
+    fn backend(&self) -> Backend {
+        Backend::RabbitMq
+    }
+
+    fn consume(&self, queue: &str, handler: MessageHandler) -> BoxFuture<Result<(), QueueError>> {
+        self.consume_inner(queue, handler, None)
+    }
+
+    fn consume_until(
+        &self,
+        queue: &str,
+        handler: MessageHandler,
+        shutdown: crate::shutdown::Shutdown,
+    ) -> BoxFuture<Result<(), QueueError>> {
+        self.consume_inner(queue, handler, Some(shutdown))
     }
 }
 

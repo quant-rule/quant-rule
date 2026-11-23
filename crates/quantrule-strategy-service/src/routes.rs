@@ -52,6 +52,7 @@ fn signal_failure(error: SignalServiceError) -> ApiFailure {
 fn routes() -> Router<Arc<StrategyState>> {
     Router::new()
         .route("/health", get(health))
+        .route("/ready", get(ready))
         .route("/version", get(version))
         .route("/internal/v1/signals", post(compute_signal))
 }
@@ -67,6 +68,17 @@ pub fn router(state: Arc<StrategyState>) -> Router {
 async fn health(State(state): State<Arc<StrategyState>>) -> Json<HealthReport> {
     let digest = state.version.image_digest.clone();
     Json(state.health.report(digest).await)
+}
+
+async fn ready(State(state): State<Arc<StrategyState>>) -> (StatusCode, Json<HealthReport>) {
+    let digest = state.version.image_digest.clone();
+    let (ready, report) = state.health.readiness(digest).await;
+    let status = if ready {
+        StatusCode::OK
+    } else {
+        StatusCode::SERVICE_UNAVAILABLE
+    };
+    (status, Json(report))
 }
 
 async fn version(State(state): State<Arc<StrategyState>>) -> Json<VersionInfo> {

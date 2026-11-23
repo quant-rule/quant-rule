@@ -8,6 +8,7 @@ use std::ffi::OsString;
 use std::fmt;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
+use std::time::Duration;
 
 use quantrule_api::Digest;
 
@@ -40,6 +41,12 @@ pub const DEFAULT_QUEUE_URL: &str = "amqp://quantrule@rabbitmq:5672/%2f";
 pub const DEFAULT_UPLOAD_LIMIT: u64 = 512 * 1024 * 1024;
 /// The default diagnostic stage retention, in days.
 pub const DEFAULT_STAGE_RETENTION_DAYS: u64 = 30;
+/// The default HTTP drain deadline, in seconds.
+pub const DEFAULT_DRAIN_TIMEOUT_HTTP: u64 = 20;
+/// The default worker drain deadline, in seconds.
+pub const DEFAULT_DRAIN_TIMEOUT_WORK: u64 = 25;
+/// The largest accepted drain deadline, in seconds.
+pub const MAX_DRAIN_TIMEOUT_SECONDS: u64 = 300;
 
 /// Why a configuration value was rejected.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -134,6 +141,12 @@ pub struct Config {
     /// address must be private or loopback: the metrics surface is internal and
     /// is never proxied by the gateway.
     pub metrics_bind: Option<SocketAddr>,
+    /// How long the HTTP server waits for in-flight requests after a drain
+    /// signal. The process exits successfully at the deadline.
+    pub drain_timeout_http: Duration,
+    /// How long a worker waits for its in-flight run or stage after a drain
+    /// signal. A run left running keeps its lease and is recovered by expiry.
+    pub drain_timeout_work: Duration,
 }
 
 impl fmt::Debug for Config {
@@ -160,6 +173,8 @@ impl fmt::Debug for Config {
             .field("migrate", &self.migrate)
             .field("internal_only", &self.internal_only)
             .field("metrics_bind", &self.metrics_bind)
+            .field("drain_timeout_http", &self.drain_timeout_http)
+            .field("drain_timeout_work", &self.drain_timeout_work)
             .finish()
     }
 }
@@ -184,6 +199,8 @@ impl Default for Config {
             migrate: true,
             internal_only: false,
             metrics_bind: None,
+            drain_timeout_http: Duration::from_secs(DEFAULT_DRAIN_TIMEOUT_HTTP),
+            drain_timeout_work: Duration::from_secs(DEFAULT_DRAIN_TIMEOUT_WORK),
         }
     }
 }
@@ -399,8 +416,34 @@ impl Config {
                 config.metrics_bind = Some(parsed);
             }
         }
+        if let Some(value) = values.get("QR_DRAIN_TIMEOUT_HTTP") {
+            config.drain_timeout_http = parse_drain_timeout("QR_DRAIN_TIMEOUT_HTTP", value)?;
+        }
+        if let Some(value) = values.get("QR_DRAIN_TIMEOUT_WORK") {
+            config.drain_timeout_work = parse_drain_timeout("QR_DRAIN_TIMEOUT_WORK", value)?;
+        }
         Ok(config)
     }
+}
+
+/// Parse a positive, bounded drain deadline in seconds.
+///
+/// The upper bound keeps a stalled request or stage from holding a container
+/// open past the orchestrator's stop grace period.
+fn parse_drain_timeout(name: &'static str, value: &str) -> Result<Duration, ConfigError> {
+    let seconds: u64 = value.parse().map_err(|_| ConfigError::Invalid {
+        name,
+        value: value.to_owned(),
+        reason: "must be a whole number of seconds",
+    })?;
+    if !(1..=MAX_DRAIN_TIMEOUT_SECONDS).contains(&seconds) {
+        return Err(ConfigError::Invalid {
+            name,
+            value: value.to_owned(),
+            reason: "must be between 1 and 300 seconds",
+        });
+    }
+    Ok(Duration::from_secs(seconds))
 }
 
 /// Whether this process was started as a one-shot owner migration.
@@ -601,6 +644,36 @@ mod tests {
             config.metrics_bind,
             Some(SocketAddr::from(([10, 0, 0, 5], 9090)))
         );
+    }
+
+    #[test]
+    fn the_drain_deadlines_default_and_are_bounded() {
+        let config = Config::from_map(&BTreeMap::new()).expect("config");
+        assert_eq!(config.drain_timeout_http, Duration::from_secs(20));
+        assert_eq!(config.drain_timeout_work, Duration::from_secs(25));
+
+        let config = Config::from_map(&values(&[
+            ("QR_DRAIN_TIMEOUT_HTTP", "7"),
+            ("QR_DRAIN_TIMEOUT_WORK", "300"),
+        ]))
+        .expect("config");
+        assert_eq!(config.drain_timeout_http, Duration::from_secs(7));
+        assert_eq!(config.drain_timeout_work, Duration::from_secs(300));
+
+        for invalid in ["0", "301", "-1", "fast"] {
+            let error = Config::from_map(&values(&[("QR_DRAIN_TIMEOUT_HTTP", invalid)]))
+                .expect_err("an invalid HTTP drain deadline must be refused");
+            assert!(
+                error.to_string().contains("QR_DRAIN_TIMEOUT_HTTP"),
+                "{error}"
+            );
+            let error = Config::from_map(&values(&[("QR_DRAIN_TIMEOUT_WORK", invalid)]))
+                .expect_err("an invalid worker drain deadline must be refused");
+            assert!(
+                error.to_string().contains("QR_DRAIN_TIMEOUT_WORK"),
+                "{error}"
+            );
+        }
     }
 
     #[test]

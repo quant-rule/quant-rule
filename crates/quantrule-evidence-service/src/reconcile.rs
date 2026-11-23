@@ -117,6 +117,76 @@ pub async fn release_all(
     Ok(released)
 }
 
+/// Register every current dataset reference, retrying until the data service
+/// answers or the process drains.
+///
+/// The first pass is immediate. A drain stops the loop at its next boundary;
+/// the next process repeats the sweep, which is idempotent.
+pub fn spawn_register_all(
+    runs: Arc<dyn RunStore>,
+    improvements: Arc<dyn ImprovementStore>,
+    data: Arc<dyn DataClient>,
+    period: std::time::Duration,
+    mut shutdown: quantrule_runtime::shutdown::Shutdown,
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        loop {
+            if shutdown.is_requested() {
+                return;
+            }
+            match register_all(
+                Arc::clone(&runs),
+                Arc::clone(&improvements),
+                Arc::clone(&data),
+            )
+            .await
+            {
+                Ok(count) => {
+                    tracing::info!(count, "dataset references reconciled");
+                    return;
+                }
+                Err(error) => {
+                    tracing::warn!(%error, "dataset-reference reconciliation will retry");
+                }
+            }
+            tokio::select! {
+                biased;
+                () = shutdown.wait() => return,
+                () = tokio::time::sleep(period) => {}
+            }
+        }
+    })
+}
+
+/// Retry every dataset-reference release the tombstone holds until the data
+/// service answers or the process drains.
+pub fn spawn_release_all(
+    releases: Arc<dyn ReferenceReleaseLog>,
+    data: Arc<dyn DataClient>,
+    period: std::time::Duration,
+    mut shutdown: quantrule_runtime::shutdown::Shutdown,
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        loop {
+            if shutdown.is_requested() {
+                return;
+            }
+            match release_all(releases.as_ref(), data.as_ref()).await {
+                Ok(0) => {}
+                Ok(count) => tracing::info!(count, "dataset references released"),
+                Err(error) => {
+                    tracing::warn!(%error, "dataset-reference release will retry");
+                }
+            }
+            tokio::select! {
+                biased;
+                () = shutdown.wait() => return,
+                () = tokio::time::sleep(period) => {}
+            }
+        }
+    })
+}
+
 /// Whether the dataset is already gone, which means no release is needed.
 ///
 /// The data service answers `404` when the catalog row no longer exists. That

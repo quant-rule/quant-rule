@@ -42,6 +42,7 @@ pub(crate) fn failure(code: ErrorCode, message: impl Into<String>) -> ApiFailure
 fn routes() -> Router<Arc<SimulationState>> {
     Router::new()
         .route("/health", get(health))
+        .route("/ready", get(ready))
         .route("/version", get(version))
         .route(
             "/simulation/runs",
@@ -84,6 +85,17 @@ pub fn router(state: Arc<SimulationState>) -> Router {
 async fn health(State(state): State<Arc<SimulationState>>) -> Json<HealthReport> {
     let digest = state.version.image_digest.clone();
     Json(state.health.report(digest).await)
+}
+
+async fn ready(State(state): State<Arc<SimulationState>>) -> (StatusCode, Json<HealthReport>) {
+    let digest = state.version.image_digest.clone();
+    let (ready, report) = state.health.readiness(digest).await;
+    let status = if ready {
+        StatusCode::OK
+    } else {
+        StatusCode::SERVICE_UNAVAILABLE
+    };
+    (status, Json(report))
 }
 
 async fn version(State(state): State<Arc<SimulationState>>) -> Json<VersionInfo> {

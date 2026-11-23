@@ -1,6 +1,6 @@
 # Control Plane — Run Lifecycle
 
-- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); unchanged in the v1.0.0 desktop release; approved 2026-11-12
+- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); runtime drain, retries and reconnect in v1.6.0; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Decision: [`ADR-2026-11-12-02`](../adr/2026-11-12/02-two-plane-control-and-data.md)
 - Claim type: Behaviour Claim
@@ -59,7 +59,6 @@ Rules:
 - `run.requested` and `run.computed` are published from the evidence outbox;
   the intent commits with the run write. See
   [cross-database consistency](cross-database-consistency.md).
-
 ## 3. Topology
 
 ```text
@@ -107,8 +106,12 @@ lost; the run row records the attempt count. A claim records a monotonic term
 and a 60 s lease, and the worker renews it every 20 s. A queued run is
 claimable; a running run only when its lease is absent or expired. A computed
 run is only republished. The quorum delivery limit is the second guard for a
-consumer that cannot reach that path.
+consumer that cannot reach that path. A consumer error reconnects in-process
+with 1–30 s backoff before the container restarts.
 
+A SIGTERM stops new claims and gives the in-flight run up to
+`QR_DRAIN_TIMEOUT_WORK` (25 s) to finish. An aborted run keeps its lease and is
+recovered by lease expiry and the outbox; shutdown never marks it failed.
 ## 4. Idempotency
 
 ```text
@@ -139,7 +142,6 @@ canonical digest.
 - Cancellation followed by completion is impossible: the worker checks the
   cancellation flag after the claim, before the model call, before the backtest,
   and before the first CAS write.
-
 ## 5. Concurrency
 
 | Setting | Meaning | Default |
@@ -148,7 +150,6 @@ canonical digest.
 | Prefetch | Messages held per worker | 1 |
 
 A run is never split across backtest workers. Scaling adds workers, not shards.
-
 ## 6. Cancellation
 
 1. Client calls `POST /runs/{id}/cancel`.
@@ -161,7 +162,6 @@ A run is never split across backtest workers. Scaling adds workers, not shards.
 
 Cancellation is best-effort by design: a run that has already reached the
 evidence service has completed, and the response says so.
-
 ## 7. What the control plane must never do
 
 - Carry a model reading.

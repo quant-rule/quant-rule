@@ -24,7 +24,7 @@ artifact, or research evidence.
 
 | # | Shell | Browser | Expect |
 |---:|---|---|---|
-| 1 | `quantrule health` | **Connection** → health table | Aggregate state, service states, image digest, and the reserved queue/worker counts; the gateway's `/ready` adds the upstream states |
+| 1 | `quantrule health` | **Connection** → health table | Aggregate state, service states, image digest, and the reserved queue/worker counts; the gateway's `/ready` adds the upstream readiness states |
 | 2 | `quantrule profile list` | **Profiles** → profile table | Profiles with dataset, run, and simulation counts |
 | 3 | `quantrule profile create "Research Lab" --id research-lab` | Profiles → create form | Shell prints the row and keeps the active profile; the browser creates and selects it |
 | 4 | `quantrule profile use research-lab` | **Profile switcher** → profile | The local default and the active profile change |
@@ -93,9 +93,30 @@ docker compose exec -T data curl -fsS http://127.0.0.1:9090/metrics
 
 The common families are build identity, process start, readiness, draining,
 dependency health, HTTP request counts, a duration histogram, and in-flight
-requests. Labels use the route template (`/runs/{id}`), never a raw path or id.
-`quantrule_ready` is process readiness in this slice; dependency readiness and
-drain are slice 2.
+requests. The workers add queue depth, worker count, run/stage outcome counters,
+retry and reconnect counters; evidence adds the leader gauge and outbox depth.
+Labels use the route template (`/runs/{id}`) or a fixed queue kind; never a raw
+path, generated queue name or id.
+
+`quantrule_ready` is `0` and `quantrule_draining` is `1` as soon as a SIGTERM
+arrives. `/ready` answers `503` with a `draining` detail immediately; `/health`
+stays `200` while the process lives. The HTTP server waits up to
+`QR_DRAIN_TIMEOUT_HTTP` (20 s) and a worker up to `QR_DRAIN_TIMEOUT_WORK` (25 s);
+Compose allows 40 s before a forced kill. If a request or run outlives its
+deadline the process still exits `0` and logs `drain.deadline_exceeded`.
+
+### Drain and retries
+
+A draining worker stops claiming and lets its in-flight run finish. If the
+deadline aborts it, the run stays `running` with its lease and no digest; lease
+expiry and the outbox recover it. Shutdown never writes `failed`.
+
+Internal GET reads and the audited dataset-reference writes retry three times
+with a 200 ms base delay, factor four, a 5 s maximum delay and a 15 s total
+deadline. A claim, a model compute, a signal create, a stage create, a decision,
+a cancel and a streaming body never retry. A queue consumer that errors
+reconnects with 1, 2, 4, 8, 16 and 30 s backoff; after that the container
+restarts. A drain during a backoff is a clean stop, not a reconnect.
 
 Logs are one JSON object per line on stderr. Set `QR_LOG_FORMAT=text` only for
 local debugging; `QR_LOG` is the filter. A request returns `x-request-id`, and a
@@ -235,7 +256,7 @@ None of this is research evidence or an edge claim.
 | `profile.not_found` | The active profile does not exist | Create it, or select an existing one |
 | `profile.invalid` | The profile name failed validation | Use lowercase letters, digits, and hyphens |
 | `run.not_found` | The digest form names an unknown run | Re-read the run list |
-| `service.unavailable` | A service is unreachable | Read `health`; stop |
+| `service.unavailable` | A service is unreachable, restarting, or draining | Read `health`; wait for `/ready`; stop only if it stays down |
 | `queue.unavailable` | The broker or the service queue is unavailable | Read `health`; run submissions are retried from the outbox, so do not resubmit a run |
 | Retention error | The last cleanup failed | Read the error; do not delete evidence by hand |
 | Backup archive exists | The timestamped name already exists | Re-run later; never overwrite the archive |

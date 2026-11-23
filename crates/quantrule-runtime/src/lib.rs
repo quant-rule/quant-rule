@@ -22,11 +22,14 @@ pub mod metrics;
 pub mod migrations;
 pub mod observability;
 pub mod queue;
+pub mod reconnect;
 pub mod request_id;
+pub mod retry;
 pub mod serve;
 pub mod shutdown;
 
 pub use config::Config;
 pub use error::RuntimeError;
 pub use health::HealthRegistry;
-pub use serve::{serve, serve_config};
+pub use serve::{serve, serve_config, serve_on};
+pub use shutdown::{Drain, Shutdown, ShutdownTrigger, watch_signal};

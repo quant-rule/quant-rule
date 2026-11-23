@@ -415,7 +415,8 @@ fn terminal(error: &ClientError) -> bool {
         }
         ClientError::InvalidResponse { .. }
         | ClientError::InvalidBase { .. }
-        | ClientError::Unconfigured { .. } => true,
+        | ClientError::Unconfigured { .. }
+        | ClientError::Interrupted { .. } => true,
         ClientError::Unreachable { .. } | ClientError::Timeout { .. } => false,
     }
 }

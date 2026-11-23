@@ -1,6 +1,6 @@
 # Operations
 
-- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); unchanged in the v1.0.0 desktop release; approved 2026-11-12
+- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); runtime drain, readiness and retries in v1.6.0; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 
@@ -15,10 +15,12 @@ make down    # stop, keep data
 
 ## 2. Health
 
-`GET /health` is the local liveness probe. `GET /ready` is the dependency
-authority: it aggregates the configured upstream services and returns `503`
-when one is down or answers with a different `service` identity. A service is
-healthy when its check passes, not when its container is running.
+`GET /health` is the local liveness probe; it stays `200` while the process is
+alive. `GET /ready` is the routing authority: it returns `503` when a dependency
+is down, when a response has a different `service` identity, or immediately when
+the process is draining. The gateway probes each upstream `/ready`; the backtest
+worker exposes both routes on its internal listener. A service is healthy when
+its check passes, not when its container is running.
 
 | Signal | Healthy | Action |
 |---|---|---|
@@ -28,8 +30,7 @@ healthy when its check passes, not when its container is running.
 | object store reachable | yes | restart; objects survive |
 | queue reachable | yes | restart; durable messages replay |
 
-Queue depth and worker count remain in the report for the control plane; they
-are currently published as zero and are not an operational signal.
+Queue depth and workers are gauges in `/metrics`; the report fields stay reserved.
 
 ### Metrics, logs and request ids
 
@@ -38,6 +39,12 @@ only; the gateway never proxies it and no host port is published. Logs are one
 JSON object per line on stderr unless `QR_LOG_FORMAT=text`. Every gateway
 response carries `x-request-id`, and a valid W3C `traceparent` is forwarded.
 These fields are observability, never evidence or a run identity.
+
+`quantrule_ready` is `0` while draining and `quantrule_draining` is `1`. A
+`SIGTERM` waits up to 20 s for HTTP and 25 s for a worker; `stop_grace_period:
+40s` bounds the container. `quantrule_http_retries_total` and
+`quantrule_consumer_reconnects_total` count retries and reconnects; a drain
+never writes `failed` for an in-flight run.
 
 ```bash
 docker compose exec -T gateway curl -fsS http://127.0.0.1:9090/metrics
@@ -68,9 +75,8 @@ queues before the new generation publishes.
 `runs.leader_lease` names the one finalizer; the leader renews every 10 s with a
 30 s database window. A standby serves reads and acquires after expiry. Inspect
 `SELECT holder, term, expires_at > now() AS live FROM runs.leader_lease;`.
-A leader kill expires the lease, the standby takes over, and the outbox re-arms
-the unfinished run; `this evidence replica is the leader` names the new holder.
-
+A leader kill or a clean drain expires the lease; the standby takes over,
+re-arms the outbox and logs `this evidence replica is the leader`.
 ## 3. Run lifecycle operations
 
 | Situation | Operator action |
@@ -79,8 +85,7 @@ the unfinished run; `this evidence replica is the leader` names the new holder.
 | Run `running` too long | Check the stage in run detail; cancel if needed |
 | Run `failed` | Read the failed stage and error code; resubmit after fixing the input |
 | Dead-lettered run | Inspect the attempt count; the run row is the record |
-| Stuck `running` after a crash | Restart the worker; finalization retries |
-
+| Stuck `running` after a crash or drain | Restart the worker; the lease expires and the outbox re-arms it; never mark it failed |
 ## 4. Backup and restore
 
 One archive holds both durable stores:
@@ -120,9 +125,8 @@ candle data and is handled as sensitive ([data-lifecycle](../workflows/data-life
 The default stack starts seven services, three stores, the bootstrap and four
 migration jobs ([deployment.md](deployment.md) §2.1). Backup covers only the
 durable stores; the four-database contract is [four databases](../config/2026-11-22/four-databases.md).
-
-The current tools dump one database; until the four-database archive lands a
-backup is incomplete. Do not claim evidence preservation from a single dump.
+The current tools dump one database, so a backup is incomplete until the
+four-database archive lands; never claim evidence preservation from one dump.
 
 Round trip: `tools/test_backup.sh` is opt-in, uses an isolated
 `quantrule-backup-test` project, and never touches the default project. It
@@ -137,15 +141,12 @@ restores, and compares row digests and object hashes.
 3. Load or pull the new image digest.
 4. `make up`: `db-bootstrap` runs, then the four one-shot migration jobs, then
    each service waits for its own job.
-5. `make verify` and compare with the recorded canonical digest. Do not retire
-   the previous image until the fixture and digest pass.
-6. A failed migration job leaves its service down; do not bypass it with
-   `QR_MIGRATE=1`. Correct forward with a new migration version.
-7. Rollback starts the previous digest without the job. The schema is
-   forward-only, so the previous image must tolerate it.
+5. `make verify`; do not retire the previous image until the fixture and digest pass.
+6. A failed migration job leaves its service down. Do not bypass it with
+   `QR_MIGRATE=1`; correct forward with a new migration version.
+7. Rollback starts the previous digest without the job; the schema is forward-only.
 
-The full migration contract and runbook are in
-[migrations.md](migrations.md).
+The full migration contract and runbook are in [migrations.md](migrations.md).
 
 ## 6. Incident notes
 

@@ -18,7 +18,7 @@ security boundary ([`ADR-11`](../adr/2026-11-12/11-profiles.md)).
 | `gateway` | `qr-gateway` | HTTP boundary, static client, upload streaming, health aggregation, principal injection, proxy table | `gateway` schema in `qr_gateway` | compute a model value, read a candle, render a label |
 | `data` | `qr-data` | Ingestion, `data_version`, timeframe ladder, dataset/config/pack/artifact catalog (including the read-only `config/` mount), read-only inspection | `catalog` schema in `qr_catalog`, `datasets/`, `ladder/`, `packs/` and `artifacts/` objects | run a model, decide a signal |
 | `model` | `qr-model` | Readings, states, events, levels, progression, context, report | model objects | read strategy, execution, or portfolio |
-| `backtest` | `qr-backtest` | Run orchestration, strategy, execution, portfolio, diagnostic stage execution | artifact objects, stage worker | own the final provenance, canonical digest, or run record |
+| `backtest` | `qr-backtest` | Run orchestration, strategy, execution, portfolio, diagnostic stage execution | artifact objects, stage worker, internal `/metrics`, `/health` and `/ready` | own the final provenance, canonical digest, or run record |
 | `evidence` | `qr-evidence` | Provenance, canonical digest, run records, research memory, stage lifecycle, finalization | `runs`, `research`, and `stage` schemas in `qr_evidence`, bundle objects | compute a reading or decide a trade |
 | `simulation` | `qr-simulation` | Chart-first research: window selection, marks, oracle, review, check, decision | `simulation` schema in `qr_simulation`, research objects | compute a model, write a run artifact, publish to the queue |
 | `strategy` | `qr-strategy` | Signal-mode pack validation, signal computation, object-store write and metadata-only catalog registration | signal objects under `artifacts/` | own a database or queue, run a fold, read a run or research schema |
@@ -84,7 +84,6 @@ Distribution is about separate processes, failure units, and scaling units, not
 about one published port per service. The one-port rule is a deployability and
 security characteristic. The multi-host profile keeps it: internal services bind
 only to the private overlay.
-
 ## 3. Scaling profile
 
 | Service | Scale | Reason |
@@ -115,7 +114,7 @@ a fold over time. Claiming otherwise would be false.
 | `gateway` down | Client shows disconnected; queued and running work is unaffected |
 | `data` down | HA's other replica serves idempotent uploads; a single-instance profile fails a new run fast; existing runs continue |
 | `model` down | The run fails at the model stage; no artifact is finalized |
-| `backtest` down mid-run | Message is redelivered; recomputation is idempotent |
+| `backtest` down mid-run | SIGTERM drains up to 25 s; an aborted run keeps its lease and is redelivered; recomputation is idempotent |
 | `evidence` down after compute | Artifacts exist but the run stays `running`; finalization retries |
 | `strategy` down | New signals fail fast; existing signals and runs are unaffected |
 | object store down | The run fails; no partial bundle becomes visible |
@@ -135,7 +134,8 @@ a fold over time. Claiming otherwise would be false.
 
 Database, object store, and queue sit behind traits. The server ships one
 implementation of each: Postgres, the S3 API, and RabbitMQ. A service calls the
-trait, never a client library directly.
+trait, never a client library directly. Only audited idempotent GETs and the two
+dataset-reference writes retry; a consumer error reconnects in-process.
 
 ## 8. Stage diagnostics
 

@@ -17,7 +17,9 @@ use quantrule_runtime::client::{ClientError, DataClient, HttpServiceClient, Serv
 use quantrule_runtime::config::{ConfigError, migrate_only_requested};
 use quantrule_runtime::metrics::{self, Metrics};
 use quantrule_runtime::request_id::RequestIds;
-use quantrule_runtime::{Config, HealthRegistry, RuntimeError, logging};
+use quantrule_runtime::{
+    Config, Drain, HealthRegistry, RuntimeError, Shutdown, logging, watch_signal,
+};
 
 #[tokio::main]
 async fn main() -> Result<(), RuntimeError> {
@@ -34,15 +36,21 @@ async fn main() -> Result<(), RuntimeError> {
         .await;
     }
 
+    let (trigger, shutdown) = Shutdown::channel();
     let metrics = Metrics::new(
         "gateway",
         env!("CARGO_PKG_VERSION"),
         config.image_digest.as_ref().map(ToString::to_string),
     );
+    let drain = Drain::new(
+        shutdown.clone(),
+        Some(metrics.clone()),
+        config.drain_timeout_http,
+    );
     metrics::start(&config, &metrics).await?;
     tracing::info!("starting gateway");
 
-    let mut health = HealthRegistry::named("gateway");
+    let mut health = HealthRegistry::named("gateway").with_shutdown(shutdown.clone());
     let profiles: Option<Arc<dyn ProfileStore>> = open_service_database(&config, &mut health)
         .await?
         .map(|database| {
@@ -50,23 +58,29 @@ async fn main() -> Result<(), RuntimeError> {
         });
 
     let data_upstream = HttpServiceClient::from_env(Service::Data)
-        .map_err(|error| service_config_error(Service::Data, error))?;
+        .map_err(|error| service_config_error(Service::Data, error))?
+        .with_retry(metrics.clone(), shutdown.clone());
     let data: Arc<dyn DataClient> = Arc::new(data_upstream.clone());
     let data_upstream = Arc::new(data_upstream);
     let model_upstream = HttpServiceClient::from_env(Service::Model)
-        .map_err(|error| service_config_error(Service::Model, error))?;
+        .map_err(|error| service_config_error(Service::Model, error))?
+        .with_retry(metrics.clone(), shutdown.clone());
     let evidence_upstream = Arc::new(
         HttpServiceClient::from_env(Service::Evidence)
-            .map_err(|error| service_config_error(Service::Evidence, error))?,
+            .map_err(|error| service_config_error(Service::Evidence, error))?
+            .with_retry(metrics.clone(), shutdown.clone()),
     );
     let simulation_upstream = Arc::new(
         HttpServiceClient::from_env(Service::Simulation)
-            .map_err(|error| service_config_error(Service::Simulation, error))?,
+            .map_err(|error| service_config_error(Service::Simulation, error))?
+            .with_retry(metrics.clone(), shutdown.clone()),
     );
     // The strategy service is the seventh unit. A v2 profile does not deploy it
     // and leaves the URL absent, so the gateway starts and skips its probe.
     let strategy_upstream = match HttpServiceClient::from_env(Service::Strategy) {
-        Ok(client) => Some(Arc::new(client)),
+        Ok(client) => Some(Arc::new(
+            client.with_retry(metrics.clone(), shutdown.clone()),
+        )),
         Err(ClientError::Unconfigured { .. }) => None,
         Err(error) => return Err(service_config_error(Service::Strategy, error)),
     };
@@ -87,7 +101,9 @@ async fn main() -> Result<(), RuntimeError> {
             runs: Some(evidence_upstream),
             simulations: Some(simulation_upstream),
         },
+        drain,
     ));
+    std::mem::drop(watch_signal(trigger));
     tracing::info!(bind = %config.bind, "starting gateway");
     server::serve(&config, state).await
 }

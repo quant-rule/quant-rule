@@ -9,18 +9,21 @@ use std::sync::Arc;
 
 use quantrule_api::{API_VERSION, HealthReport, ServiceHealth, ServiceState};
 
+use crate::shutdown::Shutdown;
+
 /// A dependency check.
 pub type CheckFuture = Pin<Box<dyn Future<Output = Result<(), String>> + Send>>;
 
 /// A named, repeatable probe.
 pub type Check = Arc<dyn Fn() -> CheckFuture + Send + Sync>;
 
-/// The set of probes behind `/health`.
+/// The set of probes behind `/health` and `/ready`.
 #[derive(Clone, Default)]
 pub struct HealthRegistry {
     service: String,
     checks: Vec<(String, Check)>,
     metrics: Option<crate::metrics::Metrics>,
+    shutdown: Option<Shutdown>,
 }
 
 impl std::fmt::Debug for HealthRegistry {
@@ -33,6 +36,7 @@ impl std::fmt::Debug for HealthRegistry {
                 &self.checks.iter().map(|(name, _)| name).collect::<Vec<_>>(),
             )
             .field("metrics", &self.metrics.is_some())
+            .field("drain", &self.shutdown.is_some())
             .finish()
     }
 }
@@ -54,6 +58,7 @@ impl HealthRegistry {
             service: service.into(),
             checks: Vec::new(),
             metrics: None,
+            shutdown: None,
         }
     }
 
@@ -63,6 +68,56 @@ impl HealthRegistry {
     pub fn with_metrics(mut self, metrics: crate::metrics::Metrics) -> Self {
         self.metrics = Some(metrics);
         self
+    }
+
+    /// Attach the drain channel so `/ready` refuses new routing immediately.
+    #[must_use]
+    pub fn with_shutdown(mut self, shutdown: Shutdown) -> Self {
+        self.shutdown = Some(shutdown);
+        self
+    }
+
+    /// Whether a drain signal has arrived.
+    #[must_use]
+    pub fn is_draining(&self) -> bool {
+        self.shutdown.as_ref().is_some_and(Shutdown::is_requested)
+    }
+
+    /// The report to answer `/ready` with while draining.
+    ///
+    /// No dependency probe runs: a draining process must answer immediately and
+    /// must not start new upstream work.
+    #[must_use]
+    pub fn draining_report(&self, image_digest: Option<quantrule_api::Digest>) -> HealthReport {
+        HealthReport {
+            v: API_VERSION.to_owned(),
+            service: self.service.clone(),
+            state: ServiceState::Down,
+            services: vec![ServiceHealth {
+                name: "drain".to_owned(),
+                state: ServiceState::Down,
+                detail: Some("draining".to_owned()),
+            }],
+            queue_depth: 0,
+            workers: 0,
+            image_digest,
+        }
+    }
+
+    /// Build the `/ready` answer.
+    ///
+    /// A draining process is unavailable without probing anything; otherwise
+    /// the aggregate dependency report decides. `/health` stays the local
+    /// liveness probe and does not use this method.
+    pub async fn readiness(
+        &self,
+        image_digest: Option<quantrule_api::Digest>,
+    ) -> (bool, HealthReport) {
+        if self.is_draining() {
+            return (false, self.draining_report(image_digest));
+        }
+        let report = self.report(image_digest).await;
+        (report.state.is_available(), report)
     }
 
     /// Register one probe.
@@ -162,6 +217,35 @@ mod tests {
     async fn a_named_registry_reports_its_service() {
         let report = HealthRegistry::named("data").report(None).await;
         assert_eq!(report.service, "data");
+    }
+
+    #[tokio::test]
+    async fn a_draining_registry_is_unready_without_running_probes() {
+        let (trigger, shutdown) = crate::shutdown::Shutdown::channel();
+        let mut registry = HealthRegistry::named("data").with_shutdown(shutdown);
+        registry.register("postgres", || async { Ok(()) });
+        let (ready, report) = registry.readiness(None).await;
+        assert!(ready);
+        trigger.trigger();
+        assert!(registry.is_draining());
+        let (ready, report_while_draining) = registry.readiness(None).await;
+        assert!(!ready);
+        assert_eq!(report_while_draining.state, ServiceState::Down);
+        assert_eq!(
+            report_while_draining.services[0].detail.as_deref(),
+            Some("draining")
+        );
+        // The liveness report never gains the drain component.
+        assert_eq!(report.services.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn a_down_dependency_makes_readiness_false() {
+        let mut registry = HealthRegistry::named("data");
+        registry.register("postgres", || async { Err("down".to_owned()) });
+        let (ready, report) = registry.readiness(None).await;
+        assert!(!ready);
+        assert_eq!(report.state, ServiceState::Down);
     }
 
     #[tokio::test]

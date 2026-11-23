@@ -23,12 +23,15 @@ use quantrule_runtime::config::{ConfigError, migrate_only_requested};
 use quantrule_runtime::metrics::{self, Metrics};
 use quantrule_runtime::queue::QueueKind;
 use quantrule_runtime::request_id::RequestIds;
-use quantrule_runtime::{Config, HealthRegistry, RuntimeError, logging, observability};
+use quantrule_runtime::{
+    Config, Drain, HealthRegistry, RuntimeError, Shutdown, logging, observability, watch_signal,
+};
 use quantrule_service_api::INTERNAL_API_VERSION;
 
 use quantrule_evidence_service::evidence::EvidenceServices;
 use quantrule_evidence_service::leader::{
-    LEADER_LEASE_SECONDS, LeaderConsumer, LeaderLease, Leadership, spawn_leader_election,
+    LEADER_LEASE_SECONDS, LeaderConsumer, LeaderLease, Leadership, release_leadership,
+    spawn_leader_election,
 };
 use quantrule_evidence_service::lineage::{PgLineage, RunLineageStore};
 use quantrule_evidence_service::outbox::RunOutbox;
@@ -66,13 +69,21 @@ async fn main() -> Result<(), RuntimeError> {
         .await;
     }
 
+    let (trigger, shutdown) = Shutdown::channel();
     let metrics = Metrics::new(
         "evidence",
         env!("CARGO_PKG_VERSION"),
         config.image_digest.as_ref().map(ToString::to_string),
     );
+    let drain = Drain::new(
+        shutdown.clone(),
+        Some(metrics.clone()),
+        config.drain_timeout_http,
+    );
     metrics::start(&config, &metrics).await?;
-    let mut health = HealthRegistry::named("evidence").with_metrics(metrics.clone());
+    let mut health = HealthRegistry::named("evidence")
+        .with_metrics(metrics.clone())
+        .with_shutdown(shutdown.clone());
     let opened = open_service_database(&config, &mut health).await?;
     let pool = opened.as_ref().map(|database| database.pool().clone());
     // One store serves the run lifecycle, the notification outbox, and the
@@ -127,8 +138,11 @@ async fn main() -> Result<(), RuntimeError> {
         }
     });
 
-    let data: Arc<dyn DataClient> =
-        Arc::new(HttpServiceClient::from_env(Service::Data).map_err(data_config_error)?);
+    let data: Arc<dyn DataClient> = Arc::new(
+        HttpServiceClient::from_env(Service::Data)
+            .map_err(data_config_error)?
+            .with_retry(metrics.clone(), shutdown.clone()),
+    );
 
     let publish: Arc<dyn Queue> = queue.clone();
     let reconcile_runs = runs.as_ref().map(Arc::clone);
@@ -150,6 +164,11 @@ async fn main() -> Result<(), RuntimeError> {
         },
     ));
 
+    // Background work observes the same drain channel as the HTTP server. Each
+    // loop stops at its next pass boundary; the caller waits for them up to
+    // `QR_DRAIN_TIMEOUT_WORK` and aborts what remains.
+    let mut background = Vec::new();
+
     // The publisher reconciles the live runs with the outbox, then drains it.
     // Its first pass is a startup pass, so a restarted process republishes
     // every unfinished run into an empty or rebuilt queue.
@@ -157,11 +176,13 @@ async fn main() -> Result<(), RuntimeError> {
         state.outbox.as_ref().map(Arc::clone),
         state.queue.as_ref().map(Arc::clone),
     ) {
-        quantrule_evidence_service::outbox::spawn_publisher(
+        background.push(quantrule_evidence_service::outbox::spawn_publisher(
             outbox,
             queue,
             quantrule_evidence_service::outbox::PUBLISH_INTERVAL,
-        );
+            shutdown.clone(),
+            Some(metrics.clone()),
+        ));
     }
 
     // Rows written before the dataset-reference registry existed are registered
@@ -172,26 +193,13 @@ async fn main() -> Result<(), RuntimeError> {
         reconcile_improvements,
         state.data.as_ref().map(Arc::clone),
     ) {
-        tokio::spawn(async move {
-            loop {
-                match quantrule_evidence_service::reconcile::register_all(
-                    Arc::clone(&runs),
-                    Arc::clone(&improvements),
-                    Arc::clone(&data),
-                )
-                .await
-                {
-                    Ok(count) => {
-                        tracing::info!(count, "dataset references reconciled");
-                        break;
-                    }
-                    Err(error) => {
-                        tracing::warn!(%error, "dataset-reference reconciliation will retry");
-                        tokio::time::sleep(Duration::from_secs(30)).await;
-                    }
-                }
-            }
-        });
+        background.push(quantrule_evidence_service::reconcile::spawn_register_all(
+            runs,
+            improvements,
+            data,
+            Duration::from_secs(30),
+            shutdown.clone(),
+        ));
     }
 
     // The release sweep retries every tombstone the erase paths wrote. A
@@ -201,23 +209,12 @@ async fn main() -> Result<(), RuntimeError> {
         state.releases.as_ref().map(Arc::clone),
         state.data.as_ref().map(Arc::clone),
     ) {
-        tokio::spawn(async move {
-            loop {
-                match quantrule_evidence_service::reconcile::release_all(
-                    releases.as_ref(),
-                    data.as_ref(),
-                )
-                .await
-                {
-                    Ok(0) => {}
-                    Ok(count) => tracing::info!(count, "dataset references released"),
-                    Err(error) => {
-                        tracing::warn!(%error, "dataset-reference release will retry");
-                    }
-                }
-                tokio::time::sleep(Duration::from_secs(30)).await;
-            }
-        });
+        background.push(quantrule_evidence_service::reconcile::spawn_release_all(
+            releases,
+            data,
+            Duration::from_secs(30),
+            shutdown.clone(),
+        ));
     }
 
     // Retention sweeps at startup and hourly. It names only the stage schema
@@ -226,14 +223,15 @@ async fn main() -> Result<(), RuntimeError> {
     // operations status, success or failure, and the service still starts
     // because the health probes say what is down.
     if let Some(stages) = stages.as_ref() {
-        tokio::spawn(retention::sweep(
+        background.push(tokio::spawn(retention::sweep(
             Arc::clone(stages),
             Arc::clone(&objects),
             Arc::clone(&state.operations),
             Arc::clone(&state.stage_gate),
             config.stage_retention_days,
             retention::SWEEP_INTERVAL,
-        ));
+            shutdown.clone(),
+        )));
     }
 
     // A database that is merely unreachable is a health state, not a startup
@@ -248,9 +246,15 @@ async fn main() -> Result<(), RuntimeError> {
 
     // The lease loop starts before the HTTP server. A standby consumes nothing
     // until it acquires the lease; reads are served either way.
-    let leadership = leader_lease.map(|lease| {
+    let holder = leader_holder();
+    let leadership = leader_lease.clone().map(|lease| {
         let (sender, receiver) = tokio::sync::watch::channel(Leadership::Standby);
-        spawn_leader_election(lease, leader_holder(), sender);
+        background.push(spawn_leader_election(
+            lease,
+            holder.clone(),
+            sender,
+            shutdown.clone(),
+        ));
         receiver
     });
 
@@ -261,9 +265,30 @@ async fn main() -> Result<(), RuntimeError> {
         state.queue.as_ref().map(Arc::clone),
         leadership.as_ref().cloned(),
     ) {
-        quantrule_evidence_service::outbox::spawn_leader_reconcile(receiver, outbox, publish);
+        background.push(quantrule_evidence_service::outbox::spawn_leader_reconcile(
+            receiver,
+            outbox,
+            publish,
+            shutdown.clone(),
+        ));
     }
 
+    // The leader and queue gauges are observations, never finalisation inputs.
+    if let Some(receiver) = leadership.as_ref().cloned() {
+        background.push(watch_leadership(
+            receiver,
+            metrics.clone(),
+            shutdown.clone(),
+        ));
+    }
+    background.push(watch_queue_depth(
+        Arc::clone(&queue),
+        evidence_queue.clone(),
+        metrics.clone(),
+        shutdown.clone(),
+    ));
+
+    std::mem::drop(watch_signal(trigger.clone()));
     tracing::info!(
         bind = %config.bind,
         contract = INTERNAL_API_VERSION,
@@ -271,22 +296,139 @@ async fn main() -> Result<(), RuntimeError> {
     );
     let server = quantrule_runtime::serve_config(
         &config,
-        observability::instrument(router(state), metrics, RequestIds::from_env("evidence")),
+        observability::instrument(
+            router(state),
+            metrics.clone(),
+            RequestIds::from_env("evidence"),
+        ),
+        &drain,
     );
-    let consumer = async move {
-        let (Some(evidence), Some(leadership)) = (evidence, leadership) else {
-            return std::future::pending::<Result<(), RuntimeError>>().await;
-        };
-        let consumer: Arc<dyn QueueConsumer> = queue;
-        LeaderConsumer::new(consumer, evidence_queue, evidence)
-            .run(leadership)
-            .await;
-        Ok::<(), RuntimeError>(())
+    let consumer = {
+        let metrics = metrics.clone();
+        let shutdown = shutdown.clone();
+        let leadership = leadership.clone();
+        async move {
+            let (Some(evidence), Some(leadership)) = (evidence, leadership) else {
+                let mut wait = shutdown.clone();
+                wait.wait().await;
+                return Ok::<(), String>(());
+            };
+            let consumer: Arc<dyn QueueConsumer> = queue;
+            LeaderConsumer::new(consumer, evidence_queue, evidence)
+                .with_metrics(metrics)
+                .run(leadership, shutdown)
+                .await
+                .map_err(|error| error.to_string())?;
+            Ok(())
+        }
     };
+
+    let mut server = Box::pin(server);
+    let mut consumer = Box::pin(consumer);
+    let mut server_done = false;
+    let mut consumer_done = false;
+    let mut failure = None;
     tokio::select! {
-        result = server => result,
-        result = consumer => result,
+        result = server.as_mut() => {
+            server_done = true;
+            if let Err(error) = result {
+                failure = Some(error);
+            }
+        }
+        result = consumer.as_mut() => {
+            consumer_done = true;
+            if let Err(error) = result {
+                failure = Some(RuntimeError::Queue(error));
+            }
+        }
     }
+
+    // A consumer or server failure is also a drain: stop the other side and the
+    // background work before the process exits. A signal already triggered the
+    // same path.
+    trigger.trigger();
+    let deadline = tokio::time::Instant::now() + config.drain_timeout_work;
+    let mut deadline_exceeded = false;
+    if !consumer_done
+        && tokio::time::timeout_at(deadline, consumer.as_mut())
+            .await
+            .is_err()
+    {
+        deadline_exceeded = true;
+    }
+    let stop = async {
+        for handle in &mut background {
+            let _ = handle.await;
+        }
+    };
+    if tokio::time::timeout_at(deadline, stop).await.is_err() {
+        deadline_exceeded = true;
+        for handle in &background {
+            handle.abort();
+        }
+    }
+    if deadline_exceeded {
+        tracing::warn!("drain.deadline_exceeded");
+    }
+    if let (Some(lease), Some(receiver)) = (leader_lease.as_ref(), leadership.as_ref())
+        && let Err(error) = release_leadership(lease.as_ref(), &holder, receiver).await
+    {
+        tracing::warn!(%error, "the evidence leader lease was not released");
+    }
+    metrics.set_leader(false);
+    if !server_done {
+        let _ = server.as_mut().await;
+    }
+    failure.map_or(Ok(()), Err)
+}
+
+/// Follow the leadership watch and update the internal gauge.
+fn watch_leadership(
+    mut leadership: tokio::sync::watch::Receiver<Leadership>,
+    metrics: Metrics,
+    shutdown: Shutdown,
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        loop {
+            metrics.set_leader(matches!(
+                *leadership.borrow_and_update(),
+                Leadership::Leader(_)
+            ));
+            let mut drain = shutdown.clone();
+            tokio::select! {
+                biased;
+                () = drain.wait() => return,
+                changed = leadership.changed() => {
+                    if changed.is_err() {
+                        return;
+                    }
+                }
+            }
+        }
+    })
+}
+
+/// Poll the declared evidence queue depth for the internal gauge.
+fn watch_queue_depth(
+    queue: Arc<ControlQueue>,
+    name: String,
+    metrics: Metrics,
+    shutdown: Shutdown,
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        loop {
+            match queue.depth(&name).await {
+                Ok(depth) => metrics.set_queue_depth("evidence", depth),
+                Err(error) => tracing::debug!(%error, "the evidence queue depth is unavailable"),
+            }
+            let mut drain = shutdown.clone();
+            tokio::select! {
+                biased;
+                () = drain.wait() => return,
+                () = tokio::time::sleep(Duration::from_secs(10)) => {}
+            }
+        }
+    })
 }
 
 /// The identity this replica records in the leader lease.

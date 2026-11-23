@@ -56,11 +56,13 @@ The image also carries the static client built with **Bun**; no Bun or Python ru
 
 ## 2.1 Current state
 
-All seven binaries and ten long-running containers start; `backtest` serves only the internal metrics
-listener. `db-bootstrap` creates the four databases and roles, then four `*-migrate` jobs apply each ledger;
-long-running services use `QR_MIGRATE=0`. Compose and v2 run one data and one simulation replica; HA requires
-[data active/active](data-active-active.md) and [simulation concurrency](simulation-concurrency.md).
-The MinIO image and the database/migration contracts are pinned in
+All seven binaries and ten long-running containers start; `backtest` serves
+`/metrics`, `/health` and `/ready` on its internal listener only. `db-bootstrap`
+creates the four databases and roles, then four `*-migrate` jobs apply each ledger;
+long-running services use `QR_MIGRATE=0`. Compose and v2 run one data and one
+simulation replica; HA requires [data active/active](data-active-active.md) and
+[simulation concurrency](simulation-concurrency.md). The MinIO image and the
+database/migration contracts are pinned in
 [four-databases](../config/2026-11-22/four-databases.md) and [migrations.md](migrations.md).
 ## 3. Make targets
 
@@ -97,7 +99,6 @@ terminate TLS at a reverse proxy. The browser enters the token on the Connection
 screen and the shell accepts `--token` or `QUANTRULE_TOKEN`; both send
 `Authorization: Bearer` on every gateway request. API clients do the same; details
 in [`security.md`](security.md) §2.
-
 ## 4. Configuration
 
 Two sources, one catalog:
@@ -130,11 +131,11 @@ to start.
 | `QR_BEARER_TOKEN` | empty | Enables the token check when set |
 | `QR_BACKTEST_CONCURRENCY` | `1` | Runs per worker |
 | `QR_STAGE_RETENTION_DAYS` | `30` | Diagnostic stage retention in days |
+| `QR_DRAIN_TIMEOUT_HTTP` / `QR_DRAIN_TIMEOUT_WORK` | `20` / `25` | SIGTERM grace for a request and a run; `1`–`300` seconds; Compose waits `40s` |
 | `QR_LOG_FORMAT` / `QR_METRICS_BIND` | `json` / unset | JSON logs (`text` opt-in) / internal Prometheus listener; unset disables it, and it is never published |
 | Store passwords | `quantrule` on the loopback stack | `QR_POSTGRES_PASSWORD` seeds every database role; `QR_RABBITMQ_PASSWORD` and `QR_OBJECT_STORE_PASSWORD`; all required non-default for `make remote` |
 
 A config bundle is capped at 4 MiB by the config route, independently of `QR_UPLOAD_LIMIT_BYTES`; a larger config returns `413 upload.too_large`. Secrets come from the environment; no secret is committed.
-
 ## 5. Distribution profile
 
 QuantRule ships one deployment profile: the Linux image with Postgres, S3, and
@@ -149,22 +150,21 @@ Docker Desktop on Windows.
 
 The server runs the ten long-running containers and the bootstrap; the client
 runs none and points at `http://<server>:8080`. Scaling is configuration.
-
 ## 7. Upgrade and rollback
 
 1. Record the current image and canonical digest; keep the previous image and
    volumes.
-2. `make down`, load the new digest, `make up`: bootstrap, then each
-   `<service>-migrate` job, then its service. A failed job stops its service.
-3. Run `make verify`; the fixture must print the recorded canonical digest
-   before the previous image is retired.
+2. `make down`; SIGTERM drains in-flight work before the 40 s grace expires.
+   Load the new digest and `make up`: bootstrap, each `<service>-migrate` job,
+   then its service. A failed job stops its service.
+3. Run `make verify`; the fixture must print the recorded digest before the
+   previous image is retired.
 4. Rollback starts the previous digest without its job; the schema stays
    expanded and the previous image must tolerate it. See [migrations.md](migrations.md)
    §5. A destructive contract migration closes the window; recovery is PITR.
 
 The split does not copy rows from the old `quantrule` database: use `make reset`
 for disposable data, or the migration runbook for kept evidence.
-
 ## 8. What deployment does not provide
 
 No high availability, no autoscaling, no TLS termination, no external registry. Multi-host placement is in [multi-host.md](multi-host.md); it is not HA.
