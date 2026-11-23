@@ -21,6 +21,7 @@ pub mod manual;
 pub mod markdown;
 pub mod partitions;
 pub mod port_parity;
+pub mod private_keys;
 pub mod py_guard;
 pub mod registry;
 pub mod release_audit;
@@ -112,6 +113,10 @@ pub const CHECKERS: &[Checker] = &[
         run: port_parity::check,
     },
     Checker {
+        name: "private-keys",
+        run: private_keys::check,
+    },
+    Checker {
         name: "py-guard",
         run: py_guard::check,
     },
@@ -196,7 +201,7 @@ mod tests {
 
     #[test]
     fn the_registry_has_one_unique_name_per_checker() {
-        assert_eq!(CHECKERS.len(), 26);
+        assert_eq!(CHECKERS.len(), 27);
         let names: BTreeSet<_> = CHECKERS.iter().map(|checker| checker.name).collect();
         assert_eq!(names.len(), CHECKERS.len());
     }

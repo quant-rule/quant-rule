@@ -43,7 +43,8 @@ cd quant-rule
 make up
 ```
 
-`make up` builds the image, starts the stack, waits for health, and prints:
+`make up` creates the local secrets and internal PKI, builds the image, starts
+the stack, waits for health, and prints:
 
 ```text
 QuantRule v1.5.2 ready → http://localhost:8080
@@ -59,27 +60,29 @@ $env:QR_IMAGE_DIGEST = (docker compose images -q gateway | Select-Object -First 
 docker compose up -d --wait
 ```
 
-A direct Compose start must create the local secret files and set
-`QR_IMAGE_DIGEST` to the built image id; `make up` does both automatically. A
-server without the digest refuses run and stage submissions instead of inventing
-a build identity.
+A direct Compose start must create the secret files and PKI and set
+`QR_IMAGE_DIGEST` to the built image id; `make up` does all three. A server
+without the digest refuses run and stage submissions instead of inventing a
+build identity. PostgreSQL, RabbitMQ and MinIO require TLS; see the
+[internal TLS contract](docs/config/2026-11-23/internal-tls.md).
 
 ```bash
 tools/secrets.sh
+tools/pki.sh
 docker compose --env-file secrets/compose.env build
 QR_IMAGE_DIGEST="$(docker compose --env-file secrets/compose.env images -q gateway | head -n1)" \
   docker compose --env-file secrets/compose.env up -d --wait
 ```
 
 Fedora may use Docker Engine or Podman: `make up COMPOSE="podman compose"`. The
-default stack starts ten long-running containers, a one-shot database bootstrap,
-and four one-shot migration jobs; see
+default stack starts ten long-running containers, a one-shot PKI staging job, a
+one-shot database bootstrap, and four one-shot migration jobs; see
 [`docs/architecture/deployment.md`](docs/architecture/deployment.md).
 
 | Target | Effect |
 |---|---|
 | `make help` | List every target |
-| `make up` / `make secrets` | Create missing secret files, build, start, wait for health, print the URL |
+| `make up` / `make secrets` / `make pki` | Create missing secrets and PKI, build, start, wait, print the URL |
 | `make down` | Stop, keep data |
 | `make reset` | Stop and delete volumes, after confirmation |
 | `make logs` / `make ps` | Observe |
@@ -88,7 +91,7 @@ and four one-shot migration jobs; see
 | `make test` / `make gate` | Fast tier / full workspace gate |
 | `make remote` | Write `secrets/bearer_token`, publish only `:8080`, print the token and usage |
 | `make token` | Print a new bearer token; `--out` writes a mode-600 file |
-| `make compose-check` | Validate both Compose files with disposable secrets |
+| `make compose-check` | Validate both Compose files with disposable secrets and PKI |
 | `make backup` / `make restore FILE=…` | Backup and restore (DIST-080, #671) |
 | `make dev-web` | Web client dev server against `localhost:8080` |
 
@@ -99,9 +102,11 @@ The browser enters the token on the Connection screen and the shell reads
 `--token`, `QUANTRULE_TOKEN` or `QUANTRULE_TOKEN_FILE`; both then send
 `Authorization: Bearer` on every API call. Rotate by running `make remote` with
 a new `QR_BEARER_TOKEN`; the script copies it into the gateway and signals a
-reload. Keep the host on a private network, or terminate TLS at a reverse proxy.
-See [`docs/architecture/security.md`](docs/architecture/security.md) §2,
-[file-backed secrets](docs/config/2026-11-23/secret-files.md), and the
+reload. Keep the host on a private network, or terminate TLS at a reverse proxy;
+internal PostgreSQL, RabbitMQ and MinIO traffic already uses TLS. See
+[`docs/architecture/security.md`](docs/architecture/security.md) §2,
+[file-backed secrets](docs/config/2026-11-23/secret-files.md), the
+[internal TLS contract](docs/config/2026-11-23/internal-tls.md), and the
 [remote tutorial](docs/tutorials/2026-11-12/03-remote-compute.md).
 `make backup` and `make restore` call `tools/backup.sh` and `tools/restore.sh`.
 

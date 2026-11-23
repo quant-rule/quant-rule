@@ -416,13 +416,23 @@ fn validate_endpoints(descriptor: &Descriptor) -> Result<(), Error> {
     check_scheme(
         "endpoints.object_store",
         &descriptor.endpoints.object_store,
-        &["http://", "https://"],
+        &["https://"],
     )?;
     check_scheme(
         "endpoints.queue",
         &descriptor.endpoints.queue,
-        &["amqp://", "amqps://"],
+        &["amqps://"],
     )?;
+    if !descriptor
+        .endpoints
+        .database
+        .contains("sslmode=verify-full")
+    {
+        return Err(invalid(
+            "endpoints.database",
+            "must carry sslmode=verify-full; prefer, require and verify-ca are refused",
+        ));
+    }
     for (field, value) in [
         ("endpoints.database", &descriptor.endpoints.database),
         ("endpoints.object_store", &descriptor.endpoints.object_store),
@@ -432,6 +442,33 @@ fn validate_endpoints(descriptor: &Descriptor) -> Result<(), Error> {
             return Err(invalid(field, "must not contain whitespace"));
         }
         check_placeholders(field, value)?;
+    }
+    for (field, value) in [
+        (
+            "endpoints.database_tls_ca",
+            &descriptor.endpoints.database_tls_ca,
+        ),
+        (
+            "endpoints.object_store_tls_ca",
+            &descriptor.endpoints.object_store_tls_ca,
+        ),
+        ("endpoints.queue_tls_ca", &descriptor.endpoints.queue_tls_ca),
+    ] {
+        if value.trim().is_empty() || !std::path::Path::new(value).is_absolute() {
+            return Err(invalid(
+                field,
+                "must be an absolute path to a PEM CA bundle",
+            ));
+        }
+        if value.chars().any(char::is_whitespace) {
+            return Err(invalid(field, "must not contain whitespace"));
+        }
+        if value.contains("${") {
+            return Err(invalid(
+                field,
+                "must be a literal path; CA files are not placeholders",
+            ));
+        }
     }
     Ok(())
 }
@@ -518,16 +555,16 @@ fn check_endpoint_targets(
             format!("must target {infra}:5432 on the infrastructure host"),
         ));
     }
-    if !queue.contains(&format!("@{infra}:5672/")) {
+    if !queue.contains(&format!("@{infra}:5671/")) {
         return Err(invalid(
             "endpoints.queue",
-            format!("must target {infra}:5672 on the infrastructure host"),
+            format!("must target {infra}:5671 on the infrastructure host"),
         ));
     }
     if !object_store.contains(&format!("://{infra}:9000")) {
         return Err(invalid(
             "endpoints.object_store",
-            format!("must target http://{infra}:9000"),
+            format!("must target https://{infra}:9000"),
         ));
     }
     Ok(())
@@ -692,11 +729,53 @@ mod tests {
     #[test]
     fn an_external_endpoint_is_rejected() {
         let mut value = valid_example();
-        value["endpoints"]["database"] =
-            serde_json::json!("postgres://quantrule:db-secret@8.8.8.8:5432/quantrule");
+        value["endpoints"]["database"] = serde_json::json!(
+            "postgres://quantrule:db-secret@8.8.8.8:5432/quantrule?sslmode=verify-full"
+        );
         let error =
             validate_with_secrets(&parse(value), &secrets()).expect_err("an external database");
         assert!(error.to_string().contains("infrastructure host"), "{error}");
+    }
+
+    #[test]
+    fn a_plaintext_endpoint_is_rejected() {
+        for (field, endpoint) in [
+            (
+                "database",
+                "postgres://quantrule:secret@10.10.0.20:5432/quantrule",
+            ),
+            (
+                "database",
+                "postgres://quantrule:secret@10.10.0.20:5432/quantrule?sslmode=require",
+            ),
+            ("object_store", "http://10.10.0.20:9000"),
+            ("queue", "amqp://quantrule:secret@10.10.0.20:5672/%2f"),
+        ] {
+            let mut value = valid_example();
+            value["endpoints"][field] = serde_json::json!(endpoint);
+            assert!(
+                validate(&parse(value)).is_err(),
+                "{field}={endpoint} was accepted"
+            );
+        }
+    }
+
+    #[test]
+    fn a_relative_ca_path_is_rejected() {
+        let mut value = valid_example();
+        value["endpoints"]["queue_tls_ca"] = serde_json::json!("pki/ca.crt");
+        let error = validate(&parse(value)).expect_err("a relative CA path");
+        assert!(error.to_string().contains("absolute path"), "{error}");
+    }
+
+    #[test]
+    fn the_endpoint_targets_use_the_tls_ports() {
+        let mut value = valid_example();
+        value["endpoints"]["queue"] =
+            serde_json::json!("amqps://quantrule:secret@10.10.0.20:5672/%2f");
+        let error =
+            validate_with_secrets(&parse(value), &secrets()).expect_err("a plaintext AMQP port");
+        assert!(error.to_string().contains("5671"), "{error}");
     }
 
     #[test]
@@ -778,8 +857,9 @@ mod tests {
     #[test]
     fn a_default_password_is_rejected_after_expansion() {
         let mut value = valid_example();
-        value["endpoints"]["database"] =
-            serde_json::json!("postgres://quantrule:quantrule@10.10.0.20:5432/quantrule");
+        value["endpoints"]["database"] = serde_json::json!(
+            "postgres://quantrule:quantrule@10.10.0.20:5432/quantrule?sslmode=verify-full"
+        );
         let error =
             validate_with_secrets(&parse(value), &secrets()).expect_err("the default password");
         assert!(error.to_string().contains("default credential"), "{error}");
@@ -788,8 +868,9 @@ mod tests {
     #[test]
     fn a_missing_secret_is_reported() {
         let mut value = valid_example();
-        value["endpoints"]["database"] =
-            serde_json::json!("postgres://${MISSING_PASSWORD}@10.10.0.20:5432/quantrule");
+        value["endpoints"]["database"] = serde_json::json!(
+            "postgres://${MISSING_PASSWORD}@10.10.0.20:5432/quantrule?sslmode=verify-full"
+        );
         let error =
             validate_with_secrets(&parse(value), &secrets()).expect_err("the missing secret");
         assert!(error.to_string().contains("MISSING_PASSWORD"), "{error}");

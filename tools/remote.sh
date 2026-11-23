@@ -58,14 +58,16 @@ command -v curl >/dev/null 2>&1 || die 'curl is required to check /health and th
 
 read -r -a compose_command <<< "${COMPOSE:-docker compose}"
 secrets_dir="${QR_SECRETS_DIR:-$root/secrets}"
+pki_dir="${QR_PKI_DIR:-$root/pki}"
 compose() {
-  QR_SECRETS_DIR="$secrets_dir" "${compose_command[@]}" \
+  QR_SECRETS_DIR="$secrets_dir" QR_PKI_DIR="$pki_dir" "${compose_command[@]}" \
     --env-file "$secrets_dir/compose.env" \
     -f compose.yaml -f compose.remote.yaml "$@"
 }
 "${compose_command[@]}" version >/dev/null 2>&1 || die "cannot run '${COMPOSE:-docker compose}'"
 
 "$script_dir/secrets.sh" --out "$secrets_dir" >/dev/null
+"$script_dir/pki.sh" --out "$pki_dir" >/dev/null
 set -a
 # shellcheck disable=SC1090
 . "$secrets_dir/compose.env"

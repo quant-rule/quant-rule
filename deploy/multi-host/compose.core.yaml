@@ -28,6 +28,8 @@ services:
       - env/data-migrate.env
     secrets:
       - data_owner_database_url
+    volumes:
+      - ./env/pki:/run/pki:ro
 
   evidence-migrate:
     image: ${QR_IMAGE}
@@ -39,6 +41,8 @@ services:
       - env/evidence-migrate.env
     secrets:
       - evidence_owner_database_url
+    volumes:
+      - ./env/pki:/run/pki:ro
 
   simulation-migrate:
     image: ${QR_IMAGE}
@@ -50,6 +54,8 @@ services:
       - env/simulation-migrate.env
     secrets:
       - simulation_owner_database_url
+    volumes:
+      - ./env/pki:/run/pki:ro
 
   data:
     stop_grace_period: 40s
@@ -75,6 +81,7 @@ services:
       # exports QR_CONFIG_HOST_DIR before Compose runs; a rendered env file is
       # not the place for it, because re-rendering replaces that file.
       - ${QR_CONFIG_HOST_DIR:-../../config}:/srv/config:ro
+      - ./env/pki:/run/pki:ro
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://$${QR_BIND_IP}:$${QR_BIND_PORT}/health | grep -q '\"state\":\"healthy\"'"]
       interval: 10s
@@ -97,6 +104,8 @@ services:
       - queue_url
       - object_store_access_key
       - object_store_secret_key
+    volumes:
+      - ./env/pki:/run/pki:ro
     restart: unless-stopped
     depends_on:
       evidence-migrate:
@@ -122,6 +131,8 @@ services:
       - simulation_database_url
       - object_store_access_key
       - object_store_secret_key
+    volumes:
+      - ./env/pki:/run/pki:ro
     restart: unless-stopped
     depends_on:
       simulation-migrate:

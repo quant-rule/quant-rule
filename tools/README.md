@@ -19,6 +19,8 @@ gate and in CI.
 | Label table | Checks or rewrites the generated client label table. | `qr-governance labels generate [--write]` |
 | Python guard | Refuses any `.py` file or interpreter reference in the repository tree. | `qr-governance guard python` |
 | Structure report | Reports module size, public surface, and layout metrics. | `qr-governance structure --report` |
+| Secret files | Creates the local mode-700 secret directory and mode-600 files. | `tools/secrets.sh` |
+| Internal PKI | Creates the offline-root/intermediate/180-day-leaf bundle, SANs and service layouts. | `tools/pki.sh` |
 | Composed tier | Checks a running Compose stack's gateway, then submits two equivalent runs and compares their canonical digest. | `tools/composed.sh` |
 | Project-sync test | Checks that `Done` is terminal in the board status decision. | `tools/test_project_sync.sh` |
 

@@ -52,6 +52,21 @@ pub fn render(
     // rendered directory there.
     let secrets_dir = out.join("secrets");
     reset_secret_directory(&secrets_dir)?;
+    let pki_dir = out.join("pki");
+    std::fs::create_dir_all(&pki_dir).map_err(|source| Error::Write {
+        path: pki_dir.clone(),
+        source,
+    })?;
+    for (name, source) in [
+        ("database-ca.crt", &descriptor.endpoints.database_tls_ca),
+        ("queue-ca.crt", &descriptor.endpoints.queue_tls_ca),
+        (
+            "object-store-ca.crt",
+            &descriptor.endpoints.object_store_tls_ca,
+        ),
+    ] {
+        copy_ca(Path::new(source), &pki_dir.join(name))?;
+    }
     let mut app_urls = BTreeMap::new();
     let mut owner_urls = BTreeMap::new();
     for (service, database) in SERVICE_DATABASES {
@@ -131,6 +146,10 @@ pub fn render(
                     "QR_DATABASE_URL_FILE".to_owned(),
                     container_secret("gateway_database_url"),
                 );
+                env.insert(
+                    "QR_DATABASE_TLS_CA_PATH".to_owned(),
+                    container_pki("database-ca.crt"),
+                );
                 if descriptor.auth.gateway_token {
                     env.insert(
                         "QR_BEARER_TOKEN_FILE".to_owned(),
@@ -145,6 +164,10 @@ pub fn render(
                 env.insert(
                     "QR_DATABASE_URL_FILE".to_owned(),
                     container_secret("data_database_url"),
+                );
+                env.insert(
+                    "QR_DATABASE_TLS_CA_PATH".to_owned(),
+                    container_pki("database-ca.crt"),
                 );
                 insert_object_store_files(&mut env);
             }
@@ -167,8 +190,16 @@ pub fn render(
                     container_secret("evidence_database_url"),
                 );
                 env.insert(
+                    "QR_DATABASE_TLS_CA_PATH".to_owned(),
+                    container_pki("database-ca.crt"),
+                );
+                env.insert(
                     "QR_QUEUE_URL_FILE".to_owned(),
                     container_secret("queue_url"),
+                );
+                env.insert(
+                    "QR_QUEUE_TLS_CA_PATH".to_owned(),
+                    container_pki("queue-ca.crt"),
                 );
                 insert_object_store_files(&mut env);
             }
@@ -178,6 +209,10 @@ pub fn render(
                 env.insert(
                     "QR_DATABASE_URL_FILE".to_owned(),
                     container_secret("simulation_database_url"),
+                );
+                env.insert(
+                    "QR_DATABASE_TLS_CA_PATH".to_owned(),
+                    container_pki("database-ca.crt"),
                 );
                 insert_object_store_files(&mut env);
             }
@@ -197,6 +232,10 @@ pub fn render(
                     "QR_QUEUE_URL_FILE".to_owned(),
                     container_secret("queue_url"),
                 );
+                env.insert(
+                    "QR_QUEUE_TLS_CA_PATH".to_owned(),
+                    container_pki("queue-ca.crt"),
+                );
                 insert_object_store_files(&mut env);
             }
             _ => {}
@@ -211,6 +250,10 @@ pub fn render(
         env.insert(
             "QR_DATABASE_OWNER_URL_FILE".to_owned(),
             container_secret(&format!("{service}_owner_database_url")),
+        );
+        env.insert(
+            "QR_DATABASE_TLS_CA_PATH".to_owned(),
+            container_pki("database-ca.crt"),
         );
         let path = out.join(format!("{service}-migrate.env"));
         write_env(&path, &env)?;
@@ -243,6 +286,31 @@ pub fn render(
 /// The in-container path of one rendered secret.
 fn container_secret(name: &str) -> String {
     format!("/run/secrets/{name}")
+}
+
+/// The in-container path of one rendered CA bundle.
+fn container_pki(name: &str) -> String {
+    format!("/run/pki/{name}")
+}
+
+fn copy_ca(source: &Path, destination: &Path) -> Result<(), Error> {
+    std::fs::copy(source, destination)
+        .map(|_| ())
+        .map_err(|source_error| Error::Read {
+            path: source.to_path_buf(),
+            source: source_error,
+        })?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(destination, std::fs::Permissions::from_mode(0o644)).map_err(
+            |source_error| Error::Write {
+                path: destination.to_path_buf(),
+                source: source_error,
+            },
+        )?;
+    }
+    Ok(())
 }
 
 fn insert_object_store_files(env: &mut BTreeMap<String, String>) {
@@ -293,6 +361,10 @@ fn common(descriptor: &Descriptor, object_store: &str, bucket: &str) -> BTreeMap
     );
     env.insert("QR_PROFILE".to_owned(), "server".to_owned());
     env.insert("QR_OBJECT_STORE_URL".to_owned(), object_store.to_owned());
+    env.insert(
+        "QR_OBJECT_STORE_TLS_CA_PATH".to_owned(),
+        container_pki("object-store-ca.crt"),
+    );
     env.insert("QR_OBJECT_BUCKET".to_owned(), bucket.to_owned());
     env.insert("QR_QUEUE_GENERATION".to_owned(), "1".to_owned());
     env
@@ -328,7 +400,7 @@ fn database_url(
         });
     }
     Ok(format!(
-        "{scheme}://{role}:{}@{host}/{database}",
+        "{scheme}://{role}:{}@{host}/{database}?sslmode=verify-full",
         encode_userinfo(password)
     ))
 }
@@ -496,7 +568,18 @@ mod tests {
     #[test]
     fn render_writes_service_envs_migration_envs_and_private_secret_files() {
         let out = temp_dir();
-        let files = render(&descriptor(), &secrets(), &out).expect("render");
+        std::fs::create_dir_all(&out).expect("output");
+        let ca = out.join("ca.crt");
+        std::fs::write(
+            &ca,
+            "-----BEGIN CERTIFICATE-----\nfixture\n-----END CERTIFICATE-----\n",
+        )
+        .expect("CA fixture");
+        let mut descriptor = descriptor();
+        descriptor.endpoints.database_tls_ca = ca.display().to_string();
+        descriptor.endpoints.queue_tls_ca = ca.display().to_string();
+        descriptor.endpoints.object_store_tls_ca = ca.display().to_string();
+        let files = render(&descriptor, &secrets(), &out).expect("render");
         assert_eq!(files.len(), 11);
         let gateway = std::fs::read_to_string(out.join("gateway.env")).expect("gateway");
         assert!(
@@ -507,6 +590,8 @@ mod tests {
         assert!(gateway.contains("QR_INTERNAL_ONLY=0"));
         assert!(gateway.contains("QR_MIGRATE=0"));
         assert!(gateway.contains("QR_DATABASE_URL_FILE=/run/secrets/gateway_database_url"));
+        assert!(gateway.contains("QR_DATABASE_TLS_CA_PATH=/run/pki/database-ca.crt"));
+        assert!(gateway.contains("QR_OBJECT_STORE_TLS_CA_PATH=/run/pki/object-store-ca.crt"));
         assert!(!gateway.contains("QR_DATABASE_URL="));
         assert!(!gateway.contains("QR_DATABASE_OWNER_URL"));
         assert!(!gateway.contains("AWS_ACCESS_KEY_ID"));
@@ -530,7 +615,9 @@ mod tests {
         assert!(model.contains("QR_OBJECT_STORE_ACCESS_KEY_FILE"));
         let evidence = std::fs::read_to_string(out.join("evidence.env")).expect("evidence");
         assert!(evidence.contains("QR_DATABASE_URL_FILE=/run/secrets/evidence_database_url"));
+        assert!(evidence.contains("QR_DATABASE_TLS_CA_PATH=/run/pki/database-ca.crt"));
         assert!(evidence.contains("QR_QUEUE_URL_FILE=/run/secrets/queue_url"));
+        assert!(evidence.contains("QR_QUEUE_TLS_CA_PATH=/run/pki/queue-ca.crt"));
         assert!(!evidence.contains("QR_DATABASE_OWNER_URL"));
         let simulation = std::fs::read_to_string(out.join("simulation.env")).expect("simulation");
         assert!(simulation.contains("QR_DATABASE_URL_FILE=/run/secrets/simulation_database_url"));
@@ -556,7 +643,7 @@ mod tests {
             )
             .expect("owner secret");
             assert!(secret.contains(&format!(
-                "postgres://{database}_owner:db-secret-0123456789abcdef@10.10.0.20:5432/{database}"
+                "postgres://{database}_owner:db-secret-0123456789abcdef@10.10.0.20:5432/{database}?sslmode=verify-full"
             )));
         }
 
@@ -567,7 +654,7 @@ mod tests {
         let app_secret =
             std::fs::read_to_string(out.join("secrets/gateway_database_url")).expect("app secret");
         assert!(app_secret.contains(
-            "postgres://qr_gateway_app:db-secret-0123456789abcdef@10.10.0.20:5432/qr_gateway"
+            "postgres://qr_gateway_app:db-secret-0123456789abcdef@10.10.0.20:5432/qr_gateway?sslmode=verify-full"
         ));
         let queue = std::fs::read_to_string(out.join("secrets/queue_url")).expect("queue secret");
         assert!(queue.contains("queue-secret-0123456789abcdef"));
@@ -577,6 +664,10 @@ mod tests {
         let token =
             std::fs::read_to_string(out.join("secrets/bearer_token")).expect("token secret");
         assert!(token.contains("0123456789abcdef0123456789abcdef"));
+        for name in ["database-ca.crt", "queue-ca.crt", "object-store-ca.crt"] {
+            let copied = std::fs::read_to_string(out.join("pki").join(name)).expect("copied CA");
+            assert!(copied.contains("BEGIN CERTIFICATE"), "{name}");
+        }
 
         #[cfg(unix)]
         {
@@ -608,8 +699,9 @@ mod tests {
         value["image"]["digest"] = serde_json::json!(
             "sha256:3f5a9c1e7b2d4f608a1c3e5d7b9f0a2c4e6d8f1b3a5c7e9d0f2a4c6e8b1d3f5a"
         );
-        value["endpoints"]["database"] =
-            serde_json::json!("postgres://${MISSING}@10.10.0.20:5432/quantrule");
+        value["endpoints"]["database"] = serde_json::json!(
+            "postgres://${MISSING}@10.10.0.20:5432/quantrule?sslmode=verify-full"
+        );
         let descriptor: Descriptor = serde_json::from_value(value).expect("descriptor");
         let error = render(&descriptor, &secrets(), &out).expect_err("missing secret");
         assert!(error.to_string().contains("MISSING"), "{error}");
@@ -627,7 +719,7 @@ mod tests {
         .expect("url");
         assert_eq!(
             url,
-            "postgres://qr_catalog_app:p%40ss%2Fword%25@10.10.0.20:5432/qr_catalog"
+            "postgres://qr_catalog_app:p%40ss%2Fword%25@10.10.0.20:5432/qr_catalog?sslmode=verify-full"
         );
     }
 

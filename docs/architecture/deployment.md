@@ -15,8 +15,8 @@ cd quant-rule
 make up
 ```
 
-`make up` creates missing local secret files under `secrets/`, builds the image,
-starts the stack, waits for health, and prints:
+`make up` creates missing secret files under `secrets/` and the internal PKI
+under `pki/`, builds the image, starts the stack, waits for health, and prints:
 
 ```text
 QuantRule v1.4.2 ready → http://localhost:8080
@@ -30,9 +30,9 @@ Compose file without make:
 wsl bash tools/secrets.sh; docker compose --env-file secrets/compose.env up -d --build --wait
 ```
 
-Fedora may use Docker Engine or Podman: `make up COMPOSE="podman compose"`. The
-provider must support health conditions, YAML anchors, and healthchecks;
-see [`docker/README.md`](../../docker/README.md) §7.
+Fedora may use Docker Engine or Podman: `make up COMPOSE="podman compose"`; the
+provider must support health conditions, anchors and healthchecks
+([`docker/README.md`](../../docker/README.md) §7).
 
 ## 2. Topology — `quantrule.deploy/v1`
 
@@ -45,33 +45,32 @@ see [`docker/README.md`](../../docker/README.md) §7.
 | `evidence` | `quantrule-server` | — | — |
 | `simulation` | `quantrule-server` | — | — |
 | `strategy` | `quantrule-server` | — | — |
-| `postgres` | `postgres@sha256:846a…` (`QR_POSTGRES_IMAGE` override) | — | `pgdata` |
-| `db-bootstrap` / `*-migrate` | the Postgres image / `quantrule-server`, one-shot | — | — |
-| `minio` | `bitnamilegacy/minio` (pinned digest; `QR_OBJECT_STORE_IMAGE` override) | — | `objects` |
-| `rabbitmq` | `rabbitmq@sha256:7530…` (`QR_RABBITMQ_IMAGE` override) | — | `mqdata` |
+| `postgres` | `postgres@sha256:846a…` (`QR_POSTGRES_IMAGE` override) | — | `pgdata`, `pgpki` |
+| `pki-init` / `db-bootstrap` / `*-migrate` | the Postgres image / the Postgres image / `quantrule-server`, one-shot | — | `pgpki`, `mqpki`, `miniopki` |
+| `minio` | `bitnamilegacy/minio` (pinned digest; `QR_OBJECT_STORE_IMAGE` override) | — | `objects`, `miniopki` |
+| `rabbitmq` | `rabbitmq@sha256:7530…` (`QR_RABBITMQ_IMAGE` override) | — | `mqdata`, `mqpki` |
 
 One bridge network. Services resolve each other by container name. Only the
-gateway is reachable from the host.
-
-The image also carries the static client built with **Bun**; no Bun or Python runtime is present at run time.
+gateway is reachable from the host. The image carries the Bun-built static client;
+no Bun or Python runtime is present at run time.
 
 ## 2.1 Current state
 
 All seven binaries and ten long-running containers start; `backtest` serves
-`/metrics`, `/health` and `/ready` on its internal listener only. `db-bootstrap`
-creates the four databases and roles, then four `*-migrate` jobs apply each ledger;
+`/metrics`, `/health` and `/ready` on its internal listener only. `pki-init`
+stages the TLS materials for the non-root stores, `db-bootstrap` creates the four
+databases and roles, then four `*-migrate` jobs apply each ledger;
 long-running services use `QR_MIGRATE=0`. Compose and v2 run one data and one
 simulation replica; HA requires [data active/active](data-active-active.md) and
-[simulation concurrency](simulation-concurrency.md). The MinIO image and the
-database/migration contracts are pinned in
-[four-databases](../config/2026-11-22/four-databases.md) and [migrations.md](migrations.md).
+[simulation concurrency](simulation-concurrency.md). The image and database/migration
+contracts are pinned in [four-databases](../config/2026-11-22/four-databases.md) and [migrations.md](migrations.md).
 
 ## 3. Make targets
 
 | Target | Effect |
 |---|---|
 | `make` / `make help` | List every target |
-| `make up` / `make secrets` | Create missing secret files (`FORCE=1` rotates), build, start, wait for health, print URL |
+| `make up` / `make secrets` / `make pki` | Create missing secrets and PKI (`FORCE=1` rotates), build, start, wait, print URL |
 | `make down` | Stop, keep volumes |
 | `make reset` | Stop and delete volumes, after confirmation |
 | `make logs` / `make ps` | Tail all services / status table |
@@ -125,7 +124,8 @@ Service configuration is environment variables only; no config file is required.
 | `QR_MODEL_URL` / `QR_SIMULATION_URL` | compose value | Model service / simulation service, used by the gateway |
 | `QR_EVIDENCE_URL` | compose value | Evidence service, used by the gateway and the backtest worker |
 | `QR_STRATEGY_URL` | compose value | Optional strategy probe; v2 leaves it absent and still starts |
-| `QR_OBJECT_STORE_URL` | compose value | MinIO endpoint without userinfo |
+| `QR_OBJECT_STORE_URL` | compose value | MinIO endpoint without userinfo; `https://` in the deployed profile |
+| `QR_DATABASE_TLS_CA_PATH` / `QR_QUEUE_TLS_CA_PATH` / `QR_OBJECT_STORE_TLS_CA_PATH` | `/run/pki/ca.crt` | Internal CA bundles; a TLS endpoint without its CA is a startup error |
 | `QR_OBJECT_STORE_ACCESS_KEY_FILE` / `QR_OBJECT_STORE_SECRET_KEY_FILE` | secret file | The explicit S3 credentials; no AWS default chain |
 | `QR_QUEUE_URL_FILE` / `QR_QUEUE_GENERATION` | secret file / `1` | RabbitMQ endpoint / queue-generation suffix; a changed queue declaration uses a new generation |
 | `QR_LEADER_ID` | hostname + process id | Evidence leader holder; a distinct value per replica makes logs clear, and the term, not the holder, is the fence |
@@ -167,4 +167,4 @@ The split does not copy rows from the old `quantrule` database: use `make reset`
 for disposable data, or the migration runbook for kept evidence.
 ## 8. What deployment does not provide
 
-No high availability, no autoscaling, no TLS termination, no external registry. Multi-host placement is in [multi-host.md](multi-host.md); it is not HA.
+No high availability, autoscaling, ingress TLS/ACME or external registry. PostgreSQL, RabbitMQ and MinIO use internal TLS; the gateway serves plain HTTP behind the ingress. Multi-host placement is in [multi-host.md](multi-host.md); it is not HA.

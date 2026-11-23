@@ -23,6 +23,7 @@ the same canonical digest as the single-host stack.
 | Image | The same `quantrule-server` image on every host; build once and distribute |
 | Repository | The tree that contains `deploy/multi-host/` and `qr-deploy` |
 | Secrets | A `secrets.env` file with non-default database, object-store, queue, and token values; `qr-deploy render` turns them into mode-600 files |
+| PKI | `tools/pki.sh --out deploy/multi-host/pki` on the infra host; the certificate SANs include every deployment name or address |
 | Network | Private overlay addresses for every host; no public port except the gateway |
 
 Do not start this profile while the single-host stack owns
@@ -35,11 +36,11 @@ Do not start this profile while the single-host stack owns
 | 1 | build host | `cargo build --release --bin qr-deploy` | `target/release/qr-deploy` |
 | 2 | build host | `docker save quantrule-server:<tag> -o quantrule-server.tar` | One image tar |
 | 3 | every host | `docker load -i quantrule-server.tar` | The same image ID on every host |
-| 4 | build host | Copy `deploy.example.json` to `deploy.json`; set the image reference/digest, host addresses, and ports | One descriptor |
+| 4 | build host | Copy `deploy.example.json` to `deploy.json`; set the image reference/digest, host addresses, ports, TLS endpoints and CA paths | One TLS descriptor |
 | 5 | build host | Create `secrets.env` from `secrets.example.env`; replace every placeholder | Owner-only file |
 | 6 | build host | `qr-deploy validate deploy.json --secrets secrets.env` | `ok: …`, no error |
-| 7 | build host | `qr-deploy render deploy.json --out deploy/multi-host/env --secrets secrets.env` | Eleven env files plus `env/secrets/`; the services name `_FILE` paths, never a plain secret |
-| 8 | infra host | Copy the `deploy/` directory, `compose.infra.yaml`, and `env/infra.env`; start the infra role | Postgres, MinIO, RabbitMQ healthy; `db-bootstrap` created the four databases and roles |
+| 7 | build host | `qr-deploy render deploy.json --out deploy/multi-host/env --secrets secrets.env` | Eleven env files plus `env/secrets/` and `env/pki/`; the services name `_FILE` and CA paths, never a plain secret |
+| 8 | infra host | Copy the `deploy/` directory, `compose.infra.yaml`, `env/infra.env`, and `pki/`; start the infra role | `pki-init` stages the certificates; Postgres, MinIO and RabbitMQ healthy over TLS; `db-bootstrap` created the four databases and roles |
 | 9 | core host | Copy `compose.core.yaml`, the four core env files, and `env/secrets/`; start the three services | Migration jobs complete; three healthy endpoints |
 | 10 | compute host | Copy `compose.compute.yaml`, `env/model.env`, `env/backtest.env`, and the needed `env/secrets/` files; start `model` and `--scale backtest=<replicas>` | Model healthy; workers consuming |
 | 11 | gateway host | Copy `compose.gateway.yaml`, `env/gateway.env`, `env/gateway-migrate.env`, and `env/secrets/`; start the gateway | `gateway-migrate` completes; `/ready` healthy |
@@ -60,6 +61,11 @@ Rotate the gateway token with the [manual 08 steps](08-operations.md): replace
 staged path, and send `SIGHUP`. The next request sees the new value without a
 restart; an invalid file keeps the last good token. The v3 Swarm secret objects
 and `secrets.files` are HA-012.
+
+The v2 profile requires TLS on PostgreSQL, RabbitMQ and MinIO. The descriptor
+uses `sslmode=verify-full`, `amqps://` and `https://`, and render copies each CA
+bundle into `env/pki/`; a plaintext stateful endpoint is refused. Internal HTTP
+stays plaintext on the private overlay. Full mTLS is HA-012.
 
 The v2 profile runs one data, one simulation and one evidence instance. Two
 data replicas are an HA capability and require the
@@ -96,7 +102,8 @@ a `failed` write.
 
 **Verification.** A completed multi-host run with one image digest and the same
 canonical digest as the single-host stack proves the deployment profile, not an
-edge. The local multi-host harness proves separation and digest parity; the real
+edge. The TLS contract is proven by the descriptor/render tests and the
+`pki-init` handshake; full multi-host TLS is later composed/HA evidence. The local multi-host harness proves separation and digest parity; the real
 three-host firewall, overlay, and failure rows are separate and may be blocked
 until the hosts exist. The profile is not evidence, not a baseline, and not high
 availability.
@@ -112,6 +119,9 @@ availability.
 | `qr-deploy: placeholder image digest` | The descriptor still has the all-`a` digest | Record the real image ID |
 | `qr-deploy: must target ... infrastructure host` | An endpoint points outside the infra host | Fix the endpoint or the infra address |
 | `qr-deploy check` digest mismatch | A host runs a different image | Load the same image and confirm `docker image inspect` |
+| `pki-init` failed | `pki/` is missing on the infra host or the mount is wrong | Run `tools/pki.sh --out deploy/multi-host/pki`, then restart the role |
+| TLS handshake error | CA, SAN or expiry mismatch | Verify with `openssl verify -CAfile pki/ca.crt pki/<service>/server.crt` |
+| `sslmode=verify-full is required` | The descriptor still carries a plaintext database URL | Rewrite it and re-render; do not use `require` or `verify-ca` |
 | `qr-deploy check` connection refused | The service is down or the overlay is down | Read the host logs and `/health` |
 | `SKIP backtest` | The worker has no public HTTP surface | Check the container on the compute host |
 | Gateway `degraded` | An upstream is down | Start the missing service; `/ready` names it |

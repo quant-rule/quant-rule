@@ -9,10 +9,11 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use serde::Deserialize;
+use ureq::tls::{Certificate, RootCerts, TlsConfig};
 
 use crate::descriptor::Descriptor;
 use crate::error::Error;
-use crate::validate::validate_with_secrets;
+use crate::validate::{expand, validate_with_secrets};
 
 /// One service check row.
 #[derive(Debug, Clone)]
@@ -96,7 +97,69 @@ pub fn check(
         digest: None,
         error: None,
     });
+    rows.push(check_object_store(descriptor, secrets)?);
     Ok(rows)
+}
+
+/// Probe the object store over the scheme the descriptor names.
+///
+/// The endpoint is `https://` in the deployed profile, so the probe trusts the
+/// descriptor's CA bundle instead of the platform roots. The public gateway
+/// probe stays plain `http`: ingress TLS belongs to the deployed proxy, not to
+/// the internal HTTP connector.
+fn check_object_store(
+    descriptor: &Descriptor,
+    secrets: &BTreeMap<String, String>,
+) -> Result<CheckRow, Error> {
+    let endpoint = expand(&descriptor.endpoints.object_store, secrets)?;
+    let url = format!("{}/minio/health/live", endpoint.trim_end_matches('/'));
+    let mut row = CheckRow {
+        service: "object_store".to_owned(),
+        url: url.clone(),
+        state: "unknown".to_owned(),
+        digest: None,
+        error: None,
+    };
+    let mut config = ureq::Agent::config_builder().timeout_global(Some(Duration::from_secs(5)));
+    if endpoint.starts_with("https://") {
+        let pem = match std::fs::read(&descriptor.endpoints.object_store_tls_ca) {
+            Ok(pem) => pem,
+            Err(error) => {
+                row.error = Some(format!(
+                    "cannot read {}: {error}",
+                    descriptor.endpoints.object_store_tls_ca
+                ));
+                return Ok(row);
+            }
+        };
+        let certificate = match Certificate::from_pem(&pem) {
+            Ok(certificate) => certificate,
+            Err(error) => {
+                row.error = Some(format!("invalid object-store CA bundle: {error}"));
+                return Ok(row);
+            }
+        };
+        config = config.tls_config(
+            TlsConfig::builder()
+                .root_certs(RootCerts::from(vec![certificate]))
+                .build(),
+        );
+    }
+    let agent = ureq::Agent::new_with_config(config.build());
+    match agent.get(&url).call() {
+        Ok(response) if (200..300).contains(&response.status().as_u16()) => {
+            row.state = "healthy".to_owned();
+        }
+        Ok(response) => {
+            row.state = "error".to_owned();
+            row.error = Some(format!("HTTP {}", response.status().as_u16()));
+        }
+        Err(error) => {
+            row.state = "error".to_owned();
+            row.error = Some(error.to_string());
+        }
+    }
+    Ok(row)
 }
 
 fn check_one(

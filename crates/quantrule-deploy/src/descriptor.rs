@@ -127,11 +127,19 @@ fn one() -> u32 {
 #[serde(deny_unknown_fields)]
 pub struct Endpoints {
     /// The Postgres URL, with `${NAME}` placeholders allowed.
+    ///
+    /// It must carry `sslmode=verify-full`.
     pub database: String,
-    /// The S3-compatible endpoint URL.
+    /// The absolute host path of the PostgreSQL CA bundle.
+    pub database_tls_ca: String,
+    /// The S3-compatible endpoint URL; `https://` only.
     pub object_store: String,
-    /// The AMQP URL, with `${NAME}` placeholders allowed.
+    /// The absolute host path of the object-store CA bundle.
+    pub object_store_tls_ca: String,
+    /// The AMQP URL, with `${NAME}` placeholders allowed; `amqps://` only.
     pub queue: String,
+    /// The absolute host path of the RabbitMQ CA bundle.
+    pub queue_tls_ca: String,
     /// The object bucket; default `quantrule`.
     #[serde(default)]
     pub object_bucket: Option<String>,

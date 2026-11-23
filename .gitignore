@@ -45,6 +45,13 @@ Thumbs.db
 # never committed; only `secrets.example`/documentation is tracked.
 /secrets/
 
+# Local internal PKI created by `make pki`. Only certificates are public; the
+# root and intermediate keys never leave the operator host and are never
+# committed.
+/pki/
+/deploy/multi-host/env/
+/deploy/multi-host/pki/
+
 # Client build output
 apps/web/node_modules/
 apps/web/dist/

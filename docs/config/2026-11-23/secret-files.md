@@ -52,11 +52,16 @@ instance metadata.
 
 Everything else remains a plain environment value: service URLs, bucket,
 queue generation, bind addresses, limits, log and metrics settings, drain
-deadlines, image digest and the leader/worker identifiers.
+deadlines, image digest and the leader/worker identifiers. The internal TLS CA
+paths (`QR_DATABASE_TLS_CA_PATH`, `QR_QUEUE_TLS_CA_PATH`,
+`QR_OBJECT_STORE_TLS_CA_PATH`) are also plain values: a CA bundle is public and
+is mounted at `/run/pki`, not under `/run/secrets`. The contract is
+[internal TLS](internal-tls.md).
 
 ## 3. Local Compose
 
-`make up` depends on `make secrets`, which runs `tools/secrets.sh`:
+`make up` depends on `make secrets` and `make pki`, which run `tools/secrets.sh`
+and `tools/pki.sh`:
 
 - `secrets/compose.env` (mode 600) holds the three infrastructure passwords
   used by Postgres, MinIO and RabbitMQ. Those containers are infrastructure and
@@ -66,6 +71,9 @@ deadlines, image digest and the leader/worker identifiers.
   the matching `_FILE` variables.
 - The directory is mode 700 and Git-ignored. A normal `make up` reuses existing
   values; `make secrets FORCE=1` rotates them deliberately.
+- `pki/` is a separate mode-700, Git-ignored directory with the CA and server
+  certificates; only `ca.crt` is mounted into an application container. A
+  private key is never a secret file under `/run/secrets`.
 
 `make remote` layers `compose.remote.yaml`, writes `secrets/bearer_token` and
 mounts it at `/run/secrets/bearer_token`. The base stack leaves the token file

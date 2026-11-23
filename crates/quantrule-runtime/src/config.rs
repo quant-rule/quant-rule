@@ -15,6 +15,8 @@ use quantrule_api::Digest;
 
 use crate::queue::{DEFAULT_QUEUE_GENERATION, QueueNames};
 
+mod tls;
+
 /// The argument that selects the one-shot owner migration mode.
 ///
 /// A long-running service never applies a migration: it holds only the
@@ -303,6 +305,12 @@ pub struct Config {
     pub database_url: String,
     /// Whether the resolved map supplied the database URL.
     pub database_url_from_secret: bool,
+    /// CA bundle that verifies the PostgreSQL server certificate.
+    ///
+    /// Absent keeps a plaintext URL for a `Config` built outside the deployed
+    /// profile. When set, the URL must carry `sslmode=verify-full`; the runtime
+    /// then refuses to fall back to plaintext or to skip the hostname check.
+    pub database_tls_ca: Option<PathBuf>,
     /// Postgres connection string for the service's owner role.
     ///
     /// Read only by the one-shot `--migrate-only` job. A long-running service
@@ -312,6 +320,11 @@ pub struct Config {
     pub database_owner_url: Option<String>,
     /// S3-compatible endpoint.
     pub object_store_url: String,
+    /// CA bundle that verifies the object-store server certificate.
+    ///
+    /// When set, the endpoint must use `https://`; the S3 client is built with
+    /// this private trust store instead of the platform roots.
+    pub object_store_tls_ca: Option<PathBuf>,
     /// Bucket that holds every object.
     pub object_store_bucket: String,
     /// S3 access-key id, resolved from its `_FILE` variable.
@@ -322,6 +335,11 @@ pub struct Config {
     pub queue_url: String,
     /// Whether the resolved map supplied the queue URL.
     pub queue_url_from_secret: bool,
+    /// CA bundle that verifies the RabbitMQ server certificate.
+    ///
+    /// When set, the URL must use `amqps://`; the adapter builds an explicit
+    /// rustls trust chain and never falls back to plaintext.
+    pub queue_tls_ca: Option<PathBuf>,
     /// The queue generation appended to every declared queue name.
     ///
     /// A changed queue declaration moves to a new generation instead of
@@ -380,8 +398,10 @@ impl fmt::Debug for Config {
             .debug_struct("Config")
             .field("bind", &self.bind)
             .field("database_url", &"<redacted>")
+            .field("database_tls_ca", &self.database_tls_ca)
             .field("database_owner_url", &"<redacted>")
             .field("object_store_url", &"<redacted>")
+            .field("object_store_tls_ca", &self.object_store_tls_ca)
             .field("object_store_bucket", &self.object_store_bucket)
             .field(
                 "object_store_access_key",
@@ -392,6 +412,7 @@ impl fmt::Debug for Config {
                 &self.object_store_secret_key.as_ref().map(|_| "<redacted>"),
             )
             .field("queue_url", &"<redacted>")
+            .field("queue_tls_ca", &self.queue_tls_ca)
             .field("queue_generation", &self.queue_generation)
             .field("upload_limit_bytes", &self.upload_limit_bytes)
             .field(
@@ -420,13 +441,16 @@ impl Default for Config {
             bind: DEFAULT_BIND.to_owned(),
             database_url: DEFAULT_DATABASE_URL.to_owned(),
             database_url_from_secret: false,
+            database_tls_ca: None,
             database_owner_url: None,
             object_store_url: DEFAULT_OBJECT_STORE_URL.to_owned(),
+            object_store_tls_ca: None,
             object_store_bucket: DEFAULT_OBJECT_BUCKET.to_owned(),
             object_store_access_key: None,
             object_store_secret_key: None,
             queue_url: DEFAULT_QUEUE_URL.to_owned(),
             queue_url_from_secret: false,
+            queue_tls_ca: None,
             queue_generation: DEFAULT_QUEUE_GENERATION,
             upload_limit_bytes: DEFAULT_UPLOAD_LIMIT,
             bearer_token: None,
@@ -629,6 +653,9 @@ impl Config {
             config.database_url.clone_from(value);
             config.database_url_from_secret = true;
         }
+        if let Some(value) = values.get(tls::DATABASE_CA) {
+            config.database_tls_ca = Some(tls::parse_ca_path(tls::DATABASE_CA, value)?);
+        }
         if let Some(value) = values
             .get("QR_DATABASE_OWNER_URL")
             .filter(|value| !value.trim().is_empty())
@@ -644,6 +671,9 @@ impl Config {
             }
             config.object_store_url.clone_from(value);
         }
+        if let Some(value) = values.get(tls::OBJECT_STORE_CA) {
+            config.object_store_tls_ca = Some(tls::parse_ca_path(tls::OBJECT_STORE_CA, value)?);
+        }
         if let Some(value) = values.get("QR_OBJECT_BUCKET") {
             config.object_store_bucket.clone_from(value);
         }
@@ -656,6 +686,9 @@ impl Config {
         if let Some(value) = values.get("QR_QUEUE_URL") {
             config.queue_url.clone_from(value);
             config.queue_url_from_secret = true;
+        }
+        if let Some(value) = values.get(tls::QUEUE_CA) {
+            config.queue_tls_ca = Some(tls::parse_ca_path(tls::QUEUE_CA, value)?);
         }
         if let Some(value) = values.get("QR_QUEUE_GENERATION") {
             let parsed: u32 = value.parse().map_err(|_| ConfigError::Invalid {
@@ -801,6 +834,12 @@ impl Config {
         if let Some(value) = values.get("QR_DRAIN_TIMEOUT_WORK") {
             config.drain_timeout_work = parse_drain_timeout("QR_DRAIN_TIMEOUT_WORK", value)?;
         }
+        tls::validate_database(&config.database_url, config.database_tls_ca.as_deref())?;
+        tls::validate_queue(&config.queue_url, config.queue_tls_ca.as_deref())?;
+        tls::validate_object_store(
+            &config.object_store_url,
+            config.object_store_tls_ca.as_deref(),
+        )?;
         Ok(config)
     }
 }

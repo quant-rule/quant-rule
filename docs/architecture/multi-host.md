@@ -26,7 +26,7 @@ Host A — gateway :8080 (the only published service)
         │  private overlay
         ├──► Host B — data :18081, evidence :18083, simulation :18084
         ├──► Host C — model :18082, backtest workers (internal metrics only)
-        └──► Host D — Postgres :5432, MinIO :9000, RabbitMQ :5672
+        └──► Host D — Postgres :5432 (TLS), MinIO :9000 (TLS), RabbitMQ :5671 (TLS)
 ```
 
 The addresses and ports are descriptor values; this diagram is the reference,
@@ -48,8 +48,10 @@ they share a host.
 ## 4. Descriptor and `qr-deploy`
 
 `deploy/multi-host/deploy.example.json` is the `quantrule.deploy/v2` contract.
-It names the image digest, hosts, service placement, port, replicas, endpoints,
-network gate, secrets file, and config root.
+It names the image digest, hosts, service placement, port, replicas, TLS
+endpoints and CA paths, network gate, secrets file, and config root. The three
+stateful endpoints are `sslmode=verify-full`, `amqps://` and `https://`; plaintext
+is refused.
 
 `qr-deploy` has three commands:
 
@@ -65,7 +67,7 @@ The validator refuses:
 - a second public service, or a service on the infrastructure host;
 - a LAN or public gateway without a token and reverse proxy;
 - a template secret, a weak token, or a placeholder image digest;
-- an external database, queue, or object-store endpoint;
+- an external database, queue, or object-store endpoint, or a plaintext stateful endpoint;
 - IPv6 (deploy/v2 is IPv4-only), port zero, or a duplicate host port;
 - a fixed role group split across hosts (data/evidence/simulation, model/backtest);
 - a data, evidence, or simulation replica count other than one in v2;
@@ -84,7 +86,8 @@ concern.
 Host D and the overlay are trusted. The gateway is the only public surface.
 `data`, `model`, `evidence`, `simulation`, and `backtest` have no application
 authentication; they must be reachable only through WireGuard, Tailscale, or a
-dedicated private VLAN.
+dedicated private VLAN. PostgreSQL, RabbitMQ and MinIO use TLS; service-to-service
+HTTP stays plaintext on the overlay ([TLS contract](../config/2026-11-23/internal-tls.md)).
 
 The gateway requires a bearer token when it is exposed on a LAN or the public
 internet, and a reverse proxy terminates TLS for both cases. The multi-host
@@ -99,13 +102,11 @@ subnet, it can call the internal services without the gateway token.
 ## 6. One image identity
 
 Every host must run the same image. Build once and distribute it with
-`docker save`/`docker load`; there is no registry in this profile. The role
-files use `pull_policy: never`, so Compose cannot pull a different tag. Keep the
+`docker save`/`docker load`; the role files use `pull_policy: never`. Keep the
 tag and `QR_IMAGE_DIGEST` identical and confirm
 `docker image inspect --format '{{.Id}}'` on every host. `qr-deploy check`
-compares the digest each service reports; that is an environment-consistency
-check, not proof of the running image. A run's canonical digest is only
-comparable when the image digest is the same.
+compares the reported digest; that is an environment check, not proof of the
+running image. A canonical digest is comparable only with the same image.
 
 ## 7. Start order
 
@@ -125,14 +126,11 @@ The gateway `/ready` reports the upstream states.
 - One model endpoint is supported in v1. Multiple model hosts need a load
   balancer and are a follow-up.
 - `data`, `evidence`, and `simulation` are single in v2; two are HA-profile placements, with data requiring the [active/active contract](data-active-active.md) and simulation the [concurrency contract](simulation-concurrency.md).
-- The gateway is stateless; a second gateway needs a load balancer and is a
-  follow-up.
-- A service failure affects that service. A host failure affects every service
-  placed on it: the core host is a three-service failure unit, and the
-  gateway and compute hosts are also multi-service units.
+- The gateway is stateless; a second gateway needs a load balancer, a follow-up.
+- A service failure affects that service; a host failure affects every service
+  placed on it. The core host is a three-service failure unit.
 - A run is redelivered by the queue and recomputation is idempotent.
-- The infrastructure host is a single point of failure. This profile is not
-  high availability.
+- The infrastructure host is a single point of failure; this profile is not HA.
 
 ## 9. Backup, upgrade, and rollback
 
@@ -154,17 +152,18 @@ multi-region placement, service-to-service mTLS, external registry, RPM, or DEB.
 Windows multi-host servers are not supported; the server profile is Linux.
 Each remains a later decision with its own record.
 
-Residual risks accepted for v1: database roles are per service but the v2
-profile still uses one Postgres password for every role, every service shares
-the MinIO root credentials and one queue user, the overlay is the only
-service-to-service boundary, `qr-deploy check` does not inspect a remote
-image, the local backup tools do not yet archive all four databases, and the
-infrastructure host is a single point of failure.
+Residual risks accepted for v1: database roles are per service but v2 uses one
+Postgres password for every role; every service shares the MinIO root
+credentials and one queue user; the overlay is the only service-to-service
+boundary and internal HTTP has no mTLS (HA-012); `qr-deploy check` does not
+inspect a remote image; the backup tools do not archive all four databases; and
+the infrastructure host is a single point of failure.
 
 ## 11. Related
 
 - [`deployment.md`](deployment.md)
 - [`services.md`](services.md)
 - [`security.md`](security.md)
+- [Internal TLS contract](../config/2026-11-23/internal-tls.md)
 - [`deploy/multi-host/README.md`](../../deploy/multi-host/README.md)
 - [User manual chapter 14](../manual/14-multi-host.md)

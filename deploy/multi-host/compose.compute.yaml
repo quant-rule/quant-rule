@@ -23,6 +23,8 @@ services:
     secrets:
       - object_store_access_key
       - object_store_secret_key
+    volumes:
+      - ./env/pki:/run/pki:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://$${QR_BIND_IP}:$${QR_BIND_PORT}/health | grep -q '\"state\":\"healthy\"'"]
@@ -43,6 +45,8 @@ services:
       - queue_url
       - object_store_access_key
       - object_store_secret_key
+    volumes:
+      - ./env/pki:/run/pki:ro
     restart: unless-stopped
     # A worker serves no HTTP and publishes no liveness probe, so it has no
     # healthcheck. Docker reports the process state; the gateway's /ready

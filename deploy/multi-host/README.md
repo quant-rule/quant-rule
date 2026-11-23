@@ -18,7 +18,7 @@ interface.
 | Gateway | `compose.gateway.yaml` | `gateway` | `QR_BIND_PORT` (behind a TLS proxy if the client network is untrusted) |
 | Core | `compose.core.yaml` | `data`, `evidence`, `simulation` | one `QR_BIND_PORT` each, overlay only |
 | Compute | `compose.compute.yaml` | `model`, `backtest` | `model` port, overlay only; `backtest` none |
-| Infrastructure | `compose.infra.yaml` | `postgres`, `minio`, `rabbitmq` | `5432`, `9000`, `5672`, overlay only |
+| Infrastructure | `compose.infra.yaml` | `postgres`, `minio`, `rabbitmq` | `5432`, `9000`, `5671`, TLS only, overlay only |
 
 Each file declares its own Compose project name, so bringing one role down
 never treats another role's containers as orphans. Every role except
@@ -36,12 +36,15 @@ and the service binds it directly instead of publishing a mapped port.
   relative to this bundle, or a `QR_CONFIG_HOST_DIR` exported before Compose
   runs. It is mounted read-only into `data`.
 - The operator secrets from [`secrets.example.env`](secrets.example.env).
+- The internal PKI from `tools/pki.sh --out deploy/multi-host/pki`; the leaf
+  SANs must include the infrastructure address or DNS name.
 
 ## 3. Private overlay
 
 WireGuard is the reference; Tailscale is an accepted alternative. It provides
-both reachability and transport confidentiality between hosts, which is what
-replaces mTLS in this profile.
+reachability and transport confidentiality for internal HTTP between hosts,
+which is what replaces mTLS in this profile. PostgreSQL, RabbitMQ and MinIO add
+their own TLS on top of it.
 
 - Assign every host a stable overlay address and record it in the descriptor.
 - Keep the overlay up before Docker starts; a host that loses its address fails
@@ -53,8 +56,10 @@ replaces mTLS in this profile.
 ## 4. Descriptor, secrets, and rendered environment
 
 The descriptor (`quantrule.deploy/v2`, JSON) is operator-owned and lives outside
-this repository. It names the hosts, service placement, endpoints, replicas,
-network gate, image tag, and one image digest.
+this repository. It names the hosts, service placement, TLS endpoints, CA paths,
+replicas, network gate, image tag, and one image digest. The database URL carries
+`sslmode=verify-full`, the queue is `amqps://` on 5671, the object store is
+`https://`, and each endpoint has an absolute `*_tls_ca` path.
 
 Run these from the repository root; the rendered directory is the one the
 per-role Compose files read. From `deploy/multi-host`, the same flags are
@@ -78,9 +83,9 @@ first validation. The token must be at least 32 characters; the passwords at
 least 16 and not a template marker. The example descriptor enables
 `auth.gateway_token`, so the token is mandatory.
 
-`env/` and `env/secrets/` are ignored by Git. The renderer writes one env file
-per service, one `<service>-migrate.env` for each database-owning service, and
-`infra.env`; every application env file carries `QR_IMAGE`, `QR_IMAGE_DIGEST`,
+`env/`, `env/secrets/` and `env/pki/` are ignored by Git. The renderer copies
+the three CA bundles into `env/pki/` and writes one env file per service, one
+`<service>-migrate.env` for each database-owning service, and `infra.env`; every application env file carries `QR_IMAGE`, `QR_IMAGE_DIGEST`,
 `QR_BIND_IP`, `QR_BIND_PORT`, `QR_BIND`, `QR_PROFILE=server`, the non-secret
 backend URLs and `QR_MIGRATE`, and `QR_INTERNAL_ONLY` on the internal HTTP
 services. A secret is a mode-600 file under `env/secrets/` and the env file names
@@ -90,8 +95,9 @@ service gets only `QR_DATABASE_URL_FILE` for its `<database>_app` role with
 `QR_DATABASE_OWNER_URL_FILE` for its `<database>_owner` role. `model` and
 `backtest` receive no database file. Keep the env files at mode 600 and
 `env/secrets/` at mode 700 (the renderer does), and copy each role's files to its
-host; a plain secret in an env file is a defect, and the runtime refuses it. The image entrypoint stages the mounted files
-into a private directory owned by UID 10001 and drops privileges before exec.
+host; a plain secret in an env file is a defect, and the runtime refuses it. The image entrypoint stages the mounted secret files into a private directory
+owned by UID 10001 and drops privileges before exec. The role Compose files mount
+`env/pki` read-only at `/run/pki`; a TLS endpoint without its CA fails startup.
 
 The descriptor still names one Postgres endpoint. The renderer keeps its scheme
 and host:port and uses `QR_POSTGRES_PASSWORD` for all eight roles; the four
@@ -323,7 +329,8 @@ The profile records these residual risks:
 - `qr-deploy check` reads the digest each service reports. It does not inspect
   the running image on a remote host; the operator runs `docker image inspect`
   on each host.
-- The gateway token and TLS are not exercised by `check`; use the Connection
+- The gateway token and ingress TLS are not exercised by `check`; the object
+  store is probed over its descriptor scheme and CA. Use the Connection
   screen or a `curl` matrix against a gated route.
 - Postgres, MinIO, and RabbitMQ are single instances. The profile is not high
   availability, and a core-host failure takes data, evidence, and simulation

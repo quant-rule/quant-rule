@@ -84,8 +84,10 @@ jobs:
       - name: Compose parse
         run: |
           secrets="$RUNNER_TEMP/qr-secrets"
+          pki="$RUNNER_TEMP/qr-pki"
           bash tools/secrets.sh --out "$secrets"
-          QR_SECRETS_DIR="$secrets" docker compose \
+          bash tools/pki.sh --out "$pki"
+          QR_SECRETS_DIR="$secrets" QR_PKI_DIR="$pki" docker compose \
             --env-file "$secrets/compose.env" \
             -f compose.yaml -f compose.remote.yaml config -q
 

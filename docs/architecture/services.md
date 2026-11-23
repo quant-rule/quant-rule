@@ -48,22 +48,20 @@ evidence ───────────────> quantrule-research
 simulation ─────────────> quantrule-simulation
 ```
 
-The engines are unchanged by distribution. Every service binary is an adapter
-over its domain crate; data, model, and backtest share `quantrule-app`, and
-evidence and simulation use their own domain crates.
+Every service binary is an adapter over its domain crate; data, model, and
+backtest share `quantrule-app`, and evidence and simulation use their own.
 
 - `quantrule-api` holds contract types and must not depend on an engine.
-- `quantrule-runtime` holds configuration, health, adapters, the migration
-  runner, and the internal client. It must not depend on an engine or
-  `quantrule-app`.
+- `quantrule-runtime` holds configuration, health, adapters, migrations and the
+  internal client; it must not depend on an engine or `quantrule-app`.
 - `/inspect/candles` and `/inspect/timeframes` stay with `data`;
   `/inspect/events` computes a model, so the gateway forwards it to `model`'s
   internal event-batch route.
 - The gateway links no app, engine, or domain service crate. The compile/source
   guard `crates/quantrule-gateway/tests/service_boundary.rs` fails when that
   edge, a second service binary, or a cross-schema read appears.
-- Workers may call `quantrule-app` freely. Evidence and simulation must not.
-- No service crate depends on another service crate.
+- Workers may call `quantrule-app`; evidence and simulation must not, and no
+  service crate depends on another service crate.
 
 ## 2.1 Public boundary and supported topologies
 
@@ -134,9 +132,11 @@ a fold over time. Claiming otherwise would be false.
 ## 7. Backend adapters
 
 Database, object store, and queue sit behind traits. The server ships one
-implementation of each: Postgres, the S3 API, and RabbitMQ. A service calls the
-trait, never a client library directly. Only audited idempotent GETs and the two
-dataset-reference writes retry; a consumer error reconnects in-process.
+implementation of each: Postgres, S3, and RabbitMQ; a service calls the trait. Each adapter takes an explicit CA path
+and fails closed: PostgreSQL `verify-full`, RabbitMQ `amqps`, MinIO `https`
+([TLS contract](../config/2026-11-23/internal-tls.md)). Only audited idempotent
+GETs and the two dataset-reference writes retry; a consumer error reconnects
+in-process.
 
 ## 8. Stage diagnostics
 
