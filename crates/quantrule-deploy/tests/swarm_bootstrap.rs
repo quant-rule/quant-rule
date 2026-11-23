@@ -49,6 +49,7 @@ fn stage_pki(directory: &Path) -> PathBuf {
     std::fs::create_dir_all(root.join("postgres")).expect("postgres pki");
     std::fs::create_dir_all(root.join("etcd")).expect("etcd pki");
     std::fs::create_dir_all(root.join("rabbitmq")).expect("rabbitmq pki");
+    std::fs::create_dir_all(root.join("minio/CAs")).expect("minio pki");
     let ca = root.join("ca.crt");
     write_mode(&ca, "fixture CA\n", 0o644);
     for (directory, name) in [
@@ -69,6 +70,13 @@ fn stage_pki(directory: &Path) -> PathBuf {
             0o600,
         );
     }
+    write_mode(
+        &root.join("minio/public.crt"),
+        "fixture certificate\n",
+        0o644,
+    );
+    write_mode(&root.join("minio/private.key"), "fixture key\n", 0o600);
+    write_mode(&root.join("minio/CAs/ca.crt"), "fixture CA\n", 0o644);
     ca
 }
 

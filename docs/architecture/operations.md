@@ -1,6 +1,6 @@
 # Operations
 
-- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); runtime drain, readiness, retries, file secrets, token rotation, the PLAT-003 stateful tier, check rows, and failover lab, and the PLAT-004 queue tier, checks, definitions, and broker-loss lab in v1.6.0; approved 2026-11-12
+- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); runtime drain, readiness, retries, file secrets, token rotation, the PLAT-003 stateful tier, check rows, and failover lab, the PLAT-004 queue tier, checks, definitions, and broker-loss lab, and the PLAT-005 MinIO tier/object bootstrap/check rows/node-loss lab in v1.6.0; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 
@@ -120,16 +120,16 @@ run without `--yes`. Objects are written before rows, so an interrupted restore
 leaves unreferenced blobs rather than missing bytes; after `make reset`, restore
 before `make up`.
 
-The object mirror uses the `mc` bundled in the pinned MinIO image; a replacement
-`QR_OBJECT_STORE_IMAGE` must provide `mc`, or backup stops. The archive holds
-candle data and is sensitive ([data-lifecycle](../workflows/data-lifecycle.md)).
+The object mirror uses the `mc` bundled in the pinned MinIO image; v3 pins
+`images.minio_client`, enables bucket versioning, and the check/lab verify the
+bucket, `qr_app`, the probe hash, and zero healing; HA-013 owns off-host/archive,
+restore drills, and any second-site replication; the archive holds sensitive data ([data-lifecycle](../workflows/data-lifecycle.md)).
 
 The default stack starts seven services, three stores, the bootstrap and four
-migration jobs ([deployment.md](deployment.md) §2.1). Backup covers only durable
-stores; the four-database contract is [four databases](../config/2026-11-22/four-databases.md).
+migration jobs ([deployment.md](deployment.md) §2.1). Backup covers durable stores;
+the database contract is [four databases](../config/2026-11-22/four-databases.md).
 The tools dump one database, so a backup is incomplete until HA-013 lands the
-pgBackRest four-database archive and PITR drill; never claim evidence preservation
-from one dump. The v3 archive/recovery knobs are configured, not verified.
+pgBackRest archive/PITR drill; never claim evidence preservation from one dump.
 
 Round trip: `tools/test_backup.sh` is opt-in, uses an isolated project, and never
 touches the default project. It seeds a run, checks refusals, wipes, restores,

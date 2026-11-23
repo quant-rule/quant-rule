@@ -9,7 +9,7 @@
 # `docker start`, waits for three nodes and quorum, publishes and consumes a
 # second probe, checks the app `/health`/`/ready`, compares the canonical digest
 # when it is available, and writes value-free evidence. The end-to-end digest is
-# `Blocked`/`Unverified` until PLAT-005 MinIO; only the queue result is
+# `Unverified` until the MinIO phase and `tools/verify.sh` succeed; only the queue result is
 # `Simulated HA`. A missing lab precondition is `UNVERIFIED`, never a pass.
 
 q_stopped_host=""
@@ -223,12 +223,12 @@ q_verify_optional() {
       q_digest_after=$digest
       q_say "$phase: canonical digest sha256:$digest"
     else
-      q_digest_status="Blocked"
+      q_digest_status="Unverified"
       q_say "$phase: the verification run printed no digest; end-to-end Unverified"
     fi
   else
-    q_digest_status="Blocked"
-    q_say "$phase: end-to-end digest Blocked/Unverified (PLAT-005 MinIO or a stack precondition); queue evidence stays queue-level"
+    q_digest_status="Unverified"
+    q_say "$phase: end-to-end digest Unverified (a stack precondition or no successful tools/verify.sh); queue evidence stays queue-level"
   fi
 }
 
@@ -330,8 +330,8 @@ queue_restore() {
     [ "$q_digest_after" = "$q_digest_before" ] \
       || q_fail "the canonical digest changed across the broker loss"
   else
-    q_digest_status="Blocked"
-    q_say "restore: end-to-end digest Blocked/Unverified (baseline was not measured; PLAT-005 MinIO)"
+    q_digest_status="Unverified"
+    q_say "restore: end-to-end digest Unverified (baseline was not measured)"
   fi
   if [ -f "$out/stateful-manifest.json" ]; then
     qr_deploy check "$descriptor" --remote docker --overlay --out "$out" \
@@ -369,7 +369,7 @@ queue_evidence() {
     --arg digest_before "$([ -n "$q_digest_before" ] && printf 'sha256:%s' "$q_digest_before" || printf 'Unverified')" \
     --arg digest_after "$([ -n "$q_digest_after" ] && printf 'sha256:%s' "$q_digest_after" || printf 'Unverified')" \
     --arg definitions "live export verified; users/permissions stripped; no value or hash recorded" \
-    --arg end_to_end "Blocked/Unverified until PLAT-005 MinIO" \
+    --arg end_to_end "Unverified until the MinIO phase and tools/verify.sh succeed" \
     --arg real_ha "HA-014 only" \
     '{
       evidence: $evidence,
@@ -425,5 +425,5 @@ queue_failover() {
   queue_evidence
   q_cleanup
   trap - EXIT
-  q_say "result: Simulated HA (queue); end-to-end digest $q_digest_status (PLAT-005 MinIO); Real HA is HA-014"
+  q_say "result: Simulated HA (queue); end-to-end digest $q_digest_status; Real HA is HA-014"
 }

@@ -36,7 +36,7 @@ pub const REQUIRED_SERVICES: [&str; 7] = [
 pub const REQUIRED_DATABASES: [&str; 4] = ["gateway", "catalog", "evidence", "simulation"];
 
 /// Every infrastructure unit the v3 renderer places must be pinned.
-pub const REQUIRED_IMAGES: [&str; 12] = [
+pub const REQUIRED_IMAGES: [&str; 13] = [
     "traefik",
     "postgres",
     "patroni",
@@ -45,6 +45,7 @@ pub const REQUIRED_IMAGES: [&str; 12] = [
     "keepalived",
     "rabbitmq",
     "minio",
+    "minio_client",
     "prometheus",
     "grafana",
     "loki",
@@ -656,7 +657,67 @@ fn validate_minio_drives(descriptor: &Descriptor) -> Result<(), Error> {
             "the HA profiles use one drive on each of four or more nodes",
         ));
     }
+    minio_parity(descriptor)?;
     Ok(())
+}
+
+/// The erasure-coding parity and the write-quorum rule.
+///
+/// One node loss must leave the write quorum: `total - max_drives >=
+/// total - parity + 1`, so `parity > max_drives`. MinIO also needs the data
+/// blocks to be at least the parity blocks: `2 * parity <= total`. `auto`
+/// derives `total / 2`, which gives EC:2 for four nodes × one drive and EC:3
+/// for the lab's three nodes × two drives.
+pub(crate) fn minio_parity(descriptor: &Descriptor) -> Result<u32, Error> {
+    let minio = &descriptor.stateful.minio;
+    let total: u64 = minio.drives.iter().map(|drives| u64::from(*drives)).sum();
+    let max_drives = minio.drives.iter().copied().max().unwrap_or(0);
+    let parity = if minio.parity == "auto" {
+        u32::try_from(total / 2).unwrap_or(u32::MAX)
+    } else {
+        let Some(value) = minio.parity.strip_prefix("EC:") else {
+            return Err(rule(
+                "deploy.stateful.minio.parity",
+                "stateful.minio.parity",
+                "must be auto or EC:<n>",
+            ));
+        };
+        let Ok(value) = value.parse::<u32>() else {
+            return Err(rule(
+                "deploy.stateful.minio.parity",
+                "stateful.minio.parity",
+                "must be auto or EC:<n> with n a positive integer",
+            ));
+        };
+        value
+    };
+    if parity == 0 {
+        return Err(rule(
+            "deploy.stateful.minio.parity",
+            "stateful.minio.parity",
+            "must be at least one parity drive",
+        ));
+    }
+    if u64::from(parity) * 2 > total {
+        return Err(rule(
+            "deploy.stateful.minio.parity",
+            "stateful.minio.parity",
+            format!(
+                "EC:{parity} needs at least {} drives so data blocks are not fewer than parity blocks; found {total}",
+                u64::from(parity) * 2
+            ),
+        ));
+    }
+    if parity <= max_drives {
+        return Err(rule(
+            "deploy.stateful.minio.parity",
+            "stateful.minio.parity",
+            format!(
+                "EC:{parity} does not keep the write quorum after one node loss; a node with {max_drives} drives needs parity greater than {max_drives}"
+            ),
+        ));
+    }
+    Ok(parity)
 }
 
 fn validate_observability(descriptor: &Descriptor) -> Result<(), Error> {
@@ -696,11 +757,11 @@ fn validate_backup(descriptor: &Descriptor) -> Result<(), Error> {
             "must be between 1 and 3650 days",
         ));
     }
-    if descriptor.profile == Profile::SwarmHa && !descriptor.backup.object_replication {
+    if descriptor.backup.object_replication {
         return Err(rule(
             "deploy.backup.object_replication",
             "backup.object_replication",
-            "must be true for swarm-ha; cross-site object copies protect evidence",
+            "must be false in v1.5.10; PLAT-005 owns local erasure and versioning, and HA-013 owns off-host/archive copies and any second-site replication",
         ));
     }
     Ok(())

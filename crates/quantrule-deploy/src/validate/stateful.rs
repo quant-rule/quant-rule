@@ -45,6 +45,8 @@ pub struct StatefulFiles {
     pub etcd: EtcdLeaves,
     /// The RabbitMQ server certificate and key.
     pub rabbitmq: Leaf,
+    /// The MinIO server certificate and key (`public.crt` / `private.key`).
+    pub minio: Leaf,
 }
 
 /// Read the stateful PKI leaves from the CA bundle's parent directory.
@@ -60,11 +62,16 @@ pub fn load(descriptor: &Descriptor) -> Result<StatefulFiles, Error> {
         "endpoints.database.tls_ca",
     )?;
     let queue_root = tls_root(&descriptor.endpoints.queue.tls_ca, "endpoints.queue.tls_ca")?;
+    let object_root = tls_root(
+        &descriptor.endpoints.object_store.tls_ca,
+        "endpoints.object_store.tls_ca",
+    )?;
     let postgres = leaf(database_root, "postgres", "server", "pki.postgres.server")?;
     let etcd_server = leaf(database_root, "etcd", "server", "pki.etcd.server")?;
     let etcd_peer = leaf(database_root, "etcd", "peer", "pki.etcd.peer")?;
     let etcd_client = leaf(database_root, "etcd", "client", "pki.etcd.client")?;
     let rabbitmq = leaf(queue_root, "rabbitmq", "server", "pki.rabbitmq.server")?;
+    let minio = minio_leaf(object_root)?;
     Ok(StatefulFiles {
         postgres,
         etcd: EtcdLeaves {
@@ -73,7 +80,20 @@ pub fn load(descriptor: &Descriptor) -> Result<StatefulFiles, Error> {
             client: etcd_client,
         },
         rabbitmq,
+        minio,
     })
+}
+
+/// The MinIO leaf uses the image's `public.crt` / `private.key` names.
+fn minio_leaf(root: &Path) -> Result<Leaf, Error> {
+    let directory = root.join("minio");
+    let certificate_path = directory.join("public.crt");
+    let key_path = directory.join("private.key");
+    let certificate = read_public_file(&certificate_path.to_string_lossy(), "pki.minio.public.crt")
+        .map_err(|error| contextual(error, &certificate_path, "pki.minio.public"))?;
+    let key = read_pem_file(&key_path.to_string_lossy(), "pki.minio.private.key", true)
+        .map_err(|error| contextual(error, &key_path, "pki.minio.private"))?;
+    Ok(Leaf { certificate, key })
 }
 
 /// The PKI directory that holds a TLS endpoint's CA bundle.
@@ -150,6 +170,7 @@ mod tests {
         std::fs::create_dir_all(root.join("postgres")).expect("postgres");
         std::fs::create_dir_all(root.join("etcd")).expect("etcd");
         std::fs::create_dir_all(root.join("rabbitmq")).expect("rabbitmq");
+        std::fs::create_dir_all(root.join("minio/CAs")).expect("minio");
         write(&root.join("ca.crt"), "ca\n", 0o644);
         for (directory, name) in [
             ("postgres", "server"),
@@ -169,11 +190,15 @@ mod tests {
                 0o600,
             );
         }
+        write(&root.join("minio/public.crt"), "cert\n", 0o644);
+        write(&root.join("minio/private.key"), "key\n", 0o600);
+        write(&root.join("minio/CAs/ca.crt"), "ca\n", 0o644);
         let mut value: Value =
             serde_json::from_str(include_str!("../../../../deploy/v3/deploy.example.json"))
                 .expect("example");
         value["endpoints"]["database"]["tls_ca"] = serde_json::json!(root.join("ca.crt"));
         value["endpoints"]["queue"]["tls_ca"] = serde_json::json!(root.join("ca.crt"));
+        value["endpoints"]["object_store"]["tls_ca"] = serde_json::json!(root.join("ca.crt"));
         serde_json::from_value(value).expect("descriptor")
     }
 

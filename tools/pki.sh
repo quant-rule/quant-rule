@@ -14,8 +14,9 @@
 # Environment:
 #   PKI_EXTRA_SANS   comma-separated DNS names or IP addresses added to every
 #                    server certificate. For v3 stateful, include every
-#                    patroni-<host> and etcd-<host> alias; the in-cluster
-#                    configs use those aliases with verify-full.
+#                    patroni-<host>, etcd-<host>, rabbitmq-<host>, and
+#                    minio-<host> alias; the in-cluster configs use those
+#                    aliases with verify-full.
 #
 # The directory is mode 700, private keys are mode 600 and certificates are
 # mode 644. `make up` runs this before the stack starts; the Compose PKI init
@@ -161,6 +162,9 @@ leaf rabbitmq "$out/rabbitmq/server.key" "$out/rabbitmq/server.crt"
 cp "$out/ca.crt" "$out/rabbitmq/ca.crt"
 chmod 644 "$out/rabbitmq/ca.crt"
 
+# The MinIO leaf uses the server image's `public.crt` / `private.key` /
+# `CAs/ca.crt` layout. PKI_EXTRA_SANS must include every minio-<host> alias for
+# inter-node TLS; the shared `minio` name is already the CN and DNS.1.
 leaf minio "$out/minio/private.key" "$out/minio/public.crt"
 cp "$out/ca.crt" "$out/minio/CAs/ca.crt"
 chmod 644 "$out/minio/CAs/ca.crt"

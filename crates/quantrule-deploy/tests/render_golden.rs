@@ -53,6 +53,7 @@ fn stage_pki(directory: &Path) -> PathBuf {
     std::fs::create_dir_all(root.join("postgres")).expect("postgres pki");
     std::fs::create_dir_all(root.join("etcd")).expect("etcd pki");
     std::fs::create_dir_all(root.join("rabbitmq")).expect("rabbitmq pki");
+    std::fs::create_dir_all(root.join("minio/CAs")).expect("minio pki");
     let ca = root.join("ca.crt");
     write_mode(
         &ca,
@@ -79,6 +80,21 @@ fn stage_pki(directory: &Path) -> PathBuf {
             0o600,
         );
     }
+    write_mode(
+        &root.join("minio/public.crt"),
+        "-----BEGIN CERTIFICATE-----\nminio fixture certificate\n-----END CERTIFICATE-----\n",
+        0o644,
+    );
+    write_mode(
+        &root.join("minio/private.key"),
+        "minio-fixture-private-key\n",
+        0o600,
+    );
+    write_mode(
+        &root.join("minio/CAs/ca.crt"),
+        "-----BEGIN CERTIFICATE-----\ngolden fixture CA\n-----END CERTIFICATE-----\n",
+        0o644,
+    );
     ca
 }
 
@@ -162,6 +178,7 @@ fn compare_golden(out: &Path, expected: &str, required: &[&str]) {
         "pki/etcd/peer.key",
         "pki/etcd/client.key",
         "pki/rabbitmq/server.key",
+        "pki/minio/private.key",
     ] {
         let path = out.join(key);
         assert!(path.is_file(), "{key} is rendered");
@@ -195,6 +212,8 @@ fn compare_golden(out: &Path, expected: &str, required: &[&str]) {
         "patroni_rewind_password",
         "patroni_rest_password",
         "rabbitmq_erlang_cookie",
+        "minio_root_user",
+        "minio_root_password",
     ] {
         let source = std::fs::read_to_string(repo(&format!("deploy/v3/secrets/{name}")))
             .expect("source secret");
@@ -251,6 +270,8 @@ fn the_render_matches_its_checked_in_golden_files() {
             "haproxy-edge-1.cfg",
             "rabbitmq-infra-1.conf",
             "rabbitmq-enabled_plugins",
+            "minio-infra-1.conf",
+            "minio-policy.json",
             "stateful-manifest.json",
         ],
     );
@@ -276,6 +297,24 @@ fn the_render_matches_its_checked_in_golden_files() {
         haproxy.contains("server rabbitmq-infra-1 rabbitmq-infra-1:5671 check"),
         "{haproxy}"
     );
+    assert!(haproxy.contains("bind *:9000"), "{haproxy}");
+    assert!(
+        haproxy.contains("server minio-infra-1 minio-infra-1:9000 check"),
+        "{haproxy}"
+    );
+    let minio = std::fs::read_to_string(out.join("minio-infra-1.conf")).expect("minio conf");
+    for expected in [
+        "MINIO_VOLUMES=\"https://minio-infra-1:9000/data1 https://minio-infra-2:9000/data1 https://minio-infra-3:9000/data1 https://minio-infra-4:9000/data1\"",
+        "MINIO_SERVER_URL=\"https://minio:9000\"",
+        "MINIO_BROWSER=\"off\"",
+        "MINIO_STORAGE_CLASS_STANDARD=\"EC:2\"",
+        "MINIO_CONFIG_ENV_FILE=\"/etc/minio/minio.conf\"",
+    ] {
+        assert!(minio.contains(expected), "{expected}: {minio}");
+    }
+    let policy = std::fs::read_to_string(out.join("minio-policy.json")).expect("minio policy");
+    assert!(policy.contains("\"s3:PutObject\""), "{policy}");
+    assert!(policy.contains("\"arn:aws:s3:::quantrule/*\""), "{policy}");
     let _ = std::fs::remove_dir_all(directory);
 }
 
@@ -294,6 +333,8 @@ fn the_lab_render_matches_its_checked_in_golden_files() {
             "haproxy-lab-1.cfg",
             "rabbitmq-lab-1.conf",
             "rabbitmq-enabled_plugins",
+            "minio-lab-1.conf",
+            "minio-policy.json",
             "stateful-manifest.json",
         ],
     );
@@ -305,6 +346,12 @@ fn the_lab_render_matches_its_checked_in_golden_files() {
     let patroni = std::fs::read_to_string(out.join("patroni-lab-1.yml")).expect("patroni");
     assert!(patroni.contains("mode: \"off\""), "{patroni}");
     assert!(!patroni.contains("/dev/watchdog"), "{patroni}");
+    let minio = std::fs::read_to_string(out.join("minio-lab-1.conf")).expect("minio conf");
+    assert!(minio.contains("https://minio-lab-1:9000/data2"), "{minio}");
+    assert!(
+        minio.contains("MINIO_STORAGE_CLASS_STANDARD=\"EC:3\""),
+        "{minio}"
+    );
     let _ = std::fs::remove_dir_all(directory);
 }
 

@@ -80,14 +80,28 @@ services:
         source: "/etc/quantrule/loki/loki.yml"
         target: "/etc/loki/loki.yml"
         type: "bind"
-  minio:
+  minio-infra-2:
+    command:
+      -
+        "/bin/sh"
+      -
+        "-c"
+      -
+        "set -eu\numask 077\nexport MINIO_ROOT_USER=\"$$(cat /run/secrets/minio_root_user)\"\nexport MINIO_ROOT_PASSWORD=\"$$(cat /run/secrets/minio_root_password)\"\n. /etc/minio/minio.conf\nexec minio server --certs-dir /certs"
     container_name: "quantrule-minio-infra-2"
+    environment:
+      MINIO_BROWSER: "off"
+      MINIO_CONFIG_ENV_FILE: "/etc/minio/minio.conf"
+      MINIO_ROOT_PASSWORD_FILE: "/run/secrets/minio_root_password"
+      MINIO_ROOT_USER_FILE: "/run/secrets/minio_root_user"
+      MINIO_SERVER_URL: "https://minio:9000"
+    hostname: "minio-infra-2"
     image: "minio/minio@sha256:bdf0781acceb93983c15eec9e56bfbd59dcadc98ea57467022d61aeee074a2cc"
     networks:
       quantrule:
         aliases:
           -
-            "minio"
+            "minio-infra-2"
     restart: "unless-stopped"
     stop_grace_period: "40s"
     volumes:
@@ -104,7 +118,17 @@ services:
       -
         read_only: true
         source: "/etc/quantrule/pki/minio"
-        target: "/etc/quantrule/pki"
+        target: "/certs"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/secrets/minio_root_user"
+        target: "/run/secrets/minio_root_user"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/secrets/minio_root_password"
+        target: "/run/secrets/minio_root_password"
         type: "bind"
   patroni:
     command:
@@ -241,6 +265,6 @@ services:
 x-quantrule:
   evidence: "HA profile (unverified)"
   network: "overlay, attachable, encrypted; created by bootstrap.sh"
-  owner: "PLAT-003/PLAT-004"
-  platform: "keepalived is PLAT-002; Patroni, etcd, and HAProxy are configured by PLAT-003; RabbitMQ is PLAT-004; MinIO and observability remain PLAT-005/006"
+  owner: "PLAT-003/PLAT-004/PLAT-005"
+  platform: "keepalived is PLAT-002; Patroni, etcd, and HAProxy are configured by PLAT-003; RabbitMQ is PLAT-004; MinIO is PLAT-005; observability remains PLAT-006"
   profile: "swarm-ha"

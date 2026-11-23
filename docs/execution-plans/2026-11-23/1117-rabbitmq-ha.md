@@ -21,9 +21,9 @@ default is `default_queue_type = quorum`.
 
 Phase 2 adds the static check rows, the definitions export/import/verify tool,
 the broker-loss lab phase, and the final gate. A live three-VM lab result is
-`Unverified` here; `Real HA` is HA-014. The end-to-end digest stays
-`Blocked`/`Unverified` until PLAT-005 MinIO is configured. Both phases are
-implemented in this tree; the plan is in review.
+`Unverified` here; `Real HA` is HA-014. The end-to-end digest is `Measured` only
+after `tools/verify.sh` succeeds. Both phases are implemented in this tree; the
+plan is in review.
 
 ## 2. Current state
 
@@ -160,8 +160,8 @@ Excluded (phase 2, now implemented in this tree; see section 12):
 - The queue lab phase is lab-only, restores a stopped broker on any exit, proves
   a confirmed publish survives and a second publish succeeds after restore, and
   writes `Simulated HA` at the queue level. `--skip-queue` leaves the row
-  `Unverified`; the end-to-end digest is `Blocked`/`Unverified` until PLAT-005
-  and no output claims an end-to-end `PASS`.
+  `Unverified`; the end-to-end digest is `Measured` only after `tools/verify.sh`
+  succeeds, and no output claims an end-to-end `PASS`.
 - No new dependency or command-surface change; the probe is a lab-only example
   over the existing runtime dependencies.
 
@@ -238,7 +238,7 @@ changes. A live cluster, broker loss, and TLS handshake are `Unverified` here.
 | V19 | Quality | fmt, clippy, tests, governance, compose, gate | verification block | Pass | fmt/clippy clean; 188 unit + 22 CLI + 16 HA + 7 remote + 2 golden + 10 stateful + 10 bootstrap + 8 wrapper; `governance check ok`; `compose config ok`; `gate passed: full` | Pass | agent | 2026-11-23 |  |
 | V20 | Docs | New queue contract and in-place updates within caps | `qr-governance check --all`; `wc -l` | Zero findings; caps | `governance check ok`; queue 295, deploy-v3 329, manual 15 200, architecture 169–170, internal-tls 280 | Pass | agent | 2026-11-23 |  |
 | V21 | Evidence | Three-VM broker loss is `Simulated HA`; no lab is `Unverified` | `tools/test_tiers.sh ha --plan` | No live claim | Phase 2 queue phase implemented; plan lists it; no live lab in this environment | Blocked | agent | 2026-11-23 | Live lab `Unverified`; `Real HA` HA-014 |
-| V22 | Digest | End-to-end digest remains blocked until PLAT-005 | Risk/evidence record | `Blocked` | No end-to-end run; MinIO is still PLAT-005 | Blocked | agent | 2026-11-23 |  |
+| V22 | Digest | End-to-end digest is `Measured` only after `tools/verify.sh` | Risk/evidence record | `Measured` if the script succeeds | No end-to-end run in this environment; the digest is not measured here | Blocked | agent | 2026-11-23 |  |
 | V23 | Closure | No commit/push/PR/board change in this phase | `git status`; PR absence | None | Working tree only; no commit, push, PR, board, tag, or secret | Pass | agent | 2026-11-23 |  |
 | P01 | Phase 2 | `check/queue.rs`, definitions tool, broker-loss lab | `cargo test -p quantrule-deploy`; lab | Pass or `Unverified` | Queue checks/definitions/lab tests pass; full gate passed; live lab `Unverified` | Pass | agent | 2026-11-23 | Live lab `Blocked` in P04 |
 | P02 | Queue checks | Rows pass on sample/lab and fail on mutation; Docker-free; cert limited | `cargo test -p quantrule-deploy --test queue_cli --test ha_harness`; `cargo test -p quantrule-deploy check::queue` | Pass | 19 unit + 4 CLI + 20 HA tests pass | Pass | agent | 2026-11-23 |  |
@@ -246,7 +246,7 @@ changes. A live cluster, broker loss, and TLS handshake are `Unverified` here.
 | P04 | Queue lab | Leader loss, confirmed publish survival, restore, scoped evidence | `bash -n deploy/v3/queue-failover.sh`; `tools/test_tiers.sh ha --plan` | Pass or `Unverified` | `bash -n` clean; plan lists queue phases; live run `Unverified` (no lab here) | Blocked | agent | 2026-11-23 | Live lab not available; queue row is `Unverified` |
 | P05 | Probe | Publish/consume/drain over existing deps; no env secret | `cargo clippy -p quantrule-runtime --all-targets -- -D warnings`; `cargo test -p quantrule-runtime --test secret_sources` | Pass | Clippy clean; secret-source test passes | Pass | agent | 2026-11-23 |  |
 | P06 | Docs | Caps and cross-references updated | `qr-governance check --all` | Zero findings | `governance check ok`; queue 329, deploy-v3 330, manual 15 200, manual 08 328, architecture 169–170 | Pass | agent | 2026-11-23 |  |
-| P07 | Digest | End-to-end remains Blocked until PLAT-005 | Queue evidence and `deploy/v3/test.sh` text | `Blocked`/`Unverified` | Queue evidence uses queue-level `Simulated HA`; no end-to-end PASS | Pass | agent | 2026-11-23 |  |
+| P07 | Digest | End-to-end is `Measured` only after `tools/verify.sh` | Queue evidence and `deploy/v3/test.sh` text | `Measured` or `Unverified` | Queue evidence uses queue-level `Simulated HA`; no end-to-end PASS | Pass | agent | 2026-11-23 |  |
 | P08 | Closure | No commit/push/PR/board/secret | `git status`; PR absence | None | Working tree only; no gated operation | Pass | agent | 2026-11-23 |  |
 
 ## 9. Risks and recovery
@@ -296,7 +296,7 @@ exceeded; or if the full gate fails. A live lab failure is not a Pass: record
   `deploy/v3/test.sh`/`queue-failover.sh`, the lab-only `queue_probe` example,
   the evidence record, and the final gate.
 - Phase 2 keeps the lab result `Simulated HA` at the queue level and the
-  end-to-end digest `Blocked`/`Unverified` until PLAT-005 MinIO is configured.
+  end-to-end digest `Measured` only after `tools/verify.sh` succeeds.
   No live cluster, broker loss, or TLS handshake is claimed here.
 
 ## 12. Phase 2 result
@@ -320,5 +320,5 @@ exceeded; or if the full gate fails. A live lab failure is not a Pass: record
 - Full verification results are recorded in the verification table and the AI
   log. `tools/gate.sh` reports `gate passed: full`; `qr-governance check --all`
   is clean; the deploy, runtime, backtest, and evidence suites pass. The
-  end-to-end canonical digest stays `Blocked`/`Unverified` until PLAT-005 MinIO;
-  the queue phase does not claim a full-stack `PASS`.
+  end-to-end canonical digest is `Measured` only after `tools/verify.sh`
+  succeeds; the queue phase does not claim a full-stack `PASS`.

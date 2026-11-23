@@ -1,6 +1,6 @@
 # Multi-Host Deployment
 
-- Status: Implemented; hardening #980; release pending; the v3 Patroni/etcd/HAProxy tier, check rows, and failover harness are separate and current; the v3 RabbitMQ broker/checks/definitions are current and its live lab is `Unverified` without a three-VM host
+- Status: Implemented; hardening #980; release pending; the v3 Patroni/etcd/HAProxy tier, check rows, and failover harness are separate and current; the v3 RabbitMQ broker/checks/definitions are current and its live lab is `Unverified` without a three-VM host; the v3 MinIO erasure/check rows/node-loss lab are current and its live lab is `Unverified` here
 - Part of: [`README.md`](README.md)
 - Decision: [ADR-2026-11-20-01](../adr/2026-11-20/958-multi-host-deployment.md)
 - Claim type: Behaviour Claim
@@ -79,7 +79,9 @@ renderer derives the four database URLs and the eight role names from that
 endpoint and secret; `db-bootstrap` creates the databases and roles, the
 one-shot `<service>-migrate` jobs apply the owner ledgers, and the long-running
 services start with the application URL only. The v3 profile resolves per-role
-passwords and checks the stateful rows in [patroni-cluster](../config/2026-11-23/patroni-cluster.md).
+passwords, checks the stateful and MinIO rows, bootstraps the bucket/account,
+and the `ha` lab proves one MinIO node loss keeps the probe hash in
+[patroni-cluster](../config/2026-11-23/patroni-cluster.md) and [minio-cluster](../config/2026-11-23/minio-cluster.md).
 
 ## 5. Trust boundary
 
@@ -148,8 +150,8 @@ The gateway `/ready` reports the upstream states.
 ## 10. What it does not provide
 
 No cloud provider integration, high availability, autoscaling, Kubernetes,
-multi-region placement, service-to-service mTLS, external registry, RPM, or DEB.Windows multi-host servers are not supported; the server profile is Linux.
-Each remains a later decision with its own record.
+multi-region placement, service-to-service mTLS, external registry, RPM, or DEB.
+Windows multi-host servers are not supported; the server profile is Linux.
 
 Residual risks accepted for v1: database roles are per service but v2 uses one
 Postgres password for every role; every service shares the MinIO root
@@ -158,13 +160,10 @@ boundary and internal HTTP has no mTLS (HA-012); v2 `qr-deploy check` does not i
 
 ## 11. Related
 
-- [`deployment.md`](deployment.md)
-- [`services.md`](services.md)
-- [`security.md`](security.md)
+- [`deployment.md`](deployment.md), [`services.md`](services.md), [`security.md`](security.md)
 - [Internal TLS contract](../config/2026-11-23/internal-tls.md)
 - [`deploy/multi-host/README.md`](../../deploy/multi-host/README.md)
 - [User manual chapter 14](../manual/14-multi-host.md)
-- [Deployment v3](../config/2026-11-22/deploy-v3.md)
-- [Swarm control plane](../config/2026-11-23/swarm-control.md)
-- [RabbitMQ cluster contract](../config/2026-11-23/rabbitmq-cluster.md)
+- [Deployment v3](../config/2026-11-22/deploy-v3.md), [Swarm control plane](../config/2026-11-23/swarm-control.md)
+- [RabbitMQ cluster](../config/2026-11-23/rabbitmq-cluster.md), [MinIO cluster](../config/2026-11-23/minio-cluster.md)
 - [User manual chapter 15](../manual/15-ha-deployment.md)

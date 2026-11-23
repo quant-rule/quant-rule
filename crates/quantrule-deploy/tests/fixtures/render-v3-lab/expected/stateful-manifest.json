@@ -5,6 +5,10 @@
     "etcd-lab-1",
     "etcd-lab-2",
     "etcd-lab-3",
+    "minio",
+    "minio-lab-1",
+    "minio-lab-2",
+    "minio-lab-3",
     "patroni-lab-1",
     "patroni-lab-2",
     "patroni-lab-3",
@@ -138,6 +142,48 @@
       ]
     },
     {
+      "source": "minio-lab-1.conf",
+      "target": "/etc/quantrule/minio/minio.conf",
+      "mode": "600",
+      "owner": "root",
+      "scope": "config",
+      "hosts": [
+        "lab-1"
+      ]
+    },
+    {
+      "source": "minio-lab-2.conf",
+      "target": "/etc/quantrule/minio/minio.conf",
+      "mode": "600",
+      "owner": "root",
+      "scope": "config",
+      "hosts": [
+        "lab-2"
+      ]
+    },
+    {
+      "source": "minio-lab-3.conf",
+      "target": "/etc/quantrule/minio/minio.conf",
+      "mode": "600",
+      "owner": "root",
+      "scope": "config",
+      "hosts": [
+        "lab-3"
+      ]
+    },
+    {
+      "source": "minio-policy.json",
+      "target": "/etc/quantrule/minio/quantrule-app-policy.json",
+      "mode": "644",
+      "owner": "root",
+      "scope": "config",
+      "hosts": [
+        "lab-1",
+        "lab-2",
+        "lab-3"
+      ]
+    },
+    {
       "source": "secrets/postgres_superuser_password",
       "target": "/etc/quantrule/secrets/postgres_superuser_password",
       "mode": "600",
@@ -188,6 +234,54 @@
     {
       "source": "secrets/rabbitmq_erlang_cookie",
       "target": "/etc/quantrule/rabbitmq/erlang.cookie",
+      "mode": "600",
+      "owner": "root",
+      "scope": "secret",
+      "hosts": [
+        "lab-1",
+        "lab-2",
+        "lab-3"
+      ]
+    },
+    {
+      "source": "secrets/minio_root_user",
+      "target": "/etc/quantrule/secrets/minio_root_user",
+      "mode": "600",
+      "owner": "root",
+      "scope": "secret",
+      "hosts": [
+        "lab-1",
+        "lab-2",
+        "lab-3"
+      ]
+    },
+    {
+      "source": "secrets/minio_root_password",
+      "target": "/etc/quantrule/secrets/minio_root_password",
+      "mode": "600",
+      "owner": "root",
+      "scope": "secret",
+      "hosts": [
+        "lab-1",
+        "lab-2",
+        "lab-3"
+      ]
+    },
+    {
+      "source": "secrets/object_store_access_key",
+      "target": "/etc/quantrule/secrets/object_store_access_key",
+      "mode": "600",
+      "owner": "root",
+      "scope": "secret",
+      "hosts": [
+        "lab-1",
+        "lab-2",
+        "lab-3"
+      ]
+    },
+    {
+      "source": "secrets/object_store_secret_key",
+      "target": "/etc/quantrule/secrets/object_store_secret_key",
       "mode": "600",
       "owner": "root",
       "scope": "secret",
@@ -333,6 +427,42 @@
       "source": "pki/rabbitmq/server.key",
       "target": "/etc/quantrule/pki/rabbitmq/server.key",
       "mode": "600",
+      "owner": "root",
+      "scope": "pki",
+      "hosts": [
+        "lab-1",
+        "lab-2",
+        "lab-3"
+      ]
+    },
+    {
+      "source": "pki/minio/public.crt",
+      "target": "/etc/quantrule/pki/minio/public.crt",
+      "mode": "644",
+      "owner": "root",
+      "scope": "pki",
+      "hosts": [
+        "lab-1",
+        "lab-2",
+        "lab-3"
+      ]
+    },
+    {
+      "source": "pki/minio/private.key",
+      "target": "/etc/quantrule/pki/minio/private.key",
+      "mode": "600",
+      "owner": "root",
+      "scope": "pki",
+      "hosts": [
+        "lab-1",
+        "lab-2",
+        "lab-3"
+      ]
+    },
+    {
+      "source": "pki/minio/CAs/ca.crt",
+      "target": "/etc/quantrule/pki/minio/CAs/ca.crt",
+      "mode": "644",
       "owner": "root",
       "scope": "pki",
       "hosts": [

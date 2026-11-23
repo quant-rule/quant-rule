@@ -24,9 +24,9 @@ ok	stateful	haproxy	servers	every Patroni member is a backend server
 ok	stateful	haproxy	shutdown-sessions	2 node config(s); a failed primary check closes its sessions
 ok	stateful	haproxy	stats-overlay	stats on 0.0.0.0:8404; no 443 bind and no published port
 ok	stateful	haproxy	unit	unique and postgres aliases; no published port
-ok	stateful	manifest	sans	SANs match the config aliases: etcd-infra-1, etcd-infra-2, etcd-infra-3, patroni-infra-1, patroni-infra-2, patroni-infra-3, postgres, rabbitmq, rabbitmq-infra-1, rabbitmq-infra-2, rabbitmq-infra-3
-ok	stateful	manifest	files	29 files list configs, secrets, and PKI sources
-ok	stateful	manifest	modes	configs and secrets 600; public CA and certificates 644
+ok	stateful	manifest	sans	SANs match the config aliases: etcd-infra-1, etcd-infra-2, etcd-infra-3, minio, minio-infra-1, minio-infra-2, minio-infra-3, minio-infra-4, patroni-infra-1, patroni-infra-2, patroni-infra-3, postgres, rabbitmq, rabbitmq-infra-1, rabbitmq-infra-2, rabbitmq-infra-3
+ok	stateful	manifest	files	41 files list configs, secrets, and PKI sources
+ok	stateful	manifest	modes	configs and secrets 600; public CA, certificates, and the bucket policy 644
 ok	stateful	manifest	no-values	no secret value, fingerprint, or password is listed
 ok	stateful	postgres certificate	san	/etc/quantrule/pki/postgres/server.crt covers postgres, patroni-infra-1, patroni-infra-2, patroni-infra-3
 ok	stateful	etcd server certificate	san	/etc/quantrule/pki/etcd/server.crt covers etcd-infra-1, etcd-infra-2, etcd-infra-3

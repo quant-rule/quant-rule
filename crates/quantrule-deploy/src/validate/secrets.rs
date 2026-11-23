@@ -32,16 +32,28 @@ pub const STATEFUL_SECRETS: [&str; 5] = [
     "rabbitmq_erlang_cookie",
 ];
 
+/// The two MinIO root secrets copied only to the MinIO hosts.
+///
+/// They are stateful host files with their own scope: never app Swarm secrets
+/// and never mounted into an application container.
+pub const MINIO_SECRETS: [&str; 2] = ["minio_root_user", "minio_root_password"];
+
 /// The queue user the application URL must name.
 pub const QUEUE_USER: &str = "qr_queue";
+
+/// The object-store user the application S3 credentials must name.
+pub const OBJECT_STORE_USER: &str = "qr_app";
 
 /// The encoded default vhost in the application URL; `%2f` is `/`.
 pub const QUEUE_VHOST: &str = "%2f";
 
-/// The rendered scope of a secret: `stateful` for the database tier, `app` otherwise.
+/// The rendered scope of a secret: `minio` for the root credentials, `stateful`
+/// for the database and broker tier, `app` otherwise.
 #[must_use]
 pub fn scope(name: &str) -> &'static str {
-    if STATEFUL_SECRETS.contains(&name) {
+    if MINIO_SECRETS.contains(&name) {
+        "minio"
+    } else if STATEFUL_SECRETS.contains(&name) {
         "stateful"
     } else {
         "app"
@@ -109,6 +121,9 @@ fn required_names(descriptor: &Descriptor) -> BTreeSet<String> {
         names.insert(format!("{service}_owner_database_url"));
     }
     for name in STATEFUL_SECRETS {
+        names.insert(name.to_owned());
+    }
+    for name in MINIO_SECRETS {
         names.insert(name.to_owned());
     }
     names.insert(descriptor.auth.gateway_token_secret.clone());
@@ -300,7 +315,13 @@ pub fn validate_values(
             "object_store_access_key is required",
         )
     })?;
-    check_access_key(access_field, access)?;
+    if access != OBJECT_STORE_USER {
+        return Err(rule(
+            "deploy.secret.object_store_user",
+            access_field,
+            format!("must name the dedicated {OBJECT_STORE_USER} application user; found {access}"),
+        ));
+    }
 
     let secret_field = "secrets.files.object_store_secret_key";
     let secret = values.get("object_store_secret_key").ok_or_else(|| {
@@ -328,6 +349,41 @@ pub fn validate_values(
             check_stateful_password(&field, value)?;
         }
         check_duplicate(&mut credentials, value, &field)?;
+    }
+
+    let root_user_field = "secrets.files.minio_root_user";
+    let root_user = values.get("minio_root_user").ok_or_else(|| {
+        rule(
+            "deploy.secrets.missing",
+            root_user_field,
+            "minio_root_user is required for the MinIO hosts",
+        )
+    })?;
+    check_minio_root_user(root_user_field, root_user)?;
+
+    let root_password_field = "secrets.files.minio_root_password";
+    let root_password = values.get("minio_root_password").ok_or_else(|| {
+        rule(
+            "deploy.secrets.missing",
+            root_password_field,
+            "minio_root_password is required for the MinIO hosts",
+        )
+    })?;
+    check_password(root_password_field, root_password)?;
+    check_duplicate(&mut credentials, root_password, root_password_field)?;
+    Ok(())
+}
+
+/// A MinIO root user is a strong access key, not a documented default.
+fn check_minio_root_user(field: &str, value: &str) -> Result<(), Error> {
+    check_access_key(field, value)?;
+    let lower = value.to_ascii_lowercase();
+    if lower.contains("root") && lower.len() < 16 {
+        return Err(rule(
+            "deploy.secret.weak_credential",
+            field,
+            "a root-style access key must be at least 16 characters",
+        ));
     }
     Ok(())
 }

@@ -1,0 +1,15 @@
+ok	minio	minio	conf	4 node config(s); explicit volumes, browser off, server URL, EC parity, root _FILE references, region
+ok	minio	minio	no-secret	no root or app secret value and no console port in any node config
+ok	minio	minio	overlay-only	no host underlay address in any node config
+ok	minio	minio	quorum	4 nodes / 4 drives; EC:2; one node loss leaves 3 drives and the write quorum 3
+ok	minio	minio	unit	4 node unit(s); unique key/hostname/alias, certs dir, config/PKI/root and drive mounts, wrapper command, no console or published port
+ok	minio	haproxy	frontend	2 node config(s); TCP passthrough on 9000 only
+ok	minio	haproxy	backend	4 health-checked server(s); a marked-down MinIO node closes its sessions
+ok	minio	haproxy	unit	the shared minio alias is on the HAProxy pair; no published port
+ok	minio	manifest	hosts	only the 4 MinIO host(s) receive the config, root files, app bootstrap pair, policy, and PKI
+ok	minio	manifest	minio-modes	config, root files, app bootstrap pair, and private key are 600; policy, public certificate, and CA are 644
+ok	minio	manifest	sans	the manifest carries every MinIO name: minio, minio-infra-1, minio-infra-2, minio-infra-3, minio-infra-4
+ok	minio	minio certificate	san	/etc/quantrule/pki/minio/public.crt covers minio, minio-infra-1, minio-infra-2, minio-infra-3, minio-infra-4
+ok	minio	app	object-store	7 services use https://minio:9000 with _FILE credentials and the private CA; no root mount
+ok	minio	app	credentials	the app access key is the dedicated qr_app user
+ok	minio	app	replication	object_replication is false; HA-013 owns off-host/archive and any second-site copy

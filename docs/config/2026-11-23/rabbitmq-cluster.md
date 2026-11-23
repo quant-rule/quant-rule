@@ -3,8 +3,8 @@
 - Date: 2026-11-23 (UTC)
 - Status: Current for the v3 broker render, queue front door, boot order, app-user
   bootstrap, consumer reconnect, check rows, definitions tool, and broker-loss
-  lab phase; the end-to-end digest is `Blocked`/`Unverified` until PLAT-005
-  MinIO, and a live three-VM result is `Unverified` in this environment
+  lab phase; the end-to-end digest is `Measured` only after a successful
+  `tools/verify.sh`, and a live three-VM result is `Unverified` here
 - Issue: [#1117](https://github.com/quant-rule/quant-rule/issues/1117)
 - Claim type: Behaviour Claim
 - Related: [ADR-HA](../../adr/2026-11-22/1082-ha-deployment-profile.md),
@@ -261,9 +261,10 @@ was confirmed before the loss through `rabbitmq:5671`, and restores with
 the app `/health`/`/ready` path, and writes value-free evidence as `Simulated HA`
 at the queue level; `--skip-queue` leaves the row `Unverified`. The probe queue
 `qr.lab.queue-probe` is durable, lab-only, and empty after a successful consume.
-The end-to-end canonical digest remains `Blocked`/`Unverified` until PLAT-005
-configures MinIO; a queue-only test does not prove the run digest. `Real HA` is
-HA-014.
+The end-to-end canonical digest is `Measured` only after `tools/verify.sh`
+succeeds; a queue-only test does not prove the run digest, so it is otherwise
+`Unverified` or `Blocked`; the MinIO phase follows with its own probe. `Real HA`
+is HA-014.
 
 ## 11. Verification
 

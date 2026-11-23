@@ -5,17 +5,23 @@
 //! and secret mounts; their configuration bodies live in [`super::stateful`].
 //! The RabbitMQ unit carries its PLAT-004 config, plugin list, cookie, PKI, and
 //! data/definitions directories; its configuration body lives in
-//! [`super::queue`]. MinIO, Prometheus, Grafana, Loki, and Alertmanager remain
-//! pinned skeletons for PLAT-005/006. Every unit attaches to the encrypted
-//! overlay, publishes no port, and keeps its data on a host-local path.
+//! [`super::queue`]. The MinIO unit carries its PLAT-005 config, PKI, and root
+//! secret files; its configuration body lives in [`super::minio`]. Prometheus,
+//! Grafana, Loki, and Alertmanager remain pinned skeletons for PLAT-006. Every
+//! unit attaches to the encrypted overlay, publishes no port, and keeps its data
+//! on a host-local path.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use crate::descriptor::v3::{Descriptor, Watchdog};
 use crate::error::Error;
-use crate::validate::secrets::STATEFUL_SECRETS;
+use crate::validate::secrets::{MINIO_SECRETS, STATEFUL_SECRETS};
 
+use super::minio::{
+    MINIO_CERTS_TARGET, MINIO_CONFIG_TARGET, MINIO_PORT, MINIO_ROOT_PASSWORD_FILE,
+    MINIO_ROOT_USER_FILE,
+};
 use super::queue::{
     RABBITMQ_CONFIG_TARGET, RABBITMQ_COOKIE_TARGET, RABBITMQ_DATA_PKI, RABBITMQ_DATA_TARGET,
     RABBITMQ_DEFINITIONS_TARGET, RABBITMQ_PKI_TARGET, RABBITMQ_PLUGINS_TARGET,
@@ -43,6 +49,16 @@ auth=\"patroni:$$(cat /run/secrets/patroni_rest_password)\"\n\
 encoded=$$(printf '%s' \"$$auth\" | base64 | tr -d '\\n')\n\
 sed \"s|__PATRONI_REST_AUTH__|$$encoded|g\" /usr/local/etc/haproxy/haproxy.cfg > /tmp/haproxy.cfg\n\
 exec haproxy -W -db -f /tmp/haproxy.cfg";
+
+/// The MinIO command. It exports the root credentials from the mounted files
+/// (never an environment value in the descriptor), sources the non-secret
+/// config, and starts the server with the TLS certificate directory.
+const MINIO_COMMAND: &str = "set -eu\n\
+umask 077\n\
+export MINIO_ROOT_USER=\"$$(cat /run/secrets/minio_root_user)\"\n\
+export MINIO_ROOT_PASSWORD=\"$$(cat /run/secrets/minio_root_password)\"\n\
+. /etc/minio/minio.conf\n\
+exec minio server --certs-dir /certs";
 
 /// Write `infra/<host>.yaml` for every host that owns a unit.
 pub fn render(
@@ -231,6 +247,7 @@ fn host_units(descriptor: &Descriptor) -> BTreeMap<String, Vec<Unit>> {
     }
     let database_host = descriptor.endpoints.database.host.clone();
     let queue_host = descriptor.endpoints.queue.host.clone();
+    let object_host = descriptor.endpoints.object_store.host.clone();
     for host in &descriptor.stateful.haproxy.nodes {
         let mut haproxy = unit(
             descriptor,
@@ -253,6 +270,7 @@ fn host_units(descriptor: &Descriptor) -> BTreeMap<String, Vec<Unit>> {
                 format!("haproxy-{host}"),
                 database_host.clone(),
                 queue_host.clone(),
+                object_host.clone(),
             ],
         );
         haproxy.command = vec![
@@ -355,7 +373,6 @@ fn host_units(descriptor: &Descriptor) -> BTreeMap<String, Vec<Unit>> {
         ];
         hosts.entry(host.clone()).or_default().push(rabbitmq);
     }
-    let object_host = descriptor.endpoints.object_store.host.clone();
     for (index, host) in descriptor.stateful.minio.nodes.iter().enumerate() {
         let drives = descriptor
             .stateful
@@ -374,22 +391,60 @@ fn host_units(descriptor: &Descriptor) -> BTreeMap<String, Vec<Unit>> {
         }
         volumes.push(volume(
             "/etc/quantrule/minio/minio.conf",
-            "/etc/minio/minio.conf",
+            MINIO_CONFIG_TARGET,
             true,
         ));
-        volumes.push(volume(
-            "/etc/quantrule/pki/minio",
-            "/etc/quantrule/pki",
-            true,
-        ));
-        hosts.entry(host.clone()).or_default().push(unit(
+        volumes.push(volume("/etc/quantrule/pki/minio", MINIO_CERTS_TARGET, true));
+        for name in MINIO_SECRETS {
+            volumes.push(volume(
+                format!("/etc/quantrule/secrets/{name}"),
+                format!("/run/secrets/{name}"),
+                true,
+            ));
+        }
+        let service = format!("minio-{host}");
+        let mut minio = unit(
             descriptor,
-            "minio",
+            &service,
             "minio",
             host,
             volumes,
-            vec![object_host.clone()],
-        ));
+            vec![format!("minio-{host}")],
+        );
+        // Compose adds the service key as an implicit alias. The key is unique
+        // per host so the shared front-door name cannot appear on a node.
+        minio.container_name = format!("quantrule-minio-{host}");
+        minio.hostname = Some(format!("minio-{host}"));
+        minio.environment.insert(
+            "MINIO_CONFIG_ENV_FILE".to_owned(),
+            MINIO_CONFIG_TARGET.to_owned(),
+        );
+        minio.environment.insert(
+            "MINIO_SERVER_URL".to_owned(),
+            format!(
+                "{}://{}:{}",
+                descriptor.endpoints.object_store.scheme,
+                descriptor.endpoints.object_store.host,
+                MINIO_PORT
+            ),
+        );
+        minio
+            .environment
+            .insert("MINIO_BROWSER".to_owned(), "off".to_owned());
+        minio.environment.insert(
+            "MINIO_ROOT_USER_FILE".to_owned(),
+            MINIO_ROOT_USER_FILE.to_owned(),
+        );
+        minio.environment.insert(
+            "MINIO_ROOT_PASSWORD_FILE".to_owned(),
+            MINIO_ROOT_PASSWORD_FILE.to_owned(),
+        );
+        minio.command = vec![
+            "/bin/sh".to_owned(),
+            "-c".to_owned(),
+            MINIO_COMMAND.to_owned(),
+        ];
+        hosts.entry(host.clone()).or_default().push(minio);
     }
 
     for (unit_name, image_key, host, volumes) in [
@@ -552,7 +607,7 @@ fn host_yaml(descriptor: &Descriptor, host: &str, units: &[Unit]) -> String {
         .with(
             "x-quantrule",
             Yaml::map()
-                .with("owner", Yaml::string("PLAT-003/PLAT-004"))
+                .with("owner", Yaml::string("PLAT-003/PLAT-004/PLAT-005"))
                 .with("profile", Yaml::string(descriptor.profile.as_str()))
                 .with("evidence", Yaml::string(evidence_tier(descriptor.profile)))
                 .with(
@@ -562,7 +617,7 @@ fn host_yaml(descriptor: &Descriptor, host: &str, units: &[Unit]) -> String {
                 .with(
                     "platform",
                     Yaml::string(
-                        "keepalived is PLAT-002; Patroni, etcd, and HAProxy are configured by PLAT-003; RabbitMQ is PLAT-004; MinIO and observability remain PLAT-005/006",
+                        "keepalived is PLAT-002; Patroni, etcd, and HAProxy are configured by PLAT-003; RabbitMQ is PLAT-004; MinIO is PLAT-005; observability remains PLAT-006",
                     ),
                 ),
         )
@@ -658,6 +713,7 @@ mod tests {
         assert!(haproxy.contains("\"haproxy-edge-1\""), "{haproxy}");
         assert!(haproxy.contains("\"postgres\""), "{haproxy}");
         assert!(haproxy.contains("\"rabbitmq\""), "{haproxy}");
+        assert!(haproxy.contains("\"minio\""), "{haproxy}");
         assert!(
             haproxy.contains("/run/secrets/patroni_rest_password"),
             "{haproxy}"
@@ -740,11 +796,59 @@ mod tests {
 
     #[test]
     fn the_minio_drive_counts_are_rendered() {
-        let units = host_units(&descriptor());
+        let descriptor = descriptor();
+        let units = host_units(&descriptor);
         for host in ["infra-1", "infra-2", "infra-3", "infra-4"] {
-            let text = host_yaml(&descriptor(), host, &units[host]);
+            let text = host_yaml(&descriptor, host, &units[host]);
+            assert!(
+                text.contains(&format!("\n  minio-{host}:\n")),
+                "{host}: {text}"
+            );
             assert!(text.contains("/data1"), "{host}: {text}");
             assert!(!text.contains("/data2"), "{host}: {text}");
+        }
+        let lab: Descriptor =
+            serde_json::from_str(include_str!("../../../../deploy/v3/deploy.lab.json"))
+                .expect("v3 lab");
+        let lab_units = host_units(&lab);
+        for host in ["lab-1", "lab-2", "lab-3"] {
+            let text = host_yaml(&lab, host, &lab_units[host]);
+            assert!(text.contains("/data2"), "{host}: {text}");
+        }
+    }
+
+    #[test]
+    fn the_minio_unit_has_a_unique_alias_certs_and_root_files() {
+        let descriptor = descriptor();
+        let units = host_units(&descriptor);
+        let text = host_yaml(&descriptor, "infra-1", &units["infra-1"]);
+        for expected in [
+            "\n  minio-infra-1:\n",
+            "hostname: \"minio-infra-1\"",
+            "\"minio-infra-1\"",
+            "command:",
+            "MINIO_CONFIG_ENV_FILE: \"/etc/minio/minio.conf\"",
+            "MINIO_SERVER_URL: \"https://minio:9000\"",
+            "MINIO_BROWSER: \"off\"",
+            "MINIO_ROOT_USER_FILE: \"/run/secrets/minio_root_user\"",
+            "MINIO_ROOT_PASSWORD_FILE: \"/run/secrets/minio_root_password\"",
+            "/etc/quantrule/minio/minio.conf",
+            "/etc/quantrule/pki/minio",
+            "/etc/quantrule/secrets/minio_root_user",
+            "/etc/quantrule/secrets/minio_root_password",
+            "/srv/quantrule/minio/infra-1/drive1",
+            "--certs-dir /certs",
+            "exec minio server",
+        ] {
+            assert!(text.contains(expected), "{expected}: {text}");
+        }
+        assert!(!text.contains("ports:"), "{text}");
+        assert!(!text.contains("\"minio\""), "{text}");
+        assert!(!text.contains("9001"), "{text}");
+        let edge = host_yaml(&descriptor, "edge-1", &units["edge-1"]);
+        assert!(edge.contains("\"minio\""), "{edge}");
+        for secret in ["minio_root_user", "minio_root_password"] {
+            assert!(!edge.contains(secret), "{secret}: {edge}");
         }
     }
 

@@ -17,6 +17,7 @@
 #   deploy/v3/test.sh --confirm --skip-deploy
 #   deploy/v3/test.sh --confirm --skip-database
 #   deploy/v3/test.sh --confirm --skip-queue
+#   deploy/v3/test.sh --confirm --skip-object
 #
 # Environment:
 #   DESCRIPTOR             descriptor path (default deploy/v3/deploy.example.json)
@@ -55,8 +56,10 @@ confirm=0
 skip_deploy=0
 skip_database=0
 skip_queue=0
+skip_object=0
 database_status="Unverified"
 queue_status="Unverified"
+object_status="Unverified"
 
 usage() {
   awk 'NR == 1 { next } /^#/ { sub(/^# ?/, ""); print; next } { exit }' "${BASH_SOURCE[0]}"
@@ -81,6 +84,8 @@ unverified() {
 . "$script_dir/failover.sh"
 # shellcheck source=deploy/v3/queue-failover.sh
 . "$script_dir/queue-failover.sh"
+# shellcheck source=deploy/v3/minio-failover.sh
+. "$script_dir/minio-failover.sh"
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -102,6 +107,10 @@ while [ $# -gt 0 ]; do
       ;;
     --skip-queue)
       skip_queue=1
+      shift
+      ;;
+    --skip-object)
+      skip_object=1
       shift
       ;;
     --descriptor)
@@ -150,7 +159,12 @@ ha: 19. queue preflight: lab-single-host, SSH all brokers, three running nodes, 
 ha: 20. queue baseline: app /health /ready, optional digest, live definitions verify, confirmed publish on qr.lab.queue-probe
 ha: 21. queue loss: docker stop the quorum leader; poll two running nodes, a new leader, all queues quorum, no alarms; consume the acknowledged publish and recheck the app
 ha: 22. queue restore: docker start; three running nodes, quorum, second confirmed publish; digest equal when measured; full check; value-free evidence
-ha: 23. --skip-queue leaves the queue row Unverified, never a pass; the end-to-end digest stays Blocked/Unverified until PLAT-005 MinIO
+ha: 23. --skip-queue leaves the queue row Unverified, never a pass; the end-to-end digest is Measured only when tools/verify.sh succeeds, otherwise Unverified or Blocked
+ha: 24. object preflight: lab-single-host, three MinIO nodes, six drives, EC:3, one-node-loss write quorum, mc admin info all nodes/drives with zero healing, bucket/versioning, app /health /ready
+ha: 25. object baseline: write the lab probe through https://minio:9000 with qr_app, record its SHA-256, read it back; optional tools/verify.sh digest
+ha: 26. object loss: docker stop the chosen MinIO node; reduced mc admin info; read the probe through minio:9000 and compare; app check; digest comparison
+ha: 27. object restore: docker start; wait for three nodes/all drives; bounded mc admin heal -r qr/quantrule; zero healing; probe hash; full check; value-free Simulated HA evidence
+ha: 28. --skip-object leaves the object row Unverified; the end-to-end digest is Measured only after tools/verify.sh succeeds; Real HA is HA-014
 ha: evidence: Simulated HA for lab-single-host; Real HA is HA-014 only
 ha: this plan is not evidence
 PLAN
@@ -804,6 +818,14 @@ else
   queue_status="Simulated HA"
 fi
 
+if [ "$skip_object" -eq 1 ]; then
+  say "object: skipped (--skip-object); object-store row Unverified"
+else
+  say "object: preflight, baseline probe, node stop, probe survival, restore, heal, evidence"
+  object_failover
+  object_status="Simulated HA"
+fi
+
 say "check: full remote/overlay after restore"
 if [ -f "$out/stateful-manifest.json" ]; then
   qr_deploy check "$descriptor" --remote docker --overlay --out "$out" \
@@ -812,5 +834,9 @@ else
   qr_deploy check "$descriptor" --remote docker --overlay \
     || unverified "the full check failed after restore"
 fi
-say "summary: $evidence; worker/manager/ingress; database $database_status; queue $queue_status"
-say "end-to-end canonical digest: ${q_digest_status:-Unverified} (PLAT-005 MinIO); Real HA is HA-014"
+digest_status=${o_digest_status:-Unverified}
+if [ "$skip_object" -eq 1 ]; then
+  digest_status="Unverified"
+fi
+say "summary: $evidence; worker/manager/ingress; database $database_status; queue $queue_status; object_store $object_status"
+say "end-to-end canonical digest: $digest_status; Real HA is HA-014"

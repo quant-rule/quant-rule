@@ -95,6 +95,11 @@ fn expected_files(descriptor: &Descriptor) -> Vec<String> {
         files.push(format!("infra/{host}.yaml"));
     }
     files.push("rabbitmq-enabled_plugins".to_owned());
+    for host in &descriptor.stateful.minio.nodes {
+        files.push(format!("minio-{host}.conf"));
+        files.push(format!("infra/{host}.yaml"));
+    }
+    files.push("minio-policy.json".to_owned());
     files.push("stateful-manifest.json".to_owned());
     for name in [
         "pki/database-ca.crt",
@@ -109,6 +114,9 @@ fn expected_files(descriptor: &Descriptor) -> Vec<String> {
         "pki/rabbitmq/ca.crt",
         "pki/rabbitmq/server.crt",
         "pki/rabbitmq/server.key",
+        "pki/minio/public.crt",
+        "pki/minio/private.key",
+        "pki/minio/CAs/ca.crt",
     ] {
         files.push(name.to_owned());
     }
@@ -236,11 +244,12 @@ fn manifest_rows(descriptor: &Descriptor, out: Option<&Path>) -> Vec<CheckRow> {
         let source = entry["source"].as_str().unwrap_or_default();
         let scope = entry["scope"].as_str().unwrap_or_default();
         let mode = entry["mode"].as_str().unwrap_or_default();
-        let expected = if source.ends_with(".key") || scope != "pki" {
-            "600"
-        } else {
-            "644"
-        };
+        let expected =
+            if source.ends_with(".key") || (scope != "pki" && source != "minio-policy.json") {
+                "600"
+            } else {
+                "644"
+            };
         if mode != expected {
             mode_issues.push(format!("{source} is mode {mode}; expected {expected}"));
         }
@@ -250,7 +259,7 @@ fn manifest_rows(descriptor: &Descriptor, out: Option<&Path>) -> Vec<CheckRow> {
             "stateful",
             "manifest",
             "modes",
-            "configs and secrets 600; public CA and certificates 644",
+            "configs and secrets 600; public CA, certificates, and the bucket policy 644",
         ));
     } else {
         rows.push(CheckRow::failed(
@@ -300,8 +309,18 @@ fn expected_sources(descriptor: &Descriptor) -> Vec<String> {
         sources.push(format!("rabbitmq-{host}.conf"));
     }
     sources.push("rabbitmq-enabled_plugins".to_owned());
+    for host in &descriptor.stateful.minio.nodes {
+        sources.push(format!("minio-{host}.conf"));
+    }
+    sources.push("minio-policy.json".to_owned());
     for secret in stateful::STATEFUL_SECRETS {
         sources.push(format!("secrets/{secret}"));
+    }
+    for secret in stateful::MINIO_SECRETS {
+        sources.push(format!("secrets/{secret}"));
+    }
+    for name in ["object_store_access_key", "object_store_secret_key"] {
+        sources.push(format!("secrets/{name}"));
     }
     for name in [
         "pki/database-ca.crt",
@@ -316,6 +335,9 @@ fn expected_sources(descriptor: &Descriptor) -> Vec<String> {
         "pki/rabbitmq/ca.crt",
         "pki/rabbitmq/server.crt",
         "pki/rabbitmq/server.key",
+        "pki/minio/public.crt",
+        "pki/minio/private.key",
+        "pki/minio/CAs/ca.crt",
     ] {
         sources.push(name.to_owned());
     }

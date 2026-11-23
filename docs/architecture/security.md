@@ -1,6 +1,6 @@
 # Security
 
-- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); multi-host overlay added 2026-11-20; internal TLS added 2026-11-23 (#1108); PLAT-002 ingress, PLAT-003 Patroni/etcd/HAProxy, and PLAT-004 RabbitMQ checks/definitions added 2026-11-23; approved 2026-11-12
+- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); multi-host overlay added 2026-11-20; internal TLS added 2026-11-23 (#1108); PLAT-002 ingress, PLAT-003 Patroni/etcd/HAProxy, PLAT-004 RabbitMQ, and PLAT-005 MinIO object bootstrap/check rows/node-loss lab added 2026-11-23; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Decision: [`ADR-2026-11-12-03`](../adr/2026-11-12/03-single-principal-no-accounts.md)
 - Claim type: Behaviour Claim
@@ -16,8 +16,7 @@ The host and its container network are trusted. The public internet is not.
 | LAN / internet | **no** | only the gateway port, and only behind a gate |
 
 There is no account authentication, by decision. A configured bearer token is a
-shared-secret gate, not a principal, and there is no application-level user
-isolation.
+shared-secret gate, not a principal; there is no application-level user isolation.
 
 ## 2. Remote exposure is a network problem
 
@@ -64,12 +63,11 @@ client re-exports it. Never use `make up` after `make remote` on a reachable por
 ### 2.1 Secret files
 
 Application secrets are files under `/run/secrets`, named by a `<NAME>_FILE`
-variable; a plain secret variable is a startup error. The contract and rotation
-steps are in [file-backed secrets](../config/2026-11-23/secret-files.md). The S3
-client uses only the two file credentials, never the AWS default chain. The
-entrypoint stages the mounts for UID 10001 and drops privileges. Postgres, MinIO
-and RabbitMQ keep their own infrastructure bootstrap variables; an application
-container never receives them.
+variable; a plain secret variable is a startup error. The contract is
+[file-backed secrets](../config/2026-11-23/secret-files.md). The S3 client uses
+only the two file credentials, never the AWS default chain; the entrypoint
+stages mounts for UID 10001 and drops privileges. Infrastructure bootstrap
+variables never reach an application container.
 
 ### 2.2 Client token handling
 
@@ -100,7 +98,9 @@ published internal port is a defect, not a workaround. Postgres, MinIO, and
 RabbitMQ bind only to the private overlay, use non-default credentials, and
 require TLS; RabbitMQ has no plaintext listener, its Erlang cookie is copied
 only to the three brokers, and definitions are stripped of users/permissions.
-The CA model is [internal TLS](../config/2026-11-23/internal-tls.md).
+MinIO keeps root files on MinIO hosts only, gives the app a least-privilege
+`qr_app` policy, never mounts root into an app, and is checked at the app path,
+manifest hosts, and leaf; the lab proves one node loss keeps writes. CA: [internal TLS](../config/2026-11-23/internal-tls.md).
 
 Residual risks accepted for v1:
 
@@ -108,11 +108,11 @@ Residual risks accepted for v1:
   cannot reach another database; the owner URL is confined to the migration
   job. v2 still uses one Postgres password for every role and shares the MinIO
   root credentials and queue user, so a compromised service host can read all
-  four databases and the bucket.
+  four databases and the bucket. v3 separates MinIO root from `qr_app`, but the
+  app object credentials remain shared by six consumers.
 - PostgreSQL and RabbitMQ do not request client certificates, so a peer with a
-  credential and the CA bundle can connect; etcd does use mTLS. RabbitMQ's Erlang
-  distribution is not TLS and relies on the encrypted overlay. Internal HTTP has
-  no service authentication: an overlay host can impersonate any service.
+  credential and the CA bundle can connect; etcd uses mTLS. RabbitMQ's Erlang
+  distribution is not TLS, and internal HTTP has no service authentication.
 - The overlay provides encryption and host authentication, not service authentication; route a client VPN peer to the gateway only.
 - v2 `qr-deploy check` compares the reported digest; v3 `--remote docker` reads the running service image and read-only node/overlay state.
 - `/ready` and `/metrics` are unauthenticated; `/ready` is network-gated and `/metrics` is internal.
@@ -131,8 +131,8 @@ Every rejection returns a code a client can act on and a message a human can rea
 
 ## 4. Data at rest
 
-- Candle and artifact bytes live in object storage; metadata in Postgres.
-- Volumes are local; backup archives contain candle data and are sensitive.
+- Candle and artifact bytes live in object storage; metadata in Postgres; volumes
+  are local and backup archives contain sensitive candle data.
 - No secret is committed or logged; application secrets are files, never
   environment values. The PKI directory is Git-ignored; definitions are stored
   stripped of credentials, mode 600, never in Git.

@@ -302,11 +302,23 @@ fn a_haproxy_unit_without_the_postgres_alias_fails() {
 }
 
 #[test]
+#[ignore = "rewrites the checked-in stateful check fixture"]
+fn regenerate_the_stateful_check_fixture() {
+    let rows = rows(&descriptor(), None, &FakeCertificates::valid());
+    let actual: String = rows.iter().map(row_text).collect();
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/check-v3/stateful.txt");
+    std::fs::write(path, actual).expect("write the stateful fixture");
+}
+
+#[test]
 fn the_report_carries_no_fixture_secret_value() {
     let mut report = CheckReport::new("swarm-ha", "HA profile (unverified)", "image");
     append(&mut report, &descriptor(), None, &FakeCertificates::valid());
     let text = report.render();
-    for secret in stateful::STATEFUL_SECRETS {
+    for secret in stateful::STATEFUL_SECRETS
+        .into_iter()
+        .chain(stateful::MINIO_SECRETS)
+    {
         let value =
             std::fs::read_to_string(format!("../deploy/v3/secrets/{secret}")).unwrap_or_default();
         let value = value.trim();

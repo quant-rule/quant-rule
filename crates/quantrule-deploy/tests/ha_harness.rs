@@ -81,7 +81,7 @@ fn the_plan_names_the_database_failover_and_the_skip_opt_out() {
         "qr.lab.queue-probe",
         "queue restore",
         "--skip-queue",
-        "PLAT-005 MinIO",
+        "Unverified",
         "Real HA is HA-014",
     ] {
         assert!(printed.contains(expected), "{expected}: {printed}");
@@ -193,7 +193,7 @@ fn the_queue_script_keeps_the_evidence_scoped_and_value_free() {
         "scope: $scope",
         "queue_level: \"Simulated HA\"",
         "end_to_end: $end_to_end",
-        "Blocked/Unverified until PLAT-005 MinIO",
+        "Unverified until the MinIO phase and tools/verify.sh succeed",
         "HA-014 only",
         "users/permissions stripped",
         "q_cleanup",

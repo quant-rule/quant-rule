@@ -61,6 +61,18 @@ fn a_missing_or_unknown_infra_pin_is_refused() {
     assert!(error.to_string().contains("images.etcd"), "{error}");
 
     let mut value = sample();
+    value["images"]
+        .as_object_mut()
+        .expect("images")
+        .remove("minio_client");
+    let error = reject(value);
+    assert!(
+        error.to_string().contains("deploy.images.missing"),
+        "{error}"
+    );
+    assert!(error.to_string().contains("images.minio_client"), "{error}");
+
+    let mut value = sample();
     value["images"]["surprise"] = serde_json::json!({
         "reference": "example/surprise",
         "digest": format!("sha256:{}", "4".repeat(64)),
@@ -290,12 +302,84 @@ fn minio_needs_four_drives_and_one_count_per_node() {
 }
 
 #[test]
-fn the_lab_may_run_minio_on_three_vms() {
+fn the_lab_may_run_minio_on_three_vms_with_two_drives_each() {
+    let mut value = sample();
+    value["profile"] = serde_json::json!("lab-single-host");
+    value["stateful"]["minio"]["nodes"] = serde_json::json!(["infra-1", "infra-2", "infra-3"]);
+    value["stateful"]["minio"]["drives"] = serde_json::json!([2, 2, 2]);
+    value["stateful"]["minio"]["parity"] = serde_json::json!("EC:3");
+    let lab = descriptor(value);
+    validate(&lab).expect("the lab uses three MinIO VMs with two drives each");
+    assert_eq!(minio_parity(&lab).expect("parity"), 3);
+}
+
+#[test]
+fn minio_parity_defaults_to_auto_and_keeps_the_write_quorum() {
+    let sample_descriptor = valid(); // explicit EC:2
+    assert_eq!(minio_parity(&sample_descriptor).expect("parity"), 2);
+
+    let mut value = sample();
+    value["stateful"]["minio"]
+        .as_object_mut()
+        .expect("minio")
+        .remove("parity");
+    let auto = descriptor(value);
+    assert_eq!(auto.stateful.minio.parity, "auto");
+    assert_eq!(minio_parity(&auto).expect("auto parity"), 2);
+
     let mut value = sample();
     value["profile"] = serde_json::json!("lab-single-host");
     value["stateful"]["minio"]["nodes"] = serde_json::json!(["infra-1", "infra-2", "infra-3"]);
     value["stateful"]["minio"]["drives"] = serde_json::json!([2, 1, 1]);
-    validate(&descriptor(value)).expect("the lab may use three MinIO VMs");
+    let error = reject(value);
+    assert!(
+        error.to_string().contains("deploy.stateful.minio.parity"),
+        "{error}"
+    );
+    assert!(error.to_string().contains("write quorum"), "{error}");
+
+    let mut value = sample();
+    value["profile"] = serde_json::json!("lab-single-host");
+    value["stateful"]["minio"]["nodes"] = serde_json::json!(["infra-1", "infra-2", "infra-3"]);
+    value["stateful"]["minio"]["drives"] = serde_json::json!([2, 2, 2]);
+    value["stateful"]["minio"]["parity"] = serde_json::json!("EC:3");
+    let lab = descriptor(value);
+    assert_eq!(minio_parity(&lab).expect("lab parity"), 3);
+}
+
+#[test]
+fn minio_parity_is_bounded_by_the_drive_count_and_the_data_blocks() {
+    for (parity, code) in [
+        ("EC:0", "at least one parity drive"),
+        ("EC:1", "write quorum"),
+        ("EC:4", "data blocks"),
+        ("nope", "auto or EC:<n>"),
+        ("EC:x", "auto or EC:<n>"),
+    ] {
+        let mut value = sample();
+        value["stateful"]["minio"]["parity"] = serde_json::json!(parity);
+        let error = reject(value);
+        assert!(
+            error.to_string().contains("deploy.stateful.minio.parity"),
+            "{parity}: {error}"
+        );
+        assert!(error.to_string().contains(code), "{parity}: {error}");
+    }
+}
+
+#[test]
+fn object_replication_must_be_false_until_ha013_lands() {
+    let mut value = sample();
+    value["backup"]["object_replication"] = serde_json::json!(true);
+    let error = reject(value);
+    assert!(
+        error
+            .to_string()
+            .contains("deploy.backup.object_replication"),
+        "{error}"
+    );
+    assert!(error.to_string().contains("HA-013"), "{error}");
+    assert!(!valid().backup.object_replication);
 }
 
 #[test]
@@ -707,19 +791,6 @@ fn patroni_is_a_required_infrastructure_pin() {
         "{error}"
     );
     assert!(error.to_string().contains("images.patroni"), "{error}");
-}
-
-#[test]
-fn swarm_ha_replicates_objects() {
-    let mut value = sample();
-    value["backup"]["object_replication"] = serde_json::json!(false);
-    let error = reject(value);
-    assert!(
-        error
-            .to_string()
-            .contains("deploy.backup.object_replication"),
-        "{error}"
-    );
 }
 
 #[test]

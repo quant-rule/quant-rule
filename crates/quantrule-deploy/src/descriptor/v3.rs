@@ -295,6 +295,18 @@ pub struct MinioStateful {
     pub nodes: Vec<String>,
     /// The drives per node, in node order; the total must be at least four.
     pub drives: Vec<u32>,
+    /// The erasure-coding parity: `auto` or `EC:<n>`.
+    ///
+    /// `auto` derives half the total drive count, which keeps the write quorum
+    /// after one node loss for the reference and lab layouts. An explicit value
+    /// is validated against the same quorum rule.
+    #[serde(default = "default_minio_parity")]
+    pub parity: String,
+}
+
+/// The documented parity default: derive it from the drive layout.
+fn default_minio_parity() -> String {
+    "auto".to_owned()
 }
 
 /// The pinned stateful units. There is no reschedule field by design.
@@ -343,7 +355,11 @@ pub struct Backup {
     pub pitr: bool,
     /// The retention window in days.
     pub retention_days: u64,
-    /// Whether object storage is replicated.
+    /// Whether a second-site object copy exists.
+    ///
+    /// False in v1.5.10: PLAT-005 owns local erasure and versioning, and HA-013
+    /// owns off-host/archive copies, restore drills, and any second-site
+    /// replication. A true value would be a replication claim without a site.
     pub object_replication: bool,
 }
 

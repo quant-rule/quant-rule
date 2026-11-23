@@ -3,9 +3,10 @@
 - Date: 2026-11-22 (UTC)
 - Status: Current for schema, validation, render, check, the remote/overlay
   inspector, the PLAT-001 bootstrap/rolling-update control plane, the PLAT-002
-  cert-mode ingress, the PLAT-003 Patroni/etcd/HAProxy tier, and the PLAT-004
-  RabbitMQ tier (broker, front door, reconnect, check rows, definitions, lab);
-  MinIO and observability remain PLAT-005/006
+  cert-mode ingress, the PLAT-003 Patroni/etcd/HAProxy tier, the PLAT-004
+  RabbitMQ tier (broker, front door, reconnect, check rows, definitions, lab),
+  and the PLAT-005 MinIO tier (erasure, TLS, HAProxy front door, bucket,
+  versioning, least-privilege account, object bootstrap, check rows, node-loss lab); observability remains PLAT-006
 - Claim type: Behaviour Claim
 - Issue: [#1110](https://github.com/quant-rule/quant-rule/issues/1110)
 - Related: [ADR-HA](../../adr/2026-11-22/1082-ha-deployment-profile.md),
@@ -15,6 +16,7 @@
   [ingress](../2026-11-23/ingress.md),
   [Patroni cluster](../2026-11-23/patroni-cluster.md),
   [RabbitMQ cluster](../2026-11-23/rabbitmq-cluster.md),
+  [MinIO cluster](../2026-11-23/minio-cluster.md),
   [secret files](../2026-11-23/secret-files.md),
   [internal TLS](../2026-11-23/internal-tls.md),
   [HA deployment chapter](../../manual/15-ha-deployment.md)
@@ -48,8 +50,8 @@ the other profiles keep `1`.
 ## 2. Shape
 
 The sample is authoritative. This excerpt repeats one host, one database, and
-two services and omits the twelve pinned infrastructure images to show the other
-blocks; the sample lists every pin.
+two services and omits the thirteen pinned infrastructure images to show the
+other blocks; the sample lists every pin.
 
 ```json
 {
@@ -92,10 +94,10 @@ blocks; the sample lists every pin.
     "etcd": { "nodes": ["infra-1", "infra-2", "infra-3"] },
     "haproxy": { "nodes": ["edge-1", "edge-2"] },
     "rabbitmq": { "nodes": ["infra-1", "infra-2", "infra-3"], "quorum": true, "disk_free_limit_mib": 5120, "memory_high_watermark_percent": 60 },
-    "minio": { "nodes": ["infra-1", "infra-2", "infra-3", "infra-4"], "drives": [1, 1, 1, 1] }
+    "minio": { "nodes": ["infra-1", "infra-2", "infra-3", "infra-4"], "drives": [1, 1, 1, 1], "parity": "EC:2" }
   },
   "observability": { "prometheus": { "host": "infra-1" }, "grafana": { "host": "infra-1" }, "loki": { "host": "infra-2" }, "alertmanager": { "host": "infra-2" } },
-  "backup": { "pitr": true, "retention_days": 30, "object_replication": true },
+  "backup": { "pitr": true, "retention_days": 30, "object_replication": false },
   "secrets": {
     "files": {
       "gateway_token": "/etc/quantrule/secrets/gateway_token",
@@ -108,7 +110,7 @@ blocks; the sample lists every pin.
 }
 ```
 
-The sample has eleven hosts: two edge (ingress, gateway, keepalived), two core (data, evidence, simulation), three compute (model, strategy, backtest), and four infrastructure hosts (PostgreSQL, etcd, HAProxy on the edge pair, RabbitMQ, MinIO, observability). Compute hosts span `az1`..`az3`; the four infrastructure hosts span `az1`..`az4`, so four MinIO nodes each contribute one drive in a distinct failure domain. The six HTTP services use `8080`; backtest uses `9090`; no service port is published.
+The sample has eleven hosts: two edge (ingress, gateway, keepalived), two core (data, evidence, simulation), three compute (model, strategy, backtest), and four infrastructure hosts (PostgreSQL, etcd, HAProxy on the edge pair, RabbitMQ, MinIO, observability). Compute hosts span `az1`..`az3`; the four infrastructure hosts span `az1`..`az4`, so four MinIO nodes each contribute one drive in a distinct failure domain with EC:2. The lab uses three VMs, two drives each, EC:3, so one node loss keeps the write quorum. The six HTTP services use `8080`; backtest uses `9090`; no service port is published.
 
 ## 3. Fields
 
@@ -118,7 +120,7 @@ The sample has eleven hosts: two edge (ingress, gateway, keepalived), two core (
 | `profile` | `swarm-ha`, `single-az`, or `lab-single-host`. |
 | `name` | Optional lowercase DNS label; the default stack name is `quantrule`. |
 | `image` | The server image every service runs; `sha256:` digest required. |
-| `images` | Pins for `traefik`, `postgres`, `patroni`, `etcd`, `haproxy`, `keepalived`, `rabbitmq`, `minio`, `prometheus`, `grafana`, `loki`, `alertmanager`; no other key. `postgres` stays for the psql and migration jobs. |
+| `images` | Pins for `traefik`, `postgres`, `patroni`, `etcd`, `haproxy`, `keepalived`, `rabbitmq`, `minio`, `minio_client`, `prometheus`, `grafana`, `loki`, `alertmanager`; no other key. `postgres` stays for the psql and migration jobs; `minio_client` runs the one-shot `mc`. |
 | `network.overlay` | Overlay name; `encrypted` must be true. |
 | `ingress.dns` | Exactly `quantrule.dev`. |
 | `ingress.port` | Exactly `443`; no second public port. |
@@ -133,10 +135,10 @@ The sample has eleven hosts: two edge (ingress, gateway, keepalived), two core (
 | `endpoints.queue.host` | The shared `rabbitmq` alias only; the HAProxy pair serves it. |
 | `databases` | Exactly `gateway`, `catalog`, `evidence`, `simulation`, each with its fixed `qr_*` database, owner role, and app role. |
 | `services` | Exactly `gateway`, `data`, `model`, `strategy`, `backtest`, `evidence`, `simulation`; `replicas`, `hosts`, `port`; no published port. |
-| `stateful` | PostgreSQL, etcd, HAProxy, RabbitMQ, and MinIO nodes; `postgres.watchdog` is `off`, `automatic`, or `required` (default `off`); `synchronous_standby` must be exactly one; RabbitMQ is odd and >=3 with `disk_free_limit_mib` (default 5120) and `memory_high_watermark_percent` (default 60); no `reschedule` field. |
+| `stateful` | PostgreSQL, etcd, HAProxy, RabbitMQ, and MinIO nodes; `postgres.watchdog` is `off`, `automatic`, or `required` (default `off`); `synchronous_standby` must be exactly one; RabbitMQ is odd and >=3 with `disk_free_limit_mib` (default 5120) and `memory_high_watermark_percent` (default 60); MinIO parity is `auto` or `EC:<n>` and must keep the write quorum after one node loss; no `reschedule` field. |
 | `observability` | `prometheus`, `grafana`, `loki`, `alertmanager`, each on a declared host. |
-| `backup` | `pitr` true (configured, not verified); retention 1–3650 days; object replication true for `swarm-ha`. |
-| `secrets.files` | Non-empty raw name-to-absolute-path map; no inline value. The five stateful secrets are required and URL-safe. |
+| `backup` | `pitr` true (configured, not verified); retention 1–3650 days; `object_replication` must be false in v1.5.10 because HA-013 owns off-host/archive and any second-site copy. |
+| `secrets.files` | Non-empty raw name-to-absolute-path map; no inline value. The five stateful secrets, the two MinIO root secrets, and `object_store_access_key`/`object_store_secret_key` are required; the stateful values are URL-safe. |
 
 ## 4. Validation
 
@@ -154,7 +156,8 @@ files and credential quality.
 | Replicas <= distinct hosts and distinct domains in `swarm-ha` and `single-az` | `deploy.service.anti_affinity` |
 | `single-az` keeps host and domain anti-affinity without a three-domain minimum | `deploy.service.anti_affinity` |
 | `swarm.managers` is odd, at least three, distinct, and declared; each is a manager | `deploy.swarm.managers` |
-| PostgreSQL/etcd/RabbitMQ >=3, HAProxy 2, MinIO >=4 in the HA profiles with one drive per node | `deploy.stateful.*` |
+| PostgreSQL/etcd/RabbitMQ >=3, HAProxy 2, MinIO >=4 in the HA profiles with one drive per node; the lab may use 2+ drives per node | `deploy.stateful.*` |
+| MinIO parity is `auto` or `EC:<n>`; it must exceed the largest per-node drive count and satisfy `2 * parity <= total` | `deploy.stateful.minio.parity` |
 | RabbitMQ list is odd, >=3; disk 256–10485760 MiB; memory 10–90% | `deploy.stateful.rabbitmq.nodes`, `.disk_free_limit_mib`, `.memory_high_watermark_percent` |
 | `postgres.synchronous_standby` is exactly one; watchdog is a known mode | `deploy.stateful.postgres.synchronous_standby` |
 | Stateful members use distinct hosts and, in `swarm-ha`, distinct domains | `deploy.stateful.anti_affinity` |
@@ -162,21 +165,21 @@ files and credential quality.
 | CA and secret paths are absolute; no userinfo | `deploy.endpoint.host`, `deploy.file.absolute` |
 | App and every infra unit carry a `sha256:` digest, never a tag or placeholder | `deploy.image.*`, `deploy.images.*` |
 | `secrets.files` is non-empty and names every required secret | `deploy.secrets.*` |
-| The five stateful secrets are present, distinct, strong, and URL-safe; the cookie is 32+ characters | `deploy.secrets.missing`, `deploy.secret.url_safe`, `deploy.secret.default_credential`, `deploy.secret.duplicate_credential`, `deploy.secret.weak_cookie` |
+| The five stateful secrets are present, distinct, strong, and URL-safe; the cookie is 32+ characters and the two MinIO root secrets are strong and distinct | `deploy.secrets.missing`, `deploy.secret.url_safe`, `deploy.secret.default_credential`, `deploy.secret.duplicate_credential`, `deploy.secret.weak_cookie` |
+| `object_store_access_key` is the dedicated `qr_app` user; the secret is strong and distinct | `deploy.secret.object_store_user`, `deploy.secret.default_credential` |
 | `queue_url` names `qr_queue`, the shared `rabbitmq` host, the default `%2f` vhost, and port 5671 | `deploy.secret.queue_user`, `.queue_host`, `.queue_vhost`, `.queue_port` |
 | `--files`: regular, non-symlink, mode 600, <=8 KiB | `deploy.file.*`, `deploy.secret.mode` |
 | `--files`: no default or duplicate role credentials | `deploy.secret.default_credential`, `deploy.secret.duplicate_credential` |
-| Backup PITR, retention, and replication; four observability units | `deploy.backup.*`, `deploy.host.undeclared` |
+| Backup PITR, retention, and the HA-013 replication boundary; four observability units | `deploy.backup.*`, `deploy.host.undeclared` |
 | Unknown field, or a v2-only field in v3 | JSON parse error naming the field |
 
-The required secret names are `queue_url`, `object_store_access_key`,
-`object_store_secret_key`, `<service>_database_url`, and
-`<service>_owner_database_url` for `gateway`, `data`, `evidence`, and
-`simulation`, plus the `auth.gateway_token_secret` and the five stateful
-secrets. The URLs carry `sslmode=verify-full`; every role has its own password.
-The five stateful values are URL-safe and `secrets/manifest.json` records their
-`stateful` scope; `bootstrap.sh` never creates them as app Swarm secrets. The
-Erlang cookie is copied only to the broker hosts.
+The required names are `queue_url`, `object_store_access_key`,
+`object_store_secret_key`, `minio_root_user`, `minio_root_password`, the eight
+`<service>_database_url`/`<service>_owner_database_url` files, the gateway token,
+and the five stateful secrets. The URLs carry `sslmode=verify-full`; every role
+has its own password. The stateful values are `stateful` scope, the MinIO root
+pair is `minio` scope and never an app Swarm secret, and the Erlang cookie goes
+only to brokers while the MinIO root files go only to MinIO hosts.
 
 ## 5. Render
 
@@ -191,20 +194,18 @@ usage errors.
 | Target | Writes |
 |---|---|
 | `swarm` | `stack.yaml`, `quantrule_traefik.yml`, `traefik-dynamic.yml`, `bootstrap.sh`, `jobs/cluster-bootstrap.sh`, `jobs/db-bootstrap.sh`, `jobs/migrate.sh`, `secrets/`, `pki/`, `render.json` |
-| `infra` | `infra/<host>.yaml`, `keepalived-<host>.conf`, `patroni-<host>.yml`, `etcd-<host>.conf.yml`, `haproxy-<host>.cfg`, `rabbitmq-<host>.conf`, `rabbitmq-enabled_plugins`, `stateful-manifest.json`, `secrets/`, `pki/`, `render.json` |
+| `infra` | `infra/<host>.yaml`, `keepalived-<host>.conf`, `patroni-<host>.yml`, `etcd-<host>.conf.yml`, `haproxy-<host>.cfg`, `rabbitmq-<host>.conf`, `rabbitmq-enabled_plugins`, `minio-<host>.conf`, `minio-policy.json`, `stateful-manifest.json`, `secrets/`, `pki/`, `render.json` |
 | `all` | Both sets |
 
-`secrets/` is the one copy of the source `secrets.files` values: one mode-600
-file per name, a `manifest.json` that lists names, paths, and `app`/`stateful`
-scope but never a value or fingerprint, and mode 700 on the directory. `pki/`
-copies the public CA bundles at mode 644, the Postgres, etcd, and RabbitMQ
-server leaves, and the ingress certificate/key in cert mode. The
-`stateful-manifest.json` lists the config, secret, and PKI sources, absolute
-targets, modes, owners, scopes, and a `hosts` selector; broker material is
-listed only for broker hosts. The renderer rejects a path component that
-contains a separator or whitespace, removes only its own known outputs, and
-leaves an operator's unrelated file in `--out` alone. A render is byte-identical
-across repeated runs.
+`secrets/` is the one copy of the source values: one mode-600 file per name and a
+`manifest.json` with names, paths, and `app`/`stateful`/`minio` scope, never a
+value or fingerprint. `pki/` copies the public CA bundles at 644, the Postgres,
+etcd, RabbitMQ, and MinIO server leaves, and the ingress certificate/key in cert
+mode. The `stateful-manifest.json` lists sources, absolute targets, modes,
+owners, scopes, and a `hosts` selector; broker material only for broker hosts,
+MinIO root/config/PKI only for MinIO hosts. The renderer rejects an unsafe path
+component, removes only its own outputs, leaves an operator's file alone, and is
+byte-identical across runs.
 
 `stack.yaml` contains the seven services and one ingress. Every app image is
 `reference@sha256:`; every service sets `QR_MIGRATE=0`, `QR_INTERNAL_ONLY=1`, its
@@ -232,10 +233,12 @@ attachable overlay. The Patroni unit uses `images.patroni`,
 an explicit command, the config/PKI/secret mounts, a unique `patroni-<host>`
 alias, and a `/dev/watchdog` mapping only for `required`. etcd uses
 `--config-file` and a unique alias; HAProxy uses the config, the REST password
-file, and unique plus `postgres` and `rabbitmq` aliases. RabbitMQ uses the
-short hostname, `RABBITMQ_NODENAME`, config/plugin/cookie/PKI/data mounts, the
-cookie install command, no long name, no shared alias, and no published port.
-MinIO/observability remain PLAT-005/006.
+file, and unique plus `postgres`, `rabbitmq`, and `minio` aliases. RabbitMQ uses
+the short hostname, `RABBITMQ_NODENAME`, config/plugin/cookie/PKI/data mounts,
+the cookie install command, no long name, no shared alias, and no published port.
+MinIO uses `hostname: minio-<host>`, a unique key/alias, the root/config/PKI
+mounts, `--certs-dir /certs`, the explicit `MINIO_VOLUMES` list, and no published
+9000/9001 or console. Observability remains PLAT-006.
 
 `bootstrap.sh` runs on a manager: it checks the daemon and manager role,
 creates or verifies the encrypted attachable overlay, creates the external
@@ -244,20 +247,20 @@ secrets/configs (including both Traefik configs) with a
 `.profile`, `.deploy`, per-service, `.ingress`), refuses ambiguity/drain/foreign
 deployment, runs the jobs before the stack, and waits for the pinned digest and
 one 443 port. `--network-only` exits before secrets, configs, labels, jobs, or
-stack; `tools/stateful.sh network` uses it. The five stateful secrets are
-excluded from app Swarm secrets, and no secret value is printed. `tools/swarm.sh`
-wraps validate/render/bootstrap/status/upgrade/rollback/verify and never removes
-a stack, secret, config, or volume. Contract:
+stack; `tools/stateful.sh network` uses it. The five stateful and two MinIO root
+secrets are excluded from app Swarm secrets, and no secret value is printed.
+`tools/swarm.sh` wraps validate/render/bootstrap/status/upgrade/rollback/verify
+and never removes a stack, secret, config, or volume. Contract:
 [swarm-control](../2026-11-23/swarm-control.md).
 
 `jobs/cluster-bootstrap.sh` creates the four databases and eight roles through
-the superuser password file and the `postgres` endpoint, before the schema job.
-`jobs/db-bootstrap.sh` applies each database's schema and grants through its
-**owner** URL, in gateway, data, evidence, simulation order. `jobs/migrate.sh`
-runs the pinned app image once per owner with `--migrate-only`, `QR_MIGRATE=0`,
-`PGSSLMODE=verify-full`, `PGSSLROOTCERT`, and only the owner URL file. The
-cluster job uses the pinned PostgreSQL image because the app image has no
-`psql`; the order is cluster -> db -> migrate -> stack.
+the superuser password file and the `postgres` endpoint. `jobs/db-bootstrap.sh`
+applies each database's schema and grants through its **owner** URL, in gateway,
+data, evidence, simulation order. `jobs/migrate.sh` runs the pinned app image
+once per owner with `--migrate-only`, `QR_MIGRATE=0`, `PGSSLMODE=verify-full`,
+`PGSSLROOTCERT`, and only the owner URL file. The cluster job uses the pinned
+PostgreSQL image because the app image has no `psql`; the order is cluster -> db
+-> migrate -> stack.
 
 `render.json` records the contract, profile, evidence tier, target, stack name,
 the canonical `sha256:` descriptor hash, the pinned image, and the sorted file list; no timestamp.
@@ -273,21 +276,16 @@ stats, the manifest SANs, and the Postgres/etcd certificate SANs through
 `QR_DEPLOY_OPENSSL`. The queue rows check the TLS-only broker, three-node classic
 cluster, alarms, queue default, Prometheus/JSON logs, HAProxy `rabbitmq`/5671,
 the broker unit, the manifest host selector/modes, and the RabbitMQ leaf SANs;
-they stay Docker-free. `--out` or `QR_DEPLOY_OUT` reads the rendered tree;
-without it the configs render in memory and certificates come from the
-descriptor CA. A missing `openssl` is a failed `limited` row.
+they stay Docker-free. The MinIO rows check the exact config/parity/quorum, the
+unique unit and alias, the HAProxy 9000 frontend/backend, the manifest
+hosts/modes, the app URL/`_FILE`/`qr_app` path, and the MinIO leaf SANs. `--out`
+or `QR_DEPLOY_OUT` reads the rendered tree; without it the configs render in
+memory and certificates come from the descriptor CA. A missing `openssl` is a
+failed `limited` row.
 
-`--remote docker` and `--overlay` are read-only opt-ins. The Docker adapter
-runs `docker info`, `node ls`, and `node|network|service inspect`, prints only
-selected fields (Swarm/managers, node labels, overlay encryption, replicas/image,
-443-only ports, task errors, a limited health row), and never prints an
-environment value, secret/config payload, token, or full inspect body.
-`QR_DEPLOY_DOCKER` overrides the executable; a missing object or command error
-is a failed row, and the default check is Docker-free.
-
-`QR_DEPLOY_PROBE_FIXTURE=<json>` maps the three ingress URLs to a recorded
-`status`/`body` or `error`; tests use it without a network, and it is not
-evidence.
+`--remote docker` and `--overlay` are read-only opt-ins; the default check is
+Docker-free, no row prints a secret or inspect body, and a missing object or
+command is a failed row.
 
 ## 7. Token rotation, commands, and compatibility
 
@@ -305,17 +303,17 @@ old stack stays until the checks pass, and rollback restores the previous
 descriptor and image with forward-only migrations.
 ## 8. Evidence boundary
 
-`lab-single-host` proves simulated node failure only. The `ha` tier defaults to
-the lab descriptor, loses one worker, one manager, the VIP, the Patroni primary,
-and one HAProxy, and records a measured RTO, RPO 0, the rejoin, and value-free
-evidence as `Simulated HA`; `--skip-database` leaves the row `Unverified`. The
-queue phase stops the quorum leader, proves two running nodes, a new leader, all
-queues quorum, no alarms, a surviving confirmed publish, and a second publish
-after restore; `--skip-queue` leaves the row `Unverified`. The end-to-end digest
-is `Blocked` until PLAT-005 MinIO; the queue phase is `Simulated HA` at the queue
-level only. `swarm-ha`/`single-az` stay unverified until HA-014 and no output
-says `Real HA`; ingress PLAT-002, stateful PLAT-003, queue PLAT-004, pgBackRest
-HA-013, scrape/alert PLAT-006.
+`lab-single-host` proves simulated node failure only. The `ha` tier loses one
+worker, one manager, the VIP, the Patroni primary, one HAProxy, and one MinIO
+node; it records the measured RTO, RPO 0 where the database path supports it,
+the rejoin, the object write quorum, and value-free `Simulated HA` evidence.
+`--skip-database`/`--skip-queue`/`--skip-object` leave that row `Unverified`.
+The queue phase proves quorum after the leader stops and a confirmed publish
+survives; the MinIO phase stops one node, reads the probe hash through
+`minio:9000`, restores it, runs a bounded heal, and waits for zero healing. The
+end-to-end digest is `Measured` only when `tools/verify.sh` succeeds, otherwise
+`Unverified` or `Blocked`. `swarm-ha`/`single-az` stay unverified until HA-014
+and no output says `Real HA`; PLAT-002 ingress, PLAT-003 stateful, PLAT-004 queue, PLAT-005 MinIO, HA-013 off-host, PLAT-006 scrape.
 
 ## 9. Non-goals
 
@@ -324,7 +322,9 @@ a second public port, or inline secrets. Ingress, keepalived, DNS/TLS,
 certificates, headers, and body limits are in the
 [ingress contract](../2026-11-23/ingress.md). Patroni/etcd/HAProxy is
 [PLAT-003](../2026-11-23/patroni-cluster.md); RabbitMQ is
-[PLAT-004](../2026-11-23/rabbitmq-cluster.md); MinIO/observability are
-PLAT-005/006; signing is PLAT-007; pgBackRest is HA-013; failure evidence is
-HA-014. TLS/CA is in [internal TLS](../2026-11-23/internal-tls.md); secrets and
-rotation are in [file-backed secrets](../2026-11-23/secret-files.md).
+[PLAT-004](../2026-11-23/rabbitmq-cluster.md); MinIO is
+[PLAT-005](../2026-11-23/minio-cluster.md); observability is PLAT-006; signing is
+PLAT-007; pgBackRest, off-host/archive copies, and any second-site replication
+are HA-013; failure evidence is HA-014. TLS/CA is in
+[internal TLS](../2026-11-23/internal-tls.md); secrets and rotation are in
+[file-backed secrets](../2026-11-23/secret-files.md).

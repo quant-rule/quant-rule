@@ -23,22 +23,27 @@ pki/
   etcd/peer.crt .key         etcd peer leaf (serverAuth + clientAuth)
   etcd/client.crt .key       Patroni etcd3 client leaf (clientAuth)
   rabbitmq/server.crt .key   RabbitMQ server leaf; DNS SAN `rabbitmq`
+  minio/public.crt .key      MinIO server leaf; DNS SAN `minio`
+  minio/CAs/ca.crt           MinIO trust bundle
 ```
 
 The renderer reads the Postgres and etcd leaves from the parent directory of
-`endpoints.database.tls_ca` and the RabbitMQ leaf from the parent of
-`endpoints.queue.tls_ca`, copies them to `out/pki/` (the RabbitMQ leaf under
-`pki/rabbitmq/`), and lists them in `stateful-manifest.json` with a per-entry
+`endpoints.database.tls_ca`, the RabbitMQ leaf from the parent of
+`endpoints.queue.tls_ca`, and the MinIO leaf from the parent of
+`endpoints.object_store.tls_ca`, copies them to `out/pki/`, and lists them in
+`stateful-manifest.json` with a per-entry
 `hosts` selector. Private keys must be mode 600; certificates are 644. The same
 Postgres leaf is copied to every Patroni node, so its SAN must include
 `postgres` plus every `patroni-<host>`; the etcd server and peer leaves need every
-`etcd-<host>`; the RabbitMQ leaf needs `rabbitmq` plus every `rabbitmq-<host>`.
+`etcd-<host>`; the RabbitMQ leaf needs `rabbitmq` plus every `rabbitmq-<host>`;
+the MinIO leaf needs `minio` plus every `minio-<host>`.
 `qr-deploy check` queries the rendered or source leaves through
 `QR_DEPLOY_OPENSSL` and fails the stateful certificate row when a name is
 missing. The required sample set is
-`PKI_EXTRA_SANS="patroni-infra-1,patroni-infra-2,patroni-infra-3,etcd-infra-1,etcd-infra-2,etcd-infra-3,rabbitmq-infra-1,rabbitmq-infra-2,rabbitmq-infra-3"`;
-the lab uses `patroni-lab-1..3,etcd-lab-1..3,rabbitmq-lab-1..3`. The tests stage fake `.crt` and
+`PKI_EXTRA_SANS="patroni-infra-1,patroni-infra-2,patroni-infra-3,etcd-infra-1,etcd-infra-2,etcd-infra-3,rabbitmq-infra-1,rabbitmq-infra-2,rabbitmq-infra-3,minio-infra-1,minio-infra-2,minio-infra-3,minio-infra-4"`;
+the lab uses `patroni-lab-1..3,etcd-lab-1..3,rabbitmq-lab-1..3,minio-lab-1..3`. The tests stage fake `.crt` and
 `.key` files in a temporary tree with mode 600; no private key is committed.
 Contracts:
 [`docs/config/2026-11-23/patroni-cluster.md`](../../../docs/config/2026-11-23/patroni-cluster.md)
-and [`docs/config/2026-11-23/rabbitmq-cluster.md`](../../../docs/config/2026-11-23/rabbitmq-cluster.md).
+[`docs/config/2026-11-23/rabbitmq-cluster.md`](../../../docs/config/2026-11-23/rabbitmq-cluster.md),
+and [`docs/config/2026-11-23/minio-cluster.md`](../../../docs/config/2026-11-23/minio-cluster.md).

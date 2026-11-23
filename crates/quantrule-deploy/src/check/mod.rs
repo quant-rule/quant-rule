@@ -8,10 +8,12 @@
 
 mod ingress;
 mod local;
+mod minio;
 mod queue;
 mod remote;
 mod report;
 mod stateful;
+mod text;
 pub mod v2;
 pub mod v3;
 
