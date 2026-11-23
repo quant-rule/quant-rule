@@ -89,6 +89,7 @@ one-shot database bootstrap, and four one-shot migration jobs; see
 | `make scale N=4` | Scale model and backtest when the multi-worker profile is enabled |
 | `make verify` | Submit the two fixture configs through the gateway and print the canonical digest |
 | `make test` / `make gate` | Fast tier / full workspace gate |
+| `make test-composed` / `test-parity` / `test-ha` | Composed, port-parity, and opt-in Swarm HA lab tiers |
 | `make remote` | Write `secrets/bearer_token`, publish only `:8080`, print the token and usage |
 | `make token` | Print a new bearer token; `--out` writes a mode-600 file |
 | `make compose-check` | Validate both Compose files with disposable secrets and PKI |
@@ -314,8 +315,9 @@ run detail. The contract is
 | [`docs/architecture/characteristics.md`](docs/architecture/characteristics.md) | Measurable qualities and fitness functions |
 | [`docs/architecture/deployment.md`](docs/architecture/deployment.md) | How to run it |
 | [`docs/architecture/multi-host.md`](docs/architecture/multi-host.md) | How the six services of the v2 profile run across hosts; v3 adds the seventh |
-| [Deployment v3](docs/config/2026-11-22/deploy-v3.md) | The Swarm HA descriptor, render targets, pinned stateful units, and check |
-| [HA deployment manual](docs/manual/15-ha-deployment.md) | Render, bootstrap, check, and rotate the v3 profile |
+| [Deployment v3](docs/config/2026-11-22/deploy-v3.md) | The Swarm HA descriptor, render targets, pinned stateful units, check, and remote/overlay inspector |
+| [Swarm control plane](docs/config/2026-11-23/swarm-control.md) | Managers, node labels, drift refusal, rolling update, remote check, `ha` tier, and `tools/swarm.sh` |
+| [HA deployment manual](docs/manual/15-ha-deployment.md) | Render, bootstrap, check, upgrade, and rotate the v3 profile |
 | [`docs/architecture/cross-database-consistency.md`](docs/architecture/cross-database-consistency.md) | Outbox, dataset references, reconciliation and tombstones across four databases |
 | [`docs/architecture/observability.md`](docs/architecture/observability.md) | Metrics, JSON logs, request/trace ids, and their non-goals |
 | [User manual](docs/manual/README.md) | Every journey, command, screen, term, and error |

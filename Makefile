@@ -18,7 +18,7 @@ SECRETS_DIR ?= secrets
 PKI_DIR ?= pki
 COMPOSE_ENV = QR_SECRETS_DIR="$(abspath $(SECRETS_DIR))" QR_PKI_DIR="$(abspath $(PKI_DIR))" $(COMPOSE) --env-file "$(abspath $(SECRETS_DIR))/compose.env"
 
-.PHONY: help secrets pki up down reset logs ps scale gate verify test test-fast test-composed test-parity remote token compose-check backup restore dev-web
+.PHONY: help secrets pki up down reset logs ps scale gate verify test test-fast test-composed test-parity test-ha remote token compose-check backup restore dev-web swarm-validate swarm-render swarm-bootstrap swarm-status swarm-upgrade swarm-rollback swarm-verify
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*## "; printf "QuantRule make targets\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -96,6 +96,23 @@ test-composed: ## Run the composed tier against the real stack
 	./tools/test_tiers.sh composed
 test-parity: ## Run the port-parity tier
 	./tools/test_tiers.sh parity
+test-ha: ## Run the opt-in Swarm HA lab (pass ARGS=--plan or ARGS=--confirm)
+	./tools/test_tiers.sh ha $(ARGS)
+
+swarm-validate: ## Validate the v3 HA descriptor and local files
+	./tools/swarm.sh validate
+swarm-render: ## Render the v3 HA stack, infra skeletons, jobs, and bootstrap
+	./tools/swarm.sh render
+swarm-bootstrap: ## Create objects, label nodes, migrate, and deploy on a manager
+	./tools/swarm.sh bootstrap
+swarm-status: ## Show the stack and the nodes labelled for this deployment
+	./tools/swarm.sh status
+swarm-upgrade: ## Snapshot, render, and roll the stack forward
+	./tools/swarm.sh upgrade
+swarm-rollback: ## Redeploy the last snapshot; never removes the stack or data
+	./tools/swarm.sh rollback
+swarm-verify: ## Check the ingress, image digest, and local files
+	./tools/swarm.sh verify
 
 remote: ## Start with only :8080 published and a bearer token
 	QR_SECRETS_DIR="$(abspath $(SECRETS_DIR))" COMPOSE="$(COMPOSE)" ./tools/remote.sh

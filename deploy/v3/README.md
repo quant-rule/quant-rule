@@ -9,7 +9,13 @@ the local contract examples. The contract is
 Swarm stack, the pinned per-host stateful/observability skeletons, the operator
 job scripts, the secret/PKI copies, and `render.json`. The checker validates the
 descriptor, placement, pins, and local files and probes the one HTTPS ingress.
-v2 output is unchanged.
+`tools/swarm.sh` wraps render, bootstrap, status, upgrade, rollback, and verify;
+the control-plane contract is
+[`docs/config/2026-11-23/swarm-control.md`](../../docs/config/2026-11-23/swarm-control.md).
+`qr-deploy check --remote docker --overlay` adds the read-only Swarm, node,
+overlay, service, port, and task rows; the default check stays Docker-free.
+`tools/test_tiers.sh ha` runs the opt-in lab harness in `test.sh`; `--plan` is
+Docker-free. v2 output is unchanged.
 
 ## Validate, render, check
 
@@ -53,5 +59,9 @@ Git preserves the executable bit, not mode 600. After copying, run the
 
 The full shape, field rules, stable `deploy.*` codes, render layout, check
 output, profiles, and evidence boundary are in the contract document. The sample
-uses three compute hosts across `az1`, `az2`, and `az3`; it has etcd and HAProxy
-blocks and a non-empty `secrets.files` map.
+declares eleven hosts, three odd Swarm managers, three compute hosts across
+`az1`..`az3`, four infrastructure hosts across `az1`..`az4`, and four MinIO
+nodes with one drive each. It has etcd and HAProxy blocks and a non-empty
+`secrets.files` map. The stack uses `/health` checks, stop-first when no spare
+slot exists, and a 180 s update monitor; the bootstrap runs the database jobs
+before `docker stack deploy` and refuses secret/config drift.

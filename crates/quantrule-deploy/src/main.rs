@@ -370,7 +370,9 @@ Usage:
 The descriptor is quantrule.deploy/v2 or quantrule.deploy/v3. v2 secrets stay in
 a dotenv file and are referenced as ${NAME}. v3 names secrets.files, renders the
 Swarm stack and pinned per-host unit skeletons, and checks the one HTTPS ingress.
-A lab-single-host profile reports Simulated HA, never Real HA.
+--remote docker and --overlay are explicit read-only Docker opt-ins; set
+QR_DEPLOY_DOCKER to override the docker executable. A lab-single-host profile
+reports Simulated HA, never Real HA.
 
 Exit codes: 0 success, 1 validation or check failure, 2 usage error."
 }

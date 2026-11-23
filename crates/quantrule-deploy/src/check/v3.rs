@@ -137,6 +137,26 @@ impl Probe for FixtureProbe {
 /// [`Error::Invalid`] when the CA or probe fixture cannot be read. Per-service
 /// failures are rows so one bad probe does not hide the others.
 pub fn check(descriptor: &Descriptor, options: CheckOptions) -> Result<CheckReport, Error> {
+    let docker = remote::CommandDocker::from_env();
+    check_with(descriptor, options, &docker)
+}
+
+/// Check a v3 descriptor against an explicit Docker query source.
+///
+/// The production path uses [`remote::CommandDocker`]; tests inject a fake so
+/// the fast tier never needs a daemon. The Docker source is only touched when
+/// the operator opted in.
+///
+/// # Errors
+///
+/// Returns [`Error::Rule`] when the descriptor itself is invalid, or
+/// [`Error::Invalid`] when the CA or probe fixture cannot be read. A failed
+/// remote row is part of the report, not an error.
+pub fn check_with(
+    descriptor: &Descriptor,
+    options: CheckOptions,
+    docker: &dyn remote::DockerQuery,
+) -> Result<CheckReport, Error> {
     local::validate(descriptor)?;
     let mut report = CheckReport::new(
         descriptor.profile.as_str(),
@@ -154,10 +174,10 @@ pub fn check(descriptor: &Descriptor, options: CheckOptions) -> Result<CheckRepo
         )),
     }
     if options.remote_docker {
-        remote::append(&mut report, "remote", "docker", &remote::DockerInspector);
+        remote::append_docker(&mut report, descriptor, docker);
     }
     if options.overlay {
-        remote::append(&mut report, "overlay", "network", &remote::OverlayInspector);
+        remote::append_overlay(&mut report, descriptor, docker);
     }
     Ok(report)
 }

@@ -9,8 +9,7 @@
 
 use crate::descriptor::v3::Descriptor;
 
-use super::swarm::shell_quote;
-use super::{app_image, pinned};
+use super::{app_image, pinned, shell_quote};
 
 /// The four owner migrations, in dependency order.
 const MIGRATIONS: [(&str, &str); 4] = [

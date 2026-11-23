@@ -355,20 +355,12 @@ mod tests {
 
     #[test]
     fn the_minio_drive_counts_are_rendered() {
-        let text = host_yaml(
-            &descriptor(),
-            "infra-1",
-            &host_units(&descriptor())["infra-1"],
-        );
-        assert!(text.contains("/data1"), "{text}");
-        assert!(text.contains("/data2"), "{text}");
-        let text = host_yaml(
-            &descriptor(),
-            "infra-2",
-            &host_units(&descriptor())["infra-2"],
-        );
-        assert!(text.contains("/data1"), "{text}");
-        assert!(!text.contains("/data2"), "{text}");
+        let units = host_units(&descriptor());
+        for host in ["infra-1", "infra-2", "infra-3", "infra-4"] {
+            let text = host_yaml(&descriptor(), host, &units[host]);
+            assert!(text.contains("/data1"), "{host}: {text}");
+            assert!(!text.contains("/data2"), "{host}: {text}");
+        }
     }
 
     #[test]

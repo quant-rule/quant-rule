@@ -1,6 +1,6 @@
 # Highly Available Runtime
 
-- Status: Target for the next release; the evidence leader (HA-006), data active/active (HA-007), runtime drain/readiness/retries/file secrets/token rotation (HA-009), internal TLS for PostgreSQL/RabbitMQ/MinIO (HA-010), and v3 render/check (HA-012) are current; accepted by [ADR-HA](../adr/2026-11-22/1082-ha-deployment-profile.md)
+- Status: Target for the next release; the evidence leader (HA-006), data active/active (HA-007), runtime drain/readiness/retries/file secrets/token rotation (HA-009), internal TLS for PostgreSQL/RabbitMQ/MinIO (HA-010), v3 render/check (HA-012), and the PLAT-001 bootstrap/rolling-update control plane, remote check, and `ha` tier are current; accepted by [ADR-HA](../adr/2026-11-22/1082-ha-deployment-profile.md)
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 
@@ -52,15 +52,13 @@ join or transaction. Model, strategy and backtest have no database.
 
 ## 4. PostgreSQL
 
-- Physical streaming replication at the cluster level; all four databases are
-  replicated together.
-- One primary, two standbys, one synchronous.
-- `synchronous_mode: true`, `synchronous_mode_strict: true`,
-  `synchronous_node_count: 1`, `synchronous_commit: on`.
+- Physical streaming replication; all four databases replicate together.
+- One primary, two standbys, one synchronous; `synchronous_mode` and
+  `synchronous_mode_strict` with `synchronous_node_count: 1`, `synchronous_commit: on`.
 - `pg_rewind`, `wal_log_hints`, replication slots and hot standby.
 - Hardware watchdog where available; Patroni leader key in etcd.
-- HAProxy two replicas, Patroni `/primary` health check, primary-only routing.
-- No read/write splitting in this profile; standbys are failover targets.
+- HAProxy two replicas, Patroni `/primary`, primary-only routing; standbys are
+  failover targets, not read targets.
 - pgBackRest full + differential + WAL to MinIO; PITR restores all four databases.
 
 RPO 0 for committed rows. If no synchronous standby remains, writes block rather
@@ -72,16 +70,15 @@ RabbitMQ:
 
 - Three nodes; run, stage, evidence and dead-letter queues are quorum.
 - Publisher confirms, manual ack, `x-delivery-limit=3`, DLX and a quorum DLQ.
-- `QR_QUEUE_GENERATION` suffixes every queue; definitions export backs up topology, not messages.
-- One broker loss loses no acknowledged message; queues rebuild from run and stage rows.
-- A consumer error reconnects in-process with 1–30 s backoff; a drain is a clean stop.
+- `QR_QUEUE_GENERATION` suffixes every queue; definitions export topology only.
+- One broker loss loses no acknowledged message; queues rebuild from run rows.
+- A consumer error reconnects in-process with 1–30 s backoff; a drain is clean.
 
 MinIO:
 
-- Four nodes/drives, erasure coding, TLS, versioning and replication.
-- Per-service service accounts and bucket policies; no root credentials.
-- Content-addressed keys for datasets, models, packs, signals and runs.
-- One node or drive loss preserves artifact hashes.
+- Four nodes/drives in `az1`..`az4`, erasure coding, TLS, versioning and replication.
+- Per-service accounts and bucket policies; no root credentials.
+- Content-addressed keys; one node or drive loss preserves artifact hashes.
 - Cross-site replication lag is declared; RPO inside the cluster is 0.
 
 ## 6. Evidence leader
@@ -124,18 +121,21 @@ No distributed transactions. The platform uses:
 
 ## 9. Deployment descriptor
 
-`quantrule.deploy/v3` places services on hosts and failure domains, references
-secrets by file, and rejects a second public port, an internal public bind, a
-missing digest, co-located replicas or quorum members, inline secrets,
-unsupported stateful placement, and missing backup or TLS configuration.
+`quantrule.deploy/v3` places services across hosts/failure domains, names three
+odd Swarm managers, references secrets by file, and rejects a second public
+port, an internal bind, a missing digest, co-located replicas/quorum members,
+inline secrets, unsupported stateful placement, or missing backup/TLS. The
+sample runs four MinIO nodes, one drive each in `az1`..`az4`.
 
 `qr-deploy validate`, `render`, and `check` are implemented; `render` writes the
-Swarm stack, pinned per-host Patroni/etcd/HAProxy/RabbitMQ/MinIO/observability
-skeletons, job scripts, secret/PKI copies, and `render.json`. `bootstrap.sh`
-execution is PLAT-001, unit configuration PLAT-003..006, and registry signing
-PLAT-007. The contract is [deploy/v3](../config/2026-11-22/deploy-v3.md) and the
-operator path is [manual 15](../manual/15-ha-deployment.md). v2 remains readable
-for the older multi-host profile.
+stack, pinned unit skeletons, jobs, secret/PKI copies, and `render.json`.
+`bootstrap.sh` labels the six `quantrule.*` keys, refuses drift or a foreign
+deployment, runs the jobs before the stack, and waits for the pinned image and
+443. `tools/swarm.sh` wraps upgrade/rollback/verify and snapshots the previous
+stack; stop-first fills every slot. `--remote docker --overlay` checks the live
+Swarm, nodes, overlay, replicas, ports, and digest; `ha` drains a worker and
+stops a manager. Unit configuration is PLAT-003..006, remote inspection/`ha` are
+PLAT-001, signing is PLAT-007. Contracts: [deploy/v3](../config/2026-11-22/deploy-v3.md), [swarm-control](../config/2026-11-23/swarm-control.md), [manual 15](../manual/15-ha-deployment.md).
 ## 10. Failure behaviour
 
 | Failure | Behaviour |
@@ -164,7 +164,7 @@ for the older multi-host profile.
 - RTO target: 15 minutes node/AZ, 1 hour region recovery.
 ## 12. Evidence boundary
 
-The single-host three-VM lab proves simulated node failure, not physical host, AZ,
-power or disk-controller failure. The release note says `Simulated HA` unless
-separate hosts or failure domains were used. The platform never trades; no broker,
-OMS, real-time risk or regulatory component is part of this architecture.
+The three-VM lab proves simulated node failure, not physical host, AZ, power or
+disk-controller failure; the `ha` tier records `Simulated HA`. Real host/AZ
+evidence is HA-014. The platform never trades; no broker, OMS, real-time risk or
+regulatory component is part of this architecture.

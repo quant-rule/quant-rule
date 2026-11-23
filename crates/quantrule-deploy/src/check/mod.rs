@@ -2,8 +2,9 @@
 //!
 //! v2 keeps the original HTTP service, worker, and object-store probe and its
 //! printed rows. v3 checks the descriptor, placement, pins, and secret names
-//! locally, probes the single HTTPS ingress, and offers the remote and overlay
-//! inspectors as explicit opt-ins.
+//! locally, probes the single HTTPS ingress, and offers the read-only remote
+//! Docker and overlay inspectors as explicit opt-ins. The default check never
+//! starts Docker.
 
 mod local;
 mod remote;

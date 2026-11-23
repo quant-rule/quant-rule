@@ -139,6 +139,60 @@ fn the_render_matches_its_checked_in_golden_files() {
     let _ = std::fs::remove_dir_all(directory);
 }
 
+/// Regenerate the checked-in golden fixture deliberately:
+/// `cargo test -p quantrule-deploy --test render_golden -- --ignored`.
+#[test]
+#[ignore = "rewrites the checked-in golden fixture"]
+fn regenerate_the_golden_fixture() {
+    let directory = temp_dir();
+    let descriptor = local_descriptor(&directory);
+    let out = directory.join("out");
+    let output = Command::new(env!("CARGO_BIN_EXE_qr-deploy"))
+        .args([
+            "render",
+            descriptor.to_str().expect("path"),
+            "--out",
+            out.to_str().expect("path"),
+            "--target",
+            "all",
+        ])
+        .output()
+        .expect("render");
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let expected = repo("crates/quantrule-deploy/tests/fixtures/render-v3/expected");
+    let mut rendered = Vec::new();
+    walk(&out, &mut rendered);
+    let mut keep = std::collections::BTreeSet::new();
+    for path in rendered {
+        let relative = path.strip_prefix(&out).expect("relative");
+        if relative == Path::new("render.json")
+            || (relative.starts_with("secrets") && relative != Path::new("secrets/manifest.json"))
+        {
+            continue;
+        }
+        keep.insert(relative.to_path_buf());
+        let destination = expected.join(relative);
+        if let Some(parent) = destination.parent() {
+            std::fs::create_dir_all(parent).expect("expected parent");
+        }
+        std::fs::copy(&path, &destination).expect("copy golden");
+    }
+    let mut existing = Vec::new();
+    walk(&expected, &mut existing);
+    for path in existing {
+        let relative = path.strip_prefix(&expected).expect("relative");
+        if !keep.contains(relative) {
+            std::fs::remove_file(&path).expect("remove stale golden");
+        }
+    }
+    let _ = std::fs::remove_dir_all(directory);
+}
+
 fn walk(directory: &Path, files: &mut Vec<PathBuf>) {
     for entry in std::fs::read_dir(directory).expect("read dir") {
         let path = entry.expect("entry").path();

@@ -10,6 +10,7 @@
 
 pub mod v2;
 
+mod bootstrap;
 mod infra;
 mod jobs;
 mod secrets;
@@ -146,6 +147,7 @@ pub fn render_v3(
         profile: descriptor.profile.as_str(),
         evidence: evidence_tier(descriptor.profile),
         target: target.as_str(),
+        stack: stack_name(descriptor),
         descriptor_hash: &descriptor_hash,
         app_image: &app_image(descriptor),
         files: &relative,
@@ -203,6 +205,19 @@ pub fn evidence_tier(profile: Profile) -> &'static str {
 #[must_use]
 pub fn stack_name(descriptor: &Descriptor) -> &str {
     descriptor.name.as_deref().unwrap_or("quantrule")
+}
+
+/// Quote one value for a POSIX shell script.
+pub(crate) fn shell_quote(value: &str) -> String {
+    if !value.is_empty()
+        && value.bytes().all(|byte| {
+            byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.' | b'/' | b':' | b'@')
+        })
+    {
+        value.to_owned()
+    } else {
+        format!("'{}'", value.replace('\'', "'\\''"))
+    }
 }
 
 /// A canonical SHA-256 hash of the typed descriptor.
@@ -400,6 +415,7 @@ struct RenderManifest<'a> {
     profile: &'a str,
     evidence: &'a str,
     target: &'a str,
+    stack: &'a str,
     descriptor_hash: &'a str,
     app_image: &'a str,
     files: &'a [String],
