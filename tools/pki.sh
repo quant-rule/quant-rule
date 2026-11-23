@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Create the local internal PKI for PostgreSQL, RabbitMQ and MinIO.
+# Create the local internal PKI for PostgreSQL, etcd, RabbitMQ and MinIO.
 #
 # The CA model is offline root -> online intermediate -> 180-day leaf. The root
 # key is generated here and never leaves the operator host; only `ca.crt`
@@ -13,7 +13,9 @@
 #
 # Environment:
 #   PKI_EXTRA_SANS   comma-separated DNS names or IP addresses added to every
-#                    server certificate, for example "10.10.0.20,quantrule.dev"
+#                    server certificate. For v3 stateful, include every
+#                    patroni-<host> and etcd-<host> alias; the in-cluster
+#                    configs use those aliases with verify-full.
 #
 # The directory is mode 700, private keys are mode 600 and certificates are
 # mode 644. `make up` runs this before the stack starts; the Compose PKI init
@@ -49,7 +51,7 @@ done
 
 command -v openssl >/dev/null 2>&1 || { echo "pki: openssl is required" >&2; exit 1; }
 
-required="$out/ca.crt $out/postgres/server.crt $out/rabbitmq/server.crt $out/minio/public.crt $out/minio/CAs/ca.crt"
+required="$out/ca.crt $out/postgres/server.crt $out/etcd/server.crt $out/etcd/peer.crt $out/etcd/client.crt $out/rabbitmq/server.crt $out/minio/public.crt $out/minio/CAs/ca.crt"
 if [ "$force" -eq 0 ]; then
   missing=0
   for path in $required; do
@@ -64,8 +66,8 @@ else
 fi
 
 umask 077
-mkdir -p "$out/ca" "$out/postgres" "$out/rabbitmq" "$out/minio/CAs"
-chmod 700 "$out" "$out/ca" "$out/postgres" "$out/rabbitmq" "$out/minio" "$out/minio/CAs"
+mkdir -p "$out/ca" "$out/postgres" "$out/etcd" "$out/rabbitmq" "$out/minio/CAs"
+chmod 700 "$out" "$out/ca" "$out/postgres" "$out/etcd" "$out/rabbitmq" "$out/minio" "$out/minio/CAs"
 
 work="$(mktemp -d "${TMPDIR:-/tmp}/quantrule-pki.XXXXXX")"
 cleanup() { rm -rf "$work"; }
@@ -102,14 +104,14 @@ chmod 644 "$out/ca.crt"
 
 extra_sans="${PKI_EXTRA_SANS:-}"
 leaf() {
-  local name="$1" key="$2" cert="$3"
+  local name="$1" key="$2" cert="$3" usages="${4:-serverAuth}"
   openssl genrsa -out "$key" 2048 >/dev/null 2>&1
   chmod 600 "$key"
   openssl req -new -sha256 -key "$key" -subj "/CN=$name" -out "$work/$name.csr"
   {
     printf 'basicConstraints=critical,CA:FALSE\n'
     printf 'keyUsage=critical,digitalSignature,keyEncipherment\n'
-    printf 'extendedKeyUsage=serverAuth\n'
+    printf 'extendedKeyUsage=%s\n' "$usages"
     printf 'subjectAltName=@alt\n\n[alt]\n'
     printf 'DNS.1=%s\nDNS.2=localhost\nIP.1=127.0.0.1\n' "$name"
     local index=3 ip_index=2
@@ -139,9 +141,21 @@ leaf() {
   chmod 644 "$cert"
 }
 
+# The Postgres leaf covers `postgres`; PKI_EXTRA_SANS must add every
+# patroni-<host> alias for replication and pg_rewind with verify-full.
 leaf postgres "$out/postgres/server.key" "$out/postgres/server.crt"
 cp "$out/ca.crt" "$out/postgres/ca.crt"
 chmod 644 "$out/postgres/ca.crt"
+
+# etcd uses the same internal CA. The server leaf is for the client listener,
+# the peer leaf is also the peer client certificate, and the client leaf is for
+# Patroni's etcd3 connection. PKI_EXTRA_SANS must include every etcd-<host>
+# alias so the server and peer leaves verify on every host.
+leaf etcd "$out/etcd/server.key" "$out/etcd/server.crt" "serverAuth"
+leaf etcd "$out/etcd/peer.key" "$out/etcd/peer.crt" "serverAuth,clientAuth"
+leaf etcd-client "$out/etcd/client.key" "$out/etcd/client.crt" "clientAuth"
+cp "$out/ca.crt" "$out/etcd/ca.crt"
+chmod 644 "$out/etcd/ca.crt"
 
 leaf rabbitmq "$out/rabbitmq/server.key" "$out/rabbitmq/server.crt"
 cp "$out/ca.crt" "$out/rabbitmq/ca.crt"
@@ -151,7 +165,7 @@ leaf minio "$out/minio/private.key" "$out/minio/public.crt"
 cp "$out/ca.crt" "$out/minio/CAs/ca.crt"
 chmod 644 "$out/minio/CAs/ca.crt"
 
-for dir in "$out/postgres" "$out/rabbitmq" "$out/minio" "$out/minio/CAs"; do
+for dir in "$out/postgres" "$out/etcd" "$out/rabbitmq" "$out/minio" "$out/minio/CAs"; do
   chmod 700 "$dir"
 done
 rm -f "$out/ca/root.srl" "$out/ca/intermediate.srl"

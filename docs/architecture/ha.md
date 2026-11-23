@@ -1,6 +1,6 @@
 # Highly Available Runtime
 
-- Status: Target for the next release; the evidence leader (HA-006), data active/active (HA-007), runtime drain/readiness/retries/file secrets/token rotation (HA-009), internal TLS for PostgreSQL/RabbitMQ/MinIO (HA-010), v3 render/check (HA-012), the PLAT-001 bootstrap/rolling-update control plane, remote check, and `ha` tier, and the PLAT-002 cert-mode ingress, check rows, client CA trust, and ingress-loss lab are current; accepted by [ADR-HA](../adr/2026-11-22/1082-ha-deployment-profile.md)
+- Status: Target for the next release; the evidence leader (HA-006), data active/active (HA-007), runtime drain/readiness/retries/file secrets/token rotation (HA-009), internal TLS for PostgreSQL/RabbitMQ/MinIO (HA-010), v3 render/check (HA-012), the PLAT-001 control plane, the PLAT-002 ingress, and the PLAT-003 Patroni/etcd/HAProxy tier and check rows are current; the failover lab is `Unverified` without a three-VM host; accepted by [ADR-HA](../adr/2026-11-22/1082-ha-deployment-profile.md)
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 
@@ -53,16 +53,15 @@ join or transaction. Model, strategy and backtest have no database.
 ## 4. PostgreSQL
 
 - Physical streaming replication; all four databases replicate together.
-- One primary, two standbys, one synchronous; `synchronous_mode` and
-  `synchronous_mode_strict` with `synchronous_node_count: 1`, `synchronous_commit: on`.
+- One primary, two standbys, one synchronous; strict mode, count 1, commit `on`.
 - `pg_rewind`, `wal_log_hints`, replication slots and hot standby.
-- Hardware watchdog where available; Patroni leader key in etcd.
-- HAProxy two replicas, Patroni `/primary`, primary-only routing; standbys are
-  failover targets, not read targets.
-- pgBackRest full + differential + WAL to MinIO; PITR restores all four databases.
+- Watchdog `automatic` probes and continues without a device; `required` needs a verified one; lab `off`.
+- HAProxy two replicas, Patroni `/primary`, TCP passthrough, primary-only routing.
+- pgBackRest full/differential/WAL to MinIO is HA-013; PLAT-003 sets file-archive
+  placeholders, and `pitr: true` is configured, not verified.
 
 RPO 0 for committed rows. If no synchronous standby remains, writes block rather
-than silently degrade. This is a deliberate fail-closed choice.
+than silently degrade. The lab measures RTO and records the rejoin; no lab row is `Unverified`.
 
 ## 5. RabbitMQ and MinIO
 
@@ -128,14 +127,14 @@ inline secrets, unsupported stateful placement, or missing backup/TLS. The
 sample runs four MinIO nodes, one drive each in `az1`..`az4`.
 
 `qr-deploy validate`, `render`, and `check` are implemented; `render` writes the
-stack, pinned unit skeletons, jobs, secret/PKI copies, and `render.json`.
-`bootstrap.sh` labels the six `quantrule.*` keys, refuses drift or a foreign
-deployment, runs the jobs before the stack, and waits for the pinned image and
-443. `tools/swarm.sh` wraps upgrade/rollback/verify and snapshots the previous
-stack; stop-first fills every slot. `--remote docker --overlay` checks the live
-Swarm, nodes, overlay, replicas, ports, digest, and ingress mounts; `ha` drains
-a worker, stops a manager, drains the VIP holder, and probes 1 Hz while it moves.
-Unit configuration is PLAT-003..006; remote inspection/`ha` are PLAT-001; signing is PLAT-007. Contracts: [deploy/v3](../config/2026-11-22/deploy-v3.md), [swarm-control](../config/2026-11-23/swarm-control.md), [manual 15](../manual/15-ha-deployment.md).
+stack, per-host units, Patroni/etcd/HAProxy configs, jobs, secret/PKI copies, the
+stateful manifest, and `render.json`. `bootstrap.sh` labels the six
+`quantrule.*` keys, refuses drift, runs cluster/db/migration jobs before the
+stack, and waits for the pinned image and 443. `tools/stateful.sh` creates the
+overlay, copies and starts etcd -> Patroni -> HAProxy, and waits for
+quorum/leader/sync. `tools/swarm.sh` wraps upgrade/rollback/verify and snapshots
+the previous stack; stop-first fills every slot. Unit configuration is
+PLAT-003..006; remote inspection is PLAT-001; signing is PLAT-007. Contracts: [deploy/v3](../config/2026-11-22/deploy-v3.md), [patroni-cluster](../config/2026-11-23/patroni-cluster.md), [swarm-control](../config/2026-11-23/swarm-control.md), [manual 15](../manual/15-ha-deployment.md).
 ## 10. Failure behaviour
 
 | Failure | Behaviour |
@@ -147,7 +146,7 @@ Unit configuration is PLAT-003..006; remote inspection/`ha` are PLAT-001; signin
 | Rolling restart / SIGTERM | `/ready` 503; HTTP 20 s, worker 25 s; an in-flight run keeps its lease, never `failed` |
 | Consumer channel error | Reconnect 1–30 s; an exhausted budget exits so the container restarts |
 | Evidence leader kill or drain | Lease expires or is released; new leader; one finalisation |
-| PostgreSQL primary loss | Patroni promotes a synchronous standby; RPO 0 |
+| PostgreSQL primary loss | Patroni promotes a synchronous standby; measured lab RTO; RPO 0 |
 | PostgreSQL standby loss | Primary continues on the remaining synchronous standby |
 | No synchronous standby | Writes block; reads may continue; alert fires |
 | etcd node loss | Quorum survives |
@@ -161,10 +160,10 @@ Unit configuration is PLAT-003..006; remote inspection/`ha` are PLAT-001; signin
 - Object versioning + replication; restore objects before rows.
 - Queue is not archived; queued work is rebuilt from run and stage rows.
 - Restore drill every release; canonical digest must reproduce.
-- RTO target: 15 minutes node/AZ, 1 hour region recovery.
+- RTO target: 15 minutes node/AZ, 1 hour region; the lab measures a pause RTO, not this SLO.
 ## 12. Evidence boundary
 
 The three-VM lab proves simulated node failure, not physical host, AZ, power or
-disk-controller failure; the `ha` tier records `Simulated HA`. Real host/AZ
-evidence is HA-014. The platform never trades; no broker, OMS, real-time risk or
+disk-controller failure; the `ha` tier pauses the Patroni primary and records the
+measured RTO, rejoin, and `Simulated HA`. Real host/AZ evidence is HA-014. The platform never trades; no broker, OMS, real-time risk or
 regulatory component is part of this architecture.

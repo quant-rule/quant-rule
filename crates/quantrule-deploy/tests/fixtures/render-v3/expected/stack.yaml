@@ -790,5 +790,5 @@ x-quantrule:
   network_attachable: true
   network_encrypted: true
   owner: "HA-012"
-  platform: "Traefik ingress configuration is PLAT-002; Patroni, RabbitMQ, MinIO, and observability configuration belong to PLAT-003..006"
+  platform: "Traefik ingress configuration is PLAT-002; Patroni, etcd, and HAProxy are PLAT-003; RabbitMQ, MinIO, and observability remain PLAT-004..006"
   profile: "swarm-ha"

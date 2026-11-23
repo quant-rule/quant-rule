@@ -1,6 +1,6 @@
 # Security
 
-- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); multi-host overlay added 2026-11-20; internal TLS added 2026-11-23 (#1108); PLAT-002 ingress check rows, private-CA client trust, and ingress-loss lab added 2026-11-23; approved 2026-11-12
+- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); multi-host overlay added 2026-11-20; internal TLS added 2026-11-23 (#1108); PLAT-002 ingress and PLAT-003 Patroni/etcd/HAProxy added 2026-11-23; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Decision: [`ADR-2026-11-12-03`](../adr/2026-11-12/03-single-principal-no-accounts.md)
 - Claim type: Behaviour Claim
@@ -109,14 +109,14 @@ Residual risks accepted for v1:
   root credentials and queue user, so a compromised service host can read all
   four databases and the bucket.
 - PostgreSQL and RabbitMQ do not request client certificates, so a peer with a
-  credential and the CA bundle can connect. Internal HTTP has no service
-  authentication: a compromised overlay host can impersonate any service, read
-  inter-service traffic, and set the trusted profile header.
+  credential and the CA bundle can connect; etcd does use mTLS, and its leaves
+  rotate by restart. Internal HTTP has no service authentication: a compromised
+  overlay host can impersonate any service, read traffic, and set the profile header.
 - The overlay provides encryption and host authentication, not service authentication; route a client VPN peer to the gateway only.
 - v2 `qr-deploy check` compares the reported digest; v3 `--remote docker` reads the running service image and read-only node/overlay state.
 - `/ready` and `/metrics` are unauthenticated; `/ready` stays behind the network
   gate and `/metrics` is internal, unset by default and never proxied.
-- The infrastructure host is a single point of failure. The profile is not HA.
+- The Compose/v2 infrastructure host is a single point of failure; v3 is the HA shape, not real-host evidence.
 
 ## 3. Input boundaries
 
@@ -142,7 +142,7 @@ Every rejection returns a code a client can act on and a message a human can rea
 ## 5. Data in transit
 
 - PostgreSQL, RabbitMQ and MinIO use TLS with `verify-full`/`amqps`/`https` and a
-  private CA bundle; a missing CA fails closed.
+  private CA bundle; etcd mTLS and Patroni REST basic auth; the stateful check rows prove the certificate SANs; a missing CA fails closed.
 - Internal HTTP stays plaintext on the encrypted overlay; ingress TLS 1.2+ terminates at Traefik behind a keepalived VIP, port 80 is closed, and HSTS is set. `qr-deploy check` proves the cert SAN/expiry, headers, port-80 closure, and ingress mounts; the shell trusts the private CA with `QUANTRULE_CA_CERT`, the browser through its OS trust store.
   From a client, TLS terminates at the ingress or the private network provides
   transport security; a bearer token without TLS is readable on the path.

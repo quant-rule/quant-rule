@@ -1,7 +1,8 @@
 # Internal TLS Contract
 
 - Date: 2026-11-23 (UTC)
-- Status: Current for the Compose stack and the v2 multi-host profile
+- Status: Current for the Compose stack, the v2 multi-host profile, and the v3
+  Patroni/etcd/HAProxy tier; pgBackRest TLS is HA-013
 - Issue: [#1108](https://github.com/quant-rule/quant-rule/issues/1108)
 - Claim type: Behaviour Claim
 - Related: [ADR](../../adr/2026-11-23/1108-internal-tls.md),
@@ -25,7 +26,8 @@ failover result.
 | Service → service | HTTP on the private overlay | Accepted residual risk (section 9) |
 | PostgreSQL/RabbitMQ client certificates | none | HA-012 |
 | Swarm secret objects, v3 `secrets.files` | none | HA-012 |
-| Patroni, HAProxy, pgBackRest | none | HA-012/PLAT-003 |
+| Patroni REST, etcd client/peer, HAProxy | mTLS or basic auth | PLAT-003 (this contract) |
+| pgBackRest repository TLS | none | HA-013 |
 
 The TLS contract is deliberately ready for Patroni and HAProxy: it names a CA
 bundle, a hostname, and a port, so the same client code points at a HAProxy
@@ -114,6 +116,31 @@ Client:
 The one-shot `<service>-migrate` job uses the same CA path. `db-bootstrap` sets
 `PGSSLMODE=verify-full` and `PGSSLROOTCERT`. The healthcheck stays on the local
 Unix socket and does not need TLS.
+
+## 4.1 Patroni, etcd and HAProxy
+
+`tools/pki.sh` issues the stateful leaves under the same internal CA. The
+renderer copies them to `out/pki/` and lists them in `stateful-manifest.json`.
+
+| Link | Transport | Rule |
+|---|---|---|
+| Patroni -> etcd | HTTPS on 2379 | `etcd/client.crt` + key, `cacert`; server verifies the client against the CA |
+| etcd peer | HTTPS on 2380 | `etcd/peer.crt` + key; `client-cert-auth: true` |
+| etcd client listener | HTTPS on 2379 | `etcd/server.crt` + key; `client-cert-auth: true` |
+| Application -> PostgreSQL | TLS on 5432, `verify-full` | HAProxy passes TCP through; the server leaf carries `postgres` and every `patroni-<host>` SAN |
+| Patroni REST | HTTP on 8008 with basic auth | HAProxy sends the header read from `patroni_rest_password`; the password is not in the rendered config |
+| HAProxy frontend | TCP on 5432 | No TLS termination, no published port; stats on the overlay only |
+
+The Postgres leaf is one certificate deployed on all Patroni nodes. Its DNS SAN
+must include `postgres` and every `patroni-<host>`; `PKI_EXTRA_SANS` supplies the
+latter so replication and pg_rewind can use `verify-full` against the overlay
+alias. The etcd server and peer leaves must include every `etcd-<host>`; the
+client leaf has `clientAuth`. A key is mode 600; a certificate is 644. There is
+no plaintext etcd listener and no HAProxy TLS termination. The stateful check
+rows query these leaves through `QR_DEPLOY_OPENSSL`, and the lab `psql` uses
+`verify-full`; a live etcd/Patroni handshake and the failover remain lab
+evidence. The exact sample set is in the
+[Patroni cluster contract](patroni-cluster.md#5-tls).
 
 ## 5. RabbitMQ
 
@@ -208,17 +235,18 @@ Compensating controls: encrypted overlay, no published internal port,
 token, and the network firewall. The Security and Privacy Reviewer accepted
 option B with this residual risk; human acceptance remains the final gate.
 
-## 10. HA-010 and HA-012 split
+## 10. Scope split
 
-| Concern | HA-010 (this issue) | HA-012/PLAT-003 |
+| Concern | HA-010 | Later owner |
 |---|---|---|
 | Server TLS for PostgreSQL, RabbitMQ, MinIO | yes | — |
 | Private CA, leaf rotation, bundled CA | yes | — |
 | Client CA path in Compose and v2 | yes | — |
-| Client certificates and service identity | no | yes |
-| Internal HTTP TLS/mTLS | no | yes |
-| Swarm secrets, v3 `secrets.files` | no | yes |
-| Patroni, HAProxy, pgBackRest | no | yes |
+| Patroni/etcd mTLS, HAProxy REST auth | no | PLAT-003 (current) |
+| pgBackRest repository TLS | no | HA-013 |
+| Client certificates and service identity for application clients | no | HA-012 |
+| Internal HTTP TLS/mTLS | no | HA-012 |
+| Swarm secrets, v3 `secrets.files` | no | HA-012 (app), PLAT-003 (stateful) |
 | Ingress TLS for `https://quantrule.dev` | no | PLAT-002 (cert mode; ACME reserved and refused) |
 | CA overlap and HA failover handshakes | not claimed | composed/HA evidence |
 
@@ -230,6 +258,7 @@ option B with this residual risk; human acceptance remains the final gate.
 | `must use sslmode=verify-full` | `prefer`, `require` or `verify-ca` | rewrite the URL; do not weaken the mode |
 | `amqps:// requires QR_QUEUE_TLS_CA_PATH` | missing queue CA | mount the bundle |
 | `cannot read the object-store CA bundle` | missing or unreadable file | fix the mount; do not fall back to HTTP |
+| `stateful ... certificate ... does not cover` | A Postgres/etcd leaf lacks an overlay alias | Re-issue with `PKI_EXTRA_SANS`; never weaken `verify-full` |
 | Pool opens but `/ready` is degraded | the database rejected the handshake | check SAN, expiry and CA |
 | `pki-init` exits non-zero | `make pki` was not run or the mount is wrong | run `make pki`, restart the stack |
 
@@ -237,5 +266,6 @@ Fast evidence: `cargo test -p quantrule-runtime` (config pairing, S3/RabbitMQ
 seams, `rcgen` success/wrong-CA/hostname/expiry fixture) and
 `cargo test -p quantrule-deploy` (descriptor and render).
 `make compose-check` validates both Compose files with a disposable PKI and
-`docker compose config -q`. Composed handshakes, CA overlap and Patroni/HAProxy
-remain later composed/HA evidence and are not claimed here.
+`docker compose config -q`. Composed handshakes and CA overlap remain later
+evidence; the Patroni/etcd/HAProxy paths are rendered, and a live handshake is
+lab evidence. `pitr: true` and the archive knobs are configured, not verified.

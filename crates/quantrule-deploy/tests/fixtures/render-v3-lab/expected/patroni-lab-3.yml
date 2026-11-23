@@ -1,0 +1,93 @@
+bootstrap:
+  dcs:
+    loop_wait: 10
+    maximum_lag_on_failover: 1048576
+    postgresql:
+      parameters:
+        archive_command: "test ! -f /srv/quantrule/wal-archive/%f && cp %p /srv/quantrule/wal-archive/%f"
+        archive_mode: "on"
+        archive_timeout: 60
+        hot_standby: "on"
+        synchronous_commit: "on"
+        wal_level: "replica"
+        wal_log_hints: "on"
+      use_pg_rewind: true
+      use_slots: true
+    retry_timeout: 10
+    synchronous_mode: true
+    synchronous_mode_strict: true
+    synchronous_node_count: 1
+    ttl: 30
+  initdb:
+    -
+      "data-checksums"
+    -
+      auth-host: "scram-sha-256"
+      auth-local: "peer"
+      encoding: "UTF8"
+etcd3:
+  cacert: "/etc/quantrule/pki/ca.crt"
+  cert: "/etc/quantrule/pki/etcd/client.crt"
+  hosts:
+    -
+      "https://etcd-lab-1:2379"
+    -
+      "https://etcd-lab-2:2379"
+    -
+      "https://etcd-lab-3:2379"
+  key: "/etc/quantrule/pki/etcd/client.key"
+  protocol: "https"
+name: "patroni-lab-3"
+namespace: "/service/"
+postgresql:
+  authentication:
+    replication:
+      sslmode: "verify-full"
+      sslrootcert: "/etc/quantrule/pki/ca.crt"
+      username: "replicator"
+    rewind:
+      sslmode: "verify-full"
+      sslrootcert: "/etc/quantrule/pki/ca.crt"
+      username: "rewind"
+    superuser:
+      sslmode: "verify-full"
+      sslrootcert: "/etc/quantrule/pki/ca.crt"
+      username: "postgres"
+  connect_address: "patroni-lab-3:5432"
+  data_dir: "/var/lib/postgresql/data"
+  listen: "0.0.0.0:5432"
+  parameters:
+    archive_command: "test ! -f /srv/quantrule/wal-archive/%f && cp %p /srv/quantrule/wal-archive/%f"
+    archive_mode: "on"
+    archive_timeout: 60
+    hot_standby: "on"
+    restore_command: "cp /srv/quantrule/wal-archive/%f %p"
+    ssl: "on"
+    ssl_ca_file: "/etc/quantrule/pki/ca.crt"
+    ssl_cert_file: "/etc/quantrule/pki/postgres/server.crt"
+    ssl_key_file: "/etc/quantrule/pki/postgres/server.key"
+    ssl_min_protocol_version: "TLSv1.2"
+    synchronous_commit: "on"
+    unix_socket_directories: "/run/postgresql"
+    wal_level: "replica"
+    wal_log_hints: "on"
+  pg_hba:
+    -
+      "local all all peer"
+    -
+      "hostssl all all 0.0.0.0/0 scram-sha-256"
+    -
+      "hostssl replication replicator 0.0.0.0/0 scram-sha-256"
+    -
+      "hostssl all all ::/0 scram-sha-256"
+  pgpass: "/tmp/pgpass"
+  recovery_conf:
+    restore_command: "cp /srv/quantrule/wal-archive/%f %p"
+restapi:
+  authentication:
+    username: "patroni"
+  connect_address: "patroni-lab-3:8008"
+  listen: "0.0.0.0:8008"
+scope: "quantrule-lab"
+watchdog:
+  mode: "off"

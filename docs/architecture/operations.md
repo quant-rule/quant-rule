@@ -1,6 +1,6 @@
 # Operations
 
-- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); runtime drain, readiness, retries, file secrets and token rotation in v1.6.0; approved 2026-11-12
+- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); runtime drain, readiness, retries, file secrets, token rotation, and the PLAT-003 stateful tier, check rows, and failover lab in v1.6.0; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 
@@ -19,7 +19,7 @@ make down    # stop, keep data
 alive. `GET /ready` is the routing authority: it returns `503` when a dependency
 is down, when a response has a different `service` identity, or immediately when
 the process is draining. The gateway probes each upstream `/ready`; the backtest
-worker exposes both routes on its internal listener. A service is healthy when its check passes, not when its container is running. The v3 Swarm check is [manual 15](../manual/15-ha-deployment.md); its ingress is the [Traefik/VIP contract](../config/2026-11-23/ingress.md); its rolling update is stop-first when no spare slot exists, per [swarm-control](../config/2026-11-23/swarm-control.md); rotate its token by a new secret name and rolling update, not `SIGHUP`. `--remote docker --overlay` inspects the live Swarm, the ingress check rows prove the certificate/headers/port-80 closure/mounts, and `tools/test_tiers.sh ha` drains a worker, stops a manager, and drains the VIP holder.
+worker exposes both routes on its internal listener. A service is healthy when its check passes, not when its container is running. The v3 Swarm check is [manual 15](../manual/15-ha-deployment.md); its ingress is the [Traefik/VIP contract](../config/2026-11-23/ingress.md); its database tier is the [Patroni/etcd/HAProxy contract](../config/2026-11-23/patroni-cluster.md); its rolling update is stop-first when no spare slot exists, per [swarm-control](../config/2026-11-23/swarm-control.md); rotate its token by a new secret name and rolling update, not `SIGHUP`. `--remote docker --overlay` inspects the live Swarm and stateful rows; the ingress rows prove the certificate/headers/port-80 closure/mounts; `tools/test_tiers.sh ha` drains a worker and the VIP holder, stops a manager, and pauses the Patroni primary.
 
 | Signal | Healthy | Action |
 |---|---|---|
@@ -126,8 +126,9 @@ candle data and is sensitive ([data-lifecycle](../workflows/data-lifecycle.md)).
 The default stack starts seven services, three stores, the bootstrap and four
 migration jobs ([deployment.md](deployment.md) §2.1). Backup covers only durable
 stores; the four-database contract is [four databases](../config/2026-11-22/four-databases.md).
-The tools dump one database, so a backup is incomplete until the four-database
-archive lands; never claim evidence preservation from one dump.
+The tools dump one database, so a backup is incomplete until HA-013 lands the
+pgBackRest four-database archive and PITR drill; never claim evidence preservation
+from one dump. The v3 archive/recovery knobs are configured, not verified.
 
 Round trip: `tools/test_backup.sh` is opt-in, uses an isolated project, and never
 touches the default project. It seeds a run, checks refusals, wipes, restores,

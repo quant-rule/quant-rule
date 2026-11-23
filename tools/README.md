@@ -22,8 +22,9 @@ gate and in CI.
 | Secret files | Creates the local mode-700 secret directory and mode-600 files. | `tools/secrets.sh` |
 | Internal PKI | Creates the offline-root/intermediate/180-day-leaf bundle, SANs and service layouts. | `tools/pki.sh` |
 | Swarm control plane | Validates/renders the v3 HA descriptor and wraps bootstrap, status, upgrade, snapshot, rollback, and the read-only remote/overlay check. | `tools/swarm.sh` |
+| Stateful tier | Renders, creates the overlay, copies configs/PKI/secrets, starts etcd -> Patroni -> HAProxy, waits for quorum/leader/sync, and optionally sets the data-directory owner. `--plan` is Docker-free and no value is printed. | `tools/stateful.sh` |
 | Reviewer verification | Submits two equivalent runs through the gateway and prints one canonical digest; `--cacert`/`QUANTRULE_CA_CERT` trusts a private CA. | `tools/verify.sh` |
-| HA lab tier | Opt-in three-VM Swarm deploy, worker/manager and VIP-holder loss, digest and stateful checks; `--plan` is Docker-free and a missing lab prints `UNVERIFIED`. | `deploy/v3/test.sh` |
+| HA lab tier | Opt-in three-VM Swarm deploy, worker/manager/VIP loss, Patroni-primary pause, HAProxy pause, RTO, marker/digest/rejoin evidence; `--plan` is Docker-free and a missing lab prints `UNVERIFIED`. | `deploy/v3/test.sh` |
 | Composed tier | Checks a running Compose stack's gateway, then submits two equivalent runs and compares their canonical digest. | `tools/composed.sh` |
 | Project-sync test | Checks that `Done` is terminal in the board status decision. | `tools/test_project_sync.sh` |
 

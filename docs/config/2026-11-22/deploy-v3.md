@@ -2,9 +2,9 @@
 
 - Date: 2026-11-22 (UTC)
 - Status: Current for schema, validation, render, check, the remote/overlay
-  inspector, the PLAT-001 bootstrap/rolling-update control plane, and the
-  PLAT-002 cert-mode ingress; platform unit configuration belongs to
-  PLAT-003..006
+  inspector, the PLAT-001 bootstrap/rolling-update control plane, the PLAT-002
+  cert-mode ingress, and the PLAT-003 Patroni/etcd/HAProxy tier; RabbitMQ,
+  MinIO, and observability remain PLAT-004..006
 - Claim type: Behaviour Claim
 - Issue: [#1110](https://github.com/quant-rule/quant-rule/issues/1110)
 - Related: [ADR-HA](../../adr/2026-11-22/1082-ha-deployment-profile.md),
@@ -12,6 +12,7 @@
   [Multi-host](../../architecture/multi-host.md),
   [Swarm control plane](../2026-11-23/swarm-control.md),
   [ingress](../2026-11-23/ingress.md),
+  [Patroni cluster](../2026-11-23/patroni-cluster.md),
   [secret files](../2026-11-23/secret-files.md),
   [internal TLS](../2026-11-23/internal-tls.md),
   [HA deployment chapter](../../manual/15-ha-deployment.md)
@@ -45,7 +46,7 @@ the other profiles keep `1`.
 ## 2. Shape
 
 The sample is authoritative. This excerpt repeats one host, one database, and
-two services and omits the eleven pinned infrastructure images to show the other
+two services and omits the twelve pinned infrastructure images to show the other
 blocks; the sample lists every pin.
 
 ```json
@@ -92,7 +93,7 @@ blocks; the sample lists every pin.
     "model": { "replicas": 3, "hosts": ["compute-1", "compute-2", "compute-3"], "port": 8080 }
   },
   "stateful": {
-    "postgres": { "nodes": ["infra-1", "infra-2", "infra-3"], "synchronous_standby": 1, "pitr": true },
+    "postgres": { "nodes": ["infra-1", "infra-2", "infra-3"], "synchronous_standby": 1, "watchdog": "automatic", "pitr": true },
     "etcd": { "nodes": ["infra-1", "infra-2", "infra-3"] },
     "haproxy": { "nodes": ["edge-1", "edge-2"] },
     "rabbitmq": { "nodes": ["infra-1", "infra-2", "infra-3"], "quorum": true },
@@ -108,7 +109,9 @@ blocks; the sample lists every pin.
   "secrets": {
     "files": {
       "gateway_token": "/etc/quantrule/secrets/gateway_token",
-      "gateway_database_url": "/etc/quantrule/secrets/gateway_database_url"
+      "gateway_database_url": "/etc/quantrule/secrets/gateway_database_url",
+      "postgres_superuser_password": "/etc/quantrule/secrets/postgres_superuser_password",
+      "patroni_rest_password": "/etc/quantrule/secrets/patroni_rest_password"
     }
   }
 }
@@ -124,7 +127,7 @@ The sample has eleven hosts: two edge (ingress, gateway, keepalived), two core (
 | `profile` | `swarm-ha`, `single-az`, or `lab-single-host`. |
 | `name` | Optional lowercase DNS label; the default stack name is `quantrule`. |
 | `image` | The server image every service runs; `sha256:` digest required. |
-| `images` | Pins for `traefik`, `postgres`, `etcd`, `haproxy`, `keepalived`, `rabbitmq`, `minio`, `prometheus`, `grafana`, `loki`, `alertmanager`; no other key. |
+| `images` | Pins for `traefik`, `postgres`, `patroni`, `etcd`, `haproxy`, `keepalived`, `rabbitmq`, `minio`, `prometheus`, `grafana`, `loki`, `alertmanager`; no other key. `postgres` stays for the psql and migration jobs. |
 | `network.overlay` | Overlay name; `encrypted` must be true. |
 | `ingress.dns` | Exactly `quantrule.dev`. |
 | `ingress.port` | Exactly `443`; no second public port. |
@@ -138,10 +141,10 @@ The sample has eleven hosts: two edge (ingress, gateway, keepalived), two core (
 | `endpoints` | Structured PostgreSQL, queue, and object-store endpoints with absolute `tls_ca` paths and no userinfo. |
 | `databases` | Exactly `gateway`, `catalog`, `evidence`, `simulation`, each with its fixed `qr_*` database, owner role, and app role. |
 | `services` | Exactly `gateway`, `data`, `model`, `strategy`, `backtest`, `evidence`, `simulation`; `replicas`, `hosts`, `port`; no published port. |
-| `stateful` | PostgreSQL, etcd, HAProxy, RabbitMQ, and MinIO nodes; no `reschedule` field. |
+| `stateful` | PostgreSQL, etcd, HAProxy, RabbitMQ, and MinIO nodes; `postgres.watchdog` is `off`, `automatic`, or `required` (default `off`); `synchronous_standby` must be exactly one; no `reschedule` field. |
 | `observability` | `prometheus`, `grafana`, `loki`, `alertmanager`, each on a declared host. |
-| `backup` | `pitr` true; retention 1–3650 days; object replication true for `swarm-ha`. |
-| `secrets.files` | Non-empty raw name-to-absolute-path map; no inline value. |
+| `backup` | `pitr` true (configured, not verified); retention 1–3650 days; object replication true for `swarm-ha`. |
+| `secrets.files` | Non-empty raw name-to-absolute-path map; no inline value. The four stateful secrets are required and URL-safe. |
 
 ## 4. Validation
 
@@ -160,11 +163,13 @@ files and credential quality.
 | `single-az` keeps host and domain anti-affinity without a three-domain minimum | `deploy.service.anti_affinity` |
 | `swarm.managers` is odd, at least three, distinct, and declared; each is a manager | `deploy.swarm.managers` |
 | PostgreSQL/etcd/RabbitMQ >=3, HAProxy 2, MinIO >=4 in the HA profiles with one drive per node | `deploy.stateful.*` |
+| `postgres.synchronous_standby` is exactly one; watchdog is a known mode | `deploy.stateful.postgres.synchronous_standby` |
 | Stateful members use distinct hosts and, in `swarm-ha`, distinct domains | `deploy.stateful.anti_affinity` |
 | Postgres `sslmode=verify-full`; queue `amqps`/5671; object store `https` | `deploy.endpoint.*` |
 | CA and secret paths are absolute; no userinfo | `deploy.endpoint.host`, `deploy.file.absolute` |
 | App and every infra unit carry a `sha256:` digest, never a tag or placeholder | `deploy.image.*`, `deploy.images.*` |
 | `secrets.files` is non-empty and names every required secret | `deploy.secrets.*` |
+| The four stateful secrets are present, distinct, strong, and URL-safe | `deploy.secrets.missing`, `deploy.secret.url_safe`, `deploy.secret.default_credential`, `deploy.secret.duplicate_credential` |
 | `--files`: regular, non-symlink, mode 600, <=8 KiB | `deploy.file.*`, `deploy.secret.mode` |
 | `--files`: no default or duplicate role credentials | `deploy.secret.default_credential`, `deploy.secret.duplicate_credential` |
 | Backup PITR, retention, and replication; four observability units | `deploy.backup.*`, `deploy.host.undeclared` |
@@ -173,8 +178,10 @@ files and credential quality.
 The required secret names are `queue_url`, `object_store_access_key`,
 `object_store_secret_key`, `<service>_database_url`, and
 `<service>_owner_database_url` for `gateway`, `data`, `evidence`, and
-`simulation`, plus the `auth.gateway_token_secret`. The URLs carry
-`sslmode=verify-full`; every role has its own password.
+`simulation`, plus the `auth.gateway_token_secret` and the four stateful
+secrets. The URLs carry `sslmode=verify-full`; every role has its own password.
+The four stateful values are URL-safe and `secrets/manifest.json` records their
+`stateful` scope; `bootstrap.sh` never creates them as app Swarm secrets.
 
 ## 5. Render
 
@@ -188,16 +195,18 @@ usage errors.
 
 | Target | Writes |
 |---|---|
-| `swarm` | `stack.yaml`, `quantrule_traefik.yml`, `traefik-dynamic.yml`, `bootstrap.sh`, `jobs/db-bootstrap.sh`, `jobs/migrate.sh`, `secrets/`, `pki/`, `render.json` |
-| `infra` | `infra/<host>.yaml`, `keepalived-<host>.conf`, `secrets/`, `pki/`, `render.json` |
+| `swarm` | `stack.yaml`, `quantrule_traefik.yml`, `traefik-dynamic.yml`, `bootstrap.sh`, `jobs/cluster-bootstrap.sh`, `jobs/db-bootstrap.sh`, `jobs/migrate.sh`, `secrets/`, `pki/`, `render.json` |
+| `infra` | `infra/<host>.yaml`, `keepalived-<host>.conf`, `patroni-<host>.yml`, `etcd-<host>.conf.yml`, `haproxy-<host>.cfg`, `stateful-manifest.json`, `secrets/`, `pki/`, `render.json` |
 | `all` | Both sets |
 
 `secrets/` is the one copy of the source `secrets.files` values: one mode-600
-file per name, a `manifest.json` that lists names and paths but never a value or
-fingerprint, and mode 700 on the directory. `pki/` copies the public CA bundles
-at mode 644; for `tls: cert` it also copies the ingress certificate at 644 and
-the key at 600. The renderer rejects a path component that contains a separator
-or whitespace, removes only its own known outputs, and leaves an operator's
+file per name, a `manifest.json` that lists names, paths, and `app`/`stateful`
+scope but never a value or fingerprint, and mode 700 on the directory. `pki/`
+copies the public CA bundles at mode 644, the Postgres and etcd server leaves,
+and the ingress certificate/key in cert mode. The `stateful-manifest.json` lists
+the config, secret, and PKI sources, absolute targets, modes, owners, and
+scopes. The renderer rejects a path component that contains a separator or
+whitespace, removes only its own known outputs, and leaves an operator's
 unrelated file in `--out` alone. A render is byte-identical across repeated runs.
 
 `stack.yaml` contains the seven services and one ingress. Every app image is
@@ -215,16 +224,18 @@ policy. Each HTTP service has a `/health` check (`8080`; backtest `9090`); a
 spare slot selects `start-first`, otherwise `stop-first` with `monitor: 180s`
 and `max_failure_ratio: 0`. The overlay is external, attachable, and encrypted.
 
-`infra/<host>.yaml` is a pinned skeleton per host for Patroni/PostgreSQL, etcd,
+`infra/<host>.yaml` is a pinned unit per host for Patroni/PostgreSQL, etcd,
 HAProxy, RabbitMQ, MinIO, Prometheus, Grafana, Loki, Alertmanager, and keepalived
 on each ingress host. Each unit has a pinned image, host-local bind volumes,
 config-file references, no `ports`, `restart: unless-stopped`, and the
 attachable overlay. The keepalived unit is host-network with `NET_ADMIN` and
-`NET_BROADCAST` and no `deploy` block. The unit configuration itself is
-PLAT-003/004/005/006 (keepalived is PLAT-002); the renderer does not invent it.
-The HAProxy unit carries the database endpoint alias, RabbitMQ the queue alias,
-and MinIO the object-store alias; the MinIO drive list comes from
-`stateful.minio.drives`.
+`NET_BROADCAST` and no `deploy` block. The Patroni unit uses `images.patroni`,
+an explicit command, the config/PKI/secret mounts, a unique `patroni-<host>`
+alias, and a `/dev/watchdog` mapping only for `required`. etcd uses
+`--config-file` and a unique alias; HAProxy uses the config, the REST password
+file, and unique plus `postgres` aliases. RabbitMQ, MinIO, and observability
+remain PLAT-004..006; the renderer does not invent their configuration. The
+MinIO drive list comes from `stateful.minio.drives`.
 
 `bootstrap.sh` runs on a manager: it checks the daemon and manager role, creates
 or verifies the encrypted attachable overlay, creates external secrets/configs
@@ -233,32 +244,39 @@ or verifies the encrypted attachable overlay, creates external secrets/configs
 `.deploy`, per-service, `.ingress`), resolves each host by label then hostname
 then unique address, refuses ambiguity/drain/foreign deployment, checks counts,
 runs the jobs before the stack, and waits for the pinned digest and one 443 port.
-It prints no secret value. `tools/swarm.sh` wraps validate/render/bootstrap/
-status/upgrade/rollback/verify, snapshots before upgrade, and never removes a
-stack, secret, config, or volume. Contract:
-[swarm-control](../2026-11-23/swarm-control.md).
+`--network-only` creates or validates the overlay and exits before secrets,
+configs, labels, jobs, or stack; `tools/stateful.sh network` uses it. The four
+stateful secrets are excluded from app Swarm secrets. It prints no secret value.
+`tools/swarm.sh` wraps validate/render/bootstrap/status/upgrade/rollback/verify,
+snapshots before upgrade, and never removes a stack, secret, config, or volume.
+Contract: [swarm-control](../2026-11-23/swarm-control.md).
 
-`jobs/db-bootstrap.sh` applies each database's schema and grants through its
-**owner** URL, in gateway, data, evidence, simulation order. PLAT-003 owns the
-cluster, four databases, and eight roles; the job converges schemas and does not
-create roles. It uses the pinned PostgreSQL client image because the app image
-has no `psql`. `jobs/migrate.sh` runs the pinned app image once per owner, in the
-same order, with `--migrate-only`, `QR_MIGRATE=0`, `PGSSLMODE=verify-full`,
-`PGSSLROOTCERT`, and only the owner URL file; no app or superuser URL.
+`jobs/cluster-bootstrap.sh` creates the four databases and eight roles through
+the superuser password file and the `postgres`/HAProxy endpoint, before the
+schema job. `jobs/db-bootstrap.sh` applies each database's schema and grants
+through its **owner** URL, in gateway, data, evidence, simulation order.
+`jobs/migrate.sh` runs the pinned app image once per owner, in the same order,
+with `--migrate-only`, `QR_MIGRATE=0`, `PGSSLMODE=verify-full`,
+`PGSSLROOTCERT`, and only the owner URL file; no app or superuser URL. The
+cluster job uses the pinned PostgreSQL image because the app image has no
+`psql`; the order is cluster -> db -> migrate -> stack.
 
 `render.json` records the contract, profile, evidence tier, target, stack name,
 the canonical `sha256:` descriptor hash, the pinned image, and the sorted file list; no timestamp.
 
 ## 6. Check
 
-```bash
-qr-deploy check deploy.json [--remote docker] [--overlay]
-```
-
-The default check validates the descriptor, placement, and local files, rejects a
-second public port, and probes `https://quantrule.dev/health`, `/ready`, and
-`/version` through the ingress. The trust anchor and recorded-fixture seam are in
-[ingress](../2026-11-23/ingress.md); the report never prints a secret value.
+`qr-deploy check deploy.json [--out <render-dir>] [--remote docker] [--overlay]`
+validates the descriptor, placement, local files, and the stateful rows, rejects
+a second public port, and probes `/health`, `/ready`, and
+`/version` through the ingress; the trust anchor and fixture seam are in
+[ingress](../2026-11-23/ingress.md), and no row prints a secret. The stateful
+rows check Patroni sync/rewind/archive/TLS/pg_hba/aliases/REST/watchdog, the etcd
+mTLS cluster, the HAProxy `/primary` check and overlay stats, the manifest SANs,
+and the Postgres/etcd certificate SANs through `QR_DEPLOY_OPENSSL`. `--out` (or
+`QR_DEPLOY_OUT`) reads the rendered tree; without it the configs render in
+memory and the certificates come from the descriptor CA. A missing `openssl` is
+a failed `limited` row.
 
 `--remote docker` and `--overlay` are explicit read-only opt-ins. The Docker
 adapter runs `docker info`, `node ls`, and `node|network|service inspect`, parses
@@ -266,65 +284,47 @@ the JSON, and prints only selected fields: Swarm state and odd manager count,
 node role/availability/labels, overlay encryption, service replicas/image/update
 state, one 443 host-mode port, no app port, task errors, and a limited health
 row. It never prints an environment value, secret/config payload, token, or full
-inspect body; `QR_DEPLOY_DOCKER` overrides the executable. The default check is
-Docker-free; a missing object, wrong value, or command error is a failed row.
+inspect body; `QR_DEPLOY_DOCKER` overrides the executable. A missing object,
+wrong value, or command error is a failed row; the default check is Docker-free.
 
-The deterministic test seam is `QR_DEPLOY_PROBE_FIXTURE=<json>`: a map from the
-three ingress URLs to a recorded `status`/`body` or `error`. Tests use it to
-prove a healthy result, a digest mismatch, an unhealthy state, an unreachable
-host, and a wrong TLS/SAN without a network. It is not evidence and is never
-set by the operator path.
+`QR_DEPLOY_PROBE_FIXTURE=<json>` maps the three ingress URLs to a recorded
+`status`/`body` or `error`; tests use it without a network. It is not evidence.
 
-## 7. Token rotation under Swarm
+## 7. Token rotation, commands, and compatibility
 
-HA-009 rotates the staged file and sends `SIGHUP`, with no restart. A Swarm
-secret is immutable, so the HA profile uses a new secret name and a rolling
-service update instead: create `<token>_v2`, update the gateway service to
-mount it, wait for `service update --detach=false`, and keep the old secret
-until every replica has drained. This is the recorded HA-profile exception to
-HA-009. The gateway token code is unchanged; both paths still use
-`QR_BEARER_TOKEN_FILE`.
-
-## 8. Commands
+A Swarm secret is immutable: rotate the gateway token with a new name and a
+rolling service update; the mount target and `QR_BEARER_TOKEN_FILE` stay the
+same. The HA-009 `SIGHUP` path is Compose-only.
 
 | Command | Behavior |
 |---|---|
-| `qr-deploy validate <deploy.json>` | Dispatches on `v`; v2 output is unchanged; v3 validates structurally. |
-| `qr-deploy validate <deploy.json> --files` | v3 only; checks secret and ingress files locally. |
-| `qr-deploy render <deploy.json> --out <dir>` | v2 unchanged; v3 requires `--target`. |
-| `qr-deploy render <deploy.json> --out <dir> --target …` | v3 only; writes the selected set. |
-| `qr-deploy check <deploy.json>` | v2 unchanged; v3 checks files and probes the ingress. |
-| `qr-deploy check <deploy.json> --remote docker` | v3 opt-in; read-only Docker inspector rows. |
-| `qr-deploy check <deploy.json> --overlay` | v3 opt-in; overlay rows plus a limited DNS/route row. |
+| `validate [--files]` | v2 unchanged; v3 structural, then secret/ingress/PKI files. |
+| `render --target swarm\|infra\|all` | v2 unchanged; v3 writes the selected set. |
+| `check [--out <dir>] [--remote docker] [--overlay]` | v2 unchanged; v3 probes the ingress and checks the stateful rows; `--out` reads a rendered tree. |
 
-## 9. Migration and compatibility
+v2 stays readable byte-identically. v3 is additive; a live move is a runbook, the
+old stack stays until the checks pass, and rollback restores the previous
+descriptor and image with forward-only migrations.
 
-- v2 remains readable for the multi-host profile; v2 output and rules are
-  unchanged.
-- v3 is additive; a live deployment moves by runbook, not by editing the
-  descriptor in place.
-- The old stack remains available until the new stack passes the file,
-  placement, and digest checks.
-- Rollback restores the previous descriptor and image digest; migrations are
-  forward-only.
+## 8. Evidence boundary
 
-## 10. Evidence boundary
+`lab-single-host` proves simulated node failure only. The `ha` tier
+(`tools/test_tiers.sh ha`) defaults to the lab descriptor, loses one worker, one
+manager, the VIP, the Patroni primary, and one HAProxy, and records a measured
+RTO, RPO 0 for acknowledged commits, the rejoin, and value-free evidence as
+`Simulated HA`; `--skip-database` leaves the row `Unverified`, never a pass.
+`swarm-ha` and `single-az` stay unverified until HA-014; no output says `Real HA`.
+The ingress rows are PLAT-002, the stateful rows PLAT-003, pgBackRest HA-013, and
+scrape/alert PLAT-006.
 
-`lab-single-host` renders three VMs on one physical computer and proves simulated
-node failure only. The `ha` tier (`tools/test_tiers.sh ha`) deploys, loses one
-worker and one manager, and records `Simulated HA`; `swarm-ha` and `single-az`
-say unverified until HA-014. The release note, `render.json`, and `qr-deploy
-check` never say `Real HA`. The ingress rows and client CA trust are PLAT-002; an
-unavailable ingress-loss lab is `Unverified`, never a pass.
-
-## 11. Non-goals
+## 9. Non-goals
 
 No Kubernetes, autoscaling, accounts, tenancy, live trading, desktop packaging,
 a second public port, or inline secrets. Ingress, keepalived, DNS/TLS, certificate
 storage, headers, and body limits are in the
-[ingress contract](../2026-11-23/ingress.md). Patroni/RabbitMQ/MinIO/
-observability configuration is PLAT-003/004/005/006; registry signing is
-PLAT-007; backup is HA-013; failure evidence is HA-014. Internal TLS and the CA
-model are in the [internal TLS contract](../2026-11-23/internal-tls.md); secret
-files and rotation are in the
-[file-backed secrets contract](../2026-11-23/secret-files.md).
+[ingress contract](../2026-11-23/ingress.md). Patroni/etcd/HAProxy
+configuration is [PLAT-003](../2026-11-23/patroni-cluster.md); RabbitMQ, MinIO,
+and observability are PLAT-004/005/006; registry signing is PLAT-007; pgBackRest
+is HA-013; failure evidence is HA-014. Internal TLS and the CA model are in the
+[internal TLS contract](../2026-11-23/internal-tls.md); secret files and rotation
+are in the [file-backed secrets contract](../2026-11-23/secret-files.md).

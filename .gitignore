@@ -51,6 +51,8 @@ Thumbs.db
 /pki/
 /deploy/multi-host/env/
 /deploy/multi-host/pki/
+/deploy/v3/out/
+/deploy/v3/evidence/
 
 # Client build output
 apps/web/node_modules/

@@ -3,14 +3,17 @@
 #
 # This is the `ha` test tier. It is not part of the fast gate: it deploys a real
 # stack, drains one worker-capacity node, stops one manager on a distinct host,
-# and proves that the surviving gateway and ingress still deliver the pinned
-# digest. It never removes a stack, volume, secret, config, or node, and never
-# moves a stateful unit. `--plan` prints the sequence without contacting Docker.
+# moves the ingress VIP, pauses the Patroni primary and one HAProxy with the
+# watchdog off, and proves that the surviving gateway and ingress still deliver
+# the pinned digest. It never removes a stack, volume, secret, config, or node.
+# `--plan` prints the sequence without contacting Docker. `tools/test_tiers.sh ha`
+# defaults to `deploy/v3/deploy.lab.json`; an explicit descriptor still wins.
 #
 # Usage:
 #   deploy/v3/test.sh --plan
 #   deploy/v3/test.sh --confirm
 #   deploy/v3/test.sh --confirm --skip-deploy
+#   deploy/v3/test.sh --confirm --skip-database
 #
 # Environment:
 #   DESCRIPTOR             descriptor path (default deploy/v3/deploy.example.json)
@@ -24,9 +27,13 @@
 #   QR_SWARM_VERIFY_TIMEOUT seconds per verification run (default 300)
 #   QR_SWARM_CACERT        CA bundle for HTTPS (default endpoints.database.tls_ca,
 #                          then the rendered out/pki/database-ca.crt)
+#   QR_SWARM_EVIDENCE      database-failover evidence JSON (default
+#                          deploy/v3/evidence/<UTC>.json)
+#   QR_SWARM_SUDO          reserved for a guarded remote command; empty by default
 set -euo pipefail
 
-root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+root="$(cd -- "$script_dir/../.." && pwd)"
 cd "$root"
 
 descriptor=${DESCRIPTOR:-deploy/v3/deploy.example.json}
@@ -43,6 +50,8 @@ cacert=${QR_SWARM_CACERT:-}
 plan=0
 confirm=0
 skip_deploy=0
+skip_database=0
+database_status="Unverified"
 
 usage() {
   awk 'NR == 1 { next } /^#/ { sub(/^# ?/, ""); print; next } { exit }' "${BASH_SOURCE[0]}"
@@ -63,6 +72,9 @@ unverified() {
   exit 1
 }
 
+# shellcheck source=deploy/v3/failover.sh
+. "$script_dir/failover.sh"
+
 while [ $# -gt 0 ]; do
   case "$1" in
     --plan | --dry-run)
@@ -75,6 +87,10 @@ while [ $# -gt 0 ]; do
       ;;
     --skip-deploy)
       skip_deploy=1
+      shift
+      ;;
+    --skip-database)
+      skip_database=1
       shift
       ;;
     --descriptor)
@@ -98,18 +114,27 @@ while [ $# -gt 0 ]; do
 done
 
 if [ "$plan" -eq 1 ]; then
-  cat <<'PLAN'
+  cat <<PLAN
 ha: plan (no Docker is contacted)
+ha: descriptor: $descriptor
 ha: 1. preflight: docker info, active Swarm manager, 3 odd managers, descriptor hosts resolve, VIP and CA present
 ha: 2. deploy: tools/swarm.sh bootstrap (render, labels, jobs, stack)
 ha: 3. check: qr-deploy check --remote docker --overlay; ingress /health /ready /version over the private CA
 ha: 4. ingress baseline: VIP holder, 2/2 ingress, targeted check and tools/verify.sh digest
 ha: 5. ingress loss: drain the VIP holder; bounded 1 Hz HTTPS /health loop; the VIP moves to the survivor
-ha: 6. negative controls: no port 80, each direct edge public 443 refused, VIP 443 answers, app ports 8080/5432/9000 refused
+ha: 6. negative controls: no port 80, each direct edge public 443 refused, VIP 443 answers, 8404/5432/8080/9000 refused
 ha: 7. loss: drain one worker-capacity node; stop one manager on a distinct host
 ha: 8. verify: manager quorum, gateway/ingress, one 443 port, pinned digest, verification run
 ha: 9. verify: stateful containers and bind mounts on survivors; no stateful unit moves
 ha: 10. restore: activate the ingress holder and worker, start the manager, full check again
+ha: 11. database preflight: etcd TLS health, patronictl leader + sync, psql through postgres
+ha: 12. database baseline: marker row, pg_current_wal_lsn(), tools/verify.sh digest
+ha: 13. database loss: docker pause the primary Patroni container (watchdog off); wait for a new leader + sync; measure RTO; read the marker; write a second marker through postgres; compare the digest and LSN
+ha: 14. database control: pause one HAProxy; dial the surviving edge with PGHOSTADDR; psql still works; unpause
+ha: 15. database negative controls: public edge/VIP 8404, 5432, 8080 and 9000 refuse; only 443 answers
+ha: 16. database restore: unpause the old primary; wait for replica + pg_stat_replication; record pg_rewind/reinit; full check; digest equal
+ha: 17. database evidence: value-free JSON under QR_SWARM_EVIDENCE; Simulated HA only on success
+ha: 18. --skip-database leaves the failover row Unverified, never a pass
 ha: evidence: Simulated HA for lab-single-host; Real HA is HA-014 only
 ha: this plan is not evidence
 PLAN
@@ -432,22 +457,25 @@ negative_closed_tcp() {
 }
 
 negative_controls() {
-  local host address
+  local host address port
   negative_closed_http "port 80" "http://$dns/"
   for host in $ingress_hosts; do
     address=$(public_address "$host")
     [ -n "$address" ] \
       || unverified "ingress host $host has no public_address; the direct-edge control cannot run"
     negative_closed_tcp "direct edge public $host:443" "$address" 443
+    for port in 8404 5432 8080 9000; do
+      negative_closed_tcp "direct edge public $host:$port" "$address" "$port"
+    done
   done
   nc -z -w 5 "$vip" 443 >/dev/null 2>&1 \
     || unverified "the VIP $vip does not answer 443"
   curl_ingress -fsS --max-time 10 --resolve "$dns:443:$vip" "https://$dns/health" >/dev/null 2>&1 \
     || unverified "https://$dns/health does not answer through VIP $vip"
   say "negative control: VIP $vip:443 answers"
-  negative_closed_tcp "gateway 8080" "$vip" 8080
-  negative_closed_tcp "postgres 5432" "$vip" 5432
-  negative_closed_tcp "object store 9000" "$vip" 9000
+  for port in 8404 5432 8080 9000; do
+    negative_closed_tcp "VIP $port" "$vip" "$port"
+  done
 }
 
 ingress_loss() {
@@ -700,6 +728,8 @@ if [ "$confirm" -eq 0 ]; then
   say "  $docker_bin node update --availability active $worker_id"
   say "  $docker_bin node update --availability drain <vip-holder-id>   # ingress loss"
   say "  $docker_bin node update --availability active <vip-holder-id>  # ingress restore"
+  say "  $docker_bin pause quantrule-patroni-<leader>   # database failover, watchdog off"
+  say "  $docker_bin unpause quantrule-patroni-<leader> # database restore"
   exit 2
 fi
 
@@ -740,7 +770,24 @@ ingress_preflight
 say "ingress: VIP loss and negative controls"
 ingress_loss
 
+if [ "$skip_database" -eq 1 ]; then
+  say "database: skipped (--skip-database); failover row Unverified"
+else
+  say "database: preflight, baseline, pause, write, HAProxy control, restore, evidence"
+  db_failover
+  database_status="Simulated HA"
+fi
+
 say "check: full remote/overlay after restore"
-qr_deploy check "$descriptor" --remote docker --overlay \
-  || unverified "the full check failed after restore"
-say "PASS: $evidence"
+if [ -f "$out/stateful-manifest.json" ]; then
+  qr_deploy check "$descriptor" --remote docker --overlay --out "$out" \
+    || unverified "the full check failed after restore"
+else
+  qr_deploy check "$descriptor" --remote docker --overlay \
+    || unverified "the full check failed after restore"
+fi
+if [ "$database_status" = "Simulated HA" ]; then
+  say "PASS: $evidence; database failover Simulated HA"
+else
+  say "PASS: $evidence (worker/manager/ingress); database failover UNVERIFIED (--skip-database)"
+fi

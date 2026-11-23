@@ -1,0 +1,32 @@
+http:
+  middlewares:
+    request-body:
+      buffering:
+        maxRequestBodyBytes: 536870912
+    security-headers:
+      contentTypeNosniff: true
+      customResponseHeaders:
+        Server: ""
+      referrerPolicy: "no-referrer"
+      stsIncludeSubdomains: true
+      stsPreload: false
+      stsSeconds: 31536000
+  routers:
+    gateway:
+      entryPoints:
+        -
+          "websecure"
+      middlewares:
+        -
+          "security-headers"
+        -
+          "request-body"
+      rule: "Host(`quantrule.dev`)"
+      service: "gateway"
+      tls: {}
+  services:
+    gateway:
+      loadBalancer:
+        servers:
+          -
+            url: "http://quantrule-lab_gateway:8080"

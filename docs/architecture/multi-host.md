@@ -1,6 +1,6 @@
 # Multi-Host Deployment
 
-- Status: Implemented; hardening #980; release pending
+- Status: Implemented; hardening #980; release pending; the v3 Patroni/etcd/HAProxy tier, check rows, and failover harness are separate and current; the live lab is `Unverified` without a three-VM host
 - Part of: [`README.md`](README.md)
 - Decision: [ADR-2026-11-20-01](../adr/2026-11-20/958-multi-host-deployment.md)
 - Claim type: Behaviour Claim
@@ -78,8 +78,8 @@ The v2 descriptor still carries one Postgres endpoint and one password. The
 renderer derives the four database URLs and the eight role names from that
 endpoint and secret; `db-bootstrap` creates the databases and roles, the
 one-shot `<service>-migrate` jobs apply the owner ledgers, and the long-running
-services start with the application URL only. Per-role password files are a v3
-concern.
+services start with the application URL only. The v3 profile resolves per-role
+passwords and checks the stateful rows in [patroni-cluster](../config/2026-11-23/patroni-cluster.md).
 
 ## 5. Trust boundary
 
@@ -130,7 +130,7 @@ The gateway `/ready` reports the upstream states.
 - A service failure affects that service; a host failure affects every service
   placed on it. The core host is a three-service failure unit.
 - A run is redelivered by the queue and recomputation is idempotent.
-- The infrastructure host is a single point of failure; this profile is not HA.
+- The infrastructure host is a single point of failure; this profile is not HA; v3's Patroni tier and lab are separate, and real HA is HA-014.
 
 ## 9. Backup, upgrade, and rollback
 
@@ -148,8 +148,7 @@ The gateway `/ready` reports the upstream states.
 ## 10. What it does not provide
 
 No cloud provider integration, high availability, autoscaling, Kubernetes,
-multi-region placement, service-to-service mTLS, external registry, RPM, or DEB.
-Windows multi-host servers are not supported; the server profile is Linux.
+multi-region placement, service-to-service mTLS, external registry, RPM, or DEB.Windows multi-host servers are not supported; the server profile is Linux.
 Each remains a later decision with its own record.
 
 Residual risks accepted for v1: database roles are per service but v2 uses one

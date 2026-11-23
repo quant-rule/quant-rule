@@ -297,7 +297,7 @@ fn default_openssl() -> &'static Path {
         ));
         write_mode(
             &path,
-            "#!/bin/sh\nprintf 'Certificate will not expire\\nX509v3 Subject Alternative Name:\\n    DNS:quantrule.dev\\n'\nexit 0\n",
+            "#!/bin/sh\nprintf 'Certificate will not expire\\nX509v3 Subject Alternative Name:\\n    DNS:quantrule.dev, DNS:postgres, DNS:patroni-infra-1, DNS:patroni-infra-2, DNS:patroni-infra-3, DNS:etcd-infra-1, DNS:etcd-infra-2, DNS:etcd-infra-3\\n'\nexit 0\n",
             0o755,
         );
         path
@@ -323,6 +323,32 @@ fn write_mode(path: &Path, content: &str, mode: u32) {
     let _ = mode;
 }
 
+fn stage_pki(directory: &Path) -> PathBuf {
+    let root = directory.join("pki");
+    std::fs::create_dir_all(root.join("postgres")).expect("postgres pki");
+    std::fs::create_dir_all(root.join("etcd")).expect("etcd pki");
+    let ca = root.join("ca.crt");
+    write_mode(&ca, "fixture CA\n", 0o644);
+    for (directory, name) in [
+        ("postgres", "server"),
+        ("etcd", "server"),
+        ("etcd", "peer"),
+        ("etcd", "client"),
+    ] {
+        write_mode(
+            &root.join(directory).join(format!("{name}.crt")),
+            "fixture certificate\n",
+            0o644,
+        );
+        write_mode(
+            &root.join(directory).join(format!("{name}.key")),
+            "fixture key\n",
+            0o600,
+        );
+    }
+    ca
+}
+
 /// Create a descriptor whose secret and CA paths are local, mode-600 copies.
 fn local_descriptor(directory: &Path) -> PathBuf {
     let mut value: Value = serde_json::from_str(
@@ -337,12 +363,7 @@ fn local_descriptor(directory: &Path) -> PathBuf {
         write_mode(&destination, &content, 0o600);
         *path = serde_json::json!(destination.display().to_string());
     }
-    let ca = directory.join("ca.crt");
-    write_mode(
-        &ca,
-        "-----BEGIN CERTIFICATE-----\nfixture\n-----END CERTIFICATE-----\n",
-        0o644,
-    );
+    let ca = stage_pki(directory);
     for endpoint in ["database", "queue", "object_store"] {
         value["endpoints"][endpoint]["tls_ca"] = serde_json::json!(ca.display().to_string());
     }

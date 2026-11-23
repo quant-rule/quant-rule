@@ -9,7 +9,7 @@ use std::fmt::Write as _;
 /// One v3 check row.
 #[derive(Debug, Clone)]
 pub struct CheckRow {
-    /// The check family: descriptor, placement, image, secret, ingress, remote.
+    /// The check family: descriptor, placement, image, secret, stateful, ingress, remote.
     pub group: &'static str,
     /// The service, file field, or URL that was checked.
     pub subject: String,

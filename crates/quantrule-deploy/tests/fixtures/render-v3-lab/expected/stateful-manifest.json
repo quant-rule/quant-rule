@@ -1,0 +1,162 @@
+{
+  "v": "quantrule.deploy/v3",
+  "note": "copy each source to its absolute target; no secret value or fingerprint is listed",
+  "sans": [
+    "etcd-lab-1",
+    "etcd-lab-2",
+    "etcd-lab-3",
+    "patroni-lab-1",
+    "patroni-lab-2",
+    "patroni-lab-3",
+    "postgres"
+  ],
+  "files": [
+    {
+      "source": "patroni-lab-1.yml",
+      "target": "/etc/quantrule/patroni/patroni.yml",
+      "mode": "600",
+      "owner": "root",
+      "scope": "patroni"
+    },
+    {
+      "source": "patroni-lab-2.yml",
+      "target": "/etc/quantrule/patroni/patroni.yml",
+      "mode": "600",
+      "owner": "root",
+      "scope": "patroni"
+    },
+    {
+      "source": "patroni-lab-3.yml",
+      "target": "/etc/quantrule/patroni/patroni.yml",
+      "mode": "600",
+      "owner": "root",
+      "scope": "patroni"
+    },
+    {
+      "source": "etcd-lab-1.conf.yml",
+      "target": "/etc/quantrule/etcd/etcd.conf.yml",
+      "mode": "600",
+      "owner": "root",
+      "scope": "etcd"
+    },
+    {
+      "source": "etcd-lab-2.conf.yml",
+      "target": "/etc/quantrule/etcd/etcd.conf.yml",
+      "mode": "600",
+      "owner": "root",
+      "scope": "etcd"
+    },
+    {
+      "source": "etcd-lab-3.conf.yml",
+      "target": "/etc/quantrule/etcd/etcd.conf.yml",
+      "mode": "600",
+      "owner": "root",
+      "scope": "etcd"
+    },
+    {
+      "source": "haproxy-lab-1.cfg",
+      "target": "/etc/quantrule/haproxy/haproxy.cfg",
+      "mode": "600",
+      "owner": "root",
+      "scope": "haproxy"
+    },
+    {
+      "source": "haproxy-lab-2.cfg",
+      "target": "/etc/quantrule/haproxy/haproxy.cfg",
+      "mode": "600",
+      "owner": "root",
+      "scope": "haproxy"
+    },
+    {
+      "source": "secrets/postgres_superuser_password",
+      "target": "/etc/quantrule/secrets/postgres_superuser_password",
+      "mode": "600",
+      "owner": "root",
+      "scope": "secret"
+    },
+    {
+      "source": "secrets/patroni_replication_password",
+      "target": "/etc/quantrule/secrets/patroni_replication_password",
+      "mode": "600",
+      "owner": "root",
+      "scope": "secret"
+    },
+    {
+      "source": "secrets/patroni_rewind_password",
+      "target": "/etc/quantrule/secrets/patroni_rewind_password",
+      "mode": "600",
+      "owner": "root",
+      "scope": "secret"
+    },
+    {
+      "source": "secrets/patroni_rest_password",
+      "target": "/etc/quantrule/secrets/patroni_rest_password",
+      "mode": "600",
+      "owner": "root",
+      "scope": "secret"
+    },
+    {
+      "source": "pki/database-ca.crt",
+      "target": "/etc/quantrule/pki/ca.crt",
+      "mode": "644",
+      "owner": "root",
+      "scope": "pki"
+    },
+    {
+      "source": "pki/postgres/server.crt",
+      "target": "/etc/quantrule/pki/postgres/server.crt",
+      "mode": "644",
+      "owner": "root",
+      "scope": "pki"
+    },
+    {
+      "source": "pki/postgres/server.key",
+      "target": "/etc/quantrule/pki/postgres/server.key",
+      "mode": "600",
+      "owner": "root",
+      "scope": "pki"
+    },
+    {
+      "source": "pki/etcd/server.crt",
+      "target": "/etc/quantrule/pki/etcd/server.crt",
+      "mode": "644",
+      "owner": "root",
+      "scope": "pki"
+    },
+    {
+      "source": "pki/etcd/server.key",
+      "target": "/etc/quantrule/pki/etcd/server.key",
+      "mode": "600",
+      "owner": "root",
+      "scope": "pki"
+    },
+    {
+      "source": "pki/etcd/peer.crt",
+      "target": "/etc/quantrule/pki/etcd/peer.crt",
+      "mode": "644",
+      "owner": "root",
+      "scope": "pki"
+    },
+    {
+      "source": "pki/etcd/peer.key",
+      "target": "/etc/quantrule/pki/etcd/peer.key",
+      "mode": "600",
+      "owner": "root",
+      "scope": "pki"
+    },
+    {
+      "source": "pki/etcd/client.crt",
+      "target": "/etc/quantrule/pki/etcd/client.crt",
+      "mode": "644",
+      "owner": "root",
+      "scope": "pki"
+    },
+    {
+      "source": "pki/etcd/client.key",
+      "target": "/etc/quantrule/pki/etcd/client.key",
+      "mode": "600",
+      "owner": "root",
+      "scope": "pki"
+    }
+  ]
+}

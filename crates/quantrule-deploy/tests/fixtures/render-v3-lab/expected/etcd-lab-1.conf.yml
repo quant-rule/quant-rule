@@ -1,0 +1,21 @@
+advertise-client-urls: "https://etcd-lab-1:2379"
+client-transport-security:
+  cert-file: "/etc/quantrule/pki/etcd/server.crt"
+  client-cert-auth: true
+  key-file: "/etc/quantrule/pki/etcd/server.key"
+  trusted-ca-file: "/etc/quantrule/pki/ca.crt"
+data-dir: "/etcd-data"
+initial-advertise-peer-urls: "https://etcd-lab-1:2380"
+initial-cluster: "etcd-lab-1=https://etcd-lab-1:2380,etcd-lab-2=https://etcd-lab-2:2380,etcd-lab-3=https://etcd-lab-3:2380"
+initial-cluster-state: "new"
+initial-cluster-token: "quantrule-lab-etcd"
+listen-client-urls: "https://0.0.0.0:2379"
+listen-metrics-urls: "http://0.0.0.0:2381"
+listen-peer-urls: "https://0.0.0.0:2380"
+metrics: "prometheus"
+name: "etcd-lab-1"
+peer-transport-security:
+  cert-file: "/etc/quantrule/pki/etcd/peer.crt"
+  client-cert-auth: true
+  key-file: "/etc/quantrule/pki/etcd/peer.key"
+  trusted-ca-file: "/etc/quantrule/pki/ca.crt"

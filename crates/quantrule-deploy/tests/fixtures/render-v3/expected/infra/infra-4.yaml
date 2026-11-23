@@ -33,6 +33,6 @@ services:
 x-quantrule:
   evidence: "HA profile (unverified)"
   network: "overlay, attachable, encrypted; created by bootstrap.sh"
-  owner: "HA-012"
-  platform: "keepalived is PLAT-002; the remaining unit configuration belongs to PLAT-003/004/005/006; this file only pins the image, host volumes, and overlay attachment"
+  owner: "PLAT-003"
+  platform: "keepalived is PLAT-002; Patroni, etcd, and HAProxy are configured by PLAT-003; RabbitMQ, MinIO, and observability remain PLAT-004..006"
   profile: "swarm-ha"

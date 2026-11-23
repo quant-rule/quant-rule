@@ -1,0 +1,33 @@
+ok	stateful	patroni	synchronous-mode	3 node config(s); synchronous_mode: true
+ok	stateful	patroni	synchronous-mode-strict	3 node config(s); strict mode refuses an asynchronous fallback
+ok	stateful	patroni	synchronous-node-count	3 node config(s); one synchronous standby
+ok	stateful	patroni	synchronous-commit	3 node config(s); synchronous_commit: on
+ok	stateful	patroni	rewind	3 node config(s); pg_rewind and replication slots enabled
+ok	stateful	patroni	wal-log-hints	3 node config(s); wal_log_hints: on
+ok	stateful	patroni	archive	3 node config(s); archive/recovery commands are configured placeholders for HA-013
+ok	stateful	patroni	tls	3 node config(s); TLS uses the Postgres leaf and the internal CA
+ok	stateful	patroni	pg-hba	3 node config(s); hostssl with scram-sha-256; no plaintext host rule
+ok	stateful	patroni	pg-hba-no-trust	no trust line in any node config
+ok	stateful	patroni	aliases	connect_address and etcd3 use patroni-<host> and etcd-<host>
+ok	stateful	patroni	rest-auth	basic-auth username only; the password stays in the mounted file
+ok	stateful	patroni	watchdog	mode automatic; the desktop device is gated by the mode
+ok	stateful	patroni	unit	unique alias, no published port, and the watchdog device only for required
+ok	stateful	patroni	overlay-only	no host underlay address in any node config
+ok	stateful	etcd	members	three-member initial cluster with etcd-<host> peer URLs
+ok	stateful	etcd	client-tls	3 node config(s); client listener requires a client certificate
+ok	stateful	etcd	peer-tls	3 node config(s); peer listener requires mTLS
+ok	stateful	etcd	urls	advertised client and peer URLs use etcd-<host>
+ok	stateful	etcd	metrics	3 node config(s); Prometheus metrics on the overlay; PLAT-006 owns scraping
+ok	stateful	etcd	overlay-only	no host underlay address in any member config
+ok	stateful	haproxy	health-check	2 node config(s); primary-only /primary check on the Patroni REST port
+ok	stateful	haproxy	servers	every Patroni member is a backend server
+ok	stateful	haproxy	shutdown-sessions	2 node config(s); a failed primary check closes its sessions
+ok	stateful	haproxy	stats-overlay	stats on 0.0.0.0:8404; no 443 bind and no published port
+ok	stateful	haproxy	unit	unique and postgres aliases; no published port
+ok	stateful	manifest	sans	SANs match the config aliases: etcd-infra-1, etcd-infra-2, etcd-infra-3, patroni-infra-1, patroni-infra-2, patroni-infra-3, postgres
+ok	stateful	manifest	files	21 files list configs, secrets, and PKI sources
+ok	stateful	manifest	modes	configs and secrets 600; public CA and certificates 644
+ok	stateful	manifest	no-values	no secret value, fingerprint, or password is listed
+ok	stateful	postgres certificate	san	/etc/quantrule/pki/postgres/server.crt covers postgres, patroni-infra-1, patroni-infra-2, patroni-infra-3
+ok	stateful	etcd server certificate	san	/etc/quantrule/pki/etcd/server.crt covers etcd-infra-1, etcd-infra-2, etcd-infra-3
+ok	stateful	etcd peer certificate	san	/etc/quantrule/pki/etcd/peer.crt covers etcd-infra-1, etcd-infra-2, etcd-infra-3

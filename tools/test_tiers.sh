@@ -6,8 +6,9 @@
 # it cannot silently pass against a stack this script did not expect. Parity
 # validates the port registry. Multi-host runs the local multi-host harness.
 # HA runs the opt-in Swarm lab harness in `deploy/v3/test.sh`; it needs a real
-# Swarm and never runs in the fast gate. The tier names are the contract from
-# AGENTS.md section 4 and ADR-13.
+# Swarm, defaults to the three-VM `deploy/v3/deploy.lab.json`, and never runs in
+# the fast gate. The tier names are the contract from AGENTS.md section 4 and
+# ADR-13.
 set -euo pipefail
 
 root="$(git rev-parse --show-toplevel)"
@@ -30,6 +31,7 @@ case "$tier" in
     ;;
   ha)
     shift
+    export DESCRIPTOR="${DESCRIPTOR:-deploy/v3/deploy.lab.json}"
     exec ./deploy/v3/test.sh "$@"
     ;;
   *)

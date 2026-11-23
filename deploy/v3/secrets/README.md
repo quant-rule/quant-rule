@@ -16,6 +16,16 @@ validate --files`. Git does not preserve mode 600 on checkout.
 | `queue_url` | `amqps://<user>:<password>@rabbitmq:5671/<vhost>` |
 | `object_store_access_key` | At least 8 characters, not a documented default. |
 | `object_store_secret_key` | At least 16 characters, distinct from every role password. |
+| `postgres_superuser_password` | At least 16 characters, URL-safe, not a default; used by Patroni and the cluster bootstrap. |
+| `patroni_replication_password` | At least 16 characters, URL-safe, distinct; the streaming-replication role. |
+| `patroni_rewind_password` | At least 16 characters, URL-safe, distinct; the pg_rewind role. |
+| `patroni_rest_password` | At least 16 characters, URL-safe, distinct; the Patroni REST basic-auth password and HAProxy check header. |
+
+The four stateful secrets are rendered with `scope: stateful` in
+`secrets/manifest.json` and copied to the hosts by `tools/stateful.sh`; they are
+not app Swarm secrets. Their values are fake and deliberately URL-safe so they
+can be interpolated into a Patroni or HAProxy runtime configuration without
+percent-encoding.
 
 The required names and the full file contract are in
 [`docs/config/2026-11-22/deploy-v3.md`](../../../docs/config/2026-11-22/deploy-v3.md).

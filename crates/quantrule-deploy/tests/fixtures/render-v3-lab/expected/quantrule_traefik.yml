@@ -1,0 +1,49 @@
+# Traefik static configuration for the quantrule.deploy/v3 ingress.
+#
+# This file is checked in and copied verbatim to out/quantrule_traefik.yml. It is
+# stack-name agnostic: the stack name lives only in the rendered dynamic config.
+# The file provider reads one rendered router and service from the mounted
+# dynamic directory. There is no port 80 entrypoint, no dashboard, no insecure
+# API, no public metrics endpoint, no writable ACME state, and no ingress auth.
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+entryPoints:
+  websecure:
+    address: ":443"
+    transport:
+      respondingTimeouts:
+        readTimeout: 900s
+        writeTimeout: 900s
+        idleTimeout: 900s
+
+providers:
+  file:
+    directory: /etc/traefik/dynamic
+    watch: false
+
+api:
+  dashboard: false
+  insecure: false
+
+tls:
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /etc/traefik/certs/ingress.crt
+        keyFile: /etc/traefik/certs/ingress.key
+  options:
+    default:
+      minVersion: VersionTLS12
+
+accessLog:
+  format: json
+  fields:
+    headers:
+      defaultMode: drop
+      names:
+        Authorization: drop
+
+log:
+  format: json

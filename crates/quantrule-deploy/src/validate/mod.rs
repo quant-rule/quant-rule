@@ -11,6 +11,7 @@ pub mod v3;
 mod network;
 mod placement;
 pub(crate) mod secrets;
+mod stateful;
 
 use crate::descriptor::Document;
 use crate::error::Error;

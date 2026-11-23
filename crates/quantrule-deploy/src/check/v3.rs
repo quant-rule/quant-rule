@@ -1,7 +1,8 @@
 //! The `quantrule.deploy/v3` check: local invariants plus one HTTPS ingress probe.
 //!
 //! The default check needs no Docker. It validates the descriptor and placement,
-//! reports the pinned image and the secret names and paths, and probes
+//! reports the pinned image, the secret names and paths, and the stateful
+//! config/PKI rows, and probes
 //! `https://<dns>/health`, `/ready`, and `/version` through a [`Probe`]. A test
 //! supplies a recorded [`FixtureProbe`] through `QR_DEPLOY_PROBE_FIXTURE`; the
 //! production path uses [`HttpProbe`] with the cert-mode CA or the system roots.
@@ -26,12 +27,15 @@ use super::report::{CheckReport, CheckRow};
 pub(crate) const FIXTURE_MISSING: &str = "fixture-missing:";
 
 /// What the check is allowed to open or inspect.
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct CheckOptions {
     /// Run the opt-in Docker inspector.
     pub remote_docker: bool,
     /// Run the opt-in overlay inspector.
     pub overlay: bool,
+    /// Read this rendered tree for the stateful rows instead of rendering in
+    /// memory. `QR_DEPLOY_OUT` supplies the same path on the command line.
+    pub out: Option<std::path::PathBuf>,
 }
 
 /// One HTTP response from the ingress.
@@ -190,6 +194,13 @@ pub fn check_with(
         app_image(descriptor),
     );
     local::add(&mut report, descriptor);
+    let certificates = ingress::CommandCertificate::from_env();
+    super::stateful::append(
+        &mut report,
+        descriptor,
+        options.out.as_deref(),
+        &certificates,
+    );
     for row in ingress::local_rows(descriptor) {
         report.push(row);
     }

@@ -1,19 +1,42 @@
-//! Pinned per-host Compose skeletons for the stateful and observability units.
+//! Pinned per-host Compose units for the stateful and observability tiers.
 //!
-//! The descriptor places the units; this renderer writes one file per host and
-//! never writes the unit configuration. Patroni, HAProxy, RabbitMQ, MinIO,
-//! Prometheus, Grafana, Loki, and Alertmanager configuration belongs to
-//! PLAT-003/004/005/006. Every unit is digest-pinned, attaches to the encrypted
-//! overlay, publishes no port, and keeps its data on a host-local path.
+//! The descriptor places the units; this renderer writes one file per host. The
+//! Patroni, etcd, and HAProxy units carry their PLAT-003 commands, config, PKI,
+//! and secret mounts; their configuration bodies live in [`super::stateful`].
+//! RabbitMQ, MinIO, Prometheus, Grafana, Loki, and Alertmanager remain pinned
+//! skeletons for PLAT-004/005/006. Every unit attaches to the encrypted overlay,
+//! publishes no port, and keeps its data on a host-local path.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use crate::descriptor::v3::Descriptor;
+use crate::descriptor::v3::{Descriptor, Watchdog};
 use crate::error::Error;
+use crate::validate::secrets::STATEFUL_SECRETS;
 
+use super::stateful::{ETCD_CONFIG_TARGET, HAPROXY_CONFIG_TARGET, PATRONI_CONFIG_TARGET};
 use super::yaml::Yaml;
 use super::{create_dir, evidence_tier, pinned, safe_component, write_public};
+
+/// The Patroni supervisor command. The four password files are read before exec
+/// and passed to Patroni through its documented `PATRONI_*` environment; no
+/// password enters the rendered YAML.
+const PATRONI_COMMAND: &str = "set -eu\n\
+umask 077\n\
+export PATRONI_SUPERUSER_PASSWORD=\"$$(cat /run/secrets/postgres_superuser_password)\"\n\
+export PATRONI_REPLICATION_PASSWORD=\"$$(cat /run/secrets/patroni_replication_password)\"\n\
+export PATRONI_REWIND_PASSWORD=\"$$(cat /run/secrets/patroni_rewind_password)\"\n\
+export PATRONI_RESTAPI_PASSWORD=\"$$(cat /run/secrets/patroni_rest_password)\"\n\
+exec patroni /etc/patroni/patroni.yml";
+
+/// The HAProxy command. It expands the REST basic-auth header into a runtime
+/// copy of the configuration; the rendered file carries only a placeholder.
+const HAPROXY_COMMAND: &str = "set -eu\n\
+umask 077\n\
+auth=\"patroni:$$(cat /run/secrets/patroni_rest_password)\"\n\
+encoded=$$(printf '%s' \"$$auth\" | base64 | tr -d '\\n')\n\
+sed \"s|__PATRONI_REST_AUTH__|$$encoded|g\" /usr/local/etc/haproxy/haproxy.cfg > /tmp/haproxy.cfg\n\
+exec haproxy -W -db -f /tmp/haproxy.cfg";
 
 /// Write `infra/<host>.yaml` for every host that owns a unit.
 pub fn render(
@@ -42,6 +65,8 @@ struct Unit {
     aliases: Vec<String>,
     host_network: bool,
     cap_add: Vec<&'static str>,
+    command: Vec<String>,
+    devices: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -75,6 +100,8 @@ fn unit(
         aliases,
         host_network: false,
         cap_add: Vec::new(),
+        command: Vec::new(),
+        devices: Vec::new(),
     }
 }
 
@@ -94,6 +121,8 @@ fn host_unit(
         aliases: Vec::new(),
         host_network: true,
         cap_add: vec!["NET_ADMIN", "NET_BROADCAST"],
+        command: Vec::new(),
+        devices: Vec::new(),
     }
 }
 
@@ -101,29 +130,63 @@ fn host_unit(
 fn host_units(descriptor: &Descriptor) -> BTreeMap<String, Vec<Unit>> {
     let mut hosts: BTreeMap<String, Vec<Unit>> = BTreeMap::new();
     for host in &descriptor.stateful.postgres.nodes {
-        hosts.entry(host.clone()).or_default().push(unit(
+        let mut volumes = vec![
+            volume(
+                "/srv/quantrule/patroni/data",
+                "/var/lib/postgresql/data",
+                false,
+            ),
+            volume(
+                "/srv/quantrule/patroni/wal-archive",
+                "/srv/quantrule/wal-archive",
+                false,
+            ),
+            volume(
+                "/etc/quantrule/patroni/patroni.yml",
+                PATRONI_CONFIG_TARGET,
+                true,
+            ),
+            volume(
+                "/etc/quantrule/pki/ca.crt",
+                "/etc/quantrule/pki/ca.crt",
+                true,
+            ),
+            volume(
+                "/etc/quantrule/pki/postgres",
+                "/etc/quantrule/pki/postgres",
+                true,
+            ),
+            volume("/etc/quantrule/pki/etcd", "/etc/quantrule/pki/etcd", true),
+        ];
+        for secret in STATEFUL_SECRETS {
+            volumes.push(volume(
+                format!("/etc/quantrule/secrets/{secret}"),
+                format!("/run/secrets/{secret}"),
+                true,
+            ));
+        }
+        let mut patroni = unit(
             descriptor,
             "patroni",
-            "postgres",
+            "patroni",
             host,
-            vec![
-                volume(
-                    "/srv/quantrule/patroni/data",
-                    "/var/lib/postgresql/data",
-                    false,
-                ),
-                volume(
-                    "/etc/quantrule/patroni/patroni.yml",
-                    "/etc/patroni/patroni.yml",
-                    true,
-                ),
-                volume("/etc/quantrule/pki/postgres", "/etc/quantrule/pki", true),
-            ],
-            Vec::new(),
-        ));
+            volumes,
+            vec![format!("patroni-{host}")],
+        );
+        patroni.command = vec![
+            "/bin/sh".to_owned(),
+            "-c".to_owned(),
+            PATRONI_COMMAND.to_owned(),
+        ];
+        if descriptor.stateful.postgres.watchdog == Watchdog::Required {
+            patroni
+                .devices
+                .push("/dev/watchdog:/dev/watchdog".to_owned());
+        }
+        hosts.entry(host.clone()).or_default().push(patroni);
     }
     for host in &descriptor.stateful.etcd.nodes {
-        hosts.entry(host.clone()).or_default().push(unit(
+        let mut etcd = unit(
             descriptor,
             "etcd",
             "etcd",
@@ -132,17 +195,28 @@ fn host_units(descriptor: &Descriptor) -> BTreeMap<String, Vec<Unit>> {
                 volume("/srv/quantrule/etcd/data", "/etcd-data", false),
                 volume(
                     "/etc/quantrule/etcd/etcd.conf.yml",
-                    "/etc/etcd/etcd.conf.yml",
+                    ETCD_CONFIG_TARGET,
                     true,
                 ),
-                volume("/etc/quantrule/pki/etcd", "/etc/quantrule/pki", true),
+                volume(
+                    "/etc/quantrule/pki/ca.crt",
+                    "/etc/quantrule/pki/ca.crt",
+                    true,
+                ),
+                volume("/etc/quantrule/pki/etcd", "/etc/quantrule/pki/etcd", true),
             ],
-            Vec::new(),
-        ));
+            vec![format!("etcd-{host}")],
+        );
+        etcd.command = vec![
+            "etcd".to_owned(),
+            "--config-file".to_owned(),
+            ETCD_CONFIG_TARGET.to_owned(),
+        ];
+        hosts.entry(host.clone()).or_default().push(etcd);
     }
     let database_host = descriptor.endpoints.database.host.clone();
     for host in &descriptor.stateful.haproxy.nodes {
-        hosts.entry(host.clone()).or_default().push(unit(
+        let mut haproxy = unit(
             descriptor,
             "haproxy",
             "haproxy",
@@ -150,13 +224,23 @@ fn host_units(descriptor: &Descriptor) -> BTreeMap<String, Vec<Unit>> {
             vec![
                 volume(
                     "/etc/quantrule/haproxy/haproxy.cfg",
-                    "/usr/local/etc/haproxy/haproxy.cfg",
+                    HAPROXY_CONFIG_TARGET,
                     true,
                 ),
-                volume("/etc/quantrule/pki/haproxy", "/etc/quantrule/pki", true),
+                volume(
+                    "/etc/quantrule/secrets/patroni_rest_password",
+                    "/run/secrets/patroni_rest_password",
+                    true,
+                ),
             ],
-            vec![database_host.clone()],
-        ));
+            vec![format!("haproxy-{host}"), database_host.clone()],
+        );
+        haproxy.command = vec![
+            "/bin/sh".to_owned(),
+            "-c".to_owned(),
+            HAPROXY_COMMAND.to_owned(),
+        ];
+        hosts.entry(host.clone()).or_default().push(haproxy);
     }
     let queue_host = descriptor.endpoints.queue.host.clone();
     for host in &descriptor.ingress.hosts {
@@ -286,6 +370,17 @@ fn host_units(descriptor: &Descriptor) -> BTreeMap<String, Vec<Unit>> {
     hosts
 }
 
+/// The rendered Compose unit for one host, or `None` when the host owns no unit.
+///
+/// The check reads the same in-memory text the renderer writes, so a row can
+/// prove the `postgres` alias without a rendered tree on disk.
+pub(crate) fn unit_yaml(descriptor: &Descriptor, host: &str) -> Option<String> {
+    let units = host_units(descriptor);
+    units
+        .get(host)
+        .map(|units| host_yaml(descriptor, host, units))
+}
+
 fn host_yaml(descriptor: &Descriptor, host: &str, units: &[Unit]) -> String {
     let mut services = BTreeMap::new();
     for value in units {
@@ -304,6 +399,18 @@ fn host_yaml(descriptor: &Descriptor, host: &str, units: &[Unit]) -> String {
             service = service.with(
                 "cap_add",
                 Yaml::list(value.cap_add.iter().map(|cap| Yaml::string(*cap))),
+            );
+        }
+        if !value.command.is_empty() {
+            service = service.with(
+                "command",
+                Yaml::list(value.command.iter().map(Yaml::string)),
+            );
+        }
+        if !value.devices.is_empty() {
+            service = service.with(
+                "devices",
+                Yaml::list(value.devices.iter().map(Yaml::string)),
             );
         }
         if !value.volumes.is_empty() {
@@ -347,7 +454,7 @@ fn host_yaml(descriptor: &Descriptor, host: &str, units: &[Unit]) -> String {
         .with(
             "x-quantrule",
             Yaml::map()
-                .with("owner", Yaml::string("HA-012"))
+                .with("owner", Yaml::string("PLAT-003"))
                 .with("profile", Yaml::string(descriptor.profile.as_str()))
                 .with("evidence", Yaml::string(evidence_tier(descriptor.profile)))
                 .with(
@@ -357,7 +464,7 @@ fn host_yaml(descriptor: &Descriptor, host: &str, units: &[Unit]) -> String {
                 .with(
                     "platform",
                     Yaml::string(
-                        "keepalived is PLAT-002; the remaining unit configuration belongs to PLAT-003/004/005/006; this file only pins the image, host volumes, and overlay attachment",
+                        "keepalived is PLAT-002; Patroni, etcd, and HAProxy are configured by PLAT-003; RabbitMQ, MinIO, and observability remain PLAT-004..006",
                     ),
                 ),
         )
@@ -418,6 +525,82 @@ mod tests {
         }
         let core = host_yaml(&descriptor(), "core-1", &[]);
         assert!(!core.contains("keepalived:"), "{core}");
+    }
+
+    #[test]
+    fn the_stateful_units_use_the_new_images_commands_and_aliases() {
+        let descriptor = descriptor();
+        let units = host_units(&descriptor);
+        let patroni = host_yaml(&descriptor, "infra-1", &units["infra-1"]);
+        assert!(patroni.contains("\n  patroni:\n"), "{patroni}");
+        assert!(patroni.contains("patroni/patroni@sha256:"), "{patroni}");
+        assert!(!patroni.contains("postgres@sha256:"), "{patroni}");
+        assert!(patroni.contains("\"patroni-infra-1\""), "{patroni}");
+        assert!(
+            patroni.contains("/etc/quantrule/patroni/patroni.yml"),
+            "{patroni}"
+        );
+        assert!(
+            patroni.contains("/run/secrets/patroni_rest_password"),
+            "{patroni}"
+        );
+        assert!(patroni.contains("PATRONI_RESTAPI_PASSWORD"), "{patroni}");
+        assert!(!patroni.contains("/dev/watchdog"), "{patroni}");
+        assert!(!patroni.contains("devices:"), "{patroni}");
+
+        let etcd = host_yaml(&descriptor, "infra-1", &units["infra-1"]);
+        assert!(etcd.contains("\n  etcd:\n"), "{etcd}");
+        assert!(etcd.contains("--config-file"), "{etcd}");
+        assert!(etcd.contains("\"etcd-infra-1\""), "{etcd}");
+        assert!(etcd.contains("/etc/quantrule/etcd/etcd.conf.yml"), "{etcd}");
+        assert!(etcd.contains("/etc/quantrule/pki/etcd"), "{etcd}");
+
+        let haproxy = host_yaml(&descriptor, "edge-1", &units["edge-1"]);
+        assert!(haproxy.contains("\n  haproxy:\n"), "{haproxy}");
+        assert!(haproxy.contains("\"haproxy-edge-1\""), "{haproxy}");
+        assert!(haproxy.contains("\"postgres\""), "{haproxy}");
+        assert!(
+            haproxy.contains("/run/secrets/patroni_rest_password"),
+            "{haproxy}"
+        );
+        assert!(haproxy.contains("command:"), "{haproxy}");
+        assert!(!haproxy.contains("ports:"), "{haproxy}");
+    }
+
+    #[test]
+    fn the_watchdog_mapping_is_required_only() {
+        let automatic = descriptor();
+        let automatic_yaml =
+            super::super::stateful::patroni_yaml(&automatic, "infra-1").expect("automatic patroni");
+        assert!(
+            automatic_yaml.contains("mode: \"automatic\""),
+            "{automatic_yaml}"
+        );
+        assert!(
+            automatic_yaml.contains("device: \"/dev/watchdog\""),
+            "{automatic_yaml}"
+        );
+        let automatic_infra = host_yaml(&automatic, "infra-1", &host_units(&automatic)["infra-1"]);
+        assert!(!automatic_infra.contains("devices:"), "{automatic_infra}");
+        assert!(
+            !automatic_infra.contains("/dev/watchdog"),
+            "{automatic_infra}"
+        );
+
+        for (mode, expected) in [("required", true), ("off", false)] {
+            let mut value: serde_json::Value =
+                serde_json::from_str(include_str!("../../../../deploy/v3/deploy.example.json"))
+                    .expect("example");
+            value["stateful"]["postgres"]["watchdog"] = serde_json::json!(mode);
+            let descriptor: Descriptor = serde_json::from_value(value).expect("descriptor");
+            let text = host_yaml(&descriptor, "infra-1", &host_units(&descriptor)["infra-1"]);
+            assert_eq!(text.contains("devices:"), expected, "{mode}: {text}");
+            assert_eq!(
+                text.contains("/dev/watchdog:/dev/watchdog"),
+                expected,
+                "{mode}: {text}"
+            );
+        }
     }
 
     #[test]
