@@ -1,6 +1,6 @@
 # Highly Available Runtime
 
-- Status: Target for the next release; the evidence leader (HA-006), data active/active (HA-007), runtime drain/readiness/retries/file secrets/token rotation (HA-009), internal TLS for PostgreSQL/RabbitMQ/MinIO (HA-010), v3 render/check (HA-012), the PLAT-001 control plane, the PLAT-002 ingress, and the PLAT-003 Patroni/etcd/HAProxy tier and check rows are current; the failover lab is `Unverified` without a three-VM host; accepted by [ADR-HA](../adr/2026-11-22/1082-ha-deployment-profile.md)
+- Status: Target for the next release; the evidence leader (HA-006), data active/active (HA-007), runtime drain/readiness/retries/file secrets/token rotation (HA-009), internal TLS for PostgreSQL/RabbitMQ/MinIO (HA-010), v3 render/check (HA-012), the PLAT-001 control plane, the PLAT-002 ingress, the PLAT-003 Patroni/etcd/HAProxy tier, and the PLAT-004 RabbitMQ broker/front door/reconnect/check rows/definitions are current; the failover and broker-loss labs are `Unverified` without a three-VM host; accepted by [ADR-HA](../adr/2026-11-22/1082-ha-deployment-profile.md)
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 
@@ -67,11 +67,15 @@ than silently degrade. The lab measures RTO and records the rejoin; no lab row i
 
 RabbitMQ:
 
-- Three nodes; run, stage, evidence and dead-letter queues are quorum.
-- Publisher confirms, manual ack, `x-delivery-limit=3`, DLX and a quorum DLQ.
-- `QR_QUEUE_GENERATION` suffixes every queue; definitions export topology only.
-- One broker loss loses no acknowledged message; queues rebuild from run rows.
-- A consumer error reconnects in-process with 1–30 s backoff; a drain is clean.
+- Three nodes, short names, classic discovery, `pause_minority`; TLS-only 5671
+  through the HAProxy `rabbitmq` alias.
+- Quorum work/DLQ, publisher confirms, `x-delivery-limit=3`, DLX; the generation
+  suffix names a new topology.
+- An acknowledged message survives one broker loss; a lost queue is rebuilt from
+  rows, not the normal loss path.
+- A consumer rebuilds its connection from the stored URL/CA; queue consumers use
+  `restart_policy: any`.
+- Definitions export/verify/retention is PLAT-004; archive/restore is HA-013.
 
 MinIO:
 
@@ -97,21 +101,16 @@ runs.leader_lease
 
 ## 7. Cross-database consistency
 
-No distributed transactions. The platform uses:
-
-- outbox events for run submission and finalisation;
-- idempotency keys and unique constraints;
-- reconciliation jobs for references; an orphan object is safe and reusable (HA-007);
-- tombstones for dataset and profile erase;
-- one evidence leader for finalisation;
-- no cross-database joins.
+No distributed transactions. The platform uses outbox events, idempotency keys
+and unique constraints, reconciliation jobs (an orphan object is safe and
+reusable, HA-007), tombstones for erase, one evidence leader for finalisation,
+and no cross-database joins.
 
 ## 8. Ingress and security
 
 - `https://quantrule.dev` resolves to Traefik ×2 behind a VIP or cloud LB.
 - TLS 1.2+ on 443 behind a keepalived VIP; port 80 is closed; only 443 public. `qr-deploy check` reads the static/dynamic/keepalived bytes, the certificate SAN/expiry, the HSTS/nosniff/no-referrer headers, port-80 closure, and the four ingress mounts; the shell trusts the private CA through `QUANTRULE_CA_CERT`, the browser through its OS store.
-- Gateway token is the only human auth; no accounts or tenancy. Secrets are files under `/run/secrets`; the S3 client uses only the two file credentials. v3 assembles `secrets.files` into external Swarm secrets; rotation uses a new secret name and a rolling update ([contract](../config/2026-11-23/secret-files.md)).
-- The gateway re-reads `QR_BEARER_TOKEN_FILE` every `QR_TOKEN_RELOAD_SECONDS` and on `SIGHUP`; an invalid edit keeps the last good token and counts the reason.
+- Gateway token is the only human auth; no accounts or tenancy. Secrets are files under `/run/secrets`; the S3 client uses only the two file credentials. v3 assembles `secrets.files` into external Swarm secrets; rotation uses a new secret name and a rolling update ([contract](../config/2026-11-23/secret-files.md)).- The gateway re-reads `QR_BEARER_TOKEN_FILE` every `QR_TOKEN_RELOAD_SECONDS` and on `SIGHUP`; an invalid edit keeps the last good token and counts the reason.
 - Postgres, RabbitMQ and MinIO use TLS with a private CA; per-service credentials.
 - Internal HTTP stays plaintext on the encrypted overlay. mTLS remains deferred beyond HA-012; a compromised overlay host can impersonate a service ([TLS contract](../config/2026-11-23/internal-tls.md)).
 - Every service serves `/ready`; a drain flips it before the process stops, and `/metrics` stays internal.
@@ -127,15 +126,17 @@ inline secrets, unsupported stateful placement, or missing backup/TLS. The
 sample runs four MinIO nodes, one drive each in `az1`..`az4`.
 
 `qr-deploy validate`, `render`, and `check` are implemented; `render` writes the
-stack, per-host units, Patroni/etcd/HAProxy configs, jobs, secret/PKI copies, the
-stateful manifest, and `render.json`. `bootstrap.sh` labels the six
+stack, per-host units, Patroni/etcd/HAProxy/RabbitMQ configs, jobs, secret/PKI
+copies, the stateful manifest, and `render.json`. `bootstrap.sh` labels the six
 `quantrule.*` keys, refuses drift, runs cluster/db/migration jobs before the
 stack, and waits for the pinned image and 443. `tools/stateful.sh` creates the
-overlay, copies and starts etcd -> Patroni -> HAProxy, and waits for
-quorum/leader/sync. `tools/swarm.sh` wraps upgrade/rollback/verify and snapshots
-the previous stack; stop-first fills every slot. Unit configuration is
-PLAT-003..006; remote inspection is PLAT-001; signing is PLAT-007. Contracts: [deploy/v3](../config/2026-11-22/deploy-v3.md), [patroni-cluster](../config/2026-11-23/patroni-cluster.md), [swarm-control](../config/2026-11-23/swarm-control.md), [manual 15](../manual/15-ha-deployment.md).
-## 10. Failure behaviour
+overlay, copies and starts etcd -> Patroni -> HAProxy, seeds the first broker,
+starts the other two, and waits for quorum/leader/sync/brokers. `tools/swarm.sh`
+wraps upgrade/rollback/verify and snapshots the previous stack; stop-first fills
+every slot. Contracts: [deploy/v3](../config/2026-11-22/deploy-v3.md),
+[patroni-cluster](../config/2026-11-23/patroni-cluster.md),
+[rabbitmq-cluster](../config/2026-11-23/rabbitmq-cluster.md),
+[swarm-control](../config/2026-11-23/swarm-control.md), [manual 15](../manual/15-ha-deployment.md).## 10. Failure behaviour
 
 | Failure | Behaviour |
 |---|---|
@@ -144,26 +145,26 @@ PLAT-003..006; remote inspection is PLAT-001; signing is PLAT-007. Contracts: [d
 | Simulation replica loss | Other replica serves; per-run row locks keep one decision |
 | Backtest worker kill | Lease expires; outbox re-arms; no partial publish |
 | Rolling restart / SIGTERM | `/ready` 503; HTTP 20 s, worker 25 s; an in-flight run keeps its lease, never `failed` |
-| Consumer channel error | Reconnect 1–30 s; an exhausted budget exits so the container restarts |
+| Consumer channel error | Reconnect 1–30 s; rebuild the connection; exhausted budget exits, and a queue consumer restarts with `any` |
 | Evidence leader kill or drain | Lease expires or is released; new leader; one finalisation |
 | PostgreSQL primary loss | Patroni promotes a synchronous standby; measured lab RTO; RPO 0 |
 | PostgreSQL standby loss | Primary continues on the remaining synchronous standby |
 | No synchronous standby | Writes block; reads may continue; alert fires |
-| etcd node loss | Quorum survives |
-| etcd quorum loss | No automatic failover; degraded; restore quorum |
-| RabbitMQ node loss | Quorum queue continues |
+| etcd node/quorum loss | Node loss: quorum survives; quorum loss: no automatic failover, restore quorum |
+| RabbitMQ node/quorum loss | Node loss: quorum continues and HAProxy routes to a survivor; quorum loss: publishes block, no ack lost |
 | MinIO node/drive loss | Erasure continues; hashes unchanged |
 | Physical host/AZ loss | Survives only with separate hosts/failure domains |
 ## 11. Backup, restore and DR
 
 - PITR for all four databases to one consistent point.
 - Object versioning + replication; restore objects before rows.
-- Queue is not archived; queued work is rebuilt from run and stage rows.
+- Queue is not archived; a lost queue is rebuilt from run and stage rows, while
+  an acknowledged message survives one broker loss in the quorum queue.
 - Restore drill every release; canonical digest must reproduce.
 - RTO target: 15 minutes node/AZ, 1 hour region; the lab measures a pause RTO, not this SLO.
 ## 12. Evidence boundary
 
 The three-VM lab proves simulated node failure, not physical host, AZ, power or
-disk-controller failure; the `ha` tier pauses the Patroni primary and records the
-measured RTO, rejoin, and `Simulated HA`. Real host/AZ evidence is HA-014. The platform never trades; no broker, OMS, real-time risk or
-regulatory component is part of this architecture.
+disk-controller failure; the `ha` tier records the pause RTO, rejoin, queue
+broker-loss gap, and `Simulated HA` at the queue level. The end-to-end digest
+is `Blocked` until PLAT-005 MinIO. Real host/AZ evidence is HA-014; no trading.

@@ -23,13 +23,20 @@ const SERVICE_DATABASES: [(&str, &str); 4] = [
     ("simulation", "simulation"),
 ];
 
-/// The four stateful secrets Patroni and the cluster bootstrap consume.
-pub const STATEFUL_SECRETS: [&str; 4] = [
+/// The five stateful secrets the database and broker tiers consume.
+pub const STATEFUL_SECRETS: [&str; 5] = [
     "postgres_superuser_password",
     "patroni_replication_password",
     "patroni_rewind_password",
     "patroni_rest_password",
+    "rabbitmq_erlang_cookie",
 ];
+
+/// The queue user the application URL must name.
+pub const QUEUE_USER: &str = "qr_queue";
+
+/// The encoded default vhost in the application URL; `%2f` is `/`.
+pub const QUEUE_VHOST: &str = "%2f";
 
 /// The rendered scope of a secret: `stateful` for the database tier, `app` otherwise.
 #[must_use]
@@ -255,6 +262,33 @@ pub fn validate_values(
             "must use the TLS port 5671",
         ));
     }
+    if parsed.host != descriptor.endpoints.queue.host {
+        return Err(rule(
+            "deploy.secret.queue_host",
+            queue_field,
+            format!(
+                "must use the shared {} alias; found {}",
+                descriptor.endpoints.queue.host, parsed.host
+            ),
+        ));
+    }
+    if parsed.user != QUEUE_USER {
+        return Err(rule(
+            "deploy.secret.queue_user",
+            queue_field,
+            format!(
+                "must use the {QUEUE_USER} application user; found {}",
+                parsed.user
+            ),
+        ));
+    }
+    if !parsed.vhost.eq_ignore_ascii_case(QUEUE_VHOST) {
+        return Err(rule(
+            "deploy.secret.queue_vhost",
+            queue_field,
+            "must use the default vhost encoded as %2f",
+        ));
+    }
     check_password(queue_field, parsed.password)?;
     check_duplicate(&mut credentials, parsed.password, queue_field)?;
 
@@ -285,11 +319,55 @@ pub fn validate_values(
             rule(
                 "deploy.secrets.missing",
                 &field,
-                format!("{name} is required for the v3 database tier"),
+                format!("{name} is required for the v3 stateful tier"),
             )
         })?;
-        check_stateful_password(&field, value)?;
+        if name == "rabbitmq_erlang_cookie" {
+            check_erlang_cookie(&field, value)?;
+        } else {
+            check_stateful_password(&field, value)?;
+        }
         check_duplicate(&mut credentials, value, &field)?;
+    }
+    Ok(())
+}
+
+/// An Erlang cookie is strong, URL-safe, and long enough to be unique.
+fn check_erlang_cookie(field: &str, value: &str) -> Result<(), Error> {
+    let lower = value.to_ascii_lowercase();
+    let repeated = value
+        .chars()
+        .next()
+        .is_some_and(|first| value.chars().all(|character| character == first));
+    if value.len() < 32 {
+        return Err(rule(
+            "deploy.secret.weak_cookie",
+            field,
+            "must be at least 32 characters",
+        ));
+    }
+    if repeated
+        || lower.contains("replace-with")
+        || lower.contains("change-me")
+        || lower.contains("changeme")
+        || lower.contains("example")
+        || lower.contains("quantrule")
+    {
+        return Err(rule(
+            "deploy.secret.default_cookie",
+            field,
+            "must not be a documented default or repeated-character cookie",
+        ));
+    }
+    if !value
+        .bytes()
+        .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b'~'))
+    {
+        return Err(rule(
+            "deploy.secret.url_safe",
+            field,
+            "must contain only ASCII letters, digits, and -._~ so it is safe in a URL and a config file",
+        ));
     }
     Ok(())
 }
@@ -444,8 +522,11 @@ fn parse_postgres_url(value: &str) -> Option<PostgresUrl<'_>> {
 }
 
 struct AmqpsUrl<'a> {
+    user: &'a str,
     password: &'a str,
+    host: &'a str,
     port: &'a str,
+    vhost: &'a str,
 }
 
 fn parse_amqps_url(value: &str) -> Option<AmqpsUrl<'_>> {
@@ -457,7 +538,13 @@ fn parse_amqps_url(value: &str) -> Option<AmqpsUrl<'_>> {
     if user.is_empty() || password.is_empty() || host.is_empty() || vhost.is_empty() {
         return None;
     }
-    Some(AmqpsUrl { password, port })
+    Some(AmqpsUrl {
+        user,
+        password,
+        host,
+        port,
+        vhost,
+    })
 }
 
 /// Read one mode-600 secret file and apply the runtime file contract.
@@ -590,280 +677,4 @@ fn read_file(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::validate::v3;
-    use serde_json::Value;
-    use std::path::{Path, PathBuf};
-    use std::sync::atomic::{AtomicU64, Ordering};
-
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-
-    fn sample() -> Value {
-        serde_json::from_str(include_str!("../../../../deploy/v3/deploy.example.json"))
-            .expect("the v3 example is JSON")
-    }
-
-    fn descriptor(value: Value) -> Descriptor {
-        serde_json::from_value(value).expect("the mutated example stays structurally valid")
-    }
-
-    fn fixture(name: &str) -> PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../deploy/v3/secrets")
-            .join(name)
-    }
-
-    fn temp_dir() -> PathBuf {
-        let path = std::env::temp_dir().join(format!(
-            "qr-deploy-v3-secrets-{}-{}",
-            std::process::id(),
-            COUNTER.fetch_add(1, Ordering::Relaxed)
-        ));
-        let _ = std::fs::remove_dir_all(&path);
-        std::fs::create_dir_all(&path).expect("temp dir");
-        path
-    }
-
-    fn write_mode_600(path: &Path, content: &str) {
-        std::fs::write(path, content).expect("write secret");
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
-                .expect("mode 600");
-        }
-    }
-
-    /// Copy the checked-in fixture files into a temporary directory and point
-    /// the descriptor at the copy, so the test never changes repository modes.
-    fn stage(value: &mut Value) -> (Descriptor, PathBuf) {
-        let directory = temp_dir();
-        let files = value["secrets"]["files"].as_object_mut().expect("files");
-        for (name, path) in files.iter_mut() {
-            let source = fixture(name);
-            let destination = directory.join(name);
-            let content = std::fs::read_to_string(&source).expect("fixture secret");
-            write_mode_600(&destination, &content);
-            *path = serde_json::json!(destination.display().to_string());
-        }
-        (descriptor(value.clone()), directory)
-    }
-
-    #[test]
-    fn the_fixture_secret_directory_satisfies_the_file_contract() {
-        let (descriptor, directory) = stage(&mut sample());
-        validate_files(&descriptor).expect("the fixture secrets validate");
-        let _ = std::fs::remove_dir_all(directory);
-        assert!(v3::validate(&descriptor).is_ok());
-    }
-
-    #[test]
-    fn a_group_readable_secret_is_refused() {
-        let (descriptor, directory) = stage(&mut sample());
-        let path = directory.join("gateway_token");
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644))
-                .expect("mode 644");
-        }
-        let error = validate_files(&descriptor).expect_err("a readable token");
-        assert!(error.to_string().contains("deploy.secret.mode"), "{error}");
-        let _ = std::fs::remove_dir_all(directory);
-    }
-
-    #[test]
-    fn a_symlink_secret_is_refused() {
-        let (descriptor, directory) = stage(&mut sample());
-        let path = directory.join("gateway_token");
-        std::fs::remove_file(&path).expect("remove");
-        #[cfg(unix)]
-        std::os::unix::fs::symlink(fixture("gateway_token"), &path).expect("symlink");
-        let error = validate_files(&descriptor).expect_err("a symlink");
-        assert!(error.to_string().contains("deploy.file.symlink"), "{error}");
-        let _ = std::fs::remove_dir_all(directory);
-    }
-
-    #[test]
-    fn an_oversized_secret_is_refused() {
-        let (descriptor, directory) = stage(&mut sample());
-        write_mode_600(&directory.join("gateway_token"), &"a".repeat(8 * 1024 + 1));
-        let error = validate_files(&descriptor).expect_err("an oversized token");
-        assert!(error.to_string().contains("deploy.file.size"), "{error}");
-        let _ = std::fs::remove_dir_all(directory);
-    }
-
-    #[test]
-    fn a_default_role_credential_is_refused() {
-        let (descriptor, directory) = stage(&mut sample());
-        write_mode_600(
-            &directory.join("gateway_database_url"),
-            "postgres://qr_gateway_app:quantrule-db-password@postgres:5432/qr_gateway?sslmode=verify-full",
-        );
-        let error = validate_files(&descriptor).expect_err("a default password");
-        assert!(
-            error
-                .to_string()
-                .contains("deploy.secret.default_credential"),
-            "{error}"
-        );
-        let _ = std::fs::remove_dir_all(directory);
-    }
-
-    #[test]
-    fn two_roles_cannot_share_one_credential() {
-        let (descriptor, directory) = stage(&mut sample());
-        write_mode_600(
-            &directory.join("gateway_owner_database_url"),
-            "postgres://qr_gateway_owner:gateway-app-4f8c2a1e6d9b7c30@postgres:5432/qr_gateway?sslmode=verify-full",
-        );
-        let error = validate_files(&descriptor).expect_err("a duplicate password");
-        assert!(
-            error
-                .to_string()
-                .contains("deploy.secret.duplicate_credential"),
-            "{error}"
-        );
-        let _ = std::fs::remove_dir_all(directory);
-    }
-
-    #[test]
-    fn a_malformed_or_plaintext_url_is_refused() {
-        let (descriptor, directory) = stage(&mut sample());
-        write_mode_600(
-            &directory.join("queue_url"),
-            "amqp://qr_queue:queue-1a3c5e7b9d2f4a60@rabbitmq:5671/%2f",
-        );
-        let error = validate_files(&descriptor).expect_err("a plaintext queue");
-        assert!(
-            error.to_string().contains("deploy.secret.queue_url"),
-            "{error}"
-        );
-
-        write_mode_600(
-            &directory.join("queue_url"),
-            "amqps://qr_queue:queue-1a3c5e7b9d2f4a60@rabbitmq:5671/%2f",
-        );
-        write_mode_600(
-            &directory.join("gateway_database_url"),
-            "postgres://qr_gateway_app:gateway-app-4f8c2a1e6d9b7c30@postgres:5432/qr_gateway",
-        );
-        let error = validate_files(&descriptor).expect_err("a missing sslmode");
-        assert!(
-            error.to_string().contains("deploy.secret.sslmode"),
-            "{error}"
-        );
-        let _ = std::fs::remove_dir_all(directory);
-    }
-
-    #[test]
-    fn a_weak_token_is_refused() {
-        let (descriptor, directory) = stage(&mut sample());
-        write_mode_600(&directory.join("gateway_token"), "0123456789abcdef");
-        let error = validate_files(&descriptor).expect_err("a weak token");
-        assert!(
-            error.to_string().contains("deploy.secret.weak_token"),
-            "{error}"
-        );
-        let _ = std::fs::remove_dir_all(directory);
-    }
-
-    #[test]
-    fn an_empty_secret_map_is_refused() {
-        let mut value = sample();
-        value["secrets"]["files"] = serde_json::json!({});
-        let error = v3::validate(&descriptor(value)).expect_err("an empty map");
-        assert!(
-            error.to_string().contains("deploy.secrets.empty"),
-            "{error}"
-        );
-    }
-
-    #[test]
-    fn a_missing_or_relative_secret_is_refused_without_file_access() {
-        let mut value = sample();
-        value["secrets"]["files"]
-            .as_object_mut()
-            .expect("files")
-            .remove("queue_url");
-        let error = validate_structure(&descriptor(value)).expect_err("a missing secret");
-        assert!(
-            error.to_string().contains("deploy.secrets.missing"),
-            "{error}"
-        );
-
-        let mut value = sample();
-        value["secrets"]["files"]["queue_url"] = serde_json::json!("secrets/queue_url");
-        let error = validate_structure(&descriptor(value)).expect_err("a relative path");
-        assert!(error.to_string().contains("deploy.secrets.path"), "{error}");
-
-        let mut value = sample();
-        value["secrets"]["files"]["queue_url"] =
-            serde_json::json!("amqps://user:value@host:5671/%2f");
-        let error = validate_structure(&descriptor(value)).expect_err("an inline value");
-        assert!(error.to_string().contains("deploy.secrets.path"), "{error}");
-    }
-
-    #[test]
-    fn a_stateful_secret_is_required_and_distinct() {
-        let mut value = sample();
-        value["secrets"]["files"]
-            .as_object_mut()
-            .expect("files")
-            .remove("patroni_rest_password");
-        let error = v3::validate(&descriptor(value)).expect_err("a missing stateful secret");
-        assert!(
-            error.to_string().contains("deploy.secrets.missing"),
-            "{error}"
-        );
-        assert!(
-            error.to_string().contains("patroni_rest_password"),
-            "{error}"
-        );
-
-        let (descriptor, directory) = stage(&mut sample());
-        write_mode_600(
-            &directory.join("postgres_superuser_password"),
-            "gateway-app-4f8c2a1e6d9b7c30",
-        );
-        let error = validate_files(&descriptor).expect_err("a duplicate stateful password");
-        assert!(
-            error
-                .to_string()
-                .contains("deploy.secret.duplicate_credential"),
-            "{error}"
-        );
-        let _ = std::fs::remove_dir_all(directory);
-    }
-
-    #[test]
-    fn a_stateful_secret_is_strong_url_safe_and_not_a_default() {
-        for (value, expected) in [
-            ("short", "deploy.secret.weak_credential"),
-            ("postgres-postgres", "deploy.secret.default_credential"),
-            ("has a space in the value", "deploy.file.whitespace"),
-            ("stateful:secret/with-colon", "deploy.secret.url_safe"),
-        ] {
-            let (descriptor, directory) = stage(&mut sample());
-            write_mode_600(&directory.join("patroni_rest_password"), value);
-            let error = validate_files(&descriptor).expect_err(value);
-            assert!(error.to_string().contains(expected), "{value}: {error}");
-            let _ = std::fs::remove_dir_all(directory);
-        }
-    }
-
-    #[test]
-    fn the_url_parsers_reject_the_wrong_shape() {
-        assert!(
-            parse_postgres_url("postgres://role:value@host:5432/db?sslmode=verify-full").is_some()
-        );
-        assert!(parse_postgres_url("postgres://role@host:5432/db?sslmode=verify-full").is_none());
-        assert!(
-            parse_postgres_url("postgres://role:value@host:5432/db/extra?sslmode=verify-full")
-                .is_none()
-        );
-        assert!(parse_amqps_url("amqps://user:value@host:5671/%2f").is_some());
-        assert!(parse_amqps_url("amqps://user@host:5671/%2f").is_none());
-    }
-}
+mod tests;

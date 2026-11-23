@@ -143,7 +143,7 @@ fn metadata(descriptor: &Descriptor) -> Yaml {
         .with(
             "platform",
             Yaml::string(
-                "Traefik ingress configuration is PLAT-002; Patroni, etcd, and HAProxy are PLAT-003; RabbitMQ, MinIO, and observability remain PLAT-004..006",
+                "Traefik ingress configuration is PLAT-002; Patroni, etcd, and HAProxy are PLAT-003; RabbitMQ is PLAT-004; MinIO and observability remain PLAT-005/006",
             ),
         )
 }
@@ -436,6 +436,7 @@ fn config(source: &str, target: &str) -> Mount {
 }
 
 fn service_yaml(descriptor: &Descriptor, plan: &Plan) -> Yaml {
+    let queue_consumer = matches!(plan.kind, "backtest" | "evidence");
     let mut service = Yaml::map()
         .with("image", Yaml::string(app_image(descriptor)))
         .with("command", Yaml::list([Yaml::string(plan.binary)]))
@@ -460,6 +461,7 @@ fn service_yaml(descriptor: &Descriptor, plan: &Plan) -> Yaml {
                 plan.max_per_node,
                 plan.host_count,
                 Some(plan.kind),
+                queue_consumer,
             ),
         )
         .with("stop_grace_period", Yaml::string("40s"))
@@ -515,6 +517,7 @@ fn ingress_yaml(descriptor: &Descriptor) -> Yaml {
                 1,
                 descriptor.ingress.hosts.len(),
                 Some("ingress"),
+                false,
             ),
         )
         .with("stop_grace_period", Yaml::string("40s"));
@@ -541,6 +544,7 @@ fn deploy(
     max_per_node: u32,
     host_count: usize,
     kind: Option<&str>,
+    restart_any: bool,
 ) -> Yaml {
     let mut labels = BTreeMap::new();
     labels.insert(
@@ -555,6 +559,19 @@ fn deploy(
         labels.insert("quantrule.kind".to_owned(), kind.to_owned());
     }
     let order = update_order(replicas, host_count, max_per_node);
+    let restart_policy = if restart_any {
+        // A queue consumer must outlive a broker restart even when its bounded
+        // in-process budget is exhausted; Swarm restarts it without a cap.
+        Yaml::map()
+            .with("condition", Yaml::string("any"))
+            .with("delay", Yaml::string("5s"))
+    } else {
+        Yaml::map()
+            .with("condition", Yaml::string("on-failure"))
+            .with("delay", Yaml::string("5s"))
+            .with("max_attempts", Yaml::number(3_u64))
+            .with("window", Yaml::string("120s"))
+    };
     Yaml::map()
         .with("replicas", Yaml::number(replicas))
         .with(
@@ -602,14 +619,7 @@ fn deploy(
                 .with("failure_action", Yaml::string("pause"))
                 .with("max_failure_ratio", Yaml::number(0_u64)),
         )
-        .with(
-            "restart_policy",
-            Yaml::map()
-                .with("condition", Yaml::string("on-failure"))
-                .with("delay", Yaml::string("5s"))
-                .with("max_attempts", Yaml::number(3_u64))
-                .with("window", Yaml::string("120s")),
-        )
+        .with("restart_policy", restart_policy)
         .with(
             "labels",
             Yaml::mapping(
@@ -746,6 +756,36 @@ mod tests {
         );
         assert_eq!(text.matches("start_period: \"60s\"").count(), 7, "{text}");
         assert_eq!(text.matches("monitor: \"180s\"").count(), 16, "{text}");
+    }
+
+    #[test]
+    fn the_queue_consumers_restart_without_a_max_attempt() {
+        let text = stack_yaml(&descriptor()).expect("stack");
+        assert_eq!(text.matches("condition: \"any\"").count(), 2, "{text}");
+        assert_eq!(
+            text.matches("condition: \"on-failure\"").count(),
+            6,
+            "{text}"
+        );
+        assert_eq!(text.matches("max_attempts:").count(), 6, "{text}");
+        for (start, end) in [
+            ("\n  backtest:\n", "\n  data:\n"),
+            ("\n  evidence:\n", "\n  gateway:\n"),
+        ] {
+            let from = text.find(start).expect("consumer start");
+            let to = text.find(end).expect("consumer end");
+            let block = &text[from..to];
+            assert!(block.contains("condition: \"any\""), "{block}");
+            assert!(!block.contains("max_attempts"), "{block}");
+            assert!(!block.contains("window:"), "{block}");
+        }
+        let gateway = text.find("\n  gateway:\n").expect("gateway");
+        let ingress = text.find("\n  ingress:\n").expect("ingress");
+        assert!(
+            text[gateway..ingress].contains("condition: \"on-failure\""),
+            "{}",
+            &text[gateway..ingress]
+        );
     }
 
     #[test]

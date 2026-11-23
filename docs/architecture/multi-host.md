@@ -1,6 +1,6 @@
 # Multi-Host Deployment
 
-- Status: Implemented; hardening #980; release pending; the v3 Patroni/etcd/HAProxy tier, check rows, and failover harness are separate and current; the live lab is `Unverified` without a three-VM host
+- Status: Implemented; hardening #980; release pending; the v3 Patroni/etcd/HAProxy tier, check rows, and failover harness are separate and current; the v3 RabbitMQ broker/checks/definitions are current and its live lab is `Unverified` without a three-VM host
 - Part of: [`README.md`](README.md)
 - Decision: [ADR-2026-11-20-01](../adr/2026-11-20/958-multi-host-deployment.md)
 - Claim type: Behaviour Claim
@@ -138,7 +138,7 @@ The gateway `/ready` reports the upstream states.
   Postgres, mirror the bucket, write a manifest, and restore objects before
   rows. The current `tools/backup.sh` dumps one database, so a four-database
   archive is a follow-up; record the limitation until it lands.
-- The queue is not archived; messages are rebuilt from run rows.
+- The queue is not archived; messages are rebuilt from run rows. v3 definitions export/import is in the [RabbitMQ contract](../config/2026-11-23/rabbitmq-cluster.md); HA-013 owns archive/restore.
 - Distribute the new image to every host, stop the gateway and workers, update
   core and compute, then start workers and gateway.
 - Migrations are forward-only. Rollback starts the previous image digest
@@ -166,4 +166,5 @@ boundary and internal HTTP has no mTLS (HA-012); v2 `qr-deploy check` does not i
 - [User manual chapter 14](../manual/14-multi-host.md)
 - [Deployment v3](../config/2026-11-22/deploy-v3.md)
 - [Swarm control plane](../config/2026-11-23/swarm-control.md)
+- [RabbitMQ cluster contract](../config/2026-11-23/rabbitmq-cluster.md)
 - [User manual chapter 15](../manual/15-ha-deployment.md)

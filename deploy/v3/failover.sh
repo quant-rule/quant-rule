@@ -428,5 +428,5 @@ db_failover() {
   db_evidence
   db_cleanup
   trap - EXIT
-  db_say "PASS: Simulated HA; RTO ${db_rto}s; leader $db_new_leader; sync $db_new_sync; rejoin $db_rejoin"
+  db_say "result: Simulated HA (database); RTO ${db_rto}s; leader $db_new_leader; sync $db_new_sync; rejoin $db_rejoin"
 }

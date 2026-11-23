@@ -159,6 +159,16 @@ pub trait QueueConsumer: Send + Sync {
             }
         })
     }
+
+    /// Rebuild the transport after a failed consume attempt.
+    ///
+    /// The reconnect loop calls this before every attempt. A consumer that owns
+    /// no network transport accepts the default no-op; the RabbitMQ adapter
+    /// reopens the connection from the stored URL and CA when the old one is
+    /// dead, so the loop never retries a closed socket.
+    fn reconnect(&self) -> BoxFuture<Result<(), QueueError>> {
+        Box::pin(async { Ok(()) })
+    }
 }
 
 /// A content-addressed object store.

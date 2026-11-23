@@ -265,10 +265,26 @@ pub struct HaProxyStateful {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RabbitMqStateful {
-    /// The broker hosts.
+    /// The broker hosts; exactly three, so one loss keeps quorum.
     pub nodes: Vec<String>,
     /// Whether quorum queues are enabled; must be true.
     pub quorum: bool,
+    /// The absolute disk-free alarm in MiB.
+    #[serde(default = "default_disk_free_limit_mib")]
+    pub disk_free_limit_mib: u64,
+    /// The memory high-watermark alarm as a percentage of RAM.
+    #[serde(default = "default_memory_high_watermark_percent")]
+    pub memory_high_watermark_percent: u32,
+}
+
+/// The documented default disk-free alarm: 5 GiB.
+fn default_disk_free_limit_mib() -> u64 {
+    5120
+}
+
+/// The documented default memory high-watermark: 60% of RAM.
+fn default_memory_high_watermark_percent() -> u32 {
+    60
 }
 
 /// The MinIO stateful unit.

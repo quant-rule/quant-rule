@@ -1,0 +1,18 @@
+ok	queue	rabbitmq	tls-only	3 node config(s); TLS 1.2/1.3 on 5671; no plaintext or management listener
+ok	queue	rabbitmq	guest-loopback	3 node config(s); the default guest user stays on loopback
+ok	queue	rabbitmq	no-policy	3 node config(s); no operator policy targets an application queue
+ok	queue	rabbitmq	cluster	3 brokers use classic discovery of 3 short node names
+ok	queue	rabbitmq	partition-handling	3 node config(s); a minority partition pauses
+ok	queue	rabbitmq	queue-default	3 node config(s); the only operator queue default is quorum
+ok	queue	rabbitmq	alarms	3 node config(s); disk and memory alarms match the descriptor
+ok	queue	rabbitmq	metrics	3 node config(s); Prometheus on the overlay; management stays off
+ok	queue	rabbitmq	logging	3 node config(s); one JSON object per line on the console
+ok	queue	rabbitmq	overlay-only	no host underlay address in any broker config
+ok	queue	haproxy	frontend	2 node config(s); TCP passthrough on 5671 only
+ok	queue	haproxy	backend	3 health-checked server(s); a marked-down broker closes its sessions
+ok	queue	haproxy	unit	the shared rabbitmq alias is on the HAProxy pair; no published port
+ok	queue	rabbitmq	unit	3 broker unit(s); short hostname/node name, mounts, cookie/TLS install, no plaintext alias or port
+ok	queue	manifest	hosts	only the 3 broker host(s) receive the cookie, queue key, queue PKI, and broker config
+ok	queue	manifest	broker-modes	broker config/cookie/key are 600; queue CA and certificate are 644
+ok	queue	manifest	sans	the manifest carries every queue alias: rabbitmq, rabbitmq-infra-1, rabbitmq-infra-2, rabbitmq-infra-3
+ok	queue	rabbitmq certificate	san	/etc/quantrule/pki/rabbitmq/server.crt covers rabbitmq, rabbitmq-infra-1, rabbitmq-infra-2, rabbitmq-infra-3

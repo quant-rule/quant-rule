@@ -94,10 +94,8 @@ services:
             spread: "node.labels.quantrule.domain"
       replicas: 3
       restart_policy:
-        condition: "on-failure"
+        condition: "any"
         delay: "5s"
-        max_attempts: 3
-        window: "120s"
       rollback_config:
         delay: "5s"
         failure_action: "pause"
@@ -291,10 +289,8 @@ services:
             spread: "node.labels.quantrule.domain"
       replicas: 2
       restart_policy:
-        condition: "on-failure"
+        condition: "any"
         delay: "5s"
-        max_attempts: 3
-        window: "120s"
       rollback_config:
         delay: "5s"
         failure_action: "pause"
@@ -790,5 +786,5 @@ x-quantrule:
   network_attachable: true
   network_encrypted: true
   owner: "HA-012"
-  platform: "Traefik ingress configuration is PLAT-002; Patroni, etcd, and HAProxy are PLAT-003; RabbitMQ, MinIO, and observability remain PLAT-004..006"
+  platform: "Traefik ingress configuration is PLAT-002; Patroni, etcd, and HAProxy are PLAT-003; RabbitMQ is PLAT-004; MinIO and observability remain PLAT-005/006"
   profile: "lab-single-host"

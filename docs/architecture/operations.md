@@ -1,6 +1,6 @@
 # Operations
 
-- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); runtime drain, readiness, retries, file secrets, token rotation, and the PLAT-003 stateful tier, check rows, and failover lab in v1.6.0; approved 2026-11-12
+- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); runtime drain, readiness, retries, file secrets, token rotation, the PLAT-003 stateful tier, check rows, and failover lab, and the PLAT-004 queue tier, checks, definitions, and broker-loss lab in v1.6.0; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 
@@ -27,7 +27,7 @@ worker exposes both routes on its internal listener. A service is healthy when i
 | `postgres` reachable | yes | restart; data survives |
 | `data`, `model`, `evidence`, `simulation` reachable | yes | restart the named service |
 | object store reachable | yes | restart; objects survive |
-| queue reachable | yes | restart; durable messages replay |
+| queue reachable | yes | reconnect; quorum messages survive one broker loss |
 
 ### Metrics, logs and request ids
 
@@ -57,19 +57,19 @@ docker compose logs --tail 20 gateway
 The work queues are generated quorum queues (`runs.backtest.g<n>`,
 `runs.evidence.g<n>`, `stages.worker.g<n>`) with a three-redelivery limit and a
 dead-letter exchange; `runs.dead-letter.g<n>` is the quorum dead-letter queue.
-Inspect them with:
-
-```bash
-docker compose exec -T rabbitmq rabbitmqctl list_queues name type messages consumers arguments --formatter json
-docker compose exec -T rabbitmq rabbitmqctl list_bindings source_name destination_name routing_key --formatter json
-```
+Inspect in v1/v2 with `docker compose exec -T rabbitmq rabbitmqctl list_queues
+name type messages consumers arguments --formatter json`; in v3 use `docker exec
+-u rabbitmq quantrule-rabbitmq-<host> rabbitmqctl ...`.
 
 A message that exhausts the limit is in the dead-letter queue with its original
 routing key and an `x-death` header; the run row remains the record. Each
 rejection logs the queue, routing key, and `x-delivery-count`. A changed queue
-declaration moves to a new `QR_QUEUE_GENERATION`: stop new submissions, drain the
-old generation with its consumers, stop them, then unbind or delete the empty
-queues before the new generation publishes.
+declaration moves to a new `QR_QUEUE_GENERATION`: drain the old generation with
+its consumers, stop them, then unbind or delete the empty queues. In v3, three
+brokers sit behind the HAProxy `rabbitmq` alias; a consumer rebuilds its
+connection from the stored URL/CA; queue consumers use `restart_policy: any`.
+`tools/queue-definitions.sh` exports stripped topology, verifies the four
+queues/bindings/no policy, and retains 30 days; HA-013 owns archive/restore.
 
 ### Evidence leader
 
@@ -108,10 +108,11 @@ tools/restore.sh ARCHIVE --yes   # clean stack; --force replaces
 
 The mirror is staged in the object-store container and on the host. Application
 services stop during the dump and mirror, so both stores describe one instant;
-Postgres, MinIO and the broker stay up, and the queue is rebuilt from run rows.
-The broker topology is exported separately with `rabbitmqctl export_definitions`;
-the file holds password hashes, so keep it mode 600 and out of Git. The command
-pair is in the [multi-host runbook](../../deploy/multi-host/README.md) §11.
+Postgres, MinIO and the broker stay up; acknowledged queue messages stay in the
+quorum queues, and a lost queue is rebuilt from run rows. The broker topology is
+exported separately with `tools/queue-definitions.sh export`; users and
+permissions are stripped before storage; a definitions file is not a message backup.
+The command pair is in the [multi-host runbook](../../deploy/multi-host/README.md) §11.
 
 `restore.sh` verifies the sidecar, entry list and payload hashes before writing.
 It refuses a non-empty database or bucket without `--force` and a non-interactive
@@ -155,10 +156,9 @@ The full migration contract and runbook are in [migrations.md](migrations.md).
 |---|---|
 | Disk full | Stop workers, free object storage, restart |
 | Database corruption | Restore from the last backup; record the data loss window |
-| Migration job failed | Keep the old stack serving; read the job log and the ledger; correct forward, never edit an applied migration |
-| Migration job stopped | Re-run the job; it resumes from the ledger; never start the service by hand to bypass it |
+| Migration job failed or stopped | Keep the old stack serving; read the job log and ledger; re-run it (it resumes) or correct forward, never edit an applied migration |
 | Object store loss | Restore from backup; any missing artifact makes its runs unverifiable |
-| Queue loss | Rebuild from run rows in `queued`; resubmit those runs |
+| Queue loss | Acknowledged messages survive one broker loss; rebuild a lost queue from `queued` rows |
 | Image regression | Roll back to the previous digest; record the failure |
 
 The last verified backup and digest belong in the long-campaign note.

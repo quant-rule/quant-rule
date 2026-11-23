@@ -63,7 +63,7 @@ fn default_openssl() -> &'static Path {
         let path = std::env::temp_dir().join(format!("qr-fake-openssl-{}", std::process::id()));
         write_mode(
             &path,
-            "#!/bin/sh\nprintf 'Certificate will not expire\\nX509v3 Subject Alternative Name:\\n    DNS:quantrule.dev, DNS:postgres, DNS:patroni-infra-1, DNS:patroni-infra-2, DNS:patroni-infra-3, DNS:etcd-infra-1, DNS:etcd-infra-2, DNS:etcd-infra-3\\n'\nexit 0\n",
+            "#!/bin/sh\nprintf 'Certificate will not expire\\nX509v3 Subject Alternative Name:\\n    DNS:quantrule.dev, DNS:postgres, DNS:patroni-infra-1, DNS:patroni-infra-2, DNS:patroni-infra-3, DNS:etcd-infra-1, DNS:etcd-infra-2, DNS:etcd-infra-3, DNS:rabbitmq, DNS:rabbitmq-infra-1, DNS:rabbitmq-infra-2, DNS:rabbitmq-infra-3\\n'\nexit 0\n",
             0o755,
         );
         path
@@ -93,6 +93,7 @@ fn stage_pki(directory: &Path) -> PathBuf {
     let root = directory.join("pki");
     std::fs::create_dir_all(root.join("postgres")).expect("postgres pki");
     std::fs::create_dir_all(root.join("etcd")).expect("etcd pki");
+    std::fs::create_dir_all(root.join("rabbitmq")).expect("rabbitmq pki");
     let ca = root.join("ca.crt");
     write_mode(&ca, "fixture CA\n", 0o644);
     for (directory, name) in [
@@ -100,6 +101,7 @@ fn stage_pki(directory: &Path) -> PathBuf {
         ("etcd", "server"),
         ("etcd", "peer"),
         ("etcd", "client"),
+        ("rabbitmq", "server"),
     ] {
         write_mode(
             &root.join(directory).join(format!("{name}.crt")),
@@ -274,7 +276,6 @@ fn v2_validate_output_is_unchanged() {
     );
     let _ = std::fs::remove_dir_all(directory);
 }
-
 #[test]
 fn v3_validate_files_checks_the_staged_secrets() {
     let directory = temp_dir();
@@ -523,7 +524,6 @@ fn the_target_selects_the_expected_half() {
     assert!(!infra.join("bootstrap.sh").exists());
     let _ = std::fs::remove_dir_all(directory);
 }
-
 #[test]
 fn v3_render_cert_mode_keeps_the_ingress_key_private() {
     let directory = temp_dir();

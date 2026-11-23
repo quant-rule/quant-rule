@@ -1,21 +1,28 @@
 #!/usr/bin/env bash
-# Operate the v3 Patroni/etcd/HAProxy tier in the approved boot order.
+# Operate the v3 Patroni/etcd/HAProxy and RabbitMQ tier in the approved boot order.
 #
 # The wrapper renders the descriptor, creates the encrypted overlay with
 # `bootstrap.sh --network-only`, copies the stateful manifest files, configs,
 # PKI, secrets, and host Compose files to each host over SSH, starts etcd ->
-# Patroni -> HAProxy, and waits for etcd quorum, a Patroni leader with a sync
-# standby, and a psql connection through the `postgres` alias. It never removes
-# a stack, volume, secret, config, node, or service. Secret values travel on
-# standard input and are never printed or passed as an argument.
+# Patroni -> HAProxy -> the first RabbitMQ broker, waits for that broker, starts
+# the other two, and waits for etcd quorum, a Patroni leader with a sync standby,
+# a three-node RabbitMQ cluster with no alarms, and a psql connection through the
+# `postgres` alias. It never removes a stack, volume, secret, config, node, or
+# service. Secret values travel on standard input and are never printed or
+# passed as an argument.
 #
 # Usage: tools/stateful.sh [--plan|--dry-run] <command>
 #
-#   network  Render, then create or validate the encrypted attachable overlay.
-#   copy     Render, then copy the manifest, configs, PKI, secrets, and compose files.
-#   start    Start etcd on every etcd host, then Patroni, then HAProxy.
-#   wait     Wait for etcd health, Patroni leader + sync standby, and a primary psql.
-#   status   Show compose ps, Patroni list, and etcd health on every stateful host.
+#   network         Render, then create or validate the encrypted attachable overlay.
+#   copy            Render, then copy the manifest, configs, PKI, secrets, and compose files.
+#   start           Start etcd, then Patroni, then HAProxy, seed the first RabbitMQ
+#                   broker, then start the other two brokers.
+#   wait            Wait for etcd health, Patroni leader + sync standby, a three-node
+#                   RabbitMQ cluster with no alarms, and a primary psql.
+#   queue-bootstrap Create the app user, vhost, and permissions from queue_url.
+#                   Run this after `wait` and before `swarm.sh bootstrap`.
+#   status          Show compose ps, Patroni list, etcd health, and RabbitMQ
+#                   cluster/alarm state on every stateful host.
 #
 # Environment:
 #   DESCRIPTOR             descriptor path (default deploy/v3/deploy.example.json)
@@ -26,8 +33,10 @@
 #   QR_STATEFUL_DOCKER     remote docker executable (default docker)
 #   QR_STATEFUL_ATTEMPTS   wait attempts (default 90)
 #   QR_STATEFUL_INTERVAL   seconds between wait attempts (default 2)
-#   QR_STATEFUL_DATA_OWNER optional owner[:group] for the Patroni etcd data dirs;
-#                          empty keeps the image's own ownership
+#   QR_STATEFUL_DATA_OWNER optional owner[:group] for the Patroni, etcd, and
+#                          RabbitMQ data dirs; empty keeps the image's own ownership
+#   QR_STATEFUL_QUEUE_URL  queue_url file for queue-bootstrap (default: the
+#                          descriptor secrets.files.queue_url path)
 #
 # The overlay step must run on a Swarm manager. A three-VM lab is `Simulated HA`;
 # `Real HA` remains HA-014. A missing lab or precondition is `UNVERIFIED`, never
@@ -67,7 +76,7 @@ while [ "$#" -gt 0 ]; do
       usage
       exit 0
       ;;
-    network | copy | start | wait | status)
+    network | copy | start | wait | queue-bootstrap | status)
       [ -z "$command" ] || { printf 'stateful: one command at a time\n' >&2; exit 2; }
       command=$1
       shift
@@ -85,10 +94,11 @@ stateful: plan (no Docker, SSH, jq, or secret file is read)
 stateful: descriptor: $descriptor
 stateful: render: qr-deploy render $descriptor --out $out --target all
 stateful: 1 network: sh $out/bootstrap.sh --network-only on a Swarm manager
-stateful: 2 copy: stateful-manifest.json + infra/<host>.yaml + configs + PKI + secrets over SSH stdin
-stateful: 3 start: etcd -> Patroni -> HAProxy on each host
-stateful: 4 wait: etcdctl endpoint health; patronictl list (Leader + Sync); psql -h postgres (primary)
-stateful: 5 status: compose ps, Patroni list, etcd health
+stateful: 2 copy: stateful-manifest.json + infra/<host>.yaml + per-host configs/PKI/secrets over SSH stdin
+stateful: 3 start: etcd -> Patroni -> HAProxy -> seed the first RabbitMQ broker -> start the other two
+stateful: 4 wait: etcdctl endpoint health; patronictl list (Leader + Sync); RabbitMQ cluster_status (3 running, no alarms); psql -h postgres (primary)
+stateful: 5 queue-bootstrap: create the app user/vhost/permissions from queue_url (password on stdin, before swarm bootstrap)
+stateful: 6 status: compose ps, Patroni list, etcd health, RabbitMQ cluster/alarms
 stateful: no stack, volume, secret, config, node, or service is removed
 PLAN
   exit 0
@@ -116,8 +126,20 @@ descriptor_list() {
 }
 
 all_hosts() {
-  jq -r '[.stateful.postgres.nodes[], .stateful.etcd.nodes[], .stateful.haproxy.nodes[]] | unique[]' \
+  jq -r '[.stateful.postgres.nodes[], .stateful.etcd.nodes[], .stateful.haproxy.nodes[], .stateful.rabbitmq.nodes[]] | unique[]' \
     "$descriptor"
+}
+
+rabbitmq_hosts() {
+  descriptor_list '.stateful.rabbitmq.nodes'
+}
+
+is_rabbitmq_host() {
+  host=$1
+  for broker in $(rabbitmq_hosts); do
+    [ "$broker" = "$host" ] && return 0
+  done
+  return 1
 }
 
 overlay() {
@@ -152,6 +174,7 @@ copy() {
   render
   [ -f "$out/stateful-manifest.json" ] || die "missing $out/stateful-manifest.json"
   for host in $(all_hosts); do
+    [ -f "$out/infra/$host.yaml" ] || die "missing $out/infra/$host.yaml"
     copy_one "$host" "$out/stateful-manifest.json" "/etc/quantrule/stateful-manifest.json" 644
     copy_one "$host" "$out/infra/$host.yaml" "/etc/quantrule/infra/$host.yaml" 644
     while IFS=$'\t' read -r source target mode; do
@@ -160,22 +183,22 @@ copy() {
     done < <(
       jq -r --arg host "$host" '
         .files[]
-        | select(
-            .source == ("patroni-" + $host + ".yml")
-            or .source == ("etcd-" + $host + ".conf.yml")
-            or .source == ("haproxy-" + $host + ".cfg")
-            or .scope == "secret"
-            or .scope == "pki"
-          )
+        | select(.hosts | index($host))
         | [.source, .target, .mode] | @tsv
       ' "$out/stateful-manifest.json"
     )
+    directories="/srv/quantrule/patroni/data /srv/quantrule/patroni/wal-archive /srv/quantrule/etcd/data"
+    owned="/srv/quantrule/patroni /srv/quantrule/patroni/data /srv/quantrule/patroni/wal-archive /srv/quantrule/etcd /srv/quantrule/etcd/data"
+    if is_rabbitmq_host "$host"; then
+      directories="$directories /srv/quantrule/rabbitmq/data /srv/quantrule/rabbitmq/definitions /srv/quantrule/rabbitmq/conf.d"
+      owned="$owned /srv/quantrule/rabbitmq /srv/quantrule/rabbitmq/data /srv/quantrule/rabbitmq/definitions /srv/quantrule/rabbitmq/conf.d"
+    fi
     # shellcheck disable=SC2086
-    $ssh_bin "$host" "$sudo_bin sh -c 'mkdir -p /srv/quantrule/patroni/data /srv/quantrule/patroni/wal-archive /srv/quantrule/etcd/data'" || \
+    $ssh_bin "$host" "$sudo_bin sh -c 'mkdir -p $directories'" || \
       die "cannot create the data directories on $host"
     if [ -n "${QR_STATEFUL_DATA_OWNER:-}" ]; then
       # shellcheck disable=SC2086
-      $ssh_bin "$host" "$sudo_bin chown $QR_STATEFUL_DATA_OWNER /srv/quantrule/patroni /srv/quantrule/patroni/data /srv/quantrule/patroni/wal-archive /srv/quantrule/etcd /srv/quantrule/etcd/data" || \
+      $ssh_bin "$host" "$sudo_bin chown $QR_STATEFUL_DATA_OWNER $owned" || \
         die "cannot set the data directory owner on $host"
     fi
   done
@@ -192,10 +215,68 @@ start_phase() {
   done
 }
 
+rabbitmq_container() {
+  printf 'quantrule-rabbitmq-%s' "$1"
+}
+
+rabbitmq_exec() {
+  host=$1
+  shift
+  # shellcheck disable=SC2086
+  $ssh_bin "$host" "$sudo_bin $docker_bin exec -u rabbitmq $(rabbitmq_container "$host") $*"
+}
+
+rabbitmq_ping() {
+  rabbitmq_exec "$1" rabbitmq-diagnostics -q ping >/dev/null
+}
+
+rabbitmq_ready() {
+  host=$1
+  rabbitmq_ping "$host" || return 1
+  rabbitmq_exec "$host" rabbitmqctl await_startup >/dev/null
+}
+
+rabbitmq_eval() {
+  host=$1
+  expression=$2
+  rabbitmq_exec "$host" rabbitmqctl -q eval "$expression" | tr -d '[:space:]'
+}
+
+rabbitmq_cluster_ready() {
+  host=$1
+  [ "$(rabbitmq_eval "$host" 'length(rabbit_nodes:list_running()).')" = "3" ] || return 1
+  [ "$(rabbitmq_eval "$host" 'length(rabbit_alarm:get_alarms()).')" = "0" ] || return 1
+  status=$(rabbitmq_exec "$host" rabbitmqctl cluster_status) || return 1
+  for broker in $(rabbitmq_hosts); do
+    printf '%s\n' "$status" | grep -q "rabbit@rabbitmq-$broker" || return 1
+  done
+}
+
+wait_rabbitmq_seed() {
+  seed=$1
+  attempt=1
+  while :; do
+    rabbitmq_ready "$seed" && return 0
+    [ "$attempt" -lt "$attempts" ] || die "RabbitMQ seed $seed did not start after $attempts attempts"
+    printf 'stateful: waiting for RabbitMQ seed %s (attempt %s/%s)\n' "$seed" "$attempt" "$attempts"
+    attempt=$((attempt + 1))
+    sleep "$interval"
+  done
+}
+
 start() {
   start_phase etcd "$(descriptor_list '.stateful.etcd.nodes')"
   start_phase patroni "$(descriptor_list '.stateful.postgres.nodes')"
   start_phase haproxy "$(descriptor_list '.stateful.haproxy.nodes')"
+  brokers=$(rabbitmq_hosts)
+  seed=$(printf '%s\n' "$brokers" | head -n 1)
+  [ -n "$seed" ] || die "stateful.rabbitmq.nodes is empty"
+  start_phase "rabbitmq-broker-$seed" "$seed"
+  wait_rabbitmq_seed "$seed"
+  for host in $brokers; do
+    [ "$host" = "$seed" ] && continue
+    start_phase "rabbitmq-broker-$host" "$host"
+  done
 }
 
 etcd_health() {
@@ -251,11 +332,16 @@ wait_ready() {
       done
     fi
     if [ -z "$failed" ]; then
+      for host in $(rabbitmq_hosts); do
+        rabbitmq_cluster_ready "$host" || { failed="RabbitMQ $host (cluster/alarms)"; break; }
+      done
+    fi
+    if [ -z "$failed" ]; then
       primary=$(primary_psql "$psql_host" "$image" "$name" 2>/dev/null || true)
       [ "$primary" = "t" ] || failed="psql through postgres"
     fi
     if [ -z "$failed" ]; then
-      printf 'stateful: ready: etcd health, Patroni leader + sync standby, primary psql through postgres\n'
+      printf 'stateful: ready: etcd health, Patroni leader + sync standby, three RabbitMQ nodes with no alarms, primary psql through postgres\n'
       return 0
     fi
     [ "$attempt" -lt "$attempts" ] || die "not ready after $attempts attempts: $failed"
@@ -263,6 +349,47 @@ wait_ready() {
     attempt=$((attempt + 1))
     sleep "$interval"
   done
+}
+
+queue_bootstrap() {
+  url_file=${QR_STATEFUL_QUEUE_URL:-}
+  if [ -z "$url_file" ]; then
+    url_file=$(jq -r '.secrets.files.queue_url // empty' "$descriptor")
+  fi
+  [ -n "$url_file" ] || die "queue_url is not declared; set QR_STATEFUL_QUEUE_URL"
+  [ -f "$url_file" ] || die "cannot read the queue_url file $url_file"
+  host=$(rabbitmq_hosts | head -n 1)
+  [ -n "$host" ] || die "stateful.rabbitmq.nodes is empty"
+  url=$(cat "$url_file")
+  [ -n "$url" ] || die "the queue_url file is empty"
+  printf 'stateful: bootstrapping the queue application user on %s\n' "$host"
+  script='
+set -eu
+IFS= read -r url
+[ -n "$url" ] || exit 2
+rest=${url#amqps://}
+userinfo=${rest%%@*}
+hostpart=${rest#*@}
+user=${userinfo%%:*}
+password=${userinfo#*:}
+vhost=${hostpart#*/}
+vhost=${vhost%%/*}
+case "$vhost" in
+  %2f|%2F) vhost=/ ;;
+  *) vhost=$(printf "%s" "$vhost" | sed "s/%2[fF]/\\//g") ;;
+esac
+[ -n "$user" ] && [ -n "$password" ] && [ -n "$vhost" ] || exit 2
+rabbitmqctl -q add_vhost "$vhost" >/dev/null 2>&1 || true
+hash=$(printf "%s" "$password" | rabbitmqctl -q hash_password 2>/dev/null)
+[ -n "$hash" ] || { printf "stateful: cannot hash the queue password\n" >&2; exit 1; }
+result=$(rabbitmqctl -q eval "case rabbit_auth_backend_internal:add_user(<<\"$user\">>, <<\"$hash\">>) of ok -> ok; {error, user_already_exists} -> rabbit_auth_backend_internal:change_password(<<\"$user\">>, <<\"$hash\">>); Error -> Error end.")
+[ "$result" = "ok" ] || { printf "stateful: cannot create or update the queue user: %s\n" "$result" >&2; exit 1; }
+rabbitmqctl -q set_permissions -p "$vhost" "$user" ".*" ".*" ".*" >/dev/null
+printf "stateful: queue user %s is ready on vhost %s\n" "$user" "$vhost"
+'
+  # shellcheck disable=SC2086
+  printf '%s\n' "$url" | $ssh_bin "$host" "$sudo_bin $docker_bin exec -i -u rabbitmq $(rabbitmq_container "$host") sh -c '$script'" || \
+    die "cannot bootstrap the queue application user on $host"
 }
 
 status() {
@@ -281,6 +408,12 @@ status() {
     printf '%s: ' "$host"
     etcd_health "$host" && printf 'healthy\n' || printf 'unhealthy\n'
   done
+  printf '\n== RabbitMQ ==\n'
+  for host in $(rabbitmq_hosts); do
+    printf '%s:\n' "$host"
+    rabbitmq_exec "$host" rabbitmqctl cluster_status || true
+    rabbitmq_exec "$host" rabbitmq-diagnostics -q alarms || true
+  done
 }
 
 case "$command" in
@@ -288,6 +421,7 @@ case "$command" in
   copy) copy ;;
   start) start ;;
   wait) wait_ready ;;
+  queue-bootstrap) queue_bootstrap ;;
   status) status ;;
   *) die "unknown command $command" ;;
 esac

@@ -546,11 +546,36 @@ fn validate_stateful(descriptor: &Descriptor) -> Result<(), Error> {
         &descriptor.stateful.rabbitmq.nodes,
         3,
     )?;
-    if !descriptor.stateful.rabbitmq.quorum {
+    let rabbitmq = &descriptor.stateful.rabbitmq;
+    if rabbitmq.nodes.len().is_multiple_of(2) {
+        return Err(rule(
+            "deploy.stateful.rabbitmq.nodes",
+            "stateful.rabbitmq.nodes",
+            format!(
+                "must list an odd number of brokers so one loss keeps quorum; found {}",
+                rabbitmq.nodes.len()
+            ),
+        ));
+    }
+    if !rabbitmq.quorum {
         return Err(rule(
             "deploy.stateful.rabbitmq.quorum",
             "stateful.rabbitmq.quorum",
             "must be true; the HA profile uses quorum queues",
+        ));
+    }
+    if !(256..=10_485_760).contains(&rabbitmq.disk_free_limit_mib) {
+        return Err(rule(
+            "deploy.stateful.rabbitmq.disk_free_limit_mib",
+            "stateful.rabbitmq.disk_free_limit_mib",
+            "must be between 256 and 10485760 MiB",
+        ));
+    }
+    if !(10..=90).contains(&rabbitmq.memory_high_watermark_percent) {
+        return Err(rule(
+            "deploy.stateful.rabbitmq.memory_high_watermark_percent",
+            "stateful.rabbitmq.memory_high_watermark_percent",
+            "must be between 10 and 90 percent",
         ));
     }
     let minio_minimum = match descriptor.profile {

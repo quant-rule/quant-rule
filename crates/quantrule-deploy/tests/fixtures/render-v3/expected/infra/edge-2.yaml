@@ -21,6 +21,8 @@ services:
             "haproxy-edge-2"
           -
             "postgres"
+          -
+            "rabbitmq"
     restart: "unless-stopped"
     stop_grace_period: "40s"
     volumes:
@@ -54,6 +56,6 @@ services:
 x-quantrule:
   evidence: "HA profile (unverified)"
   network: "overlay, attachable, encrypted; created by bootstrap.sh"
-  owner: "PLAT-003"
-  platform: "keepalived is PLAT-002; Patroni, etcd, and HAProxy are configured by PLAT-003; RabbitMQ, MinIO, and observability remain PLAT-004..006"
+  owner: "PLAT-003/PLAT-004"
+  platform: "keepalived is PLAT-002; Patroni, etcd, and HAProxy are configured by PLAT-003; RabbitMQ is PLAT-004; MinIO and observability remain PLAT-005/006"
   profile: "swarm-ha"

@@ -10,6 +10,7 @@
   [deploy/v3](../2026-11-22/deploy-v3.md),
   [four databases](../2026-11-22/four-databases.md),
   [internal TLS](internal-tls.md),
+  [RabbitMQ cluster](rabbitmq-cluster.md),
   [HA architecture](../../architecture/ha.md),
   [manual 15](../../manual/15-ha-deployment.md)
 
@@ -123,7 +124,7 @@ Patroni replication and pg_rewind connect to the Patroni alias with
 `verify-full`. The required sample set is:
 
 ```bash
-PKI_EXTRA_SANS="patroni-infra-1,patroni-infra-2,patroni-infra-3,etcd-infra-1,etcd-infra-2,etcd-infra-3"   tools/pki.sh --out /etc/quantrule/pki
+PKI_EXTRA_SANS="patroni-infra-1,patroni-infra-2,patroni-infra-3,etcd-infra-1,etcd-infra-2,etcd-infra-3,rabbitmq-infra-1,rabbitmq-infra-2,rabbitmq-infra-3"   tools/pki.sh --out /etc/quantrule/pki
 ```
 
 The lab uses `patroni-lab-1..3,etcd-lab-1..3`. Do not add a plaintext fallback
@@ -159,7 +160,8 @@ certificate and `verify-full` reach PostgreSQL unchanged.
 | Auth | `http-check send hdr Authorization "Basic …"` from the REST password file |
 | Failover | `on-marked-down shutdown-sessions` |
 | Stats | `stats socket /tmp/haproxy.sock` and `listen stats` on `0.0.0.0:8404` |
-| Published port | none; the listener is reachable only on the overlay |
+| RabbitMQ frontend | `frontend rabbitmq` on `*:5671`, backend `rabbitmq_nodes`, one `rabbitmq-<host>:5671` server each |
+| Published port | none; both listeners are reachable only on the overlay |
 
 The rendered file contains a placeholder, not the password. The unit reads
 `/run/secrets/patroni_rest_password`, Base64-encodes `patroni:<password>`, writes
@@ -174,10 +176,11 @@ attach to it, so they cannot start before it exists.
 | Step | Command | Wait |
 |---:|---|---|
 | 1 | `tools/stateful.sh network` | overlay exists, attachable, encrypted |
-| 2 | `tools/stateful.sh copy` | manifest, configs, PKI, secrets, host Compose files |
-| 3 | `tools/stateful.sh start` | etcd, then Patroni, then HAProxy |
-| 4 | `tools/stateful.sh wait` | etcd health, Patroni leader + sync standby, primary psql |
-| 5 | `tools/swarm.sh bootstrap` | app objects, labels, cluster/db/migrate jobs, stack |
+| 2 | `tools/stateful.sh copy` | manifest, per-host configs, PKI, secrets, host Compose files |
+| 3 | `tools/stateful.sh start` | etcd, Patroni, HAProxy, then the seed broker and the other two |
+| 4 | `tools/stateful.sh wait` | etcd health, Patroni leader + sync standby, three brokers/no alarms, primary psql |
+| 5 | `tools/stateful.sh queue-bootstrap` | app queue user, vhost, and permissions |
+| 6 | `tools/swarm.sh bootstrap` | app objects, labels, cluster/db/migrate jobs, stack |
 
 `tools/stateful.sh copy` reads the manifest and copies each file with
 `umask 077`, `mkdir -p`, `cat > target`, and `chmod`. The secret value is on
@@ -187,9 +190,13 @@ images must be able to write them (a root supervisor, or the operator chowns
 them to the image user). The tool never removes a stack, volume, secret, config,
 node, or service.
 
+`tools/queue-definitions.sh export` runs after `queue-bootstrap` and stores the
+stripped topology; verify/import/retention and the broker-loss lab are in
+[RabbitMQ cluster](rabbitmq-cluster.md).
+
 ## 8. Secrets and the cluster bootstrap
 
-The four stateful secrets are file-backed and URL-safe:
+The five stateful secrets are file-backed and URL-safe:
 
 | Secret | Consumer |
 |---|---|
@@ -197,10 +204,12 @@ The four stateful secrets are file-backed and URL-safe:
 | `patroni_replication_password` | Patroni `replicator` role |
 | `patroni_rewind_password` | Patroni `rewind` role |
 | `patroni_rest_password` | Patroni REST basic auth and the HAProxy check header |
+| `rabbitmq_erlang_cookie` | The three RabbitMQ brokers only |
 
 They are distinct from every application role credential. `secrets/manifest.json`
 records `scope: stateful`; `bootstrap.sh` creates only the application Swarm
-secrets and `tools/stateful.sh` copies the stateful files to the hosts.
+secrets and `tools/stateful.sh` copies the stateful files to the hosts selected
+by the manifest `hosts` list. The cookie goes only to `stateful.rabbitmq.nodes`.
 
 `jobs/cluster-bootstrap.sh` runs before `jobs/db-bootstrap.sh` and
 `jobs/migrate.sh`. It connects as the superuser through the `postgres`/HAProxy

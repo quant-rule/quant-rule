@@ -95,9 +95,13 @@ names, relative paths, modes, and Swarm names, never a value or a fingerprint.
 `bootstrap.sh` creates one external Swarm secret per file from `secrets/<name>`;
 it hashes the rendered file locally for the `quantrule.source_sha256` drift
 label and never prints, logs, or passes the value. The app services mount only
-the secrets they consume; owner URLs go only to the migration jobs. `QR_INTERNAL_ONLY=1` and the
+the secrets they consume; owner URLs go only to the migration jobs. The five
+stateful secrets (four Patroni passwords and `rabbitmq_erlang_cookie`) are
+excluded from app Swarm secrets and copied by `tools/stateful.sh`; the cookie
+and broker key go only to `stateful.rabbitmq.nodes`. `QR_INTERNAL_ONLY=1` and the
 entrypoint's private-address resolution are unchanged; a task with no resolvable
-private address fails closed. The contract is
+private address fails closed. The queue definitions export is credential-free
+(`users`/`permissions` stripped) and mode 600. The contract is
 [deploy/v3](../2026-11-22/deploy-v3.md).
 
 ## 5. Token rotation

@@ -17,8 +17,12 @@
 //! the consumer have the same arguments. The consumer re-declares the one queue
 //! it consumes with the same arguments; a mismatch is a broker error, not a
 //! silent second definition.
+//!
+//! The connection sits behind a shared lock. A consumer that loses the broker
+//! rebuilds it through [`crate::adapters::QueueConsumer::reconnect`] from the
+//! stored URL and CA; a retry never reuses the closed socket.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -145,9 +149,21 @@ const DEAD_LETTER_BINDINGS: &[Binding] = &[
 
 /// A RabbitMQ channel.
 pub struct RabbitQueue {
+    shared: Arc<RabbitShared>,
+}
+
+/// The connection state shared by every cloned consumer future.
+struct RabbitShared {
+    url: String,
+    ca: Option<PathBuf>,
+    names: QueueNames,
+    state: std::sync::RwLock<RabbitState>,
+}
+
+/// The live connection and publisher channel.
+struct RabbitState {
     connection: Arc<Connection>,
     channel: Channel,
-    names: QueueNames,
 }
 
 impl std::fmt::Debug for RabbitQueue {
@@ -155,7 +171,7 @@ impl std::fmt::Debug for RabbitQueue {
         formatter
             .debug_struct("RabbitQueue")
             .field("exchange", &EXCHANGE)
-            .field("generation", &self.names.generation())
+            .field("generation", &self.shared.names.generation())
             .finish()
     }
 }
@@ -187,66 +203,56 @@ impl RabbitQueue {
         names: QueueNames,
         ca: Option<&Path>,
     ) -> Result<Self, QueueError> {
-        let builder = DefaultConnectionBuilder::new()
-            .map_err(|error| QueueError(error.to_string()))?
-            .with_uri_str(url.to_owned());
-        let builder = if let Some(ca) = ca {
-            let pem = std::fs::read(ca)
-                .map_err(|error| QueueError(format!("cannot read the queue CA bundle: {error}")))?;
-            builder.with_tls_config(OwnedTLSConfig {
-                identity: None,
-                cert_chain: Some(
-                    String::from_utf8(pem).map_err(|_| {
-                        QueueError("the queue CA bundle is not UTF-8 PEM".to_owned())
-                    })?,
-                ),
-            })
-        } else {
-            builder
-        };
-        let connection = builder
-            .connect()
-            .await
-            .map_err(|error| QueueError(error.to_string()))?;
-        let channel = connection
-            .create_channel()
-            .await
-            .map_err(|error| QueueError(error.to_string()))?;
-        // The publisher channel confirms every write before `publish` returns.
-        // Consumers open their own channels below, so a consumer's QoS never
-        // changes the publisher's confirmation mode.
-        channel
-            .confirm_select(ConfirmSelectOptions::default())
-            .await
-            .map_err(|error| QueueError(error.to_string()))?;
-        declare_topology(&channel, &names).await?;
+        let state = connect_state(url, ca, &names).await?;
         Ok(Self {
-            connection: Arc::new(connection),
-            channel,
-            names,
+            shared: Arc::new(RabbitShared {
+                url: url.to_owned(),
+                ca: ca.map(Path::to_path_buf),
+                names,
+                state: std::sync::RwLock::new(state),
+            }),
         })
     }
 
     /// The queue generation this connection declared and consumes.
     #[must_use]
     pub fn names(&self) -> &QueueNames {
-        &self.names
+        &self.shared.names
     }
 
     /// Whether the broker is still connected.
     ///
     /// # Errors
     ///
-    /// Returns the library state when the connection is not open.
+    /// Returns the library state when the connection is not open, or when the
+    /// connection state cannot be read.
     pub fn check(&self) -> Result<(), QueueError> {
-        if self.connection.status().connected() {
+        let state = self
+            .shared
+            .state
+            .read()
+            .map_err(|_| QueueError("the queue connection state is poisoned".to_owned()))?;
+        if state.connection.status().connected() {
             Ok(())
         } else {
             Err(QueueError(format!(
                 "connection {:?}",
-                self.connection.status()
+                state.connection.status()
             )))
         }
+    }
+
+    /// Reopen the connection from the stored URL and CA when it is dead.
+    ///
+    /// A live connection is left alone. A reconnect is idempotent: if two
+    /// consumers race, the freshest state wins and the other connection is
+    /// dropped rather than reused.
+    ///
+    /// # Errors
+    ///
+    /// Returns the broker or CA message when the new connection fails.
+    pub async fn reopen(&self) -> Result<(), QueueError> {
+        reopen(&self.shared).await
     }
 
     /// Read a declared queue's message count with a passive declare.
@@ -259,8 +265,14 @@ impl RabbitQueue {
     ///
     /// Returns the broker error when the queue is absent or the channel fails.
     pub async fn depth(&self, queue: &str) -> Result<u64, QueueError> {
-        let declared = self
+        let channel = self
+            .shared
+            .state
+            .read()
+            .map_err(|_| QueueError("the queue connection state is poisoned".to_owned()))?
             .channel
+            .clone();
+        let declared = channel
             .queue_declare(
                 queue.into(),
                 QueueDeclareOptions {
@@ -273,6 +285,36 @@ impl RabbitQueue {
             .map_err(|error| QueueError(error.to_string()))?;
         Ok(u64::from(declared.message_count()))
     }
+
+    /// The live connection for a new consumer channel.
+    fn consume_connection(&self) -> Result<Arc<Connection>, QueueError> {
+        let state = self
+            .shared
+            .state
+            .read()
+            .map_err(|_| QueueError("the queue connection state is poisoned".to_owned()))?;
+        Ok(Arc::clone(&state.connection))
+    }
+}
+
+/// Reopen a shared connection when it is not connected.
+async fn reopen(shared: &RabbitShared) -> Result<(), QueueError> {
+    {
+        let state = shared
+            .state
+            .read()
+            .map_err(|_| QueueError("the queue connection state is poisoned".to_owned()))?;
+        if state.connection.status().connected() {
+            return Ok(());
+        }
+    }
+    let state = connect_state(&shared.url, shared.ca.as_deref(), &shared.names).await?;
+    let mut current = shared
+        .state
+        .write()
+        .map_err(|_| QueueError("the queue connection state is poisoned".to_owned()))?;
+    *current = state;
+    Ok(())
 }
 
 impl Queue for RabbitQueue {
@@ -281,7 +323,16 @@ impl Queue for RabbitQueue {
     }
 
     fn publish(&self, routing_key: &str, payload: Vec<u8>) -> BoxFuture<Result<(), QueueError>> {
-        let channel = self.channel.clone();
+        let channel = match self.shared.state.read() {
+            Ok(state) => state.channel.clone(),
+            Err(_) => {
+                return Box::pin(async {
+                    Err(QueueError(
+                        "the queue connection state is poisoned".to_owned(),
+                    ))
+                });
+            }
+        };
         let routing_key = routing_key.to_owned();
         Box::pin(async move {
             let confirmation = channel
@@ -317,8 +368,11 @@ impl RabbitQueue {
         handler: MessageHandler,
         shutdown: Option<crate::shutdown::Shutdown>,
     ) -> BoxFuture<Result<(), QueueError>> {
-        let connection = Arc::clone(&self.connection);
-        let names = self.names.clone();
+        let connection = match self.consume_connection() {
+            Ok(connection) => connection,
+            Err(error) => return Box::pin(async move { Err(error) }),
+        };
+        let names = self.shared.names.clone();
         let queue = queue.to_owned();
         Box::pin(async move {
             let kind = names.kind(&queue).ok_or_else(|| {
@@ -436,6 +490,58 @@ impl QueueConsumer for RabbitQueue {
     ) -> BoxFuture<Result<(), QueueError>> {
         self.consume_inner(queue, handler, Some(shutdown))
     }
+
+    fn reconnect(&self) -> BoxFuture<Result<(), QueueError>> {
+        let shared = Arc::clone(&self.shared);
+        Box::pin(async move { reopen(&shared).await })
+    }
+}
+
+/// Open one connection and its confirmed publisher channel.
+///
+/// The CA bundle is read on every call, so a reconnect picks up a rotated
+/// bundle instead of reusing the one read at process start.
+async fn connect_state(
+    url: &str,
+    ca: Option<&Path>,
+    names: &QueueNames,
+) -> Result<RabbitState, QueueError> {
+    let builder = DefaultConnectionBuilder::new()
+        .map_err(|error| QueueError(error.to_string()))?
+        .with_uri_str(url.to_owned());
+    let builder = if let Some(ca) = ca {
+        let pem = std::fs::read(ca)
+            .map_err(|error| QueueError(format!("cannot read the queue CA bundle: {error}")))?;
+        builder.with_tls_config(OwnedTLSConfig {
+            identity: None,
+            cert_chain: Some(
+                String::from_utf8(pem)
+                    .map_err(|_| QueueError("the queue CA bundle is not UTF-8 PEM".to_owned()))?,
+            ),
+        })
+    } else {
+        builder
+    };
+    let connection = builder
+        .connect()
+        .await
+        .map_err(|error| QueueError(error.to_string()))?;
+    let channel = connection
+        .create_channel()
+        .await
+        .map_err(|error| QueueError(error.to_string()))?;
+    // The publisher channel confirms every write before `publish` returns.
+    // Consumers open their own channels below, so a consumer's QoS never
+    // changes the publisher's confirmation mode.
+    channel
+        .confirm_select(ConfirmSelectOptions::default())
+        .await
+        .map_err(|error| QueueError(error.to_string()))?;
+    declare_topology(&channel, names).await?;
+    Ok(RabbitState {
+        connection: Arc::new(connection),
+        channel,
+    })
 }
 
 /// Declare both exchanges, every queue in the generation, and every binding.

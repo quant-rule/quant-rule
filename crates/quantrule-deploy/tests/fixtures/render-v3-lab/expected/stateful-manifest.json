@@ -1,6 +1,6 @@
 {
   "v": "quantrule.deploy/v3",
-  "note": "copy each source to its absolute target; no secret value or fingerprint is listed",
+  "note": "copy each source to its absolute target on the listed hosts; no secret value or fingerprint is listed",
   "sans": [
     "etcd-lab-1",
     "etcd-lab-2",
@@ -8,7 +8,11 @@
     "patroni-lab-1",
     "patroni-lab-2",
     "patroni-lab-3",
-    "postgres"
+    "postgres",
+    "rabbitmq",
+    "rabbitmq-lab-1",
+    "rabbitmq-lab-2",
+    "rabbitmq-lab-3"
   ],
   "files": [
     {
@@ -16,147 +20,326 @@
       "target": "/etc/quantrule/patroni/patroni.yml",
       "mode": "600",
       "owner": "root",
-      "scope": "patroni"
+      "scope": "patroni",
+      "hosts": [
+        "lab-1"
+      ]
     },
     {
       "source": "patroni-lab-2.yml",
       "target": "/etc/quantrule/patroni/patroni.yml",
       "mode": "600",
       "owner": "root",
-      "scope": "patroni"
+      "scope": "patroni",
+      "hosts": [
+        "lab-2"
+      ]
     },
     {
       "source": "patroni-lab-3.yml",
       "target": "/etc/quantrule/patroni/patroni.yml",
       "mode": "600",
       "owner": "root",
-      "scope": "patroni"
+      "scope": "patroni",
+      "hosts": [
+        "lab-3"
+      ]
     },
     {
       "source": "etcd-lab-1.conf.yml",
       "target": "/etc/quantrule/etcd/etcd.conf.yml",
       "mode": "600",
       "owner": "root",
-      "scope": "etcd"
+      "scope": "etcd",
+      "hosts": [
+        "lab-1"
+      ]
     },
     {
       "source": "etcd-lab-2.conf.yml",
       "target": "/etc/quantrule/etcd/etcd.conf.yml",
       "mode": "600",
       "owner": "root",
-      "scope": "etcd"
+      "scope": "etcd",
+      "hosts": [
+        "lab-2"
+      ]
     },
     {
       "source": "etcd-lab-3.conf.yml",
       "target": "/etc/quantrule/etcd/etcd.conf.yml",
       "mode": "600",
       "owner": "root",
-      "scope": "etcd"
+      "scope": "etcd",
+      "hosts": [
+        "lab-3"
+      ]
     },
     {
       "source": "haproxy-lab-1.cfg",
       "target": "/etc/quantrule/haproxy/haproxy.cfg",
       "mode": "600",
       "owner": "root",
-      "scope": "haproxy"
+      "scope": "haproxy",
+      "hosts": [
+        "lab-1"
+      ]
     },
     {
       "source": "haproxy-lab-2.cfg",
       "target": "/etc/quantrule/haproxy/haproxy.cfg",
       "mode": "600",
       "owner": "root",
-      "scope": "haproxy"
+      "scope": "haproxy",
+      "hosts": [
+        "lab-2"
+      ]
+    },
+    {
+      "source": "rabbitmq-lab-1.conf",
+      "target": "/etc/rabbitmq/rabbitmq.conf",
+      "mode": "600",
+      "owner": "root",
+      "scope": "config",
+      "hosts": [
+        "lab-1"
+      ]
+    },
+    {
+      "source": "rabbitmq-lab-2.conf",
+      "target": "/etc/rabbitmq/rabbitmq.conf",
+      "mode": "600",
+      "owner": "root",
+      "scope": "config",
+      "hosts": [
+        "lab-2"
+      ]
+    },
+    {
+      "source": "rabbitmq-lab-3.conf",
+      "target": "/etc/rabbitmq/rabbitmq.conf",
+      "mode": "600",
+      "owner": "root",
+      "scope": "config",
+      "hosts": [
+        "lab-3"
+      ]
+    },
+    {
+      "source": "rabbitmq-enabled_plugins",
+      "target": "/etc/rabbitmq/enabled_plugins",
+      "mode": "600",
+      "owner": "root",
+      "scope": "config",
+      "hosts": [
+        "lab-1",
+        "lab-2",
+        "lab-3"
+      ]
     },
     {
       "source": "secrets/postgres_superuser_password",
       "target": "/etc/quantrule/secrets/postgres_superuser_password",
       "mode": "600",
       "owner": "root",
-      "scope": "secret"
+      "scope": "secret",
+      "hosts": [
+        "lab-1",
+        "lab-2",
+        "lab-3"
+      ]
     },
     {
       "source": "secrets/patroni_replication_password",
       "target": "/etc/quantrule/secrets/patroni_replication_password",
       "mode": "600",
       "owner": "root",
-      "scope": "secret"
+      "scope": "secret",
+      "hosts": [
+        "lab-1",
+        "lab-2",
+        "lab-3"
+      ]
     },
     {
       "source": "secrets/patroni_rewind_password",
       "target": "/etc/quantrule/secrets/patroni_rewind_password",
       "mode": "600",
       "owner": "root",
-      "scope": "secret"
+      "scope": "secret",
+      "hosts": [
+        "lab-1",
+        "lab-2",
+        "lab-3"
+      ]
     },
     {
       "source": "secrets/patroni_rest_password",
       "target": "/etc/quantrule/secrets/patroni_rest_password",
       "mode": "600",
       "owner": "root",
-      "scope": "secret"
+      "scope": "secret",
+      "hosts": [
+        "lab-1",
+        "lab-2",
+        "lab-3"
+      ]
+    },
+    {
+      "source": "secrets/rabbitmq_erlang_cookie",
+      "target": "/etc/quantrule/rabbitmq/erlang.cookie",
+      "mode": "600",
+      "owner": "root",
+      "scope": "secret",
+      "hosts": [
+        "lab-1",
+        "lab-2",
+        "lab-3"
+      ]
     },
     {
       "source": "pki/database-ca.crt",
       "target": "/etc/quantrule/pki/ca.crt",
       "mode": "644",
       "owner": "root",
-      "scope": "pki"
+      "scope": "pki",
+      "hosts": [
+        "lab-1",
+        "lab-2",
+        "lab-3"
+      ]
     },
     {
       "source": "pki/postgres/server.crt",
       "target": "/etc/quantrule/pki/postgres/server.crt",
       "mode": "644",
       "owner": "root",
-      "scope": "pki"
+      "scope": "pki",
+      "hosts": [
+        "lab-1",
+        "lab-2",
+        "lab-3"
+      ]
     },
     {
       "source": "pki/postgres/server.key",
       "target": "/etc/quantrule/pki/postgres/server.key",
       "mode": "600",
       "owner": "root",
-      "scope": "pki"
+      "scope": "pki",
+      "hosts": [
+        "lab-1",
+        "lab-2",
+        "lab-3"
+      ]
     },
     {
       "source": "pki/etcd/server.crt",
       "target": "/etc/quantrule/pki/etcd/server.crt",
       "mode": "644",
       "owner": "root",
-      "scope": "pki"
+      "scope": "pki",
+      "hosts": [
+        "lab-1",
+        "lab-2",
+        "lab-3"
+      ]
     },
     {
       "source": "pki/etcd/server.key",
       "target": "/etc/quantrule/pki/etcd/server.key",
       "mode": "600",
       "owner": "root",
-      "scope": "pki"
+      "scope": "pki",
+      "hosts": [
+        "lab-1",
+        "lab-2",
+        "lab-3"
+      ]
     },
     {
       "source": "pki/etcd/peer.crt",
       "target": "/etc/quantrule/pki/etcd/peer.crt",
       "mode": "644",
       "owner": "root",
-      "scope": "pki"
+      "scope": "pki",
+      "hosts": [
+        "lab-1",
+        "lab-2",
+        "lab-3"
+      ]
     },
     {
       "source": "pki/etcd/peer.key",
       "target": "/etc/quantrule/pki/etcd/peer.key",
       "mode": "600",
       "owner": "root",
-      "scope": "pki"
+      "scope": "pki",
+      "hosts": [
+        "lab-1",
+        "lab-2",
+        "lab-3"
+      ]
     },
     {
       "source": "pki/etcd/client.crt",
       "target": "/etc/quantrule/pki/etcd/client.crt",
       "mode": "644",
       "owner": "root",
-      "scope": "pki"
+      "scope": "pki",
+      "hosts": [
+        "lab-1",
+        "lab-2",
+        "lab-3"
+      ]
     },
     {
       "source": "pki/etcd/client.key",
       "target": "/etc/quantrule/pki/etcd/client.key",
       "mode": "600",
       "owner": "root",
-      "scope": "pki"
+      "scope": "pki",
+      "hosts": [
+        "lab-1",
+        "lab-2",
+        "lab-3"
+      ]
+    },
+    {
+      "source": "pki/rabbitmq/ca.crt",
+      "target": "/etc/quantrule/pki/rabbitmq/ca.crt",
+      "mode": "644",
+      "owner": "root",
+      "scope": "pki",
+      "hosts": [
+        "lab-1",
+        "lab-2",
+        "lab-3"
+      ]
+    },
+    {
+      "source": "pki/rabbitmq/server.crt",
+      "target": "/etc/quantrule/pki/rabbitmq/server.crt",
+      "mode": "644",
+      "owner": "root",
+      "scope": "pki",
+      "hosts": [
+        "lab-1",
+        "lab-2",
+        "lab-3"
+      ]
+    },
+    {
+      "source": "pki/rabbitmq/server.key",
+      "target": "/etc/quantrule/pki/rabbitmq/server.key",
+      "mode": "600",
+      "owner": "root",
+      "scope": "pki",
+      "hosts": [
+        "lab-1",
+        "lab-2",
+        "lab-3"
+      ]
     }
   ]
 }

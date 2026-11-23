@@ -52,6 +52,7 @@ fn stage_pki(directory: &Path) -> PathBuf {
     let root = directory.join("pki");
     std::fs::create_dir_all(root.join("postgres")).expect("postgres pki");
     std::fs::create_dir_all(root.join("etcd")).expect("etcd pki");
+    std::fs::create_dir_all(root.join("rabbitmq")).expect("rabbitmq pki");
     let ca = root.join("ca.crt");
     write_mode(
         &ca,
@@ -63,6 +64,7 @@ fn stage_pki(directory: &Path) -> PathBuf {
         ("etcd", "server"),
         ("etcd", "peer"),
         ("etcd", "client"),
+        ("rabbitmq", "server"),
     ] {
         write_mode(
             &root.join(directory).join(format!("{name}.crt")),
@@ -159,6 +161,7 @@ fn compare_golden(out: &Path, expected: &str, required: &[&str]) {
         "pki/etcd/server.key",
         "pki/etcd/peer.key",
         "pki/etcd/client.key",
+        "pki/rabbitmq/server.key",
     ] {
         let path = out.join(key);
         assert!(path.is_file(), "{key} is rendered");
@@ -191,6 +194,7 @@ fn compare_golden(out: &Path, expected: &str, required: &[&str]) {
         "patroni_replication_password",
         "patroni_rewind_password",
         "patroni_rest_password",
+        "rabbitmq_erlang_cookie",
     ] {
         let source = std::fs::read_to_string(repo(&format!("deploy/v3/secrets/{name}")))
             .expect("source secret");
@@ -245,8 +249,32 @@ fn the_render_matches_its_checked_in_golden_files() {
             "patroni-infra-1.yml",
             "etcd-infra-1.conf.yml",
             "haproxy-edge-1.cfg",
+            "rabbitmq-infra-1.conf",
+            "rabbitmq-enabled_plugins",
             "stateful-manifest.json",
         ],
+    );
+    let rabbitmq =
+        std::fs::read_to_string(out.join("rabbitmq-infra-1.conf")).expect("rabbitmq conf");
+    for expected in [
+        "listeners.tcp = none",
+        "listeners.ssl.default = 5671",
+        "cluster_formation.classic_config.nodes.3 = rabbit@rabbitmq-infra-3",
+        "cluster_partition_handling = pause_minority",
+        "default_queue_type = quorum",
+        "disk_free_limit.absolute = 5120MiB",
+        "vm_memory_high_watermark.relative = 0.60",
+        "prometheus.tcp.port = 15692",
+    ] {
+        assert!(rabbitmq.contains(expected), "{expected}: {rabbitmq}");
+    }
+    let plugins = std::fs::read_to_string(out.join("rabbitmq-enabled_plugins")).expect("plugins");
+    assert_eq!(plugins, "[rabbitmq_prometheus].\n");
+    let haproxy = std::fs::read_to_string(out.join("haproxy-edge-1.cfg")).expect("haproxy");
+    assert!(haproxy.contains("bind *:5671"), "{haproxy}");
+    assert!(
+        haproxy.contains("server rabbitmq-infra-1 rabbitmq-infra-1:5671 check"),
+        "{haproxy}"
     );
     let _ = std::fs::remove_dir_all(directory);
 }
@@ -264,6 +292,8 @@ fn the_lab_render_matches_its_checked_in_golden_files() {
             "patroni-lab-1.yml",
             "etcd-lab-1.conf.yml",
             "haproxy-lab-1.cfg",
+            "rabbitmq-lab-1.conf",
+            "rabbitmq-enabled_plugins",
             "stateful-manifest.json",
         ],
     );

@@ -68,6 +68,15 @@ fn stage_tree(descriptor: &Descriptor) -> PathBuf {
         let text = stateful::haproxy_cfg(descriptor, host).expect("haproxy");
         std::fs::write(directory.join(format!("haproxy-{host}.cfg")), text).expect("haproxy");
     }
+    for host in &descriptor.stateful.rabbitmq.nodes {
+        let text = crate::render::queue::rabbitmq_conf(descriptor, host).expect("rabbitmq");
+        std::fs::write(directory.join(format!("rabbitmq-{host}.conf")), text).expect("rabbitmq");
+    }
+    std::fs::write(
+        directory.join("rabbitmq-enabled_plugins"),
+        crate::render::queue::enabled_plugins(),
+    )
+    .expect("plugins");
     std::fs::create_dir_all(directory.join("infra")).expect("infra");
     for host in &descriptor.stateful.postgres.nodes {
         std::fs::write(
@@ -94,6 +103,7 @@ fn stage_tree(descriptor: &Descriptor) -> PathBuf {
     std::fs::write(directory.join("stateful-manifest.json"), manifest).expect("manifest");
     std::fs::create_dir_all(directory.join("pki/postgres")).expect("postgres pki");
     std::fs::create_dir_all(directory.join("pki/etcd")).expect("etcd pki");
+    std::fs::create_dir_all(directory.join("pki/rabbitmq")).expect("rabbitmq pki");
     for name in [
         "pki/database-ca.crt",
         "pki/postgres/server.crt",
@@ -104,6 +114,9 @@ fn stage_tree(descriptor: &Descriptor) -> PathBuf {
         "pki/etcd/peer.key",
         "pki/etcd/client.crt",
         "pki/etcd/client.key",
+        "pki/rabbitmq/ca.crt",
+        "pki/rabbitmq/server.crt",
+        "pki/rabbitmq/server.key",
     ] {
         std::fs::write(directory.join(name), "fixture\n").expect("pki file");
     }

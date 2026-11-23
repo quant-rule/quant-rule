@@ -279,6 +279,10 @@ impl QueueConsumer for ControlQueue {
     ) -> BoxFuture<Result<(), QueueError>> {
         self.queue.consume_until(name, handler, shutdown)
     }
+
+    fn reconnect(&self) -> BoxFuture<Result<(), QueueError>> {
+        self.queue.reconnect()
+    }
 }
 
 #[cfg(test)]

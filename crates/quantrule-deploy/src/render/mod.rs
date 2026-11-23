@@ -14,6 +14,7 @@ mod bootstrap;
 pub(crate) mod infra;
 pub(crate) mod ingress;
 mod jobs;
+pub(crate) mod queue;
 mod secrets;
 pub(crate) mod stateful;
 pub(crate) mod swarm;
@@ -320,10 +321,12 @@ fn remove_stale_stateful(out: &Path) -> Result<(), Error> {
     for entry in entries.flatten() {
         let name = entry.file_name();
         let name = name.to_string_lossy();
-        if ["patroni-", "etcd-", "haproxy-"]
+        if (["patroni-", "etcd-", "haproxy-"]
             .iter()
             .any(|prefix| name.starts_with(prefix))
-            && (name.ends_with(".yml") || name.ends_with(".cfg"))
+            && (name.ends_with(".yml") || name.ends_with(".cfg")))
+            || (name.starts_with("rabbitmq-") && name.ends_with(".conf"))
+            || name == "rabbitmq-enabled_plugins"
         {
             remove_existing(&entry.path())?;
         }
@@ -530,6 +533,8 @@ mod tests {
         std::fs::write(out.join("patroni-infra-old.yml"), "stale").expect("stale patroni");
         std::fs::write(out.join("etcd-infra-old.conf.yml"), "stale").expect("stale etcd");
         std::fs::write(out.join("haproxy-edge-old.cfg"), "stale").expect("stale haproxy");
+        std::fs::write(out.join("rabbitmq-infra-old.conf"), "stale").expect("stale rabbitmq");
+        std::fs::write(out.join("rabbitmq-enabled_plugins"), "stale").expect("stale plugins");
         std::fs::write(out.join("stateful-manifest.json"), "stale").expect("stale manifest");
         std::fs::create_dir_all(out.join("infra")).expect("stale infra");
         std::fs::write(out.join("infra/old.yaml"), "stale").expect("stale unit");
@@ -543,6 +548,8 @@ mod tests {
         assert!(!out.join("patroni-infra-old.yml").exists());
         assert!(!out.join("etcd-infra-old.conf.yml").exists());
         assert!(!out.join("haproxy-edge-old.cfg").exists());
+        assert!(!out.join("rabbitmq-infra-old.conf").exists());
+        assert!(!out.join("rabbitmq-enabled_plugins").exists());
         assert!(!out.join("stateful-manifest.json").exists());
         assert!(!out.join("infra").exists());
         assert_eq!(
