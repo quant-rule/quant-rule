@@ -1,6 +1,6 @@
-# AI Transparency Log — HA-009 slices 1–2: runtime metrics, logs, IDs, drain, retries and reconnect
+# AI Transparency Log — HA-009 slices 1–3: runtime metrics, logs, IDs, drain, retries, reconnect and secrets
 
-- Date: 2026-11-22 (UTC); slice 2 verified 2026-11-23 (UTC)
+- Date: 2026-11-22 (UTC); slices 2–3 verified 2026-11-23 (UTC)
 - Work item: [#1107](https://github.com/quant-rule/quant-rule/issues/1107) — HA-009
 - Tool: OpenCode, DeepSeek V4.1 Flash
 - Plan: [`docs/execution-plans/2026-11-22/1107-runtime-hardening.md`](../../execution-plans/2026-11-22/1107-runtime-hardening.md)
@@ -196,3 +196,110 @@ credential source or token rotation was changed.
   `/ready` would not flip on SIGTERM. The constructor now attaches
   `drain.shutdown()` and the test builds the registry without the manual
   wiring. The gateway suite and the full gate were rerun after the correction.
+
+## Slice 3 — file secrets, explicit S3 credentials and token rotation
+
+### Intent and boundary
+
+Implement the final approved slice: every application secret is a `*_FILE`
+value, the S3 client uses explicit file credentials, and the gateway rotates its
+bearer token from a file without a restart. Not in this slice: drain, readiness,
+retry, reconnect, metrics or log behavior; a migration, public API or command
+change; v3 Swarm secret objects (HA-012); or a composed/HA evidence claim.
+
+### Proposed work
+
+- Add one secret reader and the file contract to `quantrule_runtime::config`,
+  with an injected reader and a test constructor.
+- Refuse plain secret variables and both sources; keep the non-secret variables
+  plain.
+- Remove the AWS default chain and build the S3 client from the two file values;
+  reject URL userinfo.
+- Add top-level Compose secrets, `make secrets`, the remote override, renderer
+  secret files and multi-host mounts.
+- Add a gateway `TokenSource` with an interval and `SIGHUP` reload, atomic
+  snapshot swap, last-good-token retention and two auth metrics.
+- Update the shell, tests and documentation.
+
+### Implemented work
+
+- `Config::from_values_with_reader` is the single resolver; `from_env` is the
+  only production file reader and `from_map` refuses a file because it cannot
+  read one. The contract rejects both sources, a plain secret, a relative or
+  missing file, more than 8 KiB, invalid UTF-8, NUL, an empty value and bad
+  whitespace. `Config` debug redacts the database, queue, S3 and token fields.
+- `Objects::open` requires both S3 credentials and fails closed without them.
+  `S3Store` builds `aws_sdk_s3::config::Credentials` from the two values, and
+  the `aws-config` dependency and `aws_config::defaults()` call are removed.
+  `QR_OBJECT_STORE_URL` rejects userinfo.
+- `compose.yaml` declares file-backed secrets and mounts only the files each
+  service reads; application services name only `_FILE`. `compose.remote.yaml`
+  adds `QR_BEARER_TOKEN_FILE` and the token mount. `tools/secrets.sh` is
+  idempotent, mode 700/600 and writes only random values; `make up` depends on
+  it; `make compose-check` uses disposable secrets.
+- The image entrypoint starts as root only to copy the mounted files into a
+  mode-700 directory owned by UID 10001, rewrites the `_FILE` values, and drops
+  privileges with `setpriv` before exec. The host files and Compose mounts stay
+  mode 600, and no service binary runs as root.
+- The v2 renderer writes `env/secrets/` and `_FILE` envs; the role files mount
+  the files; `deploy/multi-host/test.sh` writes and mounts the same layout.
+  `tools/remote.sh` writes the token file and `tools/token.sh --out` writes one.
+- The gateway `TokenSource` reads at startup, swaps one immutable snapshot, and
+  re-reads on the interval or `SIGHUP`. Invalid reloads keep the last good token,
+  count a stable reason and log only the reason; startup invalid fails.
+  `quantrule_auth_reload_failures_total` and
+  `quantrule_auth_token_age_seconds` are gateway-only families.
+- The shell accepts `QUANTRULE_TOKEN_FILE` and refuses both token sources.
+- Docs, the config contract, plan, this log and the changelog are updated; the
+  touched architecture docs stay within their caps.
+
+No model, strategy, execution, portfolio, artifact, digest, migration or public
+command was changed.
+
+### Verification and evidence
+
+| Check | Result |
+|---|---|
+| `cargo test -p quantrule-runtime config::tests` | 18 pass |
+| `cargo test -p quantrule-runtime --test secret_sources --test database_topology` | 4 + 7 pass |
+| Manual Debian probe with a mode-600 mount | entrypoint ran as UID 10001, read the staged 400 file, printed the sentinel |
+| `cargo test -p quantrule-runtime backends` | pass |
+| `cargo test -p quantrule-deploy` | 29 pass |
+| `cargo test -p quantrule-gateway` | gateway suites pass, including 6 rotation tests |
+| `cargo test -p quantrule-shell token` | pass |
+| `docker compose config -q` via `make compose-check` | `compose config ok` |
+| `cargo fmt --all -- --check`; clippy on touched crates `-D warnings` | pass |
+| `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps` | pass |
+| `cargo run -q -p quantrule-governance -- check --all` | pass |
+| `tools/gate.sh` | `gate passed: full` |
+| `git diff --stat -- '**/migrations/**'` | empty |
+
+No composed, HA or DR tier was run or claimed. No real secret was created or
+committed; the verification used disposable values under a temporary directory.
+
+### Learning and rejected suggestions
+
+- Kept one production file reader in `Config::from_env`. A second reader in the
+  gateway would let a secret bypass the contract and the redacted error path;
+  the gateway receives the resolved initial token and re-reads through the same
+  `SecretFileReader` trait.
+- Rejected the AWS default chain rather than wrapping it: it is a second,
+  unaudited reader with environment variables, shared config and instance
+  metadata, and the approved decision names the two file credentials.
+- Rejected putting the token in the Compose environment for the remote profile:
+  `docker inspect` would expose it. The override adds a file mount instead.
+- Kept the local `make up` profile unauthenticated by leaving
+  `QR_BEARER_TOKEN_FILE` out of the base file; the remote override is the
+  explicit deployment decision that enables auth.
+- Rejected overwriting local secret files on every `make up`: that would rotate
+  live database passwords as a side effect. `make secrets FORCE=1` is the
+  deliberate path.
+- Compose file secrets are bind mounts, so a host mode-600 file is owned by the
+  operator and cannot be read by the image's UID 10001. The entrypoint stages
+  the files into a private directory for UID 10001 and drops privileges; the
+  alternative of relaxing the host mode was rejected.
+- Token rotation on Compose must update the staged file, not only the host file.
+  `make remote` copies the new value into the gateway and signals a reload; the
+  manual shows the file-copy and `SIGHUP` steps.
+- No independent model or agent review is claimed; human review is still
+  required.

@@ -52,7 +52,6 @@ x-server: &server
     QR_STRATEGY_URL: http://strategy:8080
     QR_OBJECT_STORE_URL: http://minio:9000
     QR_OBJECT_BUCKET: quantrule
-    QR_QUEUE_URL: amqp://quantrule:${QR_RABBITMQ_PASSWORD:-quantrule}@rabbitmq:5672/%2f
     # Every declared queue name carries this generation. A changed queue
     # declaration moves to a new generation instead of redeclaring a live name;
     # the old generation drains or is retired deliberately.
@@ -84,9 +83,6 @@ x-server: &server
     # Set at release time to the image digest. An empty value would be rejected
     # by the runtime, so the key is a pass-through: unset stays unset.
     QR_IMAGE_DIGEST:
-    AWS_ACCESS_KEY_ID: quantrule
-    AWS_SECRET_ACCESS_KEY: ${QR_OBJECT_STORE_PASSWORD:-quantrule}
-    AWS_REGION: us-east-1
 
 # The probe reads the service's own `/health`; a running container is not a
 # healthy service. The workers have no public HTTP surface and therefore no entry
@@ -117,13 +113,12 @@ services:
       <<: *server-environment
       # The gateway owns the profiles database. The long-running process has
       # the application role only; the one-shot gateway-migrate job below has
-      # the owner URL and applies the ledger.
-      QR_DATABASE_URL: postgres://qr_gateway_app:${QR_POSTGRES_PASSWORD:-quantrule}@postgres:5432/qr_gateway
+      # the owner URL. Every application secret arrives as a mounted file:
+      # `docker inspect` and `/proc/<pid>/environ` never carry the value.
+      QR_DATABASE_URL_FILE: /run/secrets/qr_gateway_database_url
       QR_MIGRATE: "0"
-      # `make remote` exports this before Compose runs. The empty default keeps
-      # the local stack unauthenticated; the runtime treats an empty value as
-      # unset, so `make up` behaves exactly as before.
-      QR_BEARER_TOKEN: ${QR_BEARER_TOKEN:-}
+    secrets:
+      - qr_gateway_database_url
     ports:
       - "8080:8080"
     depends_on:
@@ -154,8 +149,14 @@ services:
       <<: *server-environment
       # qr-data owns the catalog database. The long-running process has the
       # application role only; data-migrate has the owner URL.
-      QR_DATABASE_URL: postgres://qr_catalog_app:${QR_POSTGRES_PASSWORD:-quantrule}@postgres:5432/qr_catalog
+      QR_DATABASE_URL_FILE: /run/secrets/qr_catalog_database_url
+      QR_OBJECT_STORE_ACCESS_KEY_FILE: /run/secrets/object_store_access_key
+      QR_OBJECT_STORE_SECRET_KEY_FILE: /run/secrets/object_store_secret_key
       QR_MIGRATE: "0"
+    secrets:
+      - qr_catalog_database_url
+      - object_store_access_key
+      - object_store_secret_key
     volumes:
       # The repository config/ is the read-only catalog source. qr-data owns it
       # now; the gateway proxies the public config routes.
@@ -176,7 +177,12 @@ services:
       <<: *server-environment
       # qr-model owns no database and applies no migration; it reads the
       # catalog through qr-data and the dataset objects from the object store.
+      QR_OBJECT_STORE_ACCESS_KEY_FILE: /run/secrets/object_store_access_key
+      QR_OBJECT_STORE_SECRET_KEY_FILE: /run/secrets/object_store_secret_key
       QR_MIGRATE: "0"
+    secrets:
+      - object_store_access_key
+      - object_store_secret_key
     depends_on:
       data:
         condition: service_healthy
@@ -195,14 +201,16 @@ services:
       QR_MODEL_URL: http://model:8080
       QR_OBJECT_STORE_URL: http://minio:9000
       QR_OBJECT_BUCKET: quantrule
+      QR_OBJECT_STORE_ACCESS_KEY_FILE: /run/secrets/object_store_access_key
+      QR_OBJECT_STORE_SECRET_KEY_FILE: /run/secrets/object_store_secret_key
       QR_MIGRATE: "0"
       QR_LOG_FORMAT: json
       QR_METRICS_BIND: 0.0.0.0:9090
       QR_DRAIN_TIMEOUT_HTTP: "20"
       QR_IMAGE_DIGEST:
-      AWS_ACCESS_KEY_ID: quantrule
-      AWS_SECRET_ACCESS_KEY: ${QR_OBJECT_STORE_PASSWORD:-quantrule}
-      AWS_REGION: us-east-1
+    secrets:
+      - object_store_access_key
+      - object_store_secret_key
     depends_on:
       data:
         condition: service_healthy
@@ -223,6 +231,13 @@ services:
       # Each run consumer owns a channel and one prefetch slot; the stage
       # consumer always keeps its own slot.
       QR_BACKTEST_CONCURRENCY: ${QR_BACKTEST_CONCURRENCY:-1}
+      QR_QUEUE_URL_FILE: /run/secrets/queue_url
+      QR_OBJECT_STORE_ACCESS_KEY_FILE: /run/secrets/object_store_access_key
+      QR_OBJECT_STORE_SECRET_KEY_FILE: /run/secrets/object_store_secret_key
+    secrets:
+      - queue_url
+      - object_store_access_key
+      - object_store_secret_key
     depends_on:
       data:
         condition: service_healthy
@@ -255,8 +270,16 @@ services:
       # qr-evidence owns the evidence database: runs, research, and stage,
       # including the run-attempts ledger (0013). The long-running process has
       # the application role only; evidence-migrate has the owner URL.
-      QR_DATABASE_URL: postgres://qr_evidence_app:${QR_POSTGRES_PASSWORD:-quantrule}@postgres:5432/qr_evidence
+      QR_DATABASE_URL_FILE: /run/secrets/qr_evidence_database_url
+      QR_QUEUE_URL_FILE: /run/secrets/queue_url
+      QR_OBJECT_STORE_ACCESS_KEY_FILE: /run/secrets/object_store_access_key
+      QR_OBJECT_STORE_SECRET_KEY_FILE: /run/secrets/object_store_secret_key
       QR_MIGRATE: "0"
+    secrets:
+      - qr_evidence_database_url
+      - queue_url
+      - object_store_access_key
+      - object_store_secret_key
     depends_on:
       data:
         condition: service_healthy
@@ -277,8 +300,14 @@ services:
       <<: *server-environment
       # qr-simulation owns the simulation database. The long-running process
       # has the application role only; simulation-migrate has the owner URL.
-      QR_DATABASE_URL: postgres://qr_simulation_app:${QR_POSTGRES_PASSWORD:-quantrule}@postgres:5432/qr_simulation
+      QR_DATABASE_URL_FILE: /run/secrets/qr_simulation_database_url
+      QR_OBJECT_STORE_ACCESS_KEY_FILE: /run/secrets/object_store_access_key
+      QR_OBJECT_STORE_SECRET_KEY_FILE: /run/secrets/object_store_secret_key
       QR_MIGRATE: "0"
+    secrets:
+      - qr_simulation_database_url
+      - object_store_access_key
+      - object_store_secret_key
     depends_on:
       postgres:
         condition: service_healthy
@@ -317,8 +346,10 @@ services:
     command: ["qr-gateway", "--migrate-only"]
     restart: "no"
     environment:
-      QR_DATABASE_OWNER_URL: postgres://qr_gateway_owner:${QR_POSTGRES_PASSWORD:-quantrule}@postgres:5432/qr_gateway
+      QR_DATABASE_OWNER_URL_FILE: /run/secrets/qr_gateway_owner_database_url
       QR_MIGRATE: "0"
+    secrets:
+      - qr_gateway_owner_database_url
     depends_on:
       db-bootstrap:
         condition: service_completed_successfully
@@ -330,8 +361,10 @@ services:
     command: ["qr-data", "--migrate-only"]
     restart: "no"
     environment:
-      QR_DATABASE_OWNER_URL: postgres://qr_catalog_owner:${QR_POSTGRES_PASSWORD:-quantrule}@postgres:5432/qr_catalog
+      QR_DATABASE_OWNER_URL_FILE: /run/secrets/qr_catalog_owner_database_url
       QR_MIGRATE: "0"
+    secrets:
+      - qr_catalog_owner_database_url
     depends_on:
       db-bootstrap:
         condition: service_completed_successfully
@@ -343,8 +376,10 @@ services:
     command: ["qr-evidence", "--migrate-only"]
     restart: "no"
     environment:
-      QR_DATABASE_OWNER_URL: postgres://qr_evidence_owner:${QR_POSTGRES_PASSWORD:-quantrule}@postgres:5432/qr_evidence
+      QR_DATABASE_OWNER_URL_FILE: /run/secrets/qr_evidence_owner_database_url
       QR_MIGRATE: "0"
+    secrets:
+      - qr_evidence_owner_database_url
     depends_on:
       db-bootstrap:
         condition: service_completed_successfully
@@ -356,8 +391,10 @@ services:
     command: ["qr-simulation", "--migrate-only"]
     restart: "no"
     environment:
-      QR_DATABASE_OWNER_URL: postgres://qr_simulation_owner:${QR_POSTGRES_PASSWORD:-quantrule}@postgres:5432/qr_simulation
+      QR_DATABASE_OWNER_URL_FILE: /run/secrets/qr_simulation_owner_database_url
       QR_MIGRATE: "0"
+    secrets:
+      - qr_simulation_owner_database_url
     depends_on:
       db-bootstrap:
         condition: service_completed_successfully
@@ -428,6 +465,30 @@ services:
 networks:
   quantrule:
     driver: bridge
+
+secrets:
+  qr_gateway_database_url:
+    file: ${QR_SECRETS_DIR:-./secrets}/qr_gateway_database_url
+  qr_catalog_database_url:
+    file: ${QR_SECRETS_DIR:-./secrets}/qr_catalog_database_url
+  qr_evidence_database_url:
+    file: ${QR_SECRETS_DIR:-./secrets}/qr_evidence_database_url
+  qr_simulation_database_url:
+    file: ${QR_SECRETS_DIR:-./secrets}/qr_simulation_database_url
+  qr_gateway_owner_database_url:
+    file: ${QR_SECRETS_DIR:-./secrets}/qr_gateway_owner_database_url
+  qr_catalog_owner_database_url:
+    file: ${QR_SECRETS_DIR:-./secrets}/qr_catalog_owner_database_url
+  qr_evidence_owner_database_url:
+    file: ${QR_SECRETS_DIR:-./secrets}/qr_evidence_owner_database_url
+  qr_simulation_owner_database_url:
+    file: ${QR_SECRETS_DIR:-./secrets}/qr_simulation_owner_database_url
+  queue_url:
+    file: ${QR_SECRETS_DIR:-./secrets}/queue_url
+  object_store_access_key:
+    file: ${QR_SECRETS_DIR:-./secrets}/object_store_access_key
+  object_store_secret_key:
+    file: ${QR_SECRETS_DIR:-./secrets}/object_store_secret_key
 
 volumes:
   pgdata:

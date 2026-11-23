@@ -46,6 +46,55 @@ pub fn render(
         .clone()
         .or_else(|| secrets.get("QR_OBJECT_STORE_BUCKET").cloned())
         .unwrap_or_else(|| "quantrule".to_owned());
+
+    // The secret files are the only place a resolved credential lands. The
+    // env files name the path under `/run/secrets`; the Compose roles mount the
+    // rendered directory there.
+    let secrets_dir = out.join("secrets");
+    reset_secret_directory(&secrets_dir)?;
+    let mut app_urls = BTreeMap::new();
+    let mut owner_urls = BTreeMap::new();
+    for (service, database) in SERVICE_DATABASES {
+        app_urls.insert(
+            service,
+            database_url(
+                &database_endpoint,
+                &format!("{database}_app"),
+                &database_password,
+                database,
+            )?,
+        );
+        owner_urls.insert(
+            service,
+            database_url(
+                &database_endpoint,
+                &format!("{database}_owner"),
+                &database_password,
+                database,
+            )?,
+        );
+    }
+    let access_key = required(secrets, "QR_OBJECT_STORE_USER")?;
+    let secret_key = required(secrets, "QR_OBJECT_STORE_PASSWORD")?;
+    let bearer_token = required(secrets, "QR_BEARER_TOKEN")?;
+
+    for (service, _database) in SERVICE_DATABASES {
+        write_secret(
+            &secrets_dir,
+            &format!("{service}_database_url"),
+            app_urls[service].as_str(),
+        )?;
+        write_secret(
+            &secrets_dir,
+            &format!("{service}_owner_database_url"),
+            owner_urls[service].as_str(),
+        )?;
+    }
+    write_secret(&secrets_dir, "queue_url", &queue)?;
+    write_secret(&secrets_dir, "object_store_access_key", &access_key)?;
+    write_secret(&secrets_dir, "object_store_secret_key", &secret_key)?;
+    write_secret(&secrets_dir, "bearer_token", &bearer_token)?;
+
     let mut written = Vec::new();
     for name in [
         "gateway",
@@ -57,7 +106,7 @@ pub fn render(
     ] {
         let service = &descriptor.services[name];
         let host = &descriptor.hosts[&service.host];
-        let mut env = common(descriptor, secrets, &object_store, &queue, &bucket);
+        let mut env = common(descriptor, &object_store, &bucket);
         env.insert("QR_BIND_IP".to_owned(), host.address.clone());
         if let Some(port) = service.port {
             env.insert("QR_BIND_PORT".to_owned(), port.to_string());
@@ -78,10 +127,14 @@ pub fn render(
                     "QR_SIMULATION_URL".to_owned(),
                     service_url(descriptor, "simulation")?,
                 );
+                env.insert(
+                    "QR_DATABASE_URL_FILE".to_owned(),
+                    container_secret("gateway_database_url"),
+                );
                 if descriptor.auth.gateway_token {
                     env.insert(
-                        "QR_BEARER_TOKEN".to_owned(),
-                        required(secrets, "QR_BEARER_TOKEN")?,
+                        "QR_BEARER_TOKEN_FILE".to_owned(),
+                        container_secret("bearer_token"),
                     );
                 }
             }
@@ -89,11 +142,17 @@ pub fn render(
                 env.insert("QR_MIGRATE".to_owned(), "0".to_owned());
                 env.insert("QR_INTERNAL_ONLY".to_owned(), "1".to_owned());
                 env.insert("QR_CONFIG_ROOT".to_owned(), descriptor.config_root.clone());
+                env.insert(
+                    "QR_DATABASE_URL_FILE".to_owned(),
+                    container_secret("data_database_url"),
+                );
+                insert_object_store_files(&mut env);
             }
             "model" => {
                 env.insert("QR_MIGRATE".to_owned(), "0".to_owned());
                 env.insert("QR_INTERNAL_ONLY".to_owned(), "1".to_owned());
                 env.insert("QR_DATA_URL".to_owned(), service_url(descriptor, "data")?);
+                insert_object_store_files(&mut env);
             }
             "evidence" => {
                 env.insert("QR_MIGRATE".to_owned(), "0".to_owned());
@@ -103,10 +162,24 @@ pub fn render(
                     "QR_STAGE_RETENTION_DAYS".to_owned(),
                     descriptor.stage_retention_days.unwrap_or(30).to_string(),
                 );
+                env.insert(
+                    "QR_DATABASE_URL_FILE".to_owned(),
+                    container_secret("evidence_database_url"),
+                );
+                env.insert(
+                    "QR_QUEUE_URL_FILE".to_owned(),
+                    container_secret("queue_url"),
+                );
+                insert_object_store_files(&mut env);
             }
             "simulation" => {
                 env.insert("QR_MIGRATE".to_owned(), "0".to_owned());
                 env.insert("QR_INTERNAL_ONLY".to_owned(), "1".to_owned());
+                env.insert(
+                    "QR_DATABASE_URL_FILE".to_owned(),
+                    container_secret("simulation_database_url"),
+                );
+                insert_object_store_files(&mut env);
             }
             "backtest" => {
                 env.insert("QR_MIGRATE".to_owned(), "0".to_owned());
@@ -120,38 +193,24 @@ pub fn render(
                     "QR_BACKTEST_CONCURRENCY".to_owned(),
                     descriptor.backtest_concurrency.unwrap_or(1).to_string(),
                 );
+                env.insert(
+                    "QR_QUEUE_URL_FILE".to_owned(),
+                    container_secret("queue_url"),
+                );
+                insert_object_store_files(&mut env);
             }
             _ => {}
-        }
-        if let Some(database) = SERVICE_DATABASES
-            .iter()
-            .find_map(|(service, database)| (*service == name).then_some(*database))
-        {
-            env.insert(
-                "QR_DATABASE_URL".to_owned(),
-                database_url(
-                    &database_endpoint,
-                    &format!("{database}_app"),
-                    &database_password,
-                    database,
-                )?,
-            );
         }
         let path = out.join(format!("{name}.env"));
         write_env(&path, &env)?;
         written.push(path);
     }
-    for (service, database) in SERVICE_DATABASES {
+    for (service, _database) in SERVICE_DATABASES {
         let mut env = BTreeMap::new();
         env.insert("QR_MIGRATE".to_owned(), "0".to_owned());
         env.insert(
-            "QR_DATABASE_OWNER_URL".to_owned(),
-            database_url(
-                &database_endpoint,
-                &format!("{database}_owner"),
-                &database_password,
-                database,
-            )?,
+            "QR_DATABASE_OWNER_URL_FILE".to_owned(),
+            container_secret(&format!("{service}_owner_database_url")),
         );
         let path = out.join(format!("{service}-migrate.env"));
         write_env(&path, &env)?;
@@ -181,13 +240,51 @@ pub fn render(
     Ok(written)
 }
 
-fn common(
-    descriptor: &Descriptor,
-    secrets: &BTreeMap<String, String>,
-    object_store: &str,
-    queue: &str,
-    bucket: &str,
-) -> BTreeMap<String, String> {
+/// The in-container path of one rendered secret.
+fn container_secret(name: &str) -> String {
+    format!("/run/secrets/{name}")
+}
+
+fn insert_object_store_files(env: &mut BTreeMap<String, String>) {
+    env.insert(
+        "QR_OBJECT_STORE_ACCESS_KEY_FILE".to_owned(),
+        container_secret("object_store_access_key"),
+    );
+    env.insert(
+        "QR_OBJECT_STORE_SECRET_KEY_FILE".to_owned(),
+        container_secret("object_store_secret_key"),
+    );
+}
+
+fn reset_secret_directory(path: &Path) -> Result<(), Error> {
+    match std::fs::remove_dir_all(path) {
+        Ok(()) => {}
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => {}
+        Err(source) => {
+            return Err(Error::Write {
+                path: path.to_path_buf(),
+                source,
+            });
+        }
+    }
+    std::fs::create_dir_all(path).map_err(|source| Error::Write {
+        path: path.to_path_buf(),
+        source,
+    })?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700)).map_err(
+            |source| Error::Write {
+                path: path.to_path_buf(),
+                source,
+            },
+        )?;
+    }
+    Ok(())
+}
+
+fn common(descriptor: &Descriptor, object_store: &str, bucket: &str) -> BTreeMap<String, String> {
     let mut env = BTreeMap::new();
     env.insert("QR_IMAGE".to_owned(), descriptor.image.reference.clone());
     env.insert(
@@ -197,23 +294,7 @@ fn common(
     env.insert("QR_PROFILE".to_owned(), "server".to_owned());
     env.insert("QR_OBJECT_STORE_URL".to_owned(), object_store.to_owned());
     env.insert("QR_OBJECT_BUCKET".to_owned(), bucket.to_owned());
-    env.insert("QR_QUEUE_URL".to_owned(), queue.to_owned());
     env.insert("QR_QUEUE_GENERATION".to_owned(), "1".to_owned());
-    env.insert(
-        "AWS_ACCESS_KEY_ID".to_owned(),
-        secrets
-            .get("QR_OBJECT_STORE_USER")
-            .cloned()
-            .unwrap_or_default(),
-    );
-    env.insert(
-        "AWS_SECRET_ACCESS_KEY".to_owned(),
-        secrets
-            .get("QR_OBJECT_STORE_PASSWORD")
-            .cloned()
-            .unwrap_or_default(),
-    );
-    env.insert("AWS_REGION".to_owned(), "us-east-1".to_owned());
     env
 }
 
@@ -319,6 +400,18 @@ fn write_env(path: &Path, env: &BTreeMap<String, String>) -> Result<(), Error> {
         text.push_str(value);
         text.push('\n');
     }
+    write_private(path, text.as_bytes())
+}
+
+fn write_secret(dir: &Path, name: &str, value: &str) -> Result<(), Error> {
+    let path = dir.join(name);
+    let mut text = String::with_capacity(value.len() + 1);
+    text.push_str(value);
+    text.push('\n');
+    write_private(&path, text.as_bytes())
+}
+
+fn write_private(path: &Path, contents: &[u8]) -> Result<(), Error> {
     let mut options = std::fs::OpenOptions::new();
     options.write(true).create(true).truncate(true);
     #[cfg(unix)]
@@ -331,11 +424,10 @@ fn write_env(path: &Path, env: &BTreeMap<String, String>) -> Result<(), Error> {
         source,
     })?;
     use std::io::Write;
-    file.write_all(text.as_bytes())
-        .map_err(|source| Error::Write {
-            path: path.to_path_buf(),
-            source,
-        })?;
+    file.write_all(contents).map_err(|source| Error::Write {
+        path: path.to_path_buf(),
+        source,
+    })?;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -402,68 +494,106 @@ mod tests {
     }
 
     #[test]
-    fn render_writes_service_and_migration_envs() {
+    fn render_writes_service_envs_migration_envs_and_private_secret_files() {
         let out = temp_dir();
         let files = render(&descriptor(), &secrets(), &out).expect("render");
         assert_eq!(files.len(), 11);
         let gateway = std::fs::read_to_string(out.join("gateway.env")).expect("gateway");
-        assert!(gateway.contains("QR_BEARER_TOKEN=0123456789abcdef"));
+        assert!(
+            gateway.contains("QR_BEARER_TOKEN_FILE=/run/secrets/bearer_token"),
+            "{gateway}"
+        );
         assert!(gateway.contains("QR_DATA_URL=http://10.10.0.11:18081"));
         assert!(gateway.contains("QR_INTERNAL_ONLY=0"));
         assert!(gateway.contains("QR_MIGRATE=0"));
-        assert!(gateway.contains(
-            "QR_DATABASE_URL=postgres://qr_gateway_app:db-secret-0123456789abcdef@10.10.0.20:5432/qr_gateway"
-        ));
+        assert!(gateway.contains("QR_DATABASE_URL_FILE=/run/secrets/gateway_database_url"));
+        assert!(!gateway.contains("QR_DATABASE_URL="));
         assert!(!gateway.contains("QR_DATABASE_OWNER_URL"));
+        assert!(!gateway.contains("AWS_ACCESS_KEY_ID"));
+        assert!(!gateway.contains("AWS_ACCESS_KEY_ID"));
+        assert!(!gateway.contains("token=0123456789abcdef"));
         let data = std::fs::read_to_string(out.join("data.env")).expect("data");
         assert!(data.contains("QR_INTERNAL_ONLY=1"));
         assert!(data.contains("QR_BIND=10.10.0.11:18081"));
         assert!(data.contains("QR_MIGRATE=0"));
-        assert!(data.contains(
-            "QR_DATABASE_URL=postgres://qr_catalog_app:db-secret-0123456789abcdef@10.10.0.20:5432/qr_catalog"
-        ));
+        assert!(data.contains("QR_DATABASE_URL_FILE=/run/secrets/data_database_url"));
+        assert!(
+            data.contains("QR_OBJECT_STORE_ACCESS_KEY_FILE=/run/secrets/object_store_access_key")
+        );
+        assert!(
+            data.contains("QR_OBJECT_STORE_SECRET_KEY_FILE=/run/secrets/object_store_secret_key")
+        );
         assert!(!data.contains("QR_DATABASE_OWNER_URL"));
         let model = std::fs::read_to_string(out.join("model.env")).expect("model");
         assert!(!model.contains("QR_DATABASE_URL"));
         assert!(!model.contains("QR_DATABASE_OWNER_URL"));
+        assert!(model.contains("QR_OBJECT_STORE_ACCESS_KEY_FILE"));
         let evidence = std::fs::read_to_string(out.join("evidence.env")).expect("evidence");
-        assert!(evidence.contains(
-            "QR_DATABASE_URL=postgres://qr_evidence_app:db-secret-0123456789abcdef@10.10.0.20:5432/qr_evidence"
-        ));
+        assert!(evidence.contains("QR_DATABASE_URL_FILE=/run/secrets/evidence_database_url"));
+        assert!(evidence.contains("QR_QUEUE_URL_FILE=/run/secrets/queue_url"));
         assert!(!evidence.contains("QR_DATABASE_OWNER_URL"));
         let simulation = std::fs::read_to_string(out.join("simulation.env")).expect("simulation");
-        assert!(simulation.contains(
-            "QR_DATABASE_URL=postgres://qr_simulation_app:db-secret-0123456789abcdef@10.10.0.20:5432/qr_simulation"
-        ));
+        assert!(simulation.contains("QR_DATABASE_URL_FILE=/run/secrets/simulation_database_url"));
         assert!(!simulation.contains("QR_DATABASE_OWNER_URL"));
         let backtest = std::fs::read_to_string(out.join("backtest.env")).expect("backtest");
         assert!(backtest.contains("QR_BACKTEST_CONCURRENCY=1"));
         assert!(!backtest.contains("QR_BIND="));
         assert!(!backtest.contains("QR_DATABASE_URL"));
         assert!(!backtest.contains("QR_DATABASE_OWNER_URL"));
+        assert!(backtest.contains("QR_QUEUE_URL_FILE=/run/secrets/queue_url"));
 
         for (service, database) in SERVICE_DATABASES {
             let env = std::fs::read_to_string(out.join(format!("{service}-migrate.env")))
                 .expect("migration env");
             assert!(env.contains("QR_MIGRATE=0"));
             assert!(env.contains(&format!(
-                "QR_DATABASE_OWNER_URL=postgres://{database}_owner:db-secret-0123456789abcdef@10.10.0.20:5432/{database}"
+                "QR_DATABASE_OWNER_URL_FILE=/run/secrets/{service}_owner_database_url"
             )));
             assert!(!env.contains("QR_DATABASE_URL="));
+            let secret = std::fs::read_to_string(
+                out.join("secrets")
+                    .join(format!("{service}_owner_database_url")),
+            )
+            .expect("owner secret");
+            assert!(secret.contains(&format!(
+                "postgres://{database}_owner:db-secret-0123456789abcdef@10.10.0.20:5432/{database}"
+            )));
         }
 
         let infra = std::fs::read_to_string(out.join("infra.env")).expect("infra");
         assert!(infra.contains("QR_BIND_IP=10.10.0.20"));
         assert!(infra.contains("QR_OBJECT_BUCKET=quantrule"));
+
+        let app_secret =
+            std::fs::read_to_string(out.join("secrets/gateway_database_url")).expect("app secret");
+        assert!(app_secret.contains(
+            "postgres://qr_gateway_app:db-secret-0123456789abcdef@10.10.0.20:5432/qr_gateway"
+        ));
+        let queue = std::fs::read_to_string(out.join("secrets/queue_url")).expect("queue secret");
+        assert!(queue.contains("queue-secret-0123456789abcdef"));
+        let object = std::fs::read_to_string(out.join("secrets/object_store_secret_key"))
+            .expect("object secret");
+        assert!(object.contains("object-secret-0123456789abcdef"));
+        let token =
+            std::fs::read_to_string(out.join("secrets/bearer_token")).expect("token secret");
+        assert!(token.contains("0123456789abcdef0123456789abcdef"));
+
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            let mode = std::fs::metadata(out.join("gateway.env"))
-                .expect("metadata")
-                .permissions()
-                .mode()
-                & 0o777;
-            assert_eq!(mode, 0o600);
+            for (path, expected) in [
+                (out.join("gateway.env"), 0o600),
+                (out.join("secrets"), 0o700),
+                (out.join("secrets/gateway_database_url"), 0o600),
+                (out.join("secrets/bearer_token"), 0o600),
+            ] {
+                let mode = std::fs::metadata(&path)
+                    .expect("metadata")
+                    .permissions()
+                    .mode()
+                    & 0o777;
+                assert_eq!(mode, expected, "{}", path.display());
+            }
         }
         std::fs::remove_dir_all(&out).expect("cleanup");
     }

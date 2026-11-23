@@ -1,6 +1,6 @@
 # Highly Available Runtime
 
-- Status: Target for the next release; the evidence leader (HA-006), data active/active (HA-007), and runtime drain/readiness/retries (HA-009 slices 1–2) are current; secrets remain slice 3; accepted by [ADR-HA](../adr/2026-11-22/1082-ha-deployment-profile.md)
+- Status: Target for the next release; the evidence leader (HA-006), data active/active (HA-007), and runtime drain/readiness/retries/file secrets/token rotation (HA-009 slices 1–3) are current; accepted by [ADR-HA](../adr/2026-11-22/1082-ha-deployment-profile.md)
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 
@@ -115,9 +115,10 @@ No distributed transactions. The platform uses:
 - `https://quantrule.dev` resolves to Traefik ×2 behind a VIP or cloud LB.
 - TLS on 443; HTTP redirects; only 443 public.
 - Gateway token is the only human auth; no accounts or tenancy.
+- Application secrets are mounted under `/run/secrets` and staged for UID 10001; `QR_OBJECT_STORE_URL` carries no userinfo and the S3 client uses only the two file credentials. v3 Swarm secret objects and `secrets.files` are HA-012.
+- The gateway re-reads `QR_BEARER_TOKEN_FILE` every `QR_TOKEN_RELOAD_SECONDS` and on `SIGHUP`; an invalid edit keeps the last good token and counts the reason.
 - Postgres, RabbitMQ and MinIO use TLS; per-service credentials.
-- Internal HTTP mTLS is decided in Phase 0. If deferred, encrypted overlay,
-  per-service credentials and gateway token are recorded residual risk.
+- Internal HTTP mTLS is decided in Phase 0; a deferral records encrypted overlay, per-service credentials and gateway token as residual risk.
 - Every service serves `/ready`; a drain flips it before the process stops, and `/metrics` stays internal.
 - JSON logs carry request ids as observability only; they never enter evidence.
 - Image is signed, SBOM published and digest pinned.
@@ -134,8 +135,7 @@ secrets by file, renders the Swarm stack and pinned stateful units, and rejects:
 - unsupported stateful placement;
 - a missing backup or TLS configuration.
 
-`qr-deploy validate`, `render`, `bootstrap` and `check` are the operator path.
-v2 remains readable for the older multi-host profile.
+`qr-deploy validate`, `render`, `bootstrap` and `check` are the operator path; v2 remains readable for the older multi-host profile.
 ## 10. Failure behaviour
 
 | Failure | Behaviour |

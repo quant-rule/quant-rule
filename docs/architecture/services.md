@@ -80,10 +80,9 @@ gateway token, and let a client depend on another service's schema.
 | Multi-host services | Supported; implemented, release pending | Six services across hosts; v3 (HA-012) adds `strategy` |
 | Cloud, HA, Kubernetes, mTLS | Not supported | A later decision with its own ADR |
 
-Distribution is about separate processes, failure units, and scaling units, not
-about one published port per service. The one-port rule is a deployability and
-security characteristic. The multi-host profile keeps it: internal services bind
-only to the private overlay.
+Distribution is about separate processes, failure units and scaling units, not
+one port per service. The one-port rule is a deployability and security
+characteristic; the multi-host profile keeps it with overlay-only binds.
 ## 3. Scaling profile
 
 | Service | Scale | Reason |
@@ -129,6 +128,8 @@ a fold over time. Claiming otherwise would be false.
 - Publish a model reading on the control plane.
 - Serve `/metrics` on the public API port, proxy it through the gateway, or label it with a raw path, run id, profile id, token or object hash.
 - Log a header map, body, artifact byte, token or DSN.
+- Read a secret from an environment value or the AWS default credential chain;
+  every application secret is a file under `/run/secrets`.
 
 ## 7. Backend adapters
 

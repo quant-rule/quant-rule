@@ -18,6 +18,7 @@
 # Requirements: Docker, the quantrule-server image, curl, and the fixture data.
 # The image is not built here; use `make up` or `docker build` first.
 set -euo pipefail
+umask 077
 
 root=$(git rev-parse --show-toplevel)
 cd "$root"
@@ -60,10 +61,7 @@ QR_PROFILE=server
 QR_IMAGE_DIGEST=$digest
 QR_OBJECT_STORE_URL=http://172.31.238.21:9000
 QR_OBJECT_BUCKET=quantrule
-QR_QUEUE_URL=amqp://quantrule:$queue_password@172.31.238.22:5672/%2f
-AWS_ACCESS_KEY_ID=quantrule
-AWS_SECRET_ACCESS_KEY=$object_password
-AWS_REGION=us-east-1
+QR_QUEUE_GENERATION=1
 EOF
 }
 
@@ -73,13 +71,27 @@ database_url() {
 }
 
 database_env() {
-  local database=$1
-  printf 'QR_DATABASE_URL=%s\n' "$(database_url "${database}_app" "$database")"
+  local database=$1 service=$2
+  printf 'QR_DATABASE_URL_FILE=/run/secrets/%s_database_url\n' "$service"
+  printf '%s\n' "$(database_url "${database}_app" "$database")" > "$work/secrets/${service}_database_url"
 }
 
 database_owner_env() {
-  local database=$1
-  printf 'QR_DATABASE_OWNER_URL=%s\n' "$(database_url "${database}_owner" "$database")"
+  local database=$1 service=$2
+  printf 'QR_DATABASE_OWNER_URL_FILE=/run/secrets/%s_owner_database_url\n' "$service"
+  printf '%s\n' "$(database_url "${database}_owner" "$database")" \
+    > "$work/secrets/${service}_owner_database_url"
+}
+
+object_store_env() {
+  cat <<EOF
+QR_OBJECT_STORE_ACCESS_KEY_FILE=/run/secrets/object_store_access_key
+QR_OBJECT_STORE_SECRET_KEY_FILE=/run/secrets/object_store_secret_key
+EOF
+}
+
+queue_env() {
+  printf 'QR_QUEUE_URL_FILE=/run/secrets/queue_url\n'
 }
 
 write_env() {
@@ -93,7 +105,8 @@ QR_BIND=172.31.238.11:18081
 QR_INTERNAL_ONLY=1
 QR_MIGRATE=0
 QR_CONFIG_ROOT=/srv/config
-$(database_env qr_catalog)
+$(database_env qr_catalog data)
+$(object_store_env)
 EOF
         ;;
       model)
@@ -102,6 +115,7 @@ QR_BIND=172.31.238.12:18082
 QR_INTERNAL_ONLY=1
 QR_MIGRATE=0
 QR_DATA_URL=http://172.31.238.11:18081
+$(object_store_env)
 EOF
         ;;
       evidence)
@@ -110,7 +124,9 @@ QR_BIND=172.31.238.14:18083
 QR_INTERNAL_ONLY=1
 QR_MIGRATE=0
 QR_DATA_URL=http://172.31.238.11:18081
-$(database_env qr_evidence)
+$(database_env qr_evidence evidence)
+$(queue_env)
+$(object_store_env)
 EOF
         ;;
       simulation)
@@ -118,7 +134,8 @@ EOF
 QR_BIND=172.31.238.15:18084
 QR_INTERNAL_ONLY=1
 QR_MIGRATE=0
-$(database_env qr_simulation)
+$(database_env qr_simulation simulation)
+$(object_store_env)
 EOF
         ;;
       backtest)
@@ -128,6 +145,8 @@ QR_BACKTEST_CONCURRENCY=1
 QR_DATA_URL=http://172.31.238.11:18081
 QR_MODEL_URL=http://172.31.238.12:18082
 QR_EVIDENCE_URL=http://172.31.238.14:18083
+$(queue_env)
+$(object_store_env)
 EOF
         ;;
       gateway)
@@ -140,7 +159,7 @@ QR_DATA_URL=http://172.31.238.11:18081
 QR_MODEL_URL=http://172.31.238.12:18082
 QR_EVIDENCE_URL=http://172.31.238.14:18083
 QR_SIMULATION_URL=http://172.31.238.15:18084
-$(database_env qr_gateway)
+$(database_env qr_gateway gateway)
 EOF
         ;;
       *)
@@ -155,7 +174,7 @@ write_migrate_env() {
   {
     printf 'QR_PROFILE=server\n'
     printf 'QR_MIGRATE=0\n'
-    database_owner_env "$database"
+    database_owner_env "$database" "$name"
   } > "$work/$name-migrate.env"
 }
 
@@ -163,13 +182,15 @@ run_service() {
   local name=$1 ip=$2 binary=$3
   shift 3
   docker run -d --name "$prefix-$name" --network "$network" --ip "$ip" \
-    --env-file "$work/$name.env" "$@" "$image" "$binary" >/dev/null
+    --env-file "$work/$name.env" -v "$work/secrets:/run/secrets:ro" \
+    "$@" "$image" "$binary" >/dev/null
 }
 
 run_migration() {
   local name=$1 binary=$2
   docker run --rm --network "$network" \
-    --env-file "$work/$name-migrate.env" "$image" "$binary" --migrate-only
+    --env-file "$work/$name-migrate.env" -v "$work/secrets:/run/secrets:ro" \
+    "$image" "$binary" --migrate-only
 }
 
 wait_exec() {
@@ -196,6 +217,14 @@ wait_http() {
   docker logs "$prefix-$name" >&2 || true
   fail "$name did not answer $url"
 }
+
+mkdir -p "$work/secrets"
+chmod 700 "$work/secrets"
+printf 'amqp://quantrule:%s@172.31.238.22:5672/%%2f\n' "$queue_password" \
+  > "$work/secrets/queue_url"
+printf 'quantrule\n' > "$work/secrets/object_store_access_key"
+printf '%s\n' "$object_password" > "$work/secrets/object_store_secret_key"
+chmod 600 "$work/secrets/"*
 
 for name in data model evidence simulation backtest gateway; do
   write_env "$name"

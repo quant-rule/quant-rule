@@ -78,16 +78,20 @@ first validation. The token must be at least 32 characters; the passwords at
 least 16 and not a template marker. The example descriptor enables
 `auth.gateway_token`, so the token is mandatory.
 
-`env/` is ignored by Git. The renderer writes one file per service, one
-`<service>-migrate.env` for each database-owning service, and `infra.env`; each
-service file carries at least `QR_IMAGE`, `QR_IMAGE_DIGEST`, `QR_BIND_IP`,
-`QR_BIND_PORT`, `QR_BIND`, `QR_PROFILE=server`, the backend URLs and
-credentials, `QR_MIGRATE`, and `QR_INTERNAL_ONLY` on the internal HTTP services.
-Each database-owning service file gets only `QR_DATABASE_URL` for its
-`<database>_app` role with `QR_MIGRATE=0`; the matching migration file gets only
-`QR_DATABASE_OWNER_URL` for its `<database>_owner` role. `model` and `backtest`
-receive no database URL. Keep the rendered files at mode 600: they contain the
-resolved secrets.
+`env/` and `env/secrets/` are ignored by Git. The renderer writes one env file
+per service, one `<service>-migrate.env` for each database-owning service, and
+`infra.env`; every application env file carries `QR_IMAGE`, `QR_IMAGE_DIGEST`,
+`QR_BIND_IP`, `QR_BIND_PORT`, `QR_BIND`, `QR_PROFILE=server`, the non-secret
+backend URLs and `QR_MIGRATE`, and `QR_INTERNAL_ONLY` on the internal HTTP
+services. A secret is a mode-600 file under `env/secrets/` and the env file names
+`/run/secrets/<name>` through the matching `_FILE` variable. Each database-owning
+service gets only `QR_DATABASE_URL_FILE` for its `<database>_app` role with
+`QR_MIGRATE=0`; the matching migration file gets only
+`QR_DATABASE_OWNER_URL_FILE` for its `<database>_owner` role. `model` and
+`backtest` receive no database file. Keep the env files at mode 600 and
+`env/secrets/` at mode 700 (the renderer does), and copy each role's files to its
+host; a plain secret in an env file is a defect, and the runtime refuses it. The image entrypoint stages the mounted files
+into a private directory owned by UID 10001 and drops privileges before exec.
 
 The descriptor still names one Postgres endpoint. The renderer keeps its scheme
 and host:port and uses `QR_POSTGRES_PASSWORD` for all eight roles; the four
@@ -159,9 +163,20 @@ docker compose --env-file deploy/multi-host/env/gateway.env \
 ```
 
 The `--env-file` supplies the shared `QR_IMAGE` to the project; each service
-reads its own `env_file`. The infrastructure role needs
-`deploy/multi-host/env/infra.env` for the bind address, credentials, and bucket
-because Postgres, MinIO, and RabbitMQ use their own variable names.
+reads its own `env_file` and mounts its `env/secrets/` files under
+`/run/secrets`. Copy the files each role references; a missing file stops the
+service closed. To rotate the gateway token, replace `env/secrets/bearer_token`, copy it into
+the gateway's staged path, and send `SIGHUP` (manual 08 steps):
+
+```bash
+dc="docker compose --env-file env/gateway.env -f compose.gateway.yaml"
+$dc cp env/secrets/bearer_token gateway:/run/quantrule-secrets/bearer_token
+$dc exec -T -u 0 gateway sh -c 'chown 10001:10001 /run/quantrule-secrets/bearer_token && chmod 400 /run/quantrule-secrets/bearer_token'
+$dc kill -s HUP gateway
+```
+
+An invalid file keeps the last good token, and every client re-exports the new
+value. The v3 Swarm secret objects are HA-012.
 
 ## 7. Verification
 
@@ -297,11 +312,11 @@ decision, its alternatives, and its non-goals are recorded in ADR
 
 The profile records these residual risks:
 
-- Database roles are per service, but this v2 profile still uses one Postgres
-  password for all eight roles. MinIO root credentials and one queue user are
-  also shared. A compromised service host can read every database with the
-  shared password and the whole bucket. Per-role password files and bucket
-  policies are not implemented.
+- Database roles are per service and the URLs are file-backed, but this v2
+  profile still uses one Postgres password for all eight roles. MinIO root
+  credentials and one queue user are also shared. A compromised service host can
+  read every database with the shared password and the whole bucket. Per-role
+  password files and bucket policies are not implemented.
 - There is no service-to-service authentication. The private overlay is the
   boundary; a client VPN peer must be routed to the gateway only, and internal
   ports must be firewalled to the exact host addresses, not the whole subnet.

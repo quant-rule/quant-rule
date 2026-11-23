@@ -1,7 +1,7 @@
 # HA-009 — Runtime Metrics, Logs, Drain, Retries and Secrets
 
 - Date: 2026-11-22 (UTC)
-- Status: In Review (slices 1–2); slice 3 remains later
+- Status: In Review (slices 1–3)
 - Issue: [#1107](https://github.com/quant-rule/quant-rule/issues/1107)
 - Claim type: Behaviour Claim
 - AI log: [`docs/ai-transparency-log/2026-11-22/1107-runtime-hardening.md`](../../ai-transparency-log/2026-11-22/1107-runtime-hardening.md)
@@ -18,15 +18,15 @@ with redaction, and request/trace identifiers that cross the gateway boundary
 without entering any measurement or artifact.
 
 The work is split into three sequential pull requests so each slice is
-reviewable and reversible. Slices 1–2 are implemented; slice 3 remains.
+reviewable and reversible. Slices 1–3 are implemented.
 
 ## 2. Approved split
 
 | Slice | Scope | State |
 |---|---|---|
 | 1 | Metrics registry and internal `/metrics` listener, JSON logs, request/trace IDs | Merged |
-| 2 | SIGTERM drain, readiness, bounded retries, consumer reconnect fix | This plan |
-| 3 | `*_FILE` secrets, explicit S3 credentials, token rotation | Later |
+| 2 | SIGTERM drain, readiness, bounded retries, consumer reconnect fix | Merged |
+| 3 | `*_FILE` secrets, explicit S3 credentials, token rotation | This plan |
 
 Slice 1 must not implement drain, readiness changes, retry policy, secret
 delivery, token rotation or S3 credentials. It adds no migration and does not
@@ -48,6 +48,10 @@ touch secret delivery, S3 credentials or token rotation.
 | Readiness | `/ready` on every service; `/health` stays liveness; the gateway probes upstream `/ready`; backtest gains an internal `/health` and `/ready` |
 | Retry policy | 3 attempts, 200 ms base, factor 4, 5 s maximum, 15 s total; only audited idempotent GETs and the two dataset-reference writes |
 | Reconnect | Consumer errors reconnect in-process with 1, 2, 4, 8, 16, 30 s backoff, then an error restarts the container; shutdown is a clean stop |
+| Secret naming | `QR_DATABASE_URL_FILE`, `QR_DATABASE_OWNER_URL_FILE`, `QR_QUEUE_URL_FILE`, `QR_BEARER_TOKEN_FILE`, `QR_OBJECT_STORE_ACCESS_KEY_FILE`, `QR_OBJECT_STORE_SECRET_KEY_FILE` |
+| Secret file contract | Absolute path, UTF-8, at most 8 KiB, no NUL, one trailing newline stripped, no remaining whitespace; both sources or a plain secret is an error; the value is never logged |
+| S3 credentials | Explicit credentials from the two files; `aws_config::defaults()` is removed; `QR_OBJECT_STORE_URL` rejects userinfo |
+| Token rotation | File is the only source; re-read every `QR_TOKEN_RELOAD_SECONDS` (default 5) and on `SIGHUP`; keep the last good token; invalid startup fails closed |
 
 ## 4. Current state
 
@@ -206,6 +210,72 @@ Work breakdown:
 | 8 | Docs, plan, AI log, changelog | architecture docs, manual, `CHANGELOG.md` |
 | 9 | Verification and evidence | targeted checks and full gate |
 
+## 9. Slice 3 — secrets, S3 credentials and token rotation
+
+Included:
+
+- A single secret-file reader in `quantrule_runtime::config` with an injected
+  reader for tests; `Config::from_env` is the only production reader. It resolves
+  the six `_FILE` variables, refuses a plain secret, both sources, a relative,
+  missing or oversized file, invalid UTF-8, NUL, an empty value and bad
+  whitespace, and records the token path for rotation.
+- Explicit S3 credentials built from the two file values; the AWS default chain
+  and its environment variables are removed. `QR_OBJECT_STORE_URL` rejects
+  userinfo.
+- Local Compose top-level secret files and mounts; `make secrets` (mode 700/600,
+  random, idempotent, `FORCE=1` rotates); `make compose-check`; the remote
+  override; the v2 renderer writes `env/secrets/` and `_FILE` keys; the
+  multi-host role files mount them; the multi-host harness writes files.
+- The image entrypoint stages the mounted files into a mode-700 directory owned
+  by UID 10001, rewrites `_FILE`, and drops privileges. Host files and Compose
+  mounts stay mode 600; no service binary runs as root.
+- A gateway `TokenSource` with an injected reader, one immutable snapshot, the
+  interval and `SIGHUP` reload, last-good-token retention, startup failure on an
+  invalid file, `quantrule_auth_reload_failures_total{reason}` and
+  `quantrule_auth_token_age_seconds`.
+- The shell's own `QUANTRULE_TOKEN_FILE`; docs, config contract, manual, plan,
+  AI log and changelog.
+
+Excluded:
+
+- Drain, readiness, retry, reconnect, metrics or log behavior (slices 1–2).
+- Swarm secret objects and v3 `secrets.files` (HA-012); v3 gains only a
+  cross-reference.
+- Any database migration, public API or command change, new dependency, or
+  composed/HA evidence claim.
+- The gateway never reads the shell's token file, and the shell never reads the
+  gateway's `/run/secrets` path.
+
+Acceptance criteria:
+
+- A sentinel secret resolves from its file and is absent from `Config` debug and
+  every refusal message.
+- A plain secret, both sources, a relative or missing file, an oversized file,
+  invalid UTF-8, NUL, an empty value and surrounding whitespace all fail.
+- The S3 adapter has no `aws_config::defaults(` call and no `AWS_*` read; a
+  missing credential pair fails startup.
+- Application Compose services name only `_FILE`; `docker compose config -q`
+  succeeds with disposable secrets; the rendered secret files are mode 600 and
+  the image entrypoint stages them for UID 10001 before dropping privileges.
+- The old token is `200` before a reload and `401` after it; the new token is
+  `401` before and `200` after; an invalid file keeps the last good token and
+  increments the failure counter; an invalid startup file fails.
+- Formatting, lint, targeted tests, rustdoc, governance, Compose and the full gate
+  pass, and no composed/HA tier is claimed.
+
+Work breakdown:
+
+| Step | Work | Paths |
+|---:|---|---|
+| 1 | Secret reader, config resolution and tests | `crates/quantrule-runtime/src/config.rs` |
+| 2 | Explicit S3 credentials | `crates/quantrule-runtime/src/{adapters/s3,backends}.rs`, `Cargo.toml` |
+| 3 | Token source, middleware and binary | `crates/quantrule-gateway/src/{token,auth,server}.rs`, `bin/qr_gateway.rs`, `tests/auth_rotation.rs` |
+| 4 | Shell token file | `crates/quantrule-shell/src/token.rs` |
+| 5 | Compose, scripts, entrypoint, renderer and multi-host roles | `compose.yaml`, `compose.remote.yaml`, `Dockerfile`, `docker/entrypoint.sh`, `tools/{secrets,remote,token}.sh`, `Makefile`, `deploy/multi-host/*`, `crates/quantrule-deploy/src/render.rs` |
+| 6 | Structural and topology tests | `crates/quantrule-runtime/tests/{secret_sources,database_topology}.rs` |
+| 7 | Docs, plan, AI log, changelog | `docs/`, `CHANGELOG.md` |
+| 8 | Verification and evidence | targeted checks, Compose and full gate |
+
 ## Verification table
 
 | ID | Plan item | Acceptance criterion | Evidence / command | Expected | Observed | Status | Reviewer | Date | Notes |
@@ -245,6 +315,17 @@ Work breakdown:
 | V33 | Governance | All checkers pass, including doc length | `cargo run -q -p quantrule-governance -- check --all` | pass | governance check ok | Pass | agent | 2026-11-23 |  |
 | V34 | Full gate | Workspace gate passes | `tools/gate.sh` | pass | gate passed: full | Pass | agent | 2026-11-23 |  |
 | V35 | Evidence boundary | No migration, no composed/HA claim | `git diff --stat -- '**/migrations/**'`; plan/release wording | empty | empty; no migration and no composed/HA claim | Pass | agent | 2026-11-23 |  |
+| V36 | Secret contract | Sentinel resolves; plain, both, relative, missing, empty, oversize, UTF-8, NUL and whitespace refused without the value | `cargo test -p quantrule-runtime config::tests` | pass | 18 config tests pass; sentinel and every refusal path pass | Pass | agent | 2026-11-23 |  |
+| V37 | Secret sources | One reader; S3 has no AWS default chain; no secret env read outside config; image staging guarded | `cargo test -p quantrule-runtime --test secret_sources` | pass | 4 structural tests pass | Pass | agent | 2026-11-23 |  |
+| V38 | Required secrets | Explicit S3 pair; missing DB, queue or S3 file fails closed; URL userinfo refused | `cargo test -p quantrule-runtime backends`; `cargo test -p quantrule-runtime config` | pass | backend, queue and URL tests pass | Pass | agent | 2026-11-23 |  |
+| V39 | Local Compose | App services name only `_FILE`; secrets are files; remote adds the token | `cargo test -p quantrule-runtime --test database_topology`; `make compose-check` | pass | 7 topology tests and `compose config ok` | Pass | agent | 2026-11-23 |  |
+| V40 | Renderer | `env/secrets` mode 700/files 600; `_FILE` env; no plain key | `cargo test -p quantrule-deploy` | pass | 29 tests pass | Pass | agent | 2026-11-23 |  |
+| V41 | Token rotation | Old 200/new 401 before; old 401/new 200 after; last good kept; startup invalid fails | `cargo test -p quantrule-gateway --test auth_rotation` | pass | 6 tests pass | Pass | agent | 2026-11-23 |  |
+| V42 | Shell token file | `QUANTRULE_TOKEN_FILE` and both-source refusal | `cargo test -p quantrule-shell token` | pass | shell token tests pass | Pass | agent | 2026-11-23 |  |
+| V43 | Formatting and lints | Touched crates clean at `-D warnings` | `cargo fmt --all -- --check`; `cargo clippy ... -- -D warnings` | pass | pass | Pass | agent | 2026-11-23 |  |
+| V44 | Rustdoc and governance | No warnings; all checkers pass; doc caps respected | `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps`; `cargo run -q -p quantrule-governance -- check --all` | pass | pass | Pass | agent | 2026-11-23 |  |
+| V45 | Full gate | Workspace gate passes; no migration or composed/HA claim | `tools/gate.sh`; `git diff --stat -- '**/migrations/**'` | pass, empty | `gate passed: full`; empty | Pass | agent | 2026-11-23 |  |
+| V46 | Secret staging | Entrypoint copies mode-600 mounts to a UID 10001 directory and drops privileges before exec | Debian probe container with a 600 mount; `cargo test -p quantrule-runtime --test secret_sources` | UID 10001 reads the value; structural test passes | probe printed `uid=10001` and the sentinel; 4 structural tests pass | Pass | agent | 2026-11-23 | Manual probe, not a composed tier |
 
 ## 9. Risks and recovery
 
@@ -256,7 +337,11 @@ Work breakdown:
 | Metrics listener exposed | Internal bind only, unset by default, no host-published port, gateway does not proxy it; private-bind guard under `QR_INTERNAL_ONLY` |
 | Gateway re-emits upstream metrics | One registry per process; gateway records only its own middleware; test asserts no upstream family |
 | Logging breaks startup | Builder is testable; invalid filter/format is a startup error; tests use a per-thread subscriber |
-| Doc caps | New observability doc under 170 lines; touched architecture docs net-compressed |
+| Secret leaks through a file path or error | `Config` debug redacts every value; errors name the variable and rule only; token source logs a stable reason |
+| A missing token file silently disables auth | Auth is enabled by `QR_BEARER_TOKEN_FILE`; a present invalid file fails startup, and reload keeps the last good token |
+| A stale token after rotation | The old value is rejected on the next request after the swap; clients re-export; token age is a gauge |
+| A plain secret survives in Compose | Structural test rejects every plain secret key in an application service; `make compose-check` validates both files |
+| Doc caps | New secret reference is under 330; touched architecture docs are net-compressed |
 
 Recovery: revert the slice. It adds no migration, no schema and no artifact
 format. Compose falls back to text logging and a disabled metrics listener when
@@ -264,9 +349,11 @@ the new variables are removed.
 
 ## 10. Stop conditions
 
-Stop if a change requires drain, readiness, retry or secret delivery (slice 2 or
-3); if a metric needs a client-supplied name, raw path or high-cardinality
-identifier; if request IDs must enter an artifact, digest or decision; if a new
-dependency is required beyond the approved `tracing-subscriber` json feature; if
-`QR_METRICS_BIND` would need a public bind or a published port; or if any gate
-fails for a reason outside this slice.
+Stop if a change requires changing drain, readiness, retry or reconnect behavior
+(slices 1–2); if a metric needs a client-supplied name, raw path or
+high-cardinality identifier; if request IDs must enter an artifact, digest or
+decision; if a new dependency is required beyond the approved `tracing-subscriber`
+json feature; if `QR_METRICS_BIND` would need a public bind or a published port;
+if a secret would be read from a second source or printed; if token rotation
+would need a value in `/version` or a log; or if any gate fails for a reason
+outside this slice.

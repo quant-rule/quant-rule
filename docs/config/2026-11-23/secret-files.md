@@ -1,0 +1,128 @@
+# File-Backed Secrets
+
+- Date: 2026-11-23 (UTC)
+- Status: Current for the local Compose stack and the v2 multi-host profile
+- Issue: [#1107](https://github.com/quant-rule/quant-rule/issues/1107)
+- Claim type: Behaviour Claim
+- Related: [HA architecture](../../architecture/ha.md), [security](../../architecture/security.md), [four databases](../2026-11-22/four-databases.md)
+
+The application services never receive a secret through an environment
+variable. Each secret is a file under `/run/secrets`, named by a
+`<NAME>_FILE` variable. `docker inspect`, `/proc/<pid>/environ` and a child
+process therefore see the path, not the value.
+
+## 1. File contract
+
+`quantrule_runtime::config` is the only production reader. It applies the same
+rules to every secret:
+
+| Rule | Result |
+|---|---|
+| Path | Must be absolute. |
+| Size | At most 8 KiB. |
+| Encoding | UTF-8; a NUL byte is refused. |
+| Trailing newline | Exactly one `\n` and an optional preceding `\r` are stripped. |
+| Empty | A value empty after stripping is refused. |
+| Whitespace | Leading, trailing or embedded newline whitespace is refused. |
+| Both sources | `<NAME>` and `<NAME>_FILE` set together is an error. |
+| Plain variable | `<NAME>` alone is a startup error; the operator's `QR_BEARER_TOKEN` input to `make remote` is not a server deployment source. |
+| Optional | A secret with neither variable is unset; the consumer that needs it fails closed. |
+
+The value is never printed, hashed or fingerprinted by the runtime. A
+`ConfigError` names the variable and the rule, never the value. `Config`'s
+`Debug` redacts every secret field.
+
+## 2. Variables
+
+| Secret | File variable | Read by |
+|---|---|---|
+| Service Postgres URL | `QR_DATABASE_URL_FILE` | gateway, data, evidence, simulation |
+| Owner Postgres URL | `QR_DATABASE_OWNER_URL_FILE` | the one-shot `<service>-migrate` job |
+| AMQP URL | `QR_QUEUE_URL_FILE` | evidence, backtest |
+| S3 access key | `QR_OBJECT_STORE_ACCESS_KEY_FILE` | data, model, evidence, simulation, strategy, backtest |
+| S3 secret key | `QR_OBJECT_STORE_SECRET_KEY_FILE` | same six services |
+| Gateway bearer token | `QR_BEARER_TOKEN_FILE` | gateway, only when authentication is enabled |
+
+`QR_OBJECT_STORE_ACCESS_KEY_FILE` and `QR_OBJECT_STORE_SECRET_KEY_FILE` are a
+pair: setting one without the other is an error. The object-store URL
+(`QR_OBJECT_STORE_URL`) must not carry userinfo; the credentials come from the
+two files. The S3 client is built with those explicit credentials and does not
+consult `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, the shared AWS config or
+instance metadata.
+
+Everything else remains a plain environment value: service URLs, bucket,
+queue generation, bind addresses, limits, log and metrics settings, drain
+deadlines, image digest and the leader/worker identifiers.
+
+## 3. Local Compose
+
+`make up` depends on `make secrets`, which runs `tools/secrets.sh`:
+
+- `secrets/compose.env` (mode 600) holds the three infrastructure passwords
+  used by Postgres, MinIO and RabbitMQ. Those containers are infrastructure and
+  keep their own bootstrap variables.
+- `secrets/<name>` (mode 600) holds the application URLs, the S3 pair and the
+  token. Each application service mounts only the files it reads and sets only
+  the matching `_FILE` variables.
+- The directory is mode 700 and Git-ignored. A normal `make up` reuses existing
+  values; `make secrets FORCE=1` rotates them deliberately.
+
+`make remote` layers `compose.remote.yaml`, writes `secrets/bearer_token` and
+mounts it at `/run/secrets/bearer_token`. The base stack leaves the token file
+unset, so it keeps the documented unauthenticated local profile.
+
+`make compose-check` writes disposable secrets to a temporary directory and
+validates both Compose files, so CI needs no committed secret.
+
+## 4. Multi-host v2
+
+`qr-deploy render` writes `out/secrets/` at mode 700 with one mode-600 file per
+secret, and the service env files name `/run/secrets/<name>`. The role Compose
+files declare the mount. Copy `env/` and `env/secrets/` to the host that runs
+the role; never put a value in an env file. `qr-deploy` v3 and Swarm secret
+objects are HA-012; this document defines the files v3 consumes.
+
+## 5. Token rotation
+
+`QR_BEARER_TOKEN_FILE` is the only gateway token source when authentication is
+enabled. The gateway reads it at startup, re-reads it every
+`QR_TOKEN_RELOAD_SECONDS` (default 5) and immediately on `SIGHUP`. A successful
+read swaps one immutable snapshot; an in-flight request keeps the token it
+started with and the next request uses the new one. A missing, empty, short or
+malformed file keeps the last good token, increments
+`quantrule_auth_reload_failures_total{reason}` and never disables
+authentication. A file present but invalid at startup fails startup.
+
+The image entrypoint starts as root only to stage the mounted files into a
+mode-700 directory owned by UID 10001, rewrites the `_FILE` values to that copy,
+and drops privileges before exec. The host files and Compose mounts stay mode
+600; no service binary runs as root. Rotation therefore updates the staged file:
+`make remote` does it, or copy the file with `docker compose cp` and set its
+owner with the commands in the manual.
+
+```bash
+tools/token.sh --out secrets/bearer_token
+docker compose -f compose.yaml -f compose.remote.yaml \
+  cp secrets/bearer_token gateway:/run/quantrule-secrets/bearer_token
+docker compose -f compose.yaml -f compose.remote.yaml exec -T -u 0 gateway \
+  sh -c 'chown 10001:10001 /run/quantrule-secrets/bearer_token && chmod 400 /run/quantrule-secrets/bearer_token'
+docker compose -f compose.yaml -f compose.remote.yaml kill -s HUP gateway
+export QUANTRULE_TOKEN="$(cat secrets/bearer_token)"
+```
+
+Rotate by replacing the file and sending `SIGHUP`; no restart is required. Every
+client re-exports the new value. The browser forgets and re-enters it on the
+Connection screen. The token age is `quantrule_auth_token_age_seconds`; no token
+fingerprint or generation appears in `/version` or a log record.
+
+## 6. Verification
+
+- `cargo test -p quantrule-runtime config` proves the contract and redaction.
+- `cargo test -p quantrule-runtime --test secret_sources` proves one reader and
+  no AWS default chain.
+- `cargo test -p quantrule-runtime --test database_topology` proves application
+  services name only `_FILE` variables.
+- `cargo test -p quantrule-deploy` proves the rendered secret files and modes.
+- `cargo test -p quantrule-gateway --test auth_rotation` proves the swap and the
+  last-good-token rule.
+- `make compose-check` proves both Compose files parse without committed secrets.

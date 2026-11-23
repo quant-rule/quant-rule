@@ -8,7 +8,6 @@ license = "MIT OR Apache-2.0"
 publish = false
 
 [dependencies]
-aws-config = "1.13.2"
 aws-sdk-s3 = "1.159.0"
 axum = "0.8.9"
 bytes = "1.12.1"

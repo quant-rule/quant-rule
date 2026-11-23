@@ -56,24 +56,26 @@ fn service_block<'a>(compose: &'a str, name: &str) -> &'a str {
 fn services_hold_only_the_app_url_and_migration_jobs_only_the_owner_url() {
     let compose = read("compose.yaml");
     assert_eq!(
-        compose.matches("QR_DATABASE_URL:").count(),
+        compose.matches("QR_DATABASE_URL_FILE:").count(),
         4,
         "exactly four long-running services own a database"
     );
     assert_eq!(
-        compose.matches("QR_DATABASE_OWNER_URL:").count(),
+        compose.matches("QR_DATABASE_OWNER_URL_FILE:").count(),
         4,
         "exactly four one-shot migration jobs hold the owner URL"
     );
     for (database, service, _schemas) in DATABASES {
         let block = service_block(&compose, service);
         assert!(
-            block.contains(&format!("QR_DATABASE_URL: postgres://{database}_app:")),
-            "{service} has no {database}_app URL"
+            block.contains(&format!(
+                "QR_DATABASE_URL_FILE: /run/secrets/{database}_database_url"
+            )),
+            "{service} has no {database}_app file"
         );
         assert!(
-            block.contains(&format!("/{database}")),
-            "{service} does not point at {database}"
+            block.contains(&format!("/run/secrets/{database}_database_url")),
+            "{service} does not mount {database}_app"
         );
         assert!(
             block.contains("QR_MIGRATE: \"0\""),
@@ -91,9 +93,9 @@ fn services_hold_only_the_app_url_and_migration_jobs_only_the_owner_url() {
         );
         assert!(
             migrate.contains(&format!(
-                "QR_DATABASE_OWNER_URL: postgres://{database}_owner:"
+                "QR_DATABASE_OWNER_URL_FILE: /run/secrets/{database}_owner_database_url"
             )),
-            "{service}-migrate has no {database}_owner URL"
+            "{service}-migrate has no {database}_owner file"
         );
         assert!(
             !migrate.contains("QR_DATABASE_URL:"),
@@ -105,6 +107,44 @@ fn services_hold_only_the_app_url_and_migration_jobs_only_the_owner_url() {
             )),
             "{service} does not wait for its migration job"
         );
+    }
+}
+
+#[test]
+fn application_services_receive_only_file_backed_secrets() {
+    let compose = read("compose.yaml");
+    for service in [
+        "gateway",
+        "data",
+        "model",
+        "evidence",
+        "simulation",
+        "backtest",
+        "strategy",
+    ] {
+        let block = service_block(&compose, service);
+        for forbidden in [
+            "QR_DATABASE_URL:",
+            "QR_DATABASE_OWNER_URL:",
+            "QR_QUEUE_URL:",
+            "QR_BEARER_TOKEN:",
+            "QR_OBJECT_STORE_ACCESS_KEY:",
+            "QR_OBJECT_STORE_SECRET_KEY:",
+            "AWS_ACCESS_KEY_ID",
+            "AWS_SECRET_ACCESS_KEY",
+            "AWS_REGION",
+        ] {
+            assert!(
+                !block.contains(forbidden),
+                "{service} receives the plain secret {forbidden}"
+            );
+        }
+        for line in block.lines().filter(|line| line.contains("_FILE:")) {
+            assert!(
+                line.contains("/run/secrets/"),
+                "{service} names a non-mounted secret: {line}"
+            );
+        }
     }
 }
 
@@ -143,6 +183,12 @@ fn the_strategy_service_receives_no_database_queue_or_config_mount() {
     assert!(block.contains("QR_DATA_URL: http://data:8080"));
     assert!(block.contains("QR_MODEL_URL: http://model:8080"));
     assert!(block.contains("QR_OBJECT_STORE_URL: http://minio:9000"));
+    assert!(
+        block.contains("QR_OBJECT_STORE_ACCESS_KEY_FILE: /run/secrets/object_store_access_key")
+    );
+    assert!(
+        block.contains("QR_OBJECT_STORE_SECRET_KEY_FILE: /run/secrets/object_store_secret_key")
+    );
 }
 
 #[test]
@@ -165,6 +211,77 @@ fn the_bootstrap_runs_before_every_migration_job() {
             "{service}-migrate does not wait for the bootstrap"
         );
     }
+}
+
+#[test]
+fn every_declared_secret_is_a_file_and_every_mount_is_declared() {
+    let compose = read("compose.yaml");
+    let start = compose
+        .find("\nsecrets:\n")
+        .expect("a top-level secrets block");
+    let block = &compose[start..];
+    for name in [
+        "qr_gateway_database_url",
+        "qr_catalog_database_url",
+        "qr_evidence_database_url",
+        "qr_simulation_database_url",
+        "qr_gateway_owner_database_url",
+        "qr_catalog_owner_database_url",
+        "qr_evidence_owner_database_url",
+        "qr_simulation_owner_database_url",
+        "queue_url",
+        "object_store_access_key",
+        "object_store_secret_key",
+    ] {
+        assert!(
+            block.contains(&format!("  {name}:\n    file: ")),
+            "the top-level secret {name} is not a file reference"
+        );
+    }
+    assert!(
+        !block.contains("environment:"),
+        "a top-level secret carries an inline value"
+    );
+
+    for service in [
+        "gateway",
+        "data",
+        "model",
+        "evidence",
+        "simulation",
+        "backtest",
+        "strategy",
+    ] {
+        let service_block = service_block(&compose, service);
+        let Some((_, rest)) = service_block.split_once("    secrets:\n") else {
+            panic!("{service} has no secrets mount")
+        };
+        let mut mounted = Vec::new();
+        for line in rest.lines() {
+            if let Some(name) = line.strip_prefix("      - ") {
+                mounted.push(name.trim().to_owned());
+            } else {
+                break;
+            }
+        }
+        for line in service_block
+            .lines()
+            .filter(|line| line.contains("_FILE: /run/secrets/"))
+        {
+            let name = line
+                .rsplit_once("/run/secrets/")
+                .map(|(_, name)| name.trim())
+                .unwrap_or_default();
+            assert!(
+                mounted.iter().any(|mounted| mounted == name),
+                "{service} names {name} but does not mount it"
+            );
+        }
+    }
+
+    let remote = read("compose.remote.yaml");
+    assert!(remote.contains("QR_BEARER_TOKEN_FILE: /run/secrets/bearer_token"));
+    assert!(!remote.contains("QR_BEARER_TOKEN:"));
 }
 
 #[test]

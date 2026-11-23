@@ -15,6 +15,7 @@ document states which schema and run version it applies to.
 | Signal artifact | Current; `quantrule.signal-artifact/v1`, the reference position, causality, identity, fold rejection and the internal strategy service route | `docs/config/2026-11-22/signal-artifact.md` |
 | Deployment v3 | Target for the next release; Swarm HA descriptor, four databases, ingress and stateful placement | `docs/config/2026-11-22/deploy-v3.md` |
 | Four logical databases | Current for local Compose and v2 multi-host; owner/app roles, per-service app URLs, one-shot owner migration jobs | `docs/config/2026-11-22/four-databases.md` |
+| File-backed secrets | Current; `*_FILE` contract, explicit S3 credentials and gateway token rotation | `docs/config/2026-11-23/secret-files.md` |
 | Schema migrations | Current; forward-only ledgers, checksum pin, expand/contract and rollback runbook | `docs/architecture/migrations.md` |
 | Run v3 and portfolio constraints | Accepted for a model-only run; `run v3` must not carry a strategy | `docs/config/2026-11-11/run-v3-and-portfolio-constraints.md` |
 | Local research memory | Historical; the local SQLite module was removed on 2026-11-16; memory lives in the evidence service (#661) | `docs/config/2026-11-11/research-memory-v1.md` |

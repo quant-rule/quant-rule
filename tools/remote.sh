@@ -1,30 +1,33 @@
 #!/usr/bin/env bash
 # Start the stack for remote use: one published port, one bearer token.
 #
-# The gateway is the only container a client can reach. This script exports
-# `QR_BEARER_TOKEN` to Compose, starts the stack, refuses to continue if any
-# container other than the gateway publishes a host port, and checks the token
-# matrix before it prints the token and an API example:
+# The gateway is the only container a client can reach. This script writes the
+# token to a mode-600 file, layers `compose.remote.yaml` over the base file,
+# starts the stack, refuses to continue if any container other than the gateway
+# publishes a host port, and checks the token matrix before it prints the token
+# and an API example:
 #
 #   no token      -> 401 auth.unauthorized with WWW-Authenticate: Bearer
 #   wrong token   -> 401 auth.unauthorized
 #   correct token -> the route's normal status (200 on GET /profiles)
 #
 # `QR_BEARER_TOKEN` is read from the environment when set and generated with
-# tools/token.sh otherwise. The token is printed to the terminal; this script
-# writes it to no file, and it is not committed or logged. Docker holds it in
-# the gateway container's environment while the stack runs.
+# tools/token.sh otherwise. The value is written to
+# `$QR_SECRETS_DIR/bearer_token` (default `secrets/`) at mode 600 and mounted at
+# `/run/secrets/bearer_token`; it is never a container environment value. The
+# gateway re-reads the file every `QR_TOKEN_RELOAD_SECONDS` and on `SIGHUP`.
 #
 # Remote exposure is still a network decision. Do not publish :8080 to the
 # public internet: use WireGuard or Tailscale, or terminate TLS at a reverse
 # proxy in front of the gateway. The browser enters the token on its Connection
-# screen and the shell reads --token or QUANTRULE_TOKEN, so both send
-# Authorization: Bearer on every API call.
+# screen and the shell reads --token, QUANTRULE_TOKEN or QUANTRULE_TOKEN_FILE,
+# so both send Authorization: Bearer on every API call.
 #
 # Usage: tools/remote.sh
 #
 # Environment:
 #   QR_BEARER_TOKEN  reuse a token instead of generating one (32+ characters)
+#   QR_SECRETS_DIR   secret directory (default <root>/secrets)
 #   QR_URL           URL to probe and print (default http://localhost:8080)
 #   COMPOSE          Compose command (default "docker compose")
 set -euo pipefail
@@ -54,10 +57,19 @@ command -v docker >/dev/null 2>&1 || die 'docker is required'
 command -v curl >/dev/null 2>&1 || die 'curl is required to check /health and the token'
 
 read -r -a compose_command <<< "${COMPOSE:-docker compose}"
+secrets_dir="${QR_SECRETS_DIR:-$root/secrets}"
 compose() {
-  "${compose_command[@]}" "$@"
+  QR_SECRETS_DIR="$secrets_dir" "${compose_command[@]}" \
+    --env-file "$secrets_dir/compose.env" \
+    -f compose.yaml -f compose.remote.yaml "$@"
 }
-compose version >/dev/null 2>&1 || die "cannot run '${COMPOSE:-docker compose}'"
+"${compose_command[@]}" version >/dev/null 2>&1 || die "cannot run '${COMPOSE:-docker compose}'"
+
+"$script_dir/secrets.sh" --out "$secrets_dir" >/dev/null
+set -a
+# shellcheck disable=SC1090
+. "$secrets_dir/compose.env"
+set +a
 
 # The local stack may use the documented loopback defaults; a remotely exposed
 # stack may not. Refuse the known default before any container starts.
@@ -84,10 +96,22 @@ fi
 case "$token" in
   *[[:space:]]*) die 'QR_BEARER_TOKEN must not contain whitespace' ;;
 esac
-export QR_BEARER_TOKEN="$token"
+printf '%s\n' "$token" > "$secrets_dir/bearer_token"
+chmod 600 "$secrets_dir/bearer_token"
 
 printf 'remote: starting the stack with the token enforced\n'
 compose up -d --build --wait || die 'the stack did not start healthy'
+
+# The entrypoint stages the mounted file for UID 10001 at startup. Install the
+# current value into that staged path as well, so a second `make remote` with a
+# rotated token is live without recreating the container. Only the root helper
+# can change the staged file's owner; the service itself stays UID 10001.
+compose cp "$secrets_dir/bearer_token" gateway:/run/quantrule-secrets/bearer_token \
+  || die 'cannot install the token file in the gateway container'
+compose exec -T -u 0 gateway sh -c \
+  'chown 10001:10001 /run/quantrule-secrets/bearer_token && chmod 400 /run/quantrule-secrets/bearer_token' \
+  || die 'cannot set the staged token file owner'
+compose kill -s HUP gateway >/dev/null 2>&1 || die 'cannot signal the gateway to reload the token'
 
 # A gateway healthcheck proves the process is up; it does not prove that the
 # host port set is the one the remote profile promises.
@@ -128,8 +152,13 @@ status=$(curl -sS --max-time 10 -o /dev/null -w '%{http_code}' -H 'Authorization
   die "cannot reach $url/profiles with a wrong token"
 [ "$status" = 401 ] || die "a wrong token returned $status, expected 401"
 
-status=$(curl -sS --max-time 10 -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $token" "$url/profiles") ||
-  die "cannot reach $url/profiles with the token"
+status=0
+for _ in $(seq 1 10); do
+  status=$(curl -sS --max-time 10 -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $token" "$url/profiles") ||
+    die "cannot reach $url/profiles with the token"
+  [ "$status" = 200 ] && break
+  sleep 1
+done
 [ "$status" = 200 ] || die "the configured token returned $status on /profiles, expected 200"
 
 printf '\nQuantRule remote profile ready → %s\n' "$url"
@@ -141,13 +170,18 @@ printf '\nToken check: no token 401, wrong token 401, configured token 200 (/pro
 printf '\nBearer token (printed once; keep it out of git and logs):\n'
 printf '  %s\n' "$token"
 printf '\nAPI usage:\n'
-printf '  export QR_BEARER_TOKEN=%q\n' "$token"
-printf '  curl -fsS -H "Authorization: Bearer $QR_BEARER_TOKEN" %s/profiles\n' "$url"
-printf '  curl -fsS -H "Authorization: Bearer $QR_BEARER_TOKEN" -H "X-QuantRule-Profile: default" %s/catalog/datasets\n' "$url"
+printf '  export QUANTRULE_TOKEN=%q\n' "$token"
+printf '  curl -fsS -H "Authorization: Bearer $QUANTRULE_TOKEN" %s/profiles\n' "$url"
+printf '  curl -fsS -H "Authorization: Bearer $QUANTRULE_TOKEN" -H "X-QuantRule-Profile: default" %s/catalog/datasets\n' "$url"
+printf '\nRotation: export QR_BEARER_TOKEN from tools/token.sh and run make remote again,\n'
+printf 'or replace the host file, copy it into the gateway, and send SIGHUP:\n'
+printf '  %s\n' "$secrets_dir/bearer_token"
+printf 'See docs/manual/08-operations.md for the exact copy and SIGHUP commands.\n'
+printf 'Clients re-export the token after a rotation.\n'
 printf '\nTLS and network: never expose :8080 to the public internet. Use WireGuard or\n'
 printf 'Tailscale, or terminate TLS at a reverse proxy in front of the gateway.\n'
 printf '\nRestart: use make remote again, not make up; make up starts the\n'
 printf 'unauthenticated local profile.\n'
 printf '\nClients: the browser enters the token on the Connection screen; the shell\n'
-printf 'reads --token or QUANTRULE_TOKEN. Both send Authorization: Bearer on every\n'
-printf 'API call.\n'
+printf 'reads --token, QUANTRULE_TOKEN or QUANTRULE_TOKEN_FILE. Both send\n'
+printf 'Authorization: Bearer on every API call.\n'

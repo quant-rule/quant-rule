@@ -23,6 +23,8 @@ services:
     restart: "no"
     env_file:
       - env/gateway-migrate.env
+    secrets:
+      - gateway_owner_database_url
 
   gateway:
     stop_grace_period: 40s
@@ -32,6 +34,9 @@ services:
     network_mode: host
     env_file:
       - env/gateway.env
+    secrets:
+      - gateway_database_url
+      - bearer_token
     restart: unless-stopped
     depends_on:
       gateway-migrate:
@@ -47,3 +52,11 @@ services:
       timeout: 5s
       retries: 6
       start_period: 10s
+
+secrets:
+  gateway_database_url:
+    file: env/secrets/gateway_database_url
+  gateway_owner_database_url:
+    file: env/secrets/gateway_owner_database_url
+  bearer_token:
+    file: env/secrets/bearer_token

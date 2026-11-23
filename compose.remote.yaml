@@ -1,0 +1,24 @@
+# QuantRule remote profile — one bearer token, one published port.
+#
+# This override is layered on `compose.yaml` by `make remote`:
+#
+#   docker compose -f compose.yaml -f compose.remote.yaml up -d --wait
+#
+# The base file keeps the documented unauthenticated local profile by leaving
+# `QR_BEARER_TOKEN_FILE` unset. This file adds the file, mounts it at
+# `/run/secrets/bearer_token`, and points the gateway at it. The token is
+# written by `tools/remote.sh` at mode 600 and is never an environment value.
+name: quantrule
+
+services:
+  gateway:
+    environment:
+      QR_BEARER_TOKEN_FILE: /run/secrets/bearer_token
+      # The default reload interval is 5 s; `SIGHUP` reloads immediately.
+      QR_TOKEN_RELOAD_SECONDS: "5"
+    secrets:
+      - bearer_token
+
+secrets:
+  bearer_token:
+    file: ${QR_SECRETS_DIR:-./secrets}/bearer_token

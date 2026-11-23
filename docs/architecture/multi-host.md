@@ -56,7 +56,7 @@ network gate, secrets file, and config root.
 | Command | Effect |
 |---|---|
 | `validate <deploy.json> [--secrets <file>]` | Refuses an unsafe or inconsistent descriptor before deployment |
-| `render <deploy.json> --out <dir> [--secrets <file>]` | Writes one env file per service, four `<service>-migrate.env` files, and `infra.env` with owner-only permissions; the long-running envs carry only `<database>_app`, the migration envs only `<database>_owner` |
+| `render <deploy.json> --out <dir> [--secrets <file>]` | Writes one env file per service, four `<service>-migrate.env`, `infra.env`, and a mode-600 `secrets/` directory; the env files name `_FILE` paths only |
 | `check <deploy.json> [--secrets <file>]` | Probes `/version` and `/health` (or `/ready`) and compares the image digest |
 
 The validator refuses:

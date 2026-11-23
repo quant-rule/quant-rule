@@ -59,9 +59,17 @@ $env:QR_IMAGE_DIGEST = (docker compose images -q gateway | Select-Object -First 
 docker compose up -d --wait
 ```
 
-A direct Compose start must set `QR_IMAGE_DIGEST` to the built image id;
-`make up` records it automatically. A server without the digest refuses run and
-stage submissions instead of inventing a build identity.
+A direct Compose start must create the local secret files and set
+`QR_IMAGE_DIGEST` to the built image id; `make up` does both automatically. A
+server without the digest refuses run and stage submissions instead of inventing
+a build identity.
+
+```bash
+tools/secrets.sh
+docker compose --env-file secrets/compose.env build
+QR_IMAGE_DIGEST="$(docker compose --env-file secrets/compose.env images -q gateway | head -n1)" \
+  docker compose --env-file secrets/compose.env up -d --wait
+```
 
 Fedora may use Docker Engine or Podman: `make up COMPOSE="podman compose"`. The
 default stack starts ten long-running containers, a one-shot database bootstrap,
@@ -71,24 +79,29 @@ and four one-shot migration jobs; see
 | Target | Effect |
 |---|---|
 | `make help` | List every target |
-| `make up` | Build, start, wait for health, print the URL |
+| `make up` / `make secrets` | Create missing secret files, build, start, wait for health, print the URL |
 | `make down` | Stop, keep data |
 | `make reset` | Stop and delete volumes, after confirmation |
 | `make logs` / `make ps` | Observe |
 | `make scale N=4` | Scale model and backtest when the multi-worker profile is enabled |
 | `make verify` | Submit the two fixture configs through the gateway and print the canonical digest |
 | `make test` / `make gate` | Fast tier / full workspace gate |
-| `make remote` | Start with only `:8080` published and a bearer token |
-| `make token` | Print a new bearer token |
+| `make remote` | Write `secrets/bearer_token`, publish only `:8080`, print the token and usage |
+| `make token` | Print a new bearer token; `--out` writes a mode-600 file |
+| `make compose-check` | Validate both Compose files with disposable secrets |
 | `make backup` / `make restore FILE=…` | Backup and restore (DIST-080, #671) |
 | `make dev-web` | Web client dev server against `localhost:8080` |
 
-`make remote` generates a token when `QR_BEARER_TOKEN` is unset, starts the stack
-with only `:8080` published, and prints the token and a `curl` example. The
-browser enters the token on the Connection screen and the shell reads `--token`
-or `QUANTRULE_TOKEN`; both then send `Authorization: Bearer` on every API call.
-Keep the host on a private network, or terminate TLS at a reverse proxy. See
-[`docs/architecture/security.md`](docs/architecture/security.md) §2 and the
+`make remote` reuses `QR_BEARER_TOKEN` or generates one, writes
+`secrets/bearer_token` at mode 600, layers `compose.remote.yaml`, starts the
+stack with only `:8080` published, and prints the token and a `curl` example.
+The browser enters the token on the Connection screen and the shell reads
+`--token`, `QUANTRULE_TOKEN` or `QUANTRULE_TOKEN_FILE`; both then send
+`Authorization: Bearer` on every API call. Rotate by running `make remote` with
+a new `QR_BEARER_TOKEN`; the script copies it into the gateway and signals a
+reload. Keep the host on a private network, or terminate TLS at a reverse proxy.
+See [`docs/architecture/security.md`](docs/architecture/security.md) §2,
+[file-backed secrets](docs/config/2026-11-23/secret-files.md), and the
 [remote tutorial](docs/tutorials/2026-11-12/03-remote-compute.md).
 `make backup` and `make restore` call `tools/backup.sh` and `tools/restore.sh`.
 
@@ -97,7 +110,8 @@ To keep a token across restarts, generate one first:
 ```bash
 export QR_BEARER_TOKEN="$(./tools/token.sh)"
 make remote
-curl -fsS -H "Authorization: Bearer $QR_BEARER_TOKEN" http://localhost:8080/profiles
+export QUANTRULE_TOKEN="$QR_BEARER_TOKEN"
+curl -fsS -H "Authorization: Bearer $QUANTRULE_TOKEN" http://localhost:8080/profiles
 ```
 
 `make verify` needs a healthy stack (`make up`). It uploads the checked-in

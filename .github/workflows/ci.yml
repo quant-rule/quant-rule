@@ -81,6 +81,14 @@ jobs:
           bash -n .github/scripts/project-sync.sh
           bash tools/test_project_sync.sh
 
+      - name: Compose parse
+        run: |
+          secrets="$RUNNER_TEMP/qr-secrets"
+          bash tools/secrets.sh --out "$secrets"
+          QR_SECRETS_DIR="$secrets" docker compose \
+            --env-file "$secrets/compose.env" \
+            -f compose.yaml -f compose.remote.yaml config -q
+
   rust:
     needs: plan_and_check
     if: needs.plan_and_check.outputs.mode == 'governance' || needs.plan_and_check.outputs.mode == 'full'

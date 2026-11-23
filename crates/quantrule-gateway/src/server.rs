@@ -15,7 +15,7 @@
 //! `/runs`: a diagnostic stage path is forwarded unchanged and is never
 //! rewritten into a run path.
 //!
-//! Every API route passes through the bearer seam when `QR_BEARER_TOKEN` is set;
+//! Every API route passes through the bearer seam when `QR_BEARER_TOKEN_FILE` is set;
 //! the static client is served by the fallback outside that layer.
 
 use std::path::PathBuf;
@@ -47,6 +47,7 @@ use quantrule_runtime::request_id::{
 use quantrule_runtime::shutdown::Shutdown;
 
 use crate::profile::{ProfileStore, create_profile, list_profiles};
+use crate::token::TokenSource;
 
 /// The services a gateway can reach.
 #[derive(Default)]
@@ -69,6 +70,8 @@ pub struct Services {
     pub runs: Option<Arc<dyn RunCounter>>,
     /// The simulation service's profile simulation count.
     pub simulations: Option<Arc<dyn SimulationCounter>>,
+    /// The bearer-token source; absent keeps the unauthenticated profile.
+    pub token_source: Option<TokenSource>,
 }
 
 /// What a handler needs.
@@ -97,8 +100,8 @@ pub struct AppState {
     pub runs: Option<Arc<dyn RunCounter>>,
     /// The simulation service's profile count; absent in a test that does not use it.
     pub simulations: Option<Arc<dyn SimulationCounter>>,
-    /// The bearer token the gateway requires, when one is configured.
-    pub bearer_token: Option<Arc<str>>,
+    /// The bearer-token source the gateway requires, when one is configured.
+    pub token_source: Option<TokenSource>,
     /// The gateway's own metrics registry.
     pub metrics: Metrics,
     /// The gateway's request identifier source.
@@ -123,7 +126,7 @@ impl std::fmt::Debug for AppState {
             .field("strategy_upstream", &self.strategy_upstream.is_some())
             .field("runs", &self.runs.is_some())
             .field("simulations", &self.simulations.is_some())
-            .field("bearer_token", &self.bearer_token.is_some())
+            .field("token_source", &self.token_source.is_some())
             .field("metrics", &self.metrics)
             .field("request_ids", &self.request_ids)
             .field("drain", &self.drain)
@@ -175,6 +178,12 @@ impl AppState {
         let health = health
             .with_metrics(metrics.clone())
             .with_shutdown(drain.shutdown());
+        let token_source = services.token_source.or_else(|| {
+            config
+                .bearer_token
+                .as_deref()
+                .map(TokenSource::from_trusted)
+        });
         Self {
             version: VersionInfo::current(env!("CARGO_PKG_VERSION"), config.image_digest.clone()),
             health,
@@ -188,7 +197,7 @@ impl AppState {
             strategy_upstream: services.strategy_upstream,
             runs: services.runs,
             simulations: services.simulations,
-            bearer_token: config.bearer_token.as_deref().map(Arc::<str>::from),
+            token_source,
             metrics,
             request_ids,
             drain,
