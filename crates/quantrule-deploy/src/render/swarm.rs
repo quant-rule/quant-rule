@@ -57,6 +57,9 @@ pub fn render(
 
     let jobs = out.join("jobs");
     create_dir(&jobs)?;
+    let path = jobs.join("cluster-bootstrap.sh");
+    write_script(&path, &super::jobs::cluster_bootstrap(descriptor))?;
+    written.push(path);
     let path = jobs.join("db-bootstrap.sh");
     write_script(&path, &super::jobs::db_bootstrap(descriptor))?;
     written.push(path);
@@ -83,6 +86,9 @@ pub fn stack_yaml(descriptor: &Descriptor) -> Result<String, Error> {
     let mut secrets = BTreeMap::new();
     for name in descriptor.secrets.files.keys() {
         safe_component(name, &format!("secrets.files.{name}"))?;
+        if crate::validate::secrets::STATEFUL_SECRETS.contains(&name.as_str()) {
+            continue;
+        }
         secrets.insert(name.clone(), external(name));
     }
     if descriptor.ingress.tls == IngressTls::Cert {
@@ -137,7 +143,7 @@ fn metadata(descriptor: &Descriptor) -> Yaml {
         .with(
             "platform",
             Yaml::string(
-                "Traefik ingress configuration is PLAT-002; Patroni, RabbitMQ, MinIO, and observability configuration belong to PLAT-003..006",
+                "Traefik ingress configuration is PLAT-002; Patroni, etcd, and HAProxy are PLAT-003; RabbitMQ, MinIO, and observability remain PLAT-004..006",
             ),
         )
 }

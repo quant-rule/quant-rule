@@ -1,4 +1,5 @@
 use super::*;
+use crate::descriptor::v3::Watchdog;
 use serde_json::Value;
 
 fn sample() -> Value {
@@ -557,6 +558,83 @@ fn postgres_synchronous_standby_is_bounded_by_the_nodes() {
             .contains("deploy.stateful.postgres.synchronous_standby"),
         "{error}"
     );
+}
+
+#[test]
+fn postgres_synchronous_standby_is_exactly_one() {
+    for value in [0, 2] {
+        let mut value_json = sample();
+        value_json["stateful"]["postgres"]["synchronous_standby"] = serde_json::json!(value);
+        let error = reject(value_json);
+        assert!(
+            error
+                .to_string()
+                .contains("deploy.stateful.postgres.synchronous_standby"),
+            "{value}: {error}"
+        );
+    }
+    let mut value = sample();
+    value["stateful"]["postgres"]["synchronous_standby"] = serde_json::json!(3);
+    let error = reject(value);
+    assert!(
+        error
+            .to_string()
+            .contains("deploy.stateful.postgres.synchronous_standby"),
+        "{error}"
+    );
+}
+
+#[test]
+fn the_watchdog_defaults_to_off_and_accepts_the_three_modes() {
+    let mut value = sample();
+    value["stateful"]["postgres"]
+        .as_object_mut()
+        .expect("postgres")
+        .remove("watchdog");
+    let parsed = descriptor(value);
+    assert_eq!(parsed.stateful.postgres.watchdog, Watchdog::Off);
+    validate(&parsed).expect("the default watchdog");
+
+    for (spelling, expected) in [
+        ("off", Watchdog::Off),
+        ("automatic", Watchdog::Automatic),
+        ("required", Watchdog::Required),
+    ] {
+        let mut value = sample();
+        value["stateful"]["postgres"]["watchdog"] = serde_json::json!(spelling);
+        assert_eq!(descriptor(value).stateful.postgres.watchdog, expected);
+    }
+
+    let mut value = sample();
+    value["stateful"]["postgres"]["watchdog"] = serde_json::json!("sometimes");
+    let error = serde_json::from_value::<Descriptor>(value).expect_err("unknown watchdog");
+    assert!(error.to_string().contains("unknown variant"), "{error}");
+}
+
+#[test]
+fn the_lab_descriptor_validates() {
+    let lab: Descriptor =
+        serde_json::from_str(include_str!("../../../../../deploy/v3/deploy.lab.json"))
+            .expect("the lab descriptor is JSON");
+    validate(&lab).expect("the lab descriptor validates");
+    assert_eq!(lab.profile, Profile::LabSingleHost);
+    assert_eq!(lab.stateful.postgres.watchdog, Watchdog::Off);
+    assert_eq!(lab.hosts.len(), 3);
+}
+
+#[test]
+fn patroni_is_a_required_infrastructure_pin() {
+    let mut value = sample();
+    value["images"]
+        .as_object_mut()
+        .expect("images")
+        .remove("patroni");
+    let error = reject(value);
+    assert!(
+        error.to_string().contains("deploy.images.missing"),
+        "{error}"
+    );
+    assert!(error.to_string().contains("images.patroni"), "{error}");
 }
 
 #[test]

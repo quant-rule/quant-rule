@@ -1,7 +1,8 @@
 # Four Logical Databases
 
 - Date: 2026-11-22 (UTC)
-- Status: Current for the local Compose stack and the v2 multi-host profile
+- Status: Current for the local Compose stack, the v2 multi-host profile, and
+  the v3 Patroni cluster
 - Issue: [#1100](https://github.com/quant-rule/quant-rule/issues/1100)
 - Claim type: Behaviour Claim
 - Related: [HA architecture](../../architecture/ha.md), [deployment](../../architecture/deployment.md)
@@ -97,10 +98,20 @@ docker compose run --rm db-bootstrap
 The local stack seeds every role from `QR_POSTGRES_PASSWORD`, which
 `make secrets` writes to `secrets/compose.env`; it is one password for eight
 roles because the local stack is a single-operator development deployment. The
-v2 multi-host profile does the same, so per-role passwords remain a v3
-(`quantrule.deploy/v3`) concern. The service URLs are rendered into mode-600
-files, not env values. The forward-only migration contract, the checksum pin,
-and the failed-job and rollback runbook are in
+v2 multi-host profile does the same. The v3 profile resolves per-role passwords:
+`jobs/cluster-bootstrap.sh` creates the four databases and eight roles through
+the `postgres`/HAProxy endpoint and the file-backed superuser password, reads
+each owner/app password from its URL file, and runs before `db-bootstrap.sh` and
+`migrate.sh`. The v3 contract is
+[`patroni-cluster.md`](../2026-11-23/patroni-cluster.md). The v3 failover lab
+(`tools/test_tiers.sh ha`) writes a marker through the primary, pauses the
+Patroni primary with the watchdog off, verifies the marker and canonical digest
+through the new primary, and records the rejoin; `--skip-database` leaves the row
+`Unverified`. The v3 file-based `archive_command`/`restore_command` and the
+`/srv/quantrule/wal-archive` volume are configured placeholders for the HA-013
+pgBackRest repository, not PITR evidence. The service URLs are
+rendered into mode-600 files, not env values. The forward-only migration
+contract, the checksum pin, and the failed-job and rollback runbook are in
 [`migrations.md`](../../architecture/migrations.md).
 
 ## 5. What changed locally
@@ -122,9 +133,9 @@ that must keep them needs the migration path in the release runbook, or
 | Contract | State | Consequence |
 |---|---|---|
 | `tools/backup.sh`, `tools/restore.sh` | Dump and restore one `quantrule` database | They do not yet archive the four databases; a restore drill must be re-run after the backup change |
-| `qr-deploy` descriptor | v2 remains readable and renders per-service `_FILE` envs, mode-600 secret files, and migration envs | Per-role passwords still need v3 (HA-012) |
+| `qr-deploy` descriptor | v2 remains readable; v3 renders per-service `_FILE` envs, per-role URL secrets, the cluster job, and the Patroni/etcd/HAProxy tier | v3 per-role passwords are current; v2 keeps its one password |
 | Existing `quantrule` rows | Not migrated | A disposable local stack is reset; a kept stack needs a data migration |
-| Multi-host backup wrapper | Calls the single-database tools | Same limitation |
+| Multi-host backup wrapper | Calls the single-database tools; HA-013 owns pgBackRest/PITR | Same limitation until HA-013 |
 
 These are recorded rather than silently widened in HA-002.
 
@@ -143,7 +154,9 @@ another service. The contract is
   bootstrap's databases, roles, schemas, and grants. It fails when a plain
   secret or an owner URL appears in a long-running service.
 - `cargo test -p quantrule-deploy` checks the rendered service and migration env
-  files, the mode-600 secret files, and the role URL builder.
+  files, the mode-600 secret files, the role URL builder, the v3 cluster job, the
+  Patroni/etcd/HAProxy configuration and check rows, the failover harness, and
+  the stateful manifest.
 - `cargo test -p quantrule-evidence-service --test outbox_conformance` checks
   the notification outbox, the restart re-arm, and the release tombstone against
   the memory store, and the same body against Postgres when

@@ -11,10 +11,11 @@
 pub mod v2;
 
 mod bootstrap;
-mod infra;
+pub(crate) mod infra;
 pub(crate) mod ingress;
 mod jobs;
 mod secrets;
+pub(crate) mod stateful;
 pub(crate) mod swarm;
 mod yaml;
 
@@ -137,6 +138,7 @@ pub fn render_v3(
     if target.wants_infra() {
         ingress::render_infra(descriptor, out, &mut files)?;
         infra::render(descriptor, out, &mut files)?;
+        stateful::render(descriptor, &values, out, &mut files)?;
     }
     let files = canonical_files(&files);
     let descriptor_hash = descriptor_hash(descriptor)?;
@@ -294,10 +296,38 @@ fn prepare_output(out: &Path) -> Result<(), Error> {
         "render.json",
         "quantrule_traefik.yml",
         "traefik-dynamic.yml",
+        "stateful-manifest.json",
     ] {
         remove_existing(&out.join(name))?;
     }
     remove_stale_keepalived(out)?;
+    remove_stale_stateful(out)?;
+    Ok(())
+}
+
+/// Remove every rendered stateful file, including a host that left the descriptor.
+fn remove_stale_stateful(out: &Path) -> Result<(), Error> {
+    let entries = match std::fs::read_dir(out) {
+        Ok(entries) => entries,
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(source) => {
+            return Err(Error::Write {
+                path: out.to_path_buf(),
+                source,
+            });
+        }
+    };
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if ["patroni-", "etcd-", "haproxy-"]
+            .iter()
+            .any(|prefix| name.starts_with(prefix))
+            && (name.ends_with(".yml") || name.ends_with(".cfg"))
+        {
+            remove_existing(&entry.path())?;
+        }
+    }
     Ok(())
 }
 
@@ -497,6 +527,10 @@ mod tests {
         std::fs::write(out.join("traefik-dynamic.yml"), "stale").expect("stale dynamic");
         std::fs::write(out.join("keepalived-edge-1.conf"), "stale").expect("stale keepalived");
         std::fs::write(out.join("keepalived-edge-old.conf"), "stale").expect("stale keepalived");
+        std::fs::write(out.join("patroni-infra-old.yml"), "stale").expect("stale patroni");
+        std::fs::write(out.join("etcd-infra-old.conf.yml"), "stale").expect("stale etcd");
+        std::fs::write(out.join("haproxy-edge-old.cfg"), "stale").expect("stale haproxy");
+        std::fs::write(out.join("stateful-manifest.json"), "stale").expect("stale manifest");
         std::fs::create_dir_all(out.join("infra")).expect("stale infra");
         std::fs::write(out.join("infra/old.yaml"), "stale").expect("stale unit");
         std::fs::write(out.join("keep.txt"), "keep").expect("operator file");
@@ -506,6 +540,10 @@ mod tests {
         assert!(!out.join("traefik-dynamic.yml").exists());
         assert!(!out.join("keepalived-edge-1.conf").exists());
         assert!(!out.join("keepalived-edge-old.conf").exists());
+        assert!(!out.join("patroni-infra-old.yml").exists());
+        assert!(!out.join("etcd-infra-old.conf.yml").exists());
+        assert!(!out.join("haproxy-edge-old.cfg").exists());
+        assert!(!out.join("stateful-manifest.json").exists());
         assert!(!out.join("infra").exists());
         assert_eq!(
             std::fs::read_to_string(out.join("keep.txt")).expect("operator file"),

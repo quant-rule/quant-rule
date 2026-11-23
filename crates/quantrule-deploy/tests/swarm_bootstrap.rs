@@ -44,6 +44,32 @@ fn write_mode(path: &Path, content: &str, mode: u32) {
     let _ = mode;
 }
 
+fn stage_pki(directory: &Path) -> PathBuf {
+    let root = directory.join("pki");
+    std::fs::create_dir_all(root.join("postgres")).expect("postgres pki");
+    std::fs::create_dir_all(root.join("etcd")).expect("etcd pki");
+    let ca = root.join("ca.crt");
+    write_mode(&ca, "fixture CA\n", 0o644);
+    for (directory, name) in [
+        ("postgres", "server"),
+        ("etcd", "server"),
+        ("etcd", "peer"),
+        ("etcd", "client"),
+    ] {
+        write_mode(
+            &root.join(directory).join(format!("{name}.crt")),
+            "fixture certificate\n",
+            0o644,
+        );
+        write_mode(
+            &root.join(directory).join(format!("{name}.key")),
+            "fixture key\n",
+            0o600,
+        );
+    }
+    ca
+}
+
 fn local_descriptor(directory: &Path) -> PathBuf {
     let mut value: Value = serde_json::from_str(
         &std::fs::read_to_string(repo("deploy/v3/deploy.example.json")).expect("v3 example"),
@@ -57,12 +83,7 @@ fn local_descriptor(directory: &Path) -> PathBuf {
         write_mode(&destination, &content, 0o600);
         *path = serde_json::json!(destination.display().to_string());
     }
-    let ca = directory.join("ca.crt");
-    write_mode(
-        &ca,
-        "-----BEGIN CERTIFICATE-----\nfixture\n-----END CERTIFICATE-----\n",
-        0o644,
-    );
+    let ca = stage_pki(directory);
     for endpoint in ["database", "queue", "object_store"] {
         value["endpoints"][endpoint]["tls_ca"] = serde_json::json!(ca.display().to_string());
     }
@@ -424,8 +445,13 @@ fn stack_rows() -> String {
 }
 
 fn run_bootstrap(out: &Path, bin: &Path, state: &Path, log: &Path) -> Output {
+    run_bootstrap_with(out, bin, state, log, &[])
+}
+
+fn run_bootstrap_with(out: &Path, bin: &Path, state: &Path, log: &Path, args: &[&str]) -> Output {
     Command::new("sh")
         .arg("bootstrap.sh")
+        .args(args)
         .current_dir(out)
         .env(
             "PATH",
@@ -453,7 +479,12 @@ fn index_of(lines: &[&str], needle: &str) -> usize {
 fn the_rendered_scripts_are_valid_shell() {
     let directory = temp_dir();
     let out = render(&directory);
-    for script in ["bootstrap.sh", "jobs/db-bootstrap.sh", "jobs/migrate.sh"] {
+    for script in [
+        "bootstrap.sh",
+        "jobs/cluster-bootstrap.sh",
+        "jobs/db-bootstrap.sh",
+        "jobs/migrate.sh",
+    ] {
         let output = Command::new("sh")
             .args(["-n", out.join(script).to_str().expect("path")])
             .output()
@@ -483,10 +514,12 @@ fn bootstrap_labels_nodes_migrates_before_deploying_and_never_prints_a_secret() 
     );
     let text = log_text(&log);
     let lines: Vec<&str> = text.lines().collect();
-    let bootstrap = index_of(&lines, "run --rm -i --network quantrule");
+    let cluster = index_of(&lines, "-e PGHOST=postgres");
+    let bootstrap = index_of(&lines, "psql -v ON_ERROR_STOP=1 -f -");
     let migrate = index_of(&lines, "qr-gateway --migrate-only");
     let deploy = index_of(&lines, "stack deploy");
-    assert!(bootstrap < deploy, "{text}");
+    assert!(cluster < bootstrap, "{text}");
+    assert!(bootstrap < migrate, "{text}");
     assert!(migrate < deploy, "{text}");
     assert!(index_of(&lines, "secret create") < deploy, "{text}");
     assert!(text.contains("quantrule.deploy=quantrule-ha"), "{text}");
@@ -534,6 +567,59 @@ fn bootstrap_labels_nodes_migrates_before_deploying_and_never_prints_a_secret() 
     );
     let config_create = index_of(&lines, "config create");
     assert!(config_create < deploy, "{text}");
+    let _ = std::fs::remove_dir_all(directory);
+}
+
+#[test]
+fn network_only_exits_before_objects_labels_jobs_or_stack() {
+    let directory = temp_dir();
+    let out = render(&directory);
+    let bin = fake_docker_bin(&directory);
+    let state = fake_state(&directory, &node_table());
+    let log = directory.join("docker.log");
+    let first = run_bootstrap_with(
+        &out,
+        bin.parent().expect("bin"),
+        &state,
+        &log,
+        &["--network-only"],
+    );
+    assert!(
+        first.status.success(),
+        "{}",
+        String::from_utf8_lossy(&first.stderr)
+    );
+    let text = String::from_utf8_lossy(&first.stdout);
+    assert!(text.contains("overlay quantrule ready"), "{text}");
+    let logged = log_text(&log);
+    assert!(logged.contains("network create"), "{logged}");
+    for forbidden in [
+        "secret create",
+        "config create",
+        "node update",
+        "run --rm",
+        "stack deploy",
+    ] {
+        assert!(!logged.contains(forbidden), "{forbidden}: {logged}");
+    }
+
+    let second = run_bootstrap_with(
+        &out,
+        bin.parent().expect("bin"),
+        &state,
+        &log,
+        &["--network-only"],
+    );
+    assert!(
+        second.status.success(),
+        "{}",
+        String::from_utf8_lossy(&second.stderr)
+    );
+    assert_eq!(
+        log_text(&log).matches("network create").count(),
+        1,
+        "a rerun recreated the overlay"
+    );
     let _ = std::fs::remove_dir_all(directory);
 }
 

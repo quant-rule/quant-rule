@@ -18,6 +18,7 @@ use crate::error::Error;
 use super::network;
 use super::placement;
 use super::secrets;
+use super::stateful;
 use super::v2::is_private_ip;
 
 /// The seven stateless services every v3 deployment places.
@@ -35,9 +36,10 @@ pub const REQUIRED_SERVICES: [&str; 7] = [
 pub const REQUIRED_DATABASES: [&str; 4] = ["gateway", "catalog", "evidence", "simulation"];
 
 /// Every infrastructure unit the v3 renderer places must be pinned.
-pub const REQUIRED_IMAGES: [&str; 11] = [
+pub const REQUIRED_IMAGES: [&str; 12] = [
     "traefik",
     "postgres",
+    "patroni",
     "etcd",
     "haproxy",
     "keepalived",
@@ -120,6 +122,8 @@ pub(crate) struct LoadedFiles {
     pub ingress_certificate: Option<String>,
     /// The ingress private key, when `tls` is `cert`.
     pub ingress_key: Option<String>,
+    /// The Postgres and etcd server leaves read once for rendering.
+    pub stateful_pki: stateful::StatefulFiles,
 }
 
 /// Validate a v3 descriptor and return the one read of every secret file.
@@ -131,10 +135,12 @@ pub(crate) fn load_files(descriptor: &Descriptor) -> Result<LoadedFiles, Error> 
     let secrets = secrets::load_values(descriptor)?;
     secrets::validate_values(descriptor, &secrets)?;
     let ingress = network::load_files(descriptor)?;
+    let stateful_pki = stateful::load(descriptor)?;
     Ok(LoadedFiles {
         secrets,
         ingress_certificate: ingress.certificate,
         ingress_key: ingress.key,
+        stateful_pki,
     })
 }
 
@@ -508,18 +514,11 @@ fn validate_stateful(descriptor: &Descriptor) -> Result<(), Error> {
         3,
     )?;
     let postgres = &descriptor.stateful.postgres;
-    if postgres.synchronous_standby == 0 {
+    if postgres.synchronous_standby != 1 {
         return Err(rule(
             "deploy.stateful.postgres.synchronous_standby",
             "stateful.postgres.synchronous_standby",
-            "must be at least one so committed rows keep RPO 0",
-        ));
-    }
-    if usize::try_from(postgres.synchronous_standby).unwrap_or(usize::MAX) >= postgres.nodes.len() {
-        return Err(rule(
-            "deploy.stateful.postgres.synchronous_standby",
-            "stateful.postgres.synchronous_standby",
-            "must be lower than the number of PostgreSQL nodes",
+            "must be exactly one so committed rows keep RPO 0 and writes fail closed without a synchronous standby",
         ));
     }
     if !postgres.pitr {

@@ -12,7 +12,7 @@ use serde::Serialize;
 
 use crate::descriptor::v3::{Descriptor, IngressTls};
 use crate::error::Error;
-use crate::validate::secrets::read_public_file;
+use crate::validate::secrets::{read_public_file, scope};
 use crate::validate::v3::LoadedFiles;
 
 use super::{create_dir, safe_component, write_private, write_public};
@@ -37,11 +37,12 @@ pub fn render(
             path: format!("secrets/{name}"),
             mode: "600".to_owned(),
             swarm_name: name.clone(),
+            scope: scope(name).to_owned(),
         });
     }
     let manifest = SecretManifest {
         v: "quantrule.deploy/v3",
-        note: "values are not listed; create the Swarm secrets from these files",
+        note: "values are not listed; app secrets are Swarm objects, stateful secrets are copied by tools/stateful.sh",
         files: entries,
     };
     let text = serde_json::to_string_pretty(&manifest).map_err(|error| Error::Invalid {
@@ -111,4 +112,5 @@ struct SecretEntry {
     path: String,
     mode: String,
     swarm_name: String,
+    scope: String,
 }

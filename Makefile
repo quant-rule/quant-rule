@@ -18,7 +18,7 @@ SECRETS_DIR ?= secrets
 PKI_DIR ?= pki
 COMPOSE_ENV = QR_SECRETS_DIR="$(abspath $(SECRETS_DIR))" QR_PKI_DIR="$(abspath $(PKI_DIR))" $(COMPOSE) --env-file "$(abspath $(SECRETS_DIR))/compose.env"
 
-.PHONY: help secrets pki up down reset logs ps scale gate verify test test-fast test-composed test-parity test-ha remote token compose-check backup restore dev-web swarm-validate swarm-render swarm-bootstrap swarm-status swarm-upgrade swarm-rollback swarm-verify
+.PHONY: help secrets pki up down reset logs ps scale gate verify test test-fast test-composed test-parity test-ha remote token compose-check backup restore dev-web swarm-validate swarm-render swarm-bootstrap swarm-status swarm-upgrade swarm-rollback swarm-verify stateful
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*## "; printf "QuantRule make targets\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -99,6 +99,8 @@ test-parity: ## Run the port-parity tier
 test-ha: ## Run the opt-in Swarm HA lab (pass ARGS=--plan or ARGS=--confirm)
 	./tools/test_tiers.sh ha $(ARGS)
 
+stateful: ## Operate the v3 stateful tier (ARGS="--plan" or network/copy/start/wait/status)
+	./tools/stateful.sh $(ARGS)
 swarm-validate: ## Validate the v3 HA descriptor and local files
 	./tools/swarm.sh validate
 swarm-render: ## Render the v3 HA stack, infra skeletons, jobs, and bootstrap

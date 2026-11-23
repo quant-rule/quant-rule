@@ -63,7 +63,7 @@ fn default_openssl() -> &'static Path {
         let path = std::env::temp_dir().join(format!("qr-fake-openssl-{}", std::process::id()));
         write_mode(
             &path,
-            "#!/bin/sh\nprintf 'Certificate will not expire\\nX509v3 Subject Alternative Name:\\n    DNS:quantrule.dev\\n'\nexit 0\n",
+            "#!/bin/sh\nprintf 'Certificate will not expire\\nX509v3 Subject Alternative Name:\\n    DNS:quantrule.dev, DNS:postgres, DNS:patroni-infra-1, DNS:patroni-infra-2, DNS:patroni-infra-3, DNS:etcd-infra-1, DNS:etcd-infra-2, DNS:etcd-infra-3\\n'\nexit 0\n",
             0o755,
         );
         path
@@ -89,6 +89,32 @@ fn write_mode(path: &Path, content: &str, mode: u32) {
     let _ = mode;
 }
 
+fn stage_pki(directory: &Path) -> PathBuf {
+    let root = directory.join("pki");
+    std::fs::create_dir_all(root.join("postgres")).expect("postgres pki");
+    std::fs::create_dir_all(root.join("etcd")).expect("etcd pki");
+    let ca = root.join("ca.crt");
+    write_mode(&ca, "fixture CA\n", 0o644);
+    for (directory, name) in [
+        ("postgres", "server"),
+        ("etcd", "server"),
+        ("etcd", "peer"),
+        ("etcd", "client"),
+    ] {
+        write_mode(
+            &root.join(directory).join(format!("{name}.crt")),
+            "fixture certificate\n",
+            0o644,
+        );
+        write_mode(
+            &root.join(directory).join(format!("{name}.key")),
+            "fixture key\n",
+            0o600,
+        );
+    }
+    ca
+}
+
 /// Create a descriptor whose secret and CA paths are local, mode-600 copies.
 fn local_descriptor(directory: &Path) -> PathBuf {
     let mut value: Value = serde_json::from_str(
@@ -103,12 +129,7 @@ fn local_descriptor(directory: &Path) -> PathBuf {
         write_mode(&destination, &content, 0o600);
         *path = serde_json::json!(destination.display().to_string());
     }
-    let ca = directory.join("ca.crt");
-    write_mode(
-        &ca,
-        "-----BEGIN CERTIFICATE-----\nfixture\n-----END CERTIFICATE-----\n",
-        0o644,
-    );
+    let ca = stage_pki(directory);
     for endpoint in ["database", "queue", "object_store"] {
         value["endpoints"][endpoint]["tls_ca"] = serde_json::json!(ca.display().to_string());
     }
@@ -287,10 +308,20 @@ fn v3_render_all_writes_the_stack_infra_jobs_and_manifest() {
         "infra/infra-1.yaml",
         "infra/edge-1.yaml",
         "bootstrap.sh",
+        "jobs/cluster-bootstrap.sh",
         "jobs/db-bootstrap.sh",
         "jobs/migrate.sh",
+        "patroni-infra-1.yml",
+        "etcd-infra-1.conf.yml",
+        "haproxy-edge-1.cfg",
+        "stateful-manifest.json",
         "secrets/manifest.json",
         "pki/database-ca.crt",
+        "pki/postgres/server.crt",
+        "pki/postgres/server.key",
+        "pki/etcd/server.crt",
+        "pki/etcd/peer.crt",
+        "pki/etcd/client.crt",
         "pki/ingress.crt",
         "pki/ingress.key",
         "quantrule_traefik.yml",
@@ -343,7 +374,12 @@ fn v3_render_all_writes_the_stack_infra_jobs_and_manifest() {
         keepalived.contains("203.0.113.20/32 dev eth0"),
         "{keepalived}"
     );
-    for script in ["bootstrap.sh", "jobs/db-bootstrap.sh", "jobs/migrate.sh"] {
+    for script in [
+        "bootstrap.sh",
+        "jobs/cluster-bootstrap.sh",
+        "jobs/db-bootstrap.sh",
+        "jobs/migrate.sh",
+    ] {
         let checked = Command::new("sh")
             .args(["-n", out.join(script).to_str().expect("path")])
             .output()
@@ -362,6 +398,10 @@ fn v3_render_all_writes_the_stack_infra_jobs_and_manifest() {
         "traefik-dynamic.yml",
         "keepalived-edge-1.conf",
         "keepalived-edge-2.conf",
+        "patroni-infra-1.yml",
+        "etcd-infra-1.conf.yml",
+        "haproxy-edge-1.cfg",
+        "stateful-manifest.json",
     ] {
         assert!(manifest.contains(path), "{path}: {manifest}");
     }
@@ -373,8 +413,18 @@ fn v3_render_all_writes_the_stack_infra_jobs_and_manifest() {
             (out.join("secrets"), 0o700),
             (out.join("secrets/gateway_token"), 0o600),
             (out.join("pki/database-ca.crt"), 0o644),
+            (out.join("pki/postgres/server.crt"), 0o644),
+            (out.join("pki/postgres/server.key"), 0o600),
+            (out.join("pki/etcd/server.crt"), 0o644),
+            (out.join("pki/etcd/server.key"), 0o600),
+            (out.join("pki/etcd/peer.key"), 0o600),
+            (out.join("pki/etcd/client.key"), 0o600),
             (out.join("pki/ingress.crt"), 0o644),
             (out.join("pki/ingress.key"), 0o600),
+            (out.join("patroni-infra-1.yml"), 0o600),
+            (out.join("etcd-infra-1.conf.yml"), 0o600),
+            (out.join("haproxy-edge-1.cfg"), 0o600),
+            (out.join("stateful-manifest.json"), 0o644),
             (out.join("quantrule_traefik.yml"), 0o644),
             (out.join("traefik-dynamic.yml"), 0o644),
             (out.join("keepalived-edge-1.conf"), 0o644),
@@ -776,6 +826,136 @@ fn v3_check_labels_a_lab_as_simulated_ha() {
     let printed = stdout(&output);
     assert!(printed.contains("Simulated HA"), "{printed}");
     assert!(!printed.contains("Real HA"), "{printed}");
+    let _ = std::fs::remove_dir_all(directory);
+}
+
+#[test]
+fn v3_check_with_out_reads_the_rendered_stateful_tree() {
+    let directory = temp_dir();
+    let descriptor_path = local_descriptor(&directory);
+    let descriptor = descriptor_value(&descriptor_path);
+    let digest = descriptor["image"]["digest"].as_str().expect("digest");
+    let fixture = probe_fixture(&directory, &descriptor, digest, "healthy");
+    let out = directory.join("out");
+    let render = run(&[
+        "render",
+        descriptor_path.to_str().expect("path"),
+        "--out",
+        out.to_str().expect("path"),
+        "--target",
+        "all",
+    ]);
+    assert!(render.status.success(), "{}", stderr(&render));
+    let output = run_envs(
+        &[
+            "check",
+            descriptor_path.to_str().expect("path"),
+            "--out",
+            out.to_str().expect("path"),
+        ],
+        &[(
+            "QR_DEPLOY_PROBE_FIXTURE",
+            fixture.to_str().expect("fixture"),
+        )],
+    );
+    assert!(
+        output.status.success(),
+        "{}{}",
+        stdout(&output),
+        stderr(&output)
+    );
+    let printed = stdout(&output);
+    for expected in [
+        "ok\tstateful\trender tree\tcomplete",
+        "ok\tstateful\tpatroni\tsynchronous-mode",
+        "ok\tstateful\tetcd\tclient-tls",
+        "ok\tstateful\thaproxy\thealth-check",
+        "ok\tstateful\tmanifest\tsans",
+        "ok\tstateful\tpostgres certificate\tsan",
+        "ok\tstateful\tetcd peer certificate\tsan",
+    ] {
+        assert!(printed.contains(expected), "{expected}: {printed}");
+    }
+    let env_output = run_envs(
+        &["check", descriptor_path.to_str().expect("path")],
+        &[
+            (
+                "QR_DEPLOY_PROBE_FIXTURE",
+                fixture.to_str().expect("fixture"),
+            ),
+            ("QR_DEPLOY_OUT", out.to_str().expect("out")),
+        ],
+    );
+    assert!(
+        env_output.status.success(),
+        "{}{}",
+        stdout(&env_output),
+        stderr(&env_output)
+    );
+    assert!(
+        stdout(&env_output).contains("ok\tstateful\trender tree\tcomplete"),
+        "{}",
+        stdout(&env_output)
+    );
+    let _ = std::fs::remove_dir_all(directory);
+}
+
+#[test]
+fn v3_check_with_out_reports_a_missing_stateful_file() {
+    let directory = temp_dir();
+    let descriptor_path = local_descriptor(&directory);
+    let descriptor = descriptor_value(&descriptor_path);
+    let digest = descriptor["image"]["digest"].as_str().expect("digest");
+    let fixture = probe_fixture(&directory, &descriptor, digest, "healthy");
+    let out = directory.join("out");
+    let render = run(&[
+        "render",
+        descriptor_path.to_str().expect("path"),
+        "--out",
+        out.to_str().expect("path"),
+        "--target",
+        "all",
+    ]);
+    assert!(render.status.success(), "{}", stderr(&render));
+    std::fs::remove_file(out.join("patroni-infra-1.yml")).expect("remove patroni");
+    let output = run_envs(
+        &[
+            "check",
+            descriptor_path.to_str().expect("path"),
+            "--out",
+            out.to_str().expect("path"),
+        ],
+        &[(
+            "QR_DEPLOY_PROBE_FIXTURE",
+            fixture.to_str().expect("fixture"),
+        )],
+    );
+    assert_eq!(output.status.code(), Some(1));
+    let printed = stdout(&output);
+    assert!(
+        printed.contains("FAIL\tstateful\trender tree\tmissing"),
+        "{printed}"
+    );
+    assert!(printed.contains("patroni-infra-1.yml"), "{printed}");
+    let _ = std::fs::remove_dir_all(directory);
+}
+
+#[test]
+fn v3_check_out_is_v3_only() {
+    let directory = temp_dir();
+    let v2 = write_v2(&directory);
+    let output = run(&[
+        "check",
+        v2.to_str().expect("path"),
+        "--out",
+        directory.join("out").to_str().expect("out"),
+    ]);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(
+        stderr(&output).contains("only valid for quantrule.deploy/v3"),
+        "{}",
+        stderr(&output)
+    );
     let _ = std::fs::remove_dir_all(directory);
 }
 

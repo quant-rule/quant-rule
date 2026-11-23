@@ -23,6 +23,24 @@ const SERVICE_DATABASES: [(&str, &str); 4] = [
     ("simulation", "simulation"),
 ];
 
+/// The four stateful secrets Patroni and the cluster bootstrap consume.
+pub const STATEFUL_SECRETS: [&str; 4] = [
+    "postgres_superuser_password",
+    "patroni_replication_password",
+    "patroni_rewind_password",
+    "patroni_rest_password",
+];
+
+/// The rendered scope of a secret: `stateful` for the database tier, `app` otherwise.
+#[must_use]
+pub fn scope(name: &str) -> &'static str {
+    if STATEFUL_SECRETS.contains(&name) {
+        "stateful"
+    } else {
+        "app"
+    }
+}
+
 /// Validate the `secrets.files` map without opening a file.
 ///
 /// # Errors
@@ -82,6 +100,9 @@ fn required_names(descriptor: &Descriptor) -> BTreeSet<String> {
     for (service, _) in SERVICE_DATABASES {
         names.insert(format!("{service}_database_url"));
         names.insert(format!("{service}_owner_database_url"));
+    }
+    for name in STATEFUL_SECRETS {
+        names.insert(name.to_owned());
     }
     names.insert(descriptor.auth.gateway_token_secret.clone());
     names
@@ -257,6 +278,43 @@ pub fn validate_values(
     })?;
     check_password(secret_field, secret)?;
     check_duplicate(&mut credentials, secret, secret_field)?;
+
+    for name in STATEFUL_SECRETS {
+        let field = format!("secrets.files.{name}");
+        let value = values.get(name).ok_or_else(|| {
+            rule(
+                "deploy.secrets.missing",
+                &field,
+                format!("{name} is required for the v3 database tier"),
+            )
+        })?;
+        check_stateful_password(&field, value)?;
+        check_duplicate(&mut credentials, value, &field)?;
+    }
+    Ok(())
+}
+
+/// A stateful password is strong, URL-safe, and not a documented default.
+fn check_stateful_password(field: &str, value: &str) -> Result<(), Error> {
+    check_password(field, value)?;
+    let lower = value.to_ascii_lowercase();
+    if lower.contains("postgres") || lower.contains("patroni") {
+        return Err(rule(
+            "deploy.secret.default_credential",
+            field,
+            "must not use a documented default or template stateful credential",
+        ));
+    }
+    if !value
+        .bytes()
+        .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b'~'))
+    {
+        return Err(rule(
+            "deploy.secret.url_safe",
+            field,
+            "must contain only ASCII letters, digits, and -._~ so it is safe in a URL and a config file",
+        ));
+    }
     Ok(())
 }
 
@@ -745,6 +803,54 @@ mod tests {
             serde_json::json!("amqps://user:value@host:5671/%2f");
         let error = validate_structure(&descriptor(value)).expect_err("an inline value");
         assert!(error.to_string().contains("deploy.secrets.path"), "{error}");
+    }
+
+    #[test]
+    fn a_stateful_secret_is_required_and_distinct() {
+        let mut value = sample();
+        value["secrets"]["files"]
+            .as_object_mut()
+            .expect("files")
+            .remove("patroni_rest_password");
+        let error = v3::validate(&descriptor(value)).expect_err("a missing stateful secret");
+        assert!(
+            error.to_string().contains("deploy.secrets.missing"),
+            "{error}"
+        );
+        assert!(
+            error.to_string().contains("patroni_rest_password"),
+            "{error}"
+        );
+
+        let (descriptor, directory) = stage(&mut sample());
+        write_mode_600(
+            &directory.join("postgres_superuser_password"),
+            "gateway-app-4f8c2a1e6d9b7c30",
+        );
+        let error = validate_files(&descriptor).expect_err("a duplicate stateful password");
+        assert!(
+            error
+                .to_string()
+                .contains("deploy.secret.duplicate_credential"),
+            "{error}"
+        );
+        let _ = std::fs::remove_dir_all(directory);
+    }
+
+    #[test]
+    fn a_stateful_secret_is_strong_url_safe_and_not_a_default() {
+        for (value, expected) in [
+            ("short", "deploy.secret.weak_credential"),
+            ("postgres-postgres", "deploy.secret.default_credential"),
+            ("has a space in the value", "deploy.file.whitespace"),
+            ("stateful:secret/with-colon", "deploy.secret.url_safe"),
+        ] {
+            let (descriptor, directory) = stage(&mut sample());
+            write_mode_600(&directory.join("patroni_rest_password"), value);
+            let error = validate_files(&descriptor).expect_err(value);
+            assert!(error.to_string().contains(expected), "{value}: {error}");
+            let _ = std::fs::remove_dir_all(directory);
+        }
     }
 
     #[test]

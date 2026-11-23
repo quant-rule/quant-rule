@@ -5,25 +5,34 @@ configuration, the fake fixture secrets and ingress certificate, and the local
 contract examples. The contract is
 [`docs/config/2026-11-22/deploy-v3.md`](../../docs/config/2026-11-22/deploy-v3.md);
 the ingress contract is
-[`docs/config/2026-11-23/ingress.md`](../../docs/config/2026-11-23/ingress.md).
+[`docs/config/2026-11-23/ingress.md`](../../docs/config/2026-11-23/ingress.md),
+and the stateful database contract is
+[`docs/config/2026-11-23/patroni-cluster.md`](../../docs/config/2026-11-23/patroni-cluster.md).
 
 `qr-deploy` implements the closed schema, version-first dispatch, `validate`,
 `validate --files`, `render`, and `check`. The renderer writes the seven-service
 Swarm stack, the static and dynamic Traefik files, the per-edge keepalived files,
-the pinned per-host stateful/observability skeletons, the operator job scripts,
-the secret/PKI copies, and `render.json`. The checker validates the descriptor,
-placement, pins, and local files and probes the one HTTPS ingress.
+the per-host Patroni/etcd/HAProxy configuration, the RabbitMQ/MinIO/observability
+units, the stateful manifest, the ordered operator jobs, the secret/PKI copies,
+and `render.json`. The checker validates the descriptor,
+placement, pins, secrets, PKI, and local files and probes the one HTTPS ingress.
 `tools/swarm.sh` wraps render, bootstrap, status, upgrade, rollback, and verify;
 the control-plane contract is
 [`docs/config/2026-11-23/swarm-control.md`](../../docs/config/2026-11-23/swarm-control.md).
-`qr-deploy check --remote docker --overlay` adds the read-only Swarm, node,
+`qr-deploy check` adds the stateful rows (Patroni sync/rewind/archive/TLS/
+pg_hba/watchdog, etcd mTLS, HAProxy `/primary`, the manifest, and the Postgres/
+etcd certificate SANs). `--out <render-dir>` or `QR_DEPLOY_OUT` reads a rendered
+tree; without it the configs render in memory and the certificates come from the
+descriptor CA. `--remote docker --overlay` adds the read-only Swarm, node,
 overlay, service, port, task, and ingress-mount rows; the default check stays
-Docker-free. `tools/test_tiers.sh ha` runs the opt-in lab harness in `test.sh`;
-`--plan` is Docker-free. The harness drains the VIP holder, probes 1 Hz during
-the move, runs the port-80/direct-edge/app-port negative controls, and prints
-`UNVERIFIED` when the lab precondition is not met. The shell trusts the private
-CA with `QUANTRULE_CA_CERT`; the browser uses the OS trust store. v2 output is
-unchanged.
+Docker-free. `tools/test_tiers.sh ha` defaults to `deploy.lab.json` and runs the
+opt-in lab in `test.sh`; `--plan` is Docker-free. The harness drains the VIP
+holder, pauses the Patroni primary and one HAProxy, measures RTO, writes and
+re-reads markers through `postgres`, compares the digest/LSN, runs the
+8404/5432/8080/9000 negative controls, records the rejoin, and prints
+`UNVERIFIED` when a precondition is not met. `--skip-database` leaves the
+failover row `Unverified`. The shell trusts the private CA with
+`QUANTRULE_CA_CERT`; the browser uses the OS trust store. v2 output is unchanged.
 
 ## Validate, render, check
 
@@ -49,7 +58,7 @@ install -m 600 deploy/v3/pki/ingress-key.pem /tmp/qr-v3-pki/ingress.key
 # point secrets.files, endpoints.*.tls_ca, and ingress.files at the local copies, then:
 qr-deploy validate /tmp/deploy.json --files
 qr-deploy render /tmp/deploy.json --out /tmp/qr-v3-out --target all
-qr-deploy check /tmp/deploy.json
+qr-deploy check /tmp/deploy.json --out /tmp/qr-v3-out
 ```
 
 `--target swarm` writes `stack.yaml`, `quantrule_traefik.yml`,
@@ -62,10 +71,11 @@ rejects `--target`.
 ## Fixture secrets
 
 `secrets/` contains one fake value per required secret: the gateway token, the
-four database app/owner URLs, the queue URL, and the S3 access/secret pair.
-Every role has a distinct password, so the duplicate-credential rule can be
-tested. The values are deliberately non-default but are not real secrets; never
-deploy them.
+four database app/owner URLs, the queue URL, the S3 access/secret pair, and the
+four stateful Patroni/cluster passwords. Every role has a distinct password, so
+the duplicate-credential rule can be tested. The stateful values are URL-safe.
+The values are deliberately non-default but are not real secrets; never deploy
+them.
 
 `pki/ingress.crt` and `pki/ingress-key.pem` are fake cert-mode fixtures. The
 `.pem` name and the absent PEM key block keep the repository private-key checker

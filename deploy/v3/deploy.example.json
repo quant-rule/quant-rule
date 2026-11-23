@@ -15,6 +15,10 @@
       "reference": "postgres",
       "digest": "sha256:dc184ed86a2b6421fd5ea1bf2ffa3d6e9f1df86796bf0830a7476eb064a186ff"
     },
+    "patroni": {
+      "reference": "patroni/patroni",
+      "digest": "sha256:e78141e6fe0807c466f17d8343f99249c7480a94d603bc03f91b10e79e7b94fd"
+    },
     "etcd": {
       "reference": "quay.io/coreos/etcd",
       "digest": "sha256:a6cec115044c30857d8458d120facbaa2251f21fd4ad39296a99017468d482dc"
@@ -241,6 +245,7 @@
         "infra-3"
       ],
       "synchronous_standby": 1,
+      "watchdog": "automatic",
       "pitr": true
     },
     "etcd": {
@@ -311,7 +316,11 @@
       "simulation_owner_database_url": "/etc/quantrule/secrets/simulation_owner_database_url",
       "queue_url": "/etc/quantrule/secrets/queue_url",
       "object_store_access_key": "/etc/quantrule/secrets/object_store_access_key",
-      "object_store_secret_key": "/etc/quantrule/secrets/object_store_secret_key"
+      "object_store_secret_key": "/etc/quantrule/secrets/object_store_secret_key",
+      "postgres_superuser_password": "/etc/quantrule/secrets/postgres_superuser_password",
+      "patroni_replication_password": "/etc/quantrule/secrets/patroni_replication_password",
+      "patroni_rewind_password": "/etc/quantrule/secrets/patroni_rewind_password",
+      "patroni_rest_password": "/etc/quantrule/secrets/patroni_rest_password"
     }
   }
 }

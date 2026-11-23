@@ -181,9 +181,6 @@ fn render_command(mut args: impl Iterator<Item = String>) -> Result<ExitCode, Er
 fn check_command(mut args: impl Iterator<Item = String>) -> Result<ExitCode, Error> {
     let config = config_arg(&mut args)?;
     let flags = flags(&mut args)?;
-    if flags.out.is_some() {
-        return Err(Error::Usage("check does not accept --out".to_owned()));
-    }
     if flags.target.is_some() {
         return Err(Error::Usage(
             "check --target is only valid for render".to_owned(),
@@ -205,6 +202,11 @@ fn check_command(mut args: impl Iterator<Item = String>) -> Result<ExitCode, Err
                 return Err(Error::Usage(
                     "check --remote and --overlay are only valid for quantrule.deploy/v3"
                         .to_owned(),
+                ));
+            }
+            if flags.out.is_some() {
+                return Err(Error::Usage(
+                    "check --out is only valid for quantrule.deploy/v3".to_owned(),
                 ));
             }
             let secrets_path = flags
@@ -263,9 +265,15 @@ fn check_command(mut args: impl Iterator<Item = String>) -> Result<ExitCode, Err
                         .to_owned(),
                 ));
             }
+            let out = flags.out.clone().or_else(|| {
+                std::env::var_os("QR_DEPLOY_OUT")
+                    .filter(|value| !value.is_empty())
+                    .map(PathBuf::from)
+            });
             let options = check::CheckOptions {
                 remote_docker,
                 overlay: flags.overlay,
+                out,
             };
             let report = check::v3::check(&descriptor, options)?;
             print!("{}", report.render());
@@ -365,11 +373,14 @@ Usage:
   qr-deploy render <deploy.json> --out <dir> [--secrets <secrets.env>]        (v2)
   qr-deploy render <deploy.json> --out <dir> --target swarm|infra|all         (v3)
   qr-deploy check <deploy.json> [--secrets <secrets.env>]                     (v2)
-  qr-deploy check <deploy.json> [--remote docker] [--overlay]                (v3)
+  qr-deploy check <deploy.json> [--out <render-dir>] [--remote docker] [--overlay] (v3)
 
 The descriptor is quantrule.deploy/v2 or quantrule.deploy/v3. v2 secrets stay in
 a dotenv file and are referenced as ${NAME}. v3 names secrets.files, renders the
 Swarm stack and pinned per-host unit skeletons, and checks the one HTTPS ingress.
+--out reads the rendered tree for the stateful config and certificate rows;
+QR_DEPLOY_OUT supplies the same path. Without it the stateful rows render in
+memory and read the certificate leaves under the descriptor CA's parent.
 --remote docker and --overlay are explicit read-only Docker opt-ins; set
 QR_DEPLOY_DOCKER to override the docker executable. A lab-single-host profile
 reports Simulated HA, never Real HA.

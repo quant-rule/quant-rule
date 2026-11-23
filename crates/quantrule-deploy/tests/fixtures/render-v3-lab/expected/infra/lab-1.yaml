@@ -1,0 +1,260 @@
+name: "quantrule-infra-lab-1"
+networks:
+  quantrule:
+    external: true
+    name: "quantrule"
+services:
+  etcd:
+    command:
+      -
+        "etcd"
+      -
+        "--config-file"
+      -
+        "/etc/etcd/etcd.conf.yml"
+    container_name: "quantrule-etcd-lab-1"
+    image: "quay.io/coreos/etcd@sha256:a6cec115044c30857d8458d120facbaa2251f21fd4ad39296a99017468d482dc"
+    networks:
+      quantrule:
+        aliases:
+          -
+            "etcd-lab-1"
+    restart: "unless-stopped"
+    stop_grace_period: "40s"
+    volumes:
+      -
+        read_only: false
+        source: "/srv/quantrule/etcd/data"
+        target: "/etcd-data"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/etcd/etcd.conf.yml"
+        target: "/etc/etcd/etcd.conf.yml"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/pki/ca.crt"
+        target: "/etc/quantrule/pki/ca.crt"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/pki/etcd"
+        target: "/etc/quantrule/pki/etcd"
+        type: "bind"
+  grafana:
+    container_name: "quantrule-grafana-lab-1"
+    image: "grafana/grafana@sha256:2e28e87d9b98ca68880a966df73ad63f90db6b4df6ae86637e130f52f48264ba"
+    networks:
+      -
+        "quantrule"
+    restart: "unless-stopped"
+    stop_grace_period: "40s"
+    volumes:
+      -
+        read_only: false
+        source: "/srv/quantrule/grafana/data"
+        target: "/var/lib/grafana"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/grafana"
+        target: "/etc/grafana/provisioning"
+        type: "bind"
+  haproxy:
+    command:
+      -
+        "/bin/sh"
+      -
+        "-c"
+      -
+        "set -eu\numask 077\nauth=\"patroni:$$(cat /run/secrets/patroni_rest_password)\"\nencoded=$$(printf '%s' \"$$auth\" | base64 | tr -d '\\n')\nsed \"s|__PATRONI_REST_AUTH__|$$encoded|g\" /usr/local/etc/haproxy/haproxy.cfg > /tmp/haproxy.cfg\nexec haproxy -W -db -f /tmp/haproxy.cfg"
+    container_name: "quantrule-haproxy-lab-1"
+    image: "haproxy@sha256:2a88fcd69de33b07362a9b98f822f2b31f7607932356829cee9a5d44d851a2db"
+    networks:
+      quantrule:
+        aliases:
+          -
+            "haproxy-lab-1"
+          -
+            "postgres"
+    restart: "unless-stopped"
+    stop_grace_period: "40s"
+    volumes:
+      -
+        read_only: true
+        source: "/etc/quantrule/haproxy/haproxy.cfg"
+        target: "/usr/local/etc/haproxy/haproxy.cfg"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/secrets/patroni_rest_password"
+        target: "/run/secrets/patroni_rest_password"
+        type: "bind"
+  keepalived:
+    cap_add:
+      -
+        "NET_ADMIN"
+      -
+        "NET_BROADCAST"
+    container_name: "quantrule-keepalived-lab-1"
+    image: "osixia/keepalived@sha256:67a5f8c8ca46f83c69a30376f47eaa4704f29a0495675433812d5216b0171682"
+    network_mode: "host"
+    restart: "unless-stopped"
+    stop_grace_period: "40s"
+    volumes:
+      -
+        read_only: true
+        source: "/etc/quantrule/keepalived.conf"
+        target: "/etc/keepalived/keepalived.conf"
+        type: "bind"
+  minio:
+    container_name: "quantrule-minio-lab-1"
+    image: "minio/minio@sha256:bdf0781acceb93983c15eec9e56bfbd59dcadc98ea57467022d61aeee074a2cc"
+    networks:
+      quantrule:
+        aliases:
+          -
+            "minio"
+    restart: "unless-stopped"
+    stop_grace_period: "40s"
+    volumes:
+      -
+        read_only: false
+        source: "/srv/quantrule/minio/lab-1/drive1"
+        target: "/data1"
+        type: "bind"
+      -
+        read_only: false
+        source: "/srv/quantrule/minio/lab-1/drive2"
+        target: "/data2"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/minio/minio.conf"
+        target: "/etc/minio/minio.conf"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/pki/minio"
+        target: "/etc/quantrule/pki"
+        type: "bind"
+  patroni:
+    command:
+      -
+        "/bin/sh"
+      -
+        "-c"
+      -
+        "set -eu\numask 077\nexport PATRONI_SUPERUSER_PASSWORD=\"$$(cat /run/secrets/postgres_superuser_password)\"\nexport PATRONI_REPLICATION_PASSWORD=\"$$(cat /run/secrets/patroni_replication_password)\"\nexport PATRONI_REWIND_PASSWORD=\"$$(cat /run/secrets/patroni_rewind_password)\"\nexport PATRONI_RESTAPI_PASSWORD=\"$$(cat /run/secrets/patroni_rest_password)\"\nexec patroni /etc/patroni/patroni.yml"
+    container_name: "quantrule-patroni-lab-1"
+    image: "patroni/patroni@sha256:e78141e6fe0807c466f17d8343f99249c7480a94d603bc03f91b10e79e7b94fd"
+    networks:
+      quantrule:
+        aliases:
+          -
+            "patroni-lab-1"
+    restart: "unless-stopped"
+    stop_grace_period: "40s"
+    volumes:
+      -
+        read_only: false
+        source: "/srv/quantrule/patroni/data"
+        target: "/var/lib/postgresql/data"
+        type: "bind"
+      -
+        read_only: false
+        source: "/srv/quantrule/patroni/wal-archive"
+        target: "/srv/quantrule/wal-archive"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/patroni/patroni.yml"
+        target: "/etc/patroni/patroni.yml"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/pki/ca.crt"
+        target: "/etc/quantrule/pki/ca.crt"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/pki/postgres"
+        target: "/etc/quantrule/pki/postgres"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/pki/etcd"
+        target: "/etc/quantrule/pki/etcd"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/secrets/postgres_superuser_password"
+        target: "/run/secrets/postgres_superuser_password"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/secrets/patroni_replication_password"
+        target: "/run/secrets/patroni_replication_password"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/secrets/patroni_rewind_password"
+        target: "/run/secrets/patroni_rewind_password"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/secrets/patroni_rest_password"
+        target: "/run/secrets/patroni_rest_password"
+        type: "bind"
+  prometheus:
+    container_name: "quantrule-prometheus-lab-1"
+    image: "prom/prometheus@sha256:c4bfb1e3ef91709eca17ae08b3676ac008939765ad9cf6c2b4617f363b1354be"
+    networks:
+      -
+        "quantrule"
+    restart: "unless-stopped"
+    stop_grace_period: "40s"
+    volumes:
+      -
+        read_only: false
+        source: "/srv/quantrule/prometheus/data"
+        target: "/prometheus"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/prometheus/prometheus.yml"
+        target: "/etc/prometheus/prometheus.yml"
+        type: "bind"
+  rabbitmq:
+    container_name: "quantrule-rabbitmq-lab-1"
+    image: "rabbitmq@sha256:605a57a95a166325381f132867163eafc20cb0ece6039504e45681136550e6b7"
+    networks:
+      quantrule:
+        aliases:
+          -
+            "rabbitmq"
+    restart: "unless-stopped"
+    stop_grace_period: "40s"
+    volumes:
+      -
+        read_only: false
+        source: "/srv/quantrule/rabbitmq/data"
+        target: "/var/lib/rabbitmq"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/rabbitmq/rabbitmq.conf"
+        target: "/etc/rabbitmq/rabbitmq.conf"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/pki/rabbitmq"
+        target: "/etc/quantrule/pki"
+        type: "bind"
+x-quantrule:
+  evidence: "Simulated HA"
+  network: "overlay, attachable, encrypted; created by bootstrap.sh"
+  owner: "PLAT-003"
+  platform: "keepalived is PLAT-002; Patroni, etcd, and HAProxy are configured by PLAT-003; RabbitMQ, MinIO, and observability remain PLAT-004..006"
+  profile: "lab-single-host"

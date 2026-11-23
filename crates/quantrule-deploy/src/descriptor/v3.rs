@@ -48,6 +48,31 @@ pub enum IngressTls {
     Cert,
 }
 
+/// How Patroni uses a watchdog device.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Watchdog {
+    /// Patroni does not touch a watchdog.
+    #[default]
+    Off,
+    /// Patroni configures the device when it is present and keeps running without it.
+    Automatic,
+    /// Patroni requires the device; a missing or unopenable device is a startup error.
+    Required,
+}
+
+impl Watchdog {
+    /// The descriptor spelling.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Off => "off",
+            Self::Automatic => "automatic",
+            Self::Required => "required",
+        }
+    }
+}
+
 /// One image reference and its digest pin.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -211,8 +236,11 @@ pub struct Service {
 pub struct PostgresStateful {
     /// The Patroni member hosts.
     pub nodes: Vec<String>,
-    /// The number of synchronous standbys; at least one.
+    /// The number of synchronous standbys; must be one.
     pub synchronous_standby: u32,
+    /// Whether Patroni uses a watchdog device.
+    #[serde(default)]
+    pub watchdog: Watchdog,
     /// Whether pgBackRest PITR is enabled; must be true.
     pub pitr: bool,
 }
