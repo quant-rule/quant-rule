@@ -1,0 +1,38 @@
+name: "quantrule-infra-infra-4"
+networks:
+  quantrule:
+    external: true
+    name: "quantrule"
+services:
+  minio:
+    container_name: "quantrule-minio-infra-4"
+    image: "minio/minio@sha256:bdf0781acceb93983c15eec9e56bfbd59dcadc98ea57467022d61aeee074a2cc"
+    networks:
+      quantrule:
+        aliases:
+          -
+            "minio"
+    restart: "unless-stopped"
+    stop_grace_period: "40s"
+    volumes:
+      -
+        read_only: false
+        source: "/srv/quantrule/minio/infra-4/drive1"
+        target: "/data1"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/minio/minio.conf"
+        target: "/etc/minio/minio.conf"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/pki/minio"
+        target: "/etc/quantrule/pki"
+        type: "bind"
+x-quantrule:
+  evidence: "HA profile (unverified)"
+  network: "overlay, attachable, encrypted; created by bootstrap.sh"
+  owner: "HA-012"
+  platform: "unit configuration belongs to PLAT-003/004/005/006; this file only pins the image, host volumes, and overlay attachment"
+  profile: "swarm-ha"

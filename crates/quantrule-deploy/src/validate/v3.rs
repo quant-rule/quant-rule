@@ -88,6 +88,7 @@ pub fn validate(descriptor: &Descriptor) -> Result<(), Error> {
     validate_image(&descriptor.image, "image")?;
     validate_images(descriptor)?;
     validate_hosts(descriptor)?;
+    validate_swarm(descriptor)?;
     network::validate(descriptor)?;
     validate_auth(descriptor)?;
     secrets::validate_structure(descriptor)?;
@@ -301,6 +302,52 @@ fn validate_hosts(descriptor: &Descriptor) -> Result<(), Error> {
     Ok(())
 }
 
+fn validate_swarm(descriptor: &Descriptor) -> Result<(), Error> {
+    let managers = &descriptor.swarm.managers;
+    if managers.is_empty() {
+        return Err(rule(
+            "deploy.swarm.managers",
+            "swarm.managers",
+            "must name the odd Swarm manager hosts",
+        ));
+    }
+    if managers.len().is_multiple_of(2) {
+        return Err(rule(
+            "deploy.swarm.managers",
+            "swarm.managers",
+            format!(
+                "must list an odd number of managers; found {}",
+                managers.len()
+            ),
+        ));
+    }
+    if managers.len() < 3 {
+        return Err(rule(
+            "deploy.swarm.managers",
+            "swarm.managers",
+            "must list at least three managers so one loss keeps quorum",
+        ));
+    }
+    let mut seen = BTreeSet::new();
+    for manager in managers {
+        if !seen.insert(manager.as_str()) {
+            return Err(rule(
+                "deploy.swarm.managers",
+                "swarm.managers",
+                format!("{manager} is listed twice"),
+            ));
+        }
+        if !descriptor.hosts.contains_key(manager) {
+            return Err(rule(
+                "deploy.swarm.managers",
+                "swarm.managers",
+                format!("{manager} is not declared in hosts"),
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn validate_auth(descriptor: &Descriptor) -> Result<(), Error> {
     if descriptor.secrets.files.is_empty() {
         return Err(rule(
@@ -506,11 +553,15 @@ fn validate_stateful(descriptor: &Descriptor) -> Result<(), Error> {
             "must be true; the HA profile uses quorum queues",
         ));
     }
+    let minio_minimum = match descriptor.profile {
+        Profile::SwarmHa | Profile::SingleAz => 4,
+        Profile::LabSingleHost => 3,
+    };
     validate_nodes(
         descriptor,
         "stateful.minio.nodes",
         &descriptor.stateful.minio.nodes,
-        3,
+        minio_minimum,
     )?;
     validate_minio_drives(descriptor)?;
     Ok(())
@@ -569,6 +620,15 @@ fn validate_minio_drives(descriptor: &Descriptor) -> Result<(), Error> {
             "deploy.stateful.minio.drives",
             "stateful.minio.drives",
             format!("must total at least four drives for erasure coding; found {total}"),
+        ));
+    }
+    if descriptor.profile != Profile::LabSingleHost
+        && minio.drives.iter().any(|drives| *drives != 1)
+    {
+        return Err(rule(
+            "deploy.stateful.minio.drives",
+            "stateful.minio.drives",
+            "the HA profiles use one drive on each of four or more nodes",
         ));
     }
     Ok(())

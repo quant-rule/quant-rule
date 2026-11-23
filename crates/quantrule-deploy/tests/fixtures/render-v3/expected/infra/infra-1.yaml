@@ -64,11 +64,6 @@ services:
         target: "/data1"
         type: "bind"
       -
-        read_only: false
-        source: "/srv/quantrule/minio/infra-1/drive2"
-        target: "/data2"
-        type: "bind"
-      -
         read_only: true
         source: "/etc/quantrule/minio/minio.conf"
         target: "/etc/minio/minio.conf"

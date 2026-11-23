@@ -1,13 +1,15 @@
 # quantrule.deploy/v3
 
 - Date: 2026-11-22 (UTC)
-- Status: Current for schema, validation, render, and check (HA-012); platform
-  execution and unit configuration belong to PLAT-001..007
+- Status: Current for schema, validation, render, check, the remote/overlay
+  inspector, and the PLAT-001 bootstrap/rolling-update control plane; platform
+  unit configuration belongs to PLAT-002..007
 - Claim type: Behaviour Claim
 - Issue: [#1110](https://github.com/quant-rule/quant-rule/issues/1110)
 - Related: [ADR-HA](../../adr/2026-11-22/1082-ha-deployment-profile.md),
   [HA architecture](../../architecture/ha.md),
   [Multi-host](../../architecture/multi-host.md),
+  [Swarm control plane](../2026-11-23/swarm-control.md),
   [secret files](../2026-11-23/secret-files.md),
   [internal TLS](../2026-11-23/internal-tls.md),
   [HA deployment chapter](../../manual/15-ha-deployment.md)
@@ -41,7 +43,8 @@ the other profiles keep `1`.
 ## 2. Shape
 
 The sample is authoritative. This excerpt repeats one host, one database, and
-two services to show every block; the sample has the full sets.
+two services and omits the ten pinned infrastructure images to show the other
+blocks; the sample lists every pin.
 
 ```json
 {
@@ -49,18 +52,6 @@ two services to show every block; the sample has the full sets.
   "profile": "swarm-ha",
   "name": "quantrule-ha",
   "image": { "reference": "registry.quantrule.dev/quantrule/server", "digest": "sha256:…" },
-  "images": {
-    "traefik": { "reference": "traefik", "digest": "sha256:…" },
-    "postgres": { "reference": "postgres", "digest": "sha256:…" },
-    "etcd": { "reference": "quay.io/coreos/etcd", "digest": "sha256:…" },
-    "haproxy": { "reference": "haproxy", "digest": "sha256:…" },
-    "rabbitmq": { "reference": "rabbitmq", "digest": "sha256:…" },
-    "minio": { "reference": "minio/minio", "digest": "sha256:…" },
-    "prometheus": { "reference": "prom/prometheus", "digest": "sha256:…" },
-    "grafana": { "reference": "grafana/grafana", "digest": "sha256:…" },
-    "loki": { "reference": "grafana/loki", "digest": "sha256:…" },
-    "alertmanager": { "reference": "prom/alertmanager", "digest": "sha256:…" }
-  },
   "network": { "overlay": "quantrule", "encrypted": true },
   "ingress": {
     "dns": "quantrule.dev",
@@ -80,8 +71,10 @@ two services to show every block; the sample has the full sets.
     "compute-3": { "address": "10.0.1.33", "failure_domain": "az3" },
     "infra-1": { "address": "10.0.1.41", "failure_domain": "az1" },
     "infra-2": { "address": "10.0.1.42", "failure_domain": "az2" },
-    "infra-3": { "address": "10.0.1.43", "failure_domain": "az3" }
+    "infra-3": { "address": "10.0.1.43", "failure_domain": "az3" },
+    "infra-4": { "address": "10.0.1.44", "failure_domain": "az4" }
   },
+  "swarm": { "managers": ["edge-1", "core-2", "compute-3"] },
   "endpoints": {
     "database": { "host": "postgres", "port": 5432, "sslmode": "verify-full", "tls_ca": "/etc/quantrule/pki/ca.crt" },
     "queue": { "host": "rabbitmq", "port": 5671, "scheme": "amqps", "tls_ca": "/etc/quantrule/pki/ca.crt" },
@@ -99,7 +92,7 @@ two services to show every block; the sample has the full sets.
     "etcd": { "nodes": ["infra-1", "infra-2", "infra-3"] },
     "haproxy": { "nodes": ["edge-1", "edge-2"] },
     "rabbitmq": { "nodes": ["infra-1", "infra-2", "infra-3"], "quorum": true },
-    "minio": { "nodes": ["infra-1", "infra-2", "infra-3"], "drives": [2, 1, 1] }
+    "minio": { "nodes": ["infra-1", "infra-2", "infra-3", "infra-4"], "drives": [1, 1, 1, 1] }
   },
   "observability": {
     "prometheus": { "host": "infra-1" },
@@ -117,13 +110,13 @@ two services to show every block; the sample has the full sets.
 }
 ```
 
-The sample has ten hosts: two edge (ingress and gateway), two core (data,
-evidence, simulation), three compute (model, strategy, backtest), and three
+The sample has eleven hosts: two edge (ingress and gateway), two core (data,
+evidence, simulation), three compute (model, strategy, backtest), and four
 infrastructure hosts (PostgreSQL, etcd, HAProxy on the edge pair, RabbitMQ,
-MinIO, observability). Compute hosts are deliberately spread across `az1`,
-`az2`, and `az3`; the old two-host draft put both in `az3` and could not satisfy
-anti-affinity. The six HTTP services use their internal `8080` port and
-`backtest` uses `9090` for its internal listener; no service port is published.
+MinIO, observability). Compute hosts span `az1`..`az3`; the four infrastructure
+hosts span `az1`..`az4`, so four MinIO nodes each contribute one drive in a
+distinct failure domain. The six HTTP services use `8080`; backtest uses `9090`
+for its internal listener; no service port is published.
 
 ## 3. Fields
 
@@ -141,6 +134,7 @@ anti-affinity. The six HTTP services use their internal `8080` port and
 | `ingress.replicas` / `hosts` | At least one; `swarm-ha` needs two and two failure domains; every host needs `public_address`. |
 | `auth.gateway_token_secret` | A key in `secrets.files`; never an inline token. |
 | `hosts` | Private `address`, `failure_domain`, and an optional `public_address` only on an ingress host. |
+| `swarm.managers` | Odd (at least three), distinct, declared host keys; each host must be a Swarm manager. |
 | `endpoints` | Structured PostgreSQL, queue, and object-store endpoints with absolute `tls_ca` paths and no userinfo. |
 | `databases` | Exactly `gateway`, `catalog`, `evidence`, `simulation`, each with its fixed `qr_*` database, owner role, and app role. |
 | `services` | Exactly `gateway`, `data`, `model`, `strategy`, `backtest`, `evidence`, `simulation`; `replicas`, `hosts`, `port`; no published port. |
@@ -162,7 +156,8 @@ files and credential quality.
 | `swarm-ha` has at least three failure domains | `deploy.profile.failure_domains` |
 | Replicas <= distinct hosts and distinct domains in `swarm-ha` and `single-az` | `deploy.service.anti_affinity` |
 | `single-az` keeps host and domain anti-affinity without a three-domain minimum | `deploy.service.anti_affinity` |
-| PostgreSQL/etcd/RabbitMQ >=3, HAProxy 2, MinIO >=3 with drives totalling >=4 | `deploy.stateful.*` |
+| `swarm.managers` is odd, at least three, distinct, and declared; each is a manager | `deploy.swarm.managers` |
+| PostgreSQL/etcd/RabbitMQ >=3, HAProxy 2, MinIO >=4 in the HA profiles with one drive per node | `deploy.stateful.*` |
 | Stateful members use distinct hosts and, in `swarm-ha`, distinct domains | `deploy.stateful.anti_affinity` |
 | Postgres `sslmode=verify-full`; queue `amqps`/5671; object store `https` | `deploy.endpoint.*` |
 | CA and secret paths are absolute; no userinfo | `deploy.endpoint.host`, `deploy.file.absolute` |
@@ -186,8 +181,8 @@ qr-deploy render deploy.json --out out --target swarm|infra|all
 ```
 
 `--target` is v3-only. v2 `render` keeps its original `--out`/`--secrets`
-surface and is byte-identical; passing `--target` to v2 is a usage error. v3
-without `--target` is a usage error.
+surface and is byte-identical; `--target` on v2 and a missing target on v3 are
+usage errors.
 
 | Target | Writes |
 |---|---|
@@ -204,51 +199,50 @@ or whitespace, removes only its own known outputs, and leaves an operator's
 unrelated file in `--out` alone. A render is byte-identical across repeated runs.
 
 `stack.yaml` contains the seven services and one ingress. Every app image is
-`reference@sha256:`; every service sets `QR_MIGRATE=0`, `QR_INTERNAL_ONLY=1`, a
-`QR_BIND` and `QR_METRICS_BIND`, the service URLs, object-store URL and bucket,
-queue generation, stage retention, and backtest concurrency. No secret value is
-present. The gateway publishes no port. The ingress is the only `ports` entry:
-target 443, published 443, `mode: host`. External Swarm secrets and configs are
-mounted read-only; CA bundles land under `/run/quantrule/pki`. For `tls: cert`,
-the ingress mounts the certificate config at `/etc/quantrule/tls/tls.crt` and
-the key secret at `/run/secrets/quantrule_ingress_key`; the PLAT-002 Traefik
-config references those paths. Placement uses
-the host/domain node labels, `max_replicas_per_node: 1` (except the lab
-co-location case), a domain spread preference, `stop_grace_period: 40s`, a
-start-first update with rollback, and a bounded restart policy. The overlay is
-created by `bootstrap.sh` as attachable and encrypted; the stack references it
-as external.
+`reference@sha256:`; every service sets `QR_MIGRATE=0`, `QR_INTERNAL_ONLY=1`, its
+bind and metrics ports, service URLs, object-store bucket, queue generation,
+stage retention, and backtest concurrency. No secret value is present. The
+gateway publishes no port; the ingress is the only `ports` entry: 443/443,
+`mode: host`. External secrets and configs are mounted read-only; CA bundles
+land under `/run/quantrule/pki`. For `tls: cert`, the ingress mounts the
+certificate config and key secret at the paths the PLAT-002 Traefik config
+references. Placement uses the host/domain/deployment labels,
+`max_replicas_per_node: 1` (except the lab), a domain spread preference,
+`stop_grace_period: 40s`, and a bounded restart policy. Each HTTP service has a
+`/health` check (`8080`; backtest `9090`); a spare slot selects `start-first`,
+otherwise `stop-first` with `monitor: 180s` and `max_failure_ratio: 0`. The
+overlay is external, attachable, and encrypted.
 
 `infra/<host>.yaml` is a pinned skeleton per host for Patroni/PostgreSQL, etcd,
 HAProxy, RabbitMQ, MinIO, Prometheus, Grafana, Loki, and Alertmanager. Each
 unit has a pinned image, host-local bind volumes, config-file references, no
 `ports`, `restart: unless-stopped`, and the attachable overlay. The unit
 configuration itself is PLAT-003/004/005/006; the renderer does not invent it.
-The HAProxy unit carries the database endpoint alias, RabbitMQ carries the queue
-alias, and MinIO carries the object-store alias; the MinIO drive list is
-rendered from `stateful.minio.drives`.
+The HAProxy unit carries the database endpoint alias, RabbitMQ the queue alias,
+and MinIO the object-store alias; the MinIO drive list comes from
+`stateful.minio.drives`.
 
-`bootstrap.sh` runs on a Swarm manager. It checks the daemon and manager role,
-creates the overlay if absent and refuses one that is not overlay/attachable/
-encrypted, creates the external secrets and the HA-012 configs, checks the
-PLAT-002 Traefik config, labels nodes from the descriptor (host, domain,
-profile, per-service, ingress), checks the label and domain counts, deploys the
-stack, and runs the two jobs. It never reads a secret value or assumes a Docker
-socket path. Execution is PLAT-001; rendering the script is HA-012.
+`bootstrap.sh` runs on a manager: it checks the daemon and manager role, creates
+or verifies the encrypted attachable overlay, creates external secrets/configs
+and refuses a changed file by `quantrule.source_sha256`, checks the PLAT-002
+Traefik config, labels nodes (`quantrule.host`, `.domain`, `.profile`, `.deploy`,
+per-service, `.ingress`), resolves each host by label then hostname then unique
+address, refuses ambiguity/drain/foreign deployment, checks counts, runs the jobs
+before the stack, and waits for the pinned digest and one 443 port. It prints no
+secret value. `tools/swarm.sh` wraps validate/render/bootstrap/status/upgrade/
+rollback/verify, snapshots before upgrade, and never removes a stack, secret,
+config, or volume. Contract: [swarm-control](../2026-11-23/swarm-control.md).
 
-`jobs/db-bootstrap.sh` applies each database's schema and grants through that
-service's **owner** URL, in gateway, data, evidence, simulation order. PLAT-003
-owns the cluster, the four databases (each owned by its `<service>_owner` role),
-and the eight roles; the job converges the schemas and does not create roles. It uses the pinned PostgreSQL client
-image because the application image intentionally contains no `psql`.
-`jobs/migrate.sh` runs the pinned application image once per owner, in the same
-order, with `--migrate-only`, `QR_MIGRATE=0`, `PGSSLMODE=verify-full`,
-`PGSSLROOTCERT`, and only the owner URL file. An application URL and a
-superuser URL are absent.
+`jobs/db-bootstrap.sh` applies each database's schema and grants through its
+**owner** URL, in gateway, data, evidence, simulation order. PLAT-003 owns the
+cluster, four databases, and eight roles; the job converges schemas and does not
+create roles. It uses the pinned PostgreSQL client image because the app image
+has no `psql`. `jobs/migrate.sh` runs the pinned app image once per owner, in the
+same order, with `--migrate-only`, `QR_MIGRATE=0`, `PGSSLMODE=verify-full`,
+`PGSSLROOTCERT`, and only the owner URL file; no app or superuser URL.
 
-`render.json` records the contract, profile, evidence tier, target, the
-canonical `sha256:` descriptor hash, the pinned application image, and the
-sorted relative file list. It records no timestamp.
+`render.json` records the contract, profile, evidence tier, target, stack name,
+the canonical `sha256:` descriptor hash, the pinned image, and the sorted file list; no timestamp.
 
 ## 6. Check
 
@@ -266,10 +260,14 @@ image digest with the descriptor. The report prints the profile, evidence tier,
 image digest, placement counts, every secret name and path, and each probe
 result; it never prints a secret value.
 
-`--remote docker` and `--overlay` are explicit opt-ins. Their real inspector is
-the PLAT-001/PLAT-006 seam; until it lands they return
-`deploy.remote.unsupported` or `deploy.overlay.unsupported` and the check exits
-non-zero. They never require Docker in the fast tier.
+`--remote docker` and `--overlay` are explicit read-only opt-ins. The Docker
+adapter runs `docker info`, `node ls`, and `node|network|service inspect`, parses
+the JSON, and prints only selected fields: Swarm state and odd manager count,
+node role/availability/labels, overlay encryption, service replicas/image/update
+state, one 443 host-mode port, no app port, task errors, and a limited health
+row. It never prints an environment value, secret/config payload, token, or full
+inspect body; `QR_DEPLOY_DOCKER` overrides the executable. The default check is
+Docker-free; a missing object, wrong value, or command error is a failed row.
 
 The deterministic test seam is `QR_DEPLOY_PROBE_FIXTURE=<json>`: a map from the
 three ingress URLs to a recorded `status`/`body` or `error`. Tests use it to
@@ -296,8 +294,8 @@ HA-009. The gateway token code is unchanged; both paths still use
 | `qr-deploy render <deploy.json> --out <dir>` | v2 unchanged; v3 requires `--target`. |
 | `qr-deploy render <deploy.json> --out <dir> --target …` | v3 only; writes the selected set. |
 | `qr-deploy check <deploy.json>` | v2 unchanged; v3 checks files and probes the ingress. |
-| `qr-deploy check <deploy.json> --remote docker` | v3 opt-in; currently `deploy.remote.unsupported`. |
-| `qr-deploy check <deploy.json> --overlay` | v3 opt-in; currently `deploy.overlay.unsupported`. |
+| `qr-deploy check <deploy.json> --remote docker` | v3 opt-in; read-only Docker inspector rows. |
+| `qr-deploy check <deploy.json> --overlay` | v3 opt-in; overlay rows plus a limited DNS/route row. |
 
 ## 9. Migration and compatibility
 
@@ -312,11 +310,11 @@ HA-009. The gateway token code is unchanged; both paths still use
 
 ## 10. Evidence boundary
 
-`lab-single-host` renders three VMs on one physical computer. It proves simulated
-node failure. It does not prove physical host, AZ, power, or disk-controller
-failure. The release note, `render.json`, and `qr-deploy check` label the tier
-`Simulated HA`; `swarm-ha` and `single-az` say unverified until HA-014. No output
-says `Real HA`.
+`lab-single-host` renders three VMs on one physical computer and proves simulated
+node failure only. The `ha` tier (`tools/test_tiers.sh ha`) deploys, loses one
+worker and one manager, and records `Simulated HA`; `swarm-ha` and `single-az`
+say unverified until HA-014. The release note, `render.json`, and `qr-deploy
+check` never say `Real HA`.
 
 ## 11. Non-goals
 

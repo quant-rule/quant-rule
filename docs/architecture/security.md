@@ -87,7 +87,7 @@ The multi-host profile keeps the same trust boundary. Its six services run on
 several hosts, but `data`, `model`, `evidence`, `simulation`, and `backtest` are
 reachable only over WireGuard, Tailscale, or a dedicated private VLAN. The
 single-host Compose stack adds `strategy` on the same container network, and the
-v3 Swarm profile (HA-012) places all seven. The services have
+v3 Swarm profile (HA-012) places all seven; its [control plane](../config/2026-11-23/swarm-control.md) refuses secret drift. The services have
 no application authentication. The gateway remains the only public service and
 requires a bearer token when it is on a LAN or the public internet.
 
@@ -113,7 +113,7 @@ Residual risks accepted for v1:
   authentication: a compromised overlay host can impersonate any service, read
   inter-service traffic, and set the trusted profile header.
 - The overlay provides encryption and host authentication, not service authentication; route a client VPN peer to the gateway only.
-- `qr-deploy check` compares the reported digest, not the running image.
+- v2 `qr-deploy check` compares the reported digest; v3 `--remote docker` reads the running service image and read-only node/overlay state.
 - `/ready` and `/metrics` are unauthenticated; `/ready` stays behind the network
   gate and `/metrics` is internal, unset by default and never proxied.
 - The infrastructure host is a single point of failure. The profile is not HA.

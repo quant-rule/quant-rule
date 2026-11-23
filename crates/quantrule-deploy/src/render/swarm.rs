@@ -53,7 +53,7 @@ pub fn render(
     write_public(&path, stack.as_bytes())?;
     written.push(path);
 
-    let bootstrap = bootstrap_script(descriptor);
+    let bootstrap = super::bootstrap::bootstrap_script(descriptor);
     let path = out.join("bootstrap.sh");
     write_script(&path, &bootstrap)?;
     written.push(path);
@@ -161,7 +161,9 @@ struct Plan {
     binary: &'static str,
     kind: &'static str,
     replicas: u32,
+    port: u16,
     host_label: String,
+    host_count: usize,
     env: BTreeMap<String, String>,
     secrets: Vec<Mount>,
     configs: Vec<Mount>,
@@ -184,7 +186,9 @@ fn service_plan(
         binary,
         kind: name,
         replicas: service.replicas,
+        port: service.port,
         host_label: format!("node.labels.quantrule.{name} == true"),
+        host_count: service.hosts.len(),
         env: common_env(descriptor, service),
         secrets: Vec::new(),
         configs: Vec::new(),
@@ -450,10 +454,12 @@ fn service_yaml(descriptor: &Descriptor, plan: &Plan) -> Yaml {
                 &plan.host_label,
                 plan.replicas,
                 plan.max_per_node,
+                plan.host_count,
                 Some(plan.kind),
             ),
         )
-        .with("stop_grace_period", Yaml::string("40s"));
+        .with("stop_grace_period", Yaml::string("40s"))
+        .with("healthcheck", healthcheck(plan.port));
     if !plan.secrets.is_empty() {
         service = service.with("secrets", Yaml::list(plan.secrets.iter().map(mount_yaml)));
     }
@@ -500,6 +506,7 @@ fn ingress_yaml(descriptor: &Descriptor) -> Yaml {
                 "node.labels.quantrule.ingress == true",
                 descriptor.ingress.replicas,
                 1,
+                descriptor.ingress.hosts.len(),
                 Some("ingress"),
             ),
         )
@@ -522,6 +529,7 @@ fn deploy(
     host_label: &str,
     replicas: u32,
     max_per_node: u32,
+    host_count: usize,
     kind: Option<&str>,
 ) -> Yaml {
     let mut labels = BTreeMap::new();
@@ -536,6 +544,7 @@ fn deploy(
     if let Some(kind) = kind {
         labels.insert("quantrule.kind".to_owned(), kind.to_owned());
     }
+    let order = update_order(replicas, host_count, max_per_node);
     Yaml::map()
         .with("replicas", Yaml::number(replicas))
         .with(
@@ -548,6 +557,10 @@ fn deploy(
                         Yaml::string(format!(
                             "node.labels.quantrule.profile == {}",
                             descriptor.profile.as_str()
+                        )),
+                        Yaml::string(format!(
+                            "node.labels.quantrule.deploy == {}",
+                            deployment_name(descriptor)
                         )),
                     ]),
                 )
@@ -562,20 +575,22 @@ fn deploy(
         .with(
             "update_config",
             Yaml::map()
-                .with("order", Yaml::string("start-first"))
+                .with("order", Yaml::string(order))
                 .with("parallelism", Yaml::number(1_u64))
                 .with("delay", Yaml::string("10s"))
-                .with("monitor", Yaml::string("30s"))
+                .with("monitor", Yaml::string("180s"))
                 .with("failure_action", Yaml::string("rollback"))
                 .with("max_failure_ratio", Yaml::number(0_u64)),
         )
         .with(
             "rollback_config",
             Yaml::map()
-                .with("order", Yaml::string("start-first"))
+                .with("order", Yaml::string(order))
                 .with("parallelism", Yaml::number(1_u64))
                 .with("delay", Yaml::string("5s"))
-                .with("failure_action", Yaml::string("pause")),
+                .with("monitor", Yaml::string("180s"))
+                .with("failure_action", Yaml::string("pause"))
+                .with("max_failure_ratio", Yaml::number(0_u64)),
         )
         .with(
             "restart_policy",
@@ -595,305 +610,38 @@ fn deploy(
         )
 }
 
-/// One host labelled by the bootstrap script.
-#[derive(Debug, Clone)]
-pub struct NodeRow {
-    /// The descriptor host key.
-    pub host: String,
-    /// The private address.
-    pub address: String,
-    /// The failure domain.
-    pub domain: String,
-    /// The services that may run on the host.
-    pub services: Vec<&'static str>,
-    /// Whether the ingress may run on the host.
-    pub ingress: bool,
-}
-
-/// The host-to-service table the bootstrap script applies.
-#[must_use]
-pub fn node_rows(descriptor: &Descriptor) -> Vec<NodeRow> {
-    descriptor
-        .hosts
-        .iter()
-        .map(|(host, value)| NodeRow {
-            host: host.clone(),
-            address: value.address.clone(),
-            domain: value.failure_domain.clone(),
-            services: APP_SERVICES
-                .iter()
-                .filter(|(name, _)| {
-                    descriptor
-                        .services
-                        .get(*name)
-                        .is_some_and(|service| service.hosts.contains(host))
-                })
-                .map(|(name, _)| *name)
-                .collect(),
-            ingress: descriptor.ingress.hosts.contains(host),
-        })
-        .collect()
-}
-
-fn bootstrap_script(descriptor: &Descriptor) -> String {
-    let overlay = &descriptor.network.overlay;
-    let stack = deployment_name(descriptor);
-    let profile = descriptor.profile.as_str();
-    let app_image = app_image(descriptor);
-    let mut nodes = String::new();
-    for row in node_rows(descriptor) {
-        let services = if row.services.is_empty() {
-            "-".to_owned()
-        } else {
-            row.services.join(",")
-        };
-        let ingress = if row.ingress { "1" } else { "0" };
-        nodes.push_str(&format!(
-            "{} {} {} {} {}\n",
-            row.host, row.address, row.domain, services, ingress
-        ));
-    }
-    let mut secret_names: Vec<&String> = descriptor.secrets.files.keys().collect();
-    secret_names.sort();
-    let secrets = secret_names
-        .iter()
-        .map(|name| name.as_str())
-        .collect::<Vec<_>>()
-        .join(" ");
-    let mut config_creates = String::from(
-        "create_config quantrule_database_ca pki/database-ca.crt\n\
-         create_config quantrule_queue_ca pki/queue-ca.crt\n\
-         create_config quantrule_object_store_ca pki/object-store-ca.crt\n",
-    );
-    let mut ingress_check = String::new();
-    if descriptor.ingress.tls == IngressTls::Cert {
-        config_creates.push_str("create_config quantrule_ingress_cert pki/ingress.crt\n");
-        config_creates.push_str("create_secret quantrule_ingress_key pki/ingress.key\n");
-    }
-    ingress_check.push_str(
-        "docker config inspect quantrule_traefik >/dev/null 2>&1 || \\\n    fail \"PLAT-002 must create the Traefik config quantrule_traefik before deploy\"\n",
-    );
-    let replicas = APP_SERVICES
-        .iter()
-        .map(|(name, _)| {
-            let count = descriptor
-                .services
-                .get(*name)
-                .map_or(0, |service| service.replicas);
-            format!("{name}:{count}")
-        })
-        .collect::<Vec<_>>()
-        .join(" ");
-    let host_counts = APP_SERVICES
-        .iter()
-        .map(|(name, _)| {
-            let count = descriptor
-                .services
-                .get(*name)
-                .map_or(0, |service| service.hosts.len());
-            format!("{name}:{count}")
-        })
-        .collect::<Vec<_>>()
-        .join(" ");
-    let domain_min = match descriptor.profile {
-        Profile::SwarmHa => "replicas",
-        Profile::SingleAz => "replicas",
-        Profile::LabSingleHost => "1",
-    };
-    format!(
-        r#"#!/bin/sh
-# Generated by qr-deploy; run on a Swarm manager.
-#
-# The script creates only the external objects HA-012 owns. Traefik's file
-# provider is PLAT-002; Patroni, RabbitMQ, MinIO and observability files are
-# PLAT-003..006. No secret value is read, printed, or passed as an argument.
-set -eu
-OVERLAY={overlay}
-STACK={stack}
-PROFILE={profile}
-EXPECTED_IMAGE={image}
-REPLICAS="{replicas}"
-HOST_COUNTS="{host_counts}"
-DOMAIN_MIN={domain_min}
-
-fail() {{
-    printf 'qr-deploy bootstrap: %s\n' "$*" >&2
-    exit 1
-}}
-
-command -v docker >/dev/null 2>&1 || fail "docker is required on the Swarm manager"
-docker info >/dev/null 2>&1 || fail "cannot reach the Docker daemon"
-docker node ls >/dev/null 2>&1 || fail "run this script on a Swarm manager"
-
-if docker network inspect "$OVERLAY" >/dev/null 2>&1; then
-    [ "$(docker network inspect --format '{{{{.Driver}}}}' "$OVERLAY")" = "overlay" ] || \
-        fail "network $OVERLAY exists but is not an overlay"
-    case "$(docker network inspect --format '{{{{json .Options}}}}' "$OVERLAY")" in
-        *'"encrypted":"true"'*) ;;
-        *) fail "network $OVERLAY must be encrypted" ;;
-    esac
-    [ "$(docker network inspect --format '{{{{.Attachable}}}}' "$OVERLAY")" = "true" ] || \
-        fail "network $OVERLAY must be attachable"
-else
-    docker network create --driver overlay --attachable --opt encrypted "$OVERLAY" >/dev/null
-fi
-
-create_secret() {{
-    name=$1
-    file=$2
-    if docker secret inspect "$name" >/dev/null 2>&1; then
-        return 0
-    fi
-    [ -f "$file" ] || fail "missing rendered secret file $file"
-    docker secret create "$name" "$file" >/dev/null
-}}
-
-create_config() {{
-    name=$1
-    file=$2
-    if docker config inspect "$name" >/dev/null 2>&1; then
-        return 0
-    fi
-    [ -f "$file" ] || fail "missing rendered config file $file"
-    docker config create "$name" "$file" >/dev/null
-}}
-
-resolve_node() {{
-    name=$1
-    address=$2
-    if docker node inspect "$name" >/dev/null 2>&1; then
-        printf '%s' "$name"
-        return 0
-    fi
-    for node in $(docker node ls -q); do
-        if [ "$(docker node inspect --format '{{{{.Status.Addr}}}}' "$node")" = "$address" ]; then
-            printf '%s' "$node"
-            return 0
-        fi
-    done
-    fail "cannot map host $name ($address) to a Swarm node; label it manually"
-}}
-
-label_host() {{
-    name=$1
-    address=$2
-    domain=$3
-    services=$4
-    ingress=$5
-    [ "$services" = "-" ] && services=""
-    node=$(resolve_node "$name" "$address")
-    docker node update --label-add "quantrule.host=$name" \
-        --label-add "quantrule.domain=$domain" \
-        --label-add "quantrule.profile=$PROFILE" "$node" >/dev/null
-    for service in gateway data model strategy backtest evidence simulation; do
-        docker node update --label-rm "quantrule.$service" "$node" >/dev/null 2>&1 || true
-    done
-    docker node update --label-rm quantrule.ingress "$node" >/dev/null 2>&1 || true
-    old_ifs=$IFS
-    IFS=,
-    for service in $services; do
-        [ -n "$service" ] || continue
-        docker node update --label-add "quantrule.$service=true" "$node" >/dev/null
-    done
-    IFS=$old_ifs
-    if [ "$ingress" = "1" ]; then
-        docker node update --label-add quantrule.ingress=true "$node" >/dev/null
-    fi
-}}
-
-count_label() {{
-    docker node ls --filter "node.label=$1=true" -q | wc -l | tr -d ' '
-}}
-
-domain_count() {{
-    for node in $(docker node ls --filter "node.label=$1=true" -q); do
-        docker node inspect --format '{{{{index .Spec.Labels "quantrule.domain"}}}}' "$node"
-    done | sort -u | wc -l | tr -d ' '
-}}
-
-check_placement() {{
-    for entry in $HOST_COUNTS; do
-        service=${{entry%%:*}}
-        wanted=${{entry##*:}}
-        have=$(count_label "quantrule.$service")
-        [ "$have" -eq "$wanted" ] || \
-            fail "service $service is labelled on $have hosts; the descriptor names $wanted"
-    done
-    for entry in $REPLICAS; do
-        service=${{entry%%:*}}
-        wanted=${{entry##*:}}
-        have=$(count_label "quantrule.$service")
-        if [ "$DOMAIN_MIN" = "replicas" ]; then
-            [ "$have" -ge "$wanted" ] || \
-                fail "service $service needs $wanted labelled hosts; found $have"
-            domains=$(domain_count "quantrule.$service")
-            [ "$domains" -ge "$wanted" ] || \
-                fail "service $service needs $wanted failure domains; found $domains"
-        else
-            [ "$have" -ge 1 ] || fail "service $service has no labelled host"
-        fi
-    done
-    ingress_have=$(count_label quantrule.ingress)
-    [ "$ingress_have" -eq {ingress_hosts} ] || \
-        fail "ingress is labelled on $ingress_have hosts; the descriptor names {ingress_hosts}"
-    if [ "$PROFILE" != "lab-single-host" ]; then
-        ingress_domains=$(domain_count quantrule.ingress)
-        [ "$ingress_domains" -ge 2 ] || \
-            fail "the ingress needs two failure domains; found $ingress_domains"
-    fi
-}}
-
-for name in {secrets}; do
-    create_secret "$name" "secrets/$name"
-done
-{config_creates}{ingress_check}
-label_nodes() {{
-    while read -r host address domain services ingress; do
-        [ -n "$host" ] || continue
-        label_host "$host" "$address" "$domain" "$services" "$ingress"
-    done <<'NODES'
-{nodes}NODES
-}}
-label_nodes
-check_placement
-
-docker stack deploy --with-registry-auth -c stack.yaml "$STACK"
-printf 'stack %s deployed; image %s; profile %s\n' "$STACK" "$EXPECTED_IMAGE" "$PROFILE"
-
-attempt=1
-while ! sh jobs/db-bootstrap.sh; do
-    [ "$attempt" -lt 30 ] || fail "db-bootstrap did not converge"
-    attempt=$((attempt + 1))
-    sleep 2
-done
-sh jobs/migrate.sh
-printf 'bootstrap complete: databases and migrations applied\n'
-"#,
-        overlay = shell_quote(overlay),
-        stack = shell_quote(stack),
-        profile = shell_quote(profile),
-        image = shell_quote(&app_image),
-        replicas = replicas,
-        host_counts = host_counts,
-        domain_min = domain_min,
-        ingress_hosts = descriptor.ingress.hosts.len(),
-        secrets = secrets,
-        config_creates = config_creates,
-        ingress_check = ingress_check,
-        nodes = nodes,
-    )
-}
-
-pub(crate) fn shell_quote(value: &str) -> String {
-    if !value.is_empty()
-        && value.bytes().all(|byte| {
-            byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.' | b'/' | b':' | b'@')
-        })
-    {
-        value.to_owned()
+/// The rolling-update order: start-first only when a spare eligible slot exists.
+///
+/// A service that fills every eligible host (`replicas == hosts`) has no slot
+/// for a new task, so a start-first update would wait forever. The stop-first
+/// update accepts a short gap and is the only safe default for the reference
+/// topology; the lab profile's co-location creates spare slots.
+fn update_order(replicas: u32, host_count: usize, max_per_node: u32) -> &'static str {
+    let slots = u64::try_from(host_count)
+        .unwrap_or(u64::MAX)
+        .saturating_mul(u64::from(max_per_node));
+    if u64::from(replicas) < slots {
+        "start-first"
     } else {
-        format!("'{}'", value.replace('\'', "'\\''"))
+        "stop-first"
     }
+}
+
+fn healthcheck(port: u16) -> Yaml {
+    Yaml::map()
+        .with(
+            "test",
+            Yaml::list([
+                Yaml::string("CMD-SHELL"),
+                Yaml::string(format!(
+                    "curl -fsS http://127.0.0.1:{port}/health | grep -q '\"state\":\"healthy\"'"
+                )),
+            ]),
+        )
+        .with("interval", Yaml::string("15s"))
+        .with("timeout", Yaml::string("5s"))
+        .with("retries", Yaml::number(6_u64))
+        .with("start_period", Yaml::string("60s"))
 }
 
 #[cfg(test)]
@@ -952,19 +700,55 @@ mod tests {
     }
 
     #[test]
-    fn the_bootstrap_script_never_contains_a_secret_value() {
-        let script = bootstrap_script(&descriptor());
-        assert!(script.contains("create_secret \"$name\" \"secrets/$name\""));
-        assert!(!script.contains("postgres://"));
-        assert!(!script.contains("amqps://"));
-        let token = std::fs::read_to_string(
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("../../deploy/v3/secrets/gateway_token"),
-        )
-        .expect("fixture token");
+    fn every_http_service_has_a_healthcheck_on_its_own_listener() {
+        let text = stack_yaml(&descriptor()).expect("stack");
+        assert_eq!(text.matches("healthcheck:").count(), 7, "{text}");
+        assert_eq!(
+            text.matches("curl -fsS http://127.0.0.1:8080/health")
+                .count(),
+            6,
+            "{text}"
+        );
+        assert_eq!(
+            text.matches("curl -fsS http://127.0.0.1:9090/health")
+                .count(),
+            1,
+            "{text}"
+        );
+        assert_eq!(text.matches("start_period: \"60s\"").count(), 7, "{text}");
+        assert_eq!(text.matches("monitor: \"180s\"").count(), 16, "{text}");
+    }
+
+    #[test]
+    fn the_reference_topology_uses_stop_first_without_a_spare_slot() {
+        let text = stack_yaml(&descriptor()).expect("stack");
+        assert_eq!(text.matches("order: \"stop-first\"").count(), 16, "{text}");
+        assert!(!text.contains("order: \"start-first\""), "{text}");
+    }
+
+    #[test]
+    fn the_lab_uses_start_first_when_co_location_leaves_a_spare_slot() {
+        let mut value: serde_json::Value =
+            serde_json::from_str(include_str!("../../../../deploy/v3/deploy.example.json"))
+                .expect("example");
+        value["profile"] = serde_json::json!("lab-single-host");
+        let descriptor: Descriptor = serde_json::from_value(value).expect("descriptor");
+        let text = stack_yaml(&descriptor).expect("stack");
+        assert!(text.contains("order: \"start-first\""), "{text}");
+        // The ingress still fills both host-mode 443 slots, so it stays stop-first.
+        assert_eq!(text.matches("order: \"stop-first\"").count(), 2, "{text}");
+    }
+
+    #[test]
+    fn placement_is_scoped_to_the_deployment_and_profile() {
+        let text = stack_yaml(&descriptor()).expect("stack");
         assert!(
-            !script.contains(token.trim()),
-            "the bootstrap script copied a token"
+            text.contains("node.labels.quantrule.deploy == quantrule-ha"),
+            "{text}"
+        );
+        assert!(
+            text.contains("node.labels.quantrule.profile == swarm-ha"),
+            "{text}"
         );
     }
 }

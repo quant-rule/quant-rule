@@ -155,7 +155,7 @@ Each remains a later decision with its own record.
 Residual risks accepted for v1: database roles are per service but v2 uses one
 Postgres password for every role; every service shares the MinIO root
 credentials and one queue user; the overlay is the only service-to-service
-boundary and internal HTTP has no mTLS (HA-012); `qr-deploy check` does not inspect a remote image; the backup tools do not archive all four databases; the infrastructure host is a single point of failure. The v3 profile is separate.
+boundary and internal HTTP has no mTLS (HA-012); v2 `qr-deploy check` does not inspect a remote image (v3 `--remote docker` does); the backup tools do not archive all four databases; the infrastructure host is a single point of failure.
 
 ## 11. Related
 
@@ -166,4 +166,5 @@ boundary and internal HTTP has no mTLS (HA-012); `qr-deploy check` does not insp
 - [`deploy/multi-host/README.md`](../../deploy/multi-host/README.md)
 - [User manual chapter 14](../manual/14-multi-host.md)
 - [Deployment v3](../config/2026-11-22/deploy-v3.md)
+- [Swarm control plane](../config/2026-11-23/swarm-control.md)
 - [User manual chapter 15](../manual/15-ha-deployment.md)

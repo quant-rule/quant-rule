@@ -87,6 +87,14 @@ pub struct Ingress {
     pub hosts: Vec<String>,
 }
 
+/// The Swarm control plane.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Swarm {
+    /// The declared hosts that must be Swarm managers; three odd managers.
+    pub managers: Vec<String>,
+}
+
 /// The gateway token secret reference.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -315,6 +323,8 @@ pub struct Descriptor {
     pub auth: Auth,
     /// The hosts by key.
     pub hosts: BTreeMap<String, Host>,
+    /// The Swarm control plane.
+    pub swarm: Swarm,
     /// The stateful endpoints.
     pub endpoints: Endpoints,
     /// The four logical databases.

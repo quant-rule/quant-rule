@@ -142,13 +142,41 @@ fn v3_validate_dispatches_and_reports_the_profile() {
     assert!(output.status.success(), "{}", stderr(&output));
     let printed = stdout(&output);
     assert!(
-        printed.contains("ok: v3 swarm-ha, 10 hosts, 7 services"),
+        printed.contains("ok: v3 swarm-ha, 11 hosts, 7 services"),
         "{printed}"
     );
     assert!(
         printed.contains("ingress quantrule.dev:443 (files not checked; pass --files)"),
         "{printed}"
     );
+}
+
+#[test]
+fn v3_validate_refuses_an_even_or_undeclared_manager_set() {
+    let directory = temp_dir();
+    let descriptor_path = local_descriptor(&directory);
+    let mut value = descriptor_value(&descriptor_path);
+    value["swarm"]["managers"] = serde_json::json!(["edge-1", "core-1"]);
+    std::fs::write(&descriptor_path, value.to_string()).expect("descriptor");
+    let output = run(&["validate", descriptor_path.to_str().expect("path")]);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        stderr(&output).contains("deploy.swarm.managers"),
+        "{}",
+        stderr(&output)
+    );
+
+    let mut value = descriptor_value(&descriptor_path);
+    value["swarm"]["managers"] = serde_json::json!(["edge-1", "core-1", "missing"]);
+    std::fs::write(&descriptor_path, value.to_string()).expect("descriptor");
+    let output = run(&["validate", descriptor_path.to_str().expect("path")]);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        stderr(&output).contains("not declared in hosts"),
+        "{}",
+        stderr(&output)
+    );
+    let _ = std::fs::remove_dir_all(directory);
 }
 
 #[test]
@@ -221,6 +249,23 @@ fn v3_render_all_writes_the_stack_infra_jobs_and_manifest() {
     assert_eq!(stack.matches("published:").count(), 1, "{stack}");
     assert!(!stack.contains("QR_DATABASE_URL="), "{stack}");
     assert!(!stack.contains("postgres://"), "{stack}");
+    assert_eq!(
+        stack.matches("order: \"stop-first\"").count(),
+        16,
+        "{stack}"
+    );
+    assert_eq!(stack.matches("healthcheck:").count(), 7, "{stack}");
+    for script in ["bootstrap.sh", "jobs/db-bootstrap.sh", "jobs/migrate.sh"] {
+        let checked = Command::new("sh")
+            .args(["-n", out.join(script).to_str().expect("path")])
+            .output()
+            .expect("sh -n");
+        assert!(
+            checked.status.success(),
+            "{script}: {}",
+            String::from_utf8_lossy(&checked.stderr)
+        );
+    }
     let manifest = std::fs::read_to_string(out.join("render.json")).expect("manifest");
     assert!(manifest.contains("descriptor_hash"), "{manifest}");
     assert!(!manifest.contains("timestamp"), "{manifest}");
@@ -591,47 +636,6 @@ fn v3_check_labels_a_lab_as_simulated_ha() {
     let printed = stdout(&output);
     assert!(printed.contains("Simulated HA"), "{printed}");
     assert!(!printed.contains("Real HA"), "{printed}");
-    let _ = std::fs::remove_dir_all(directory);
-}
-
-#[test]
-fn the_opt_in_inspectors_report_their_platform_seam() {
-    let directory = temp_dir();
-    let descriptor_path = local_descriptor(&directory);
-    let descriptor = descriptor_value(&descriptor_path);
-    let digest = descriptor["image"]["digest"].as_str().expect("digest");
-    let fixture = probe_fixture(&directory, &descriptor, digest, "healthy");
-    let output = run_env(
-        &[
-            "check",
-            descriptor_path.to_str().expect("path"),
-            "--remote",
-            "docker",
-        ],
-        "QR_DEPLOY_PROBE_FIXTURE",
-        fixture.to_str().expect("fixture"),
-    );
-    assert_eq!(output.status.code(), Some(1));
-    assert!(
-        stdout(&output).contains("deploy.remote.unsupported"),
-        "{}",
-        stdout(&output)
-    );
-    let output = run_env(
-        &[
-            "check",
-            descriptor_path.to_str().expect("path"),
-            "--overlay",
-        ],
-        "QR_DEPLOY_PROBE_FIXTURE",
-        fixture.to_str().expect("fixture"),
-    );
-    assert_eq!(output.status.code(), Some(1));
-    assert!(
-        stdout(&output).contains("deploy.overlay.unsupported"),
-        "{}",
-        stdout(&output)
-    );
     let _ = std::fs::remove_dir_all(directory);
 }
 

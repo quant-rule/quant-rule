@@ -108,7 +108,18 @@
     "infra-3": {
       "address": "10.0.1.43",
       "failure_domain": "az3"
+    },
+    "infra-4": {
+      "address": "10.0.1.44",
+      "failure_domain": "az4"
     }
+  },
+  "swarm": {
+    "managers": [
+      "edge-1",
+      "core-2",
+      "compute-3"
+    ]
   },
   "endpoints": {
     "database": {
@@ -248,10 +259,12 @@
       "nodes": [
         "infra-1",
         "infra-2",
-        "infra-3"
+        "infra-3",
+        "infra-4"
       ],
       "drives": [
-        2,
+        1,
+        1,
         1,
         1
       ]

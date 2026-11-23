@@ -168,7 +168,7 @@ fn a_stateful_unit_below_quorum_is_refused() {
         ("etcd", 3),
         ("haproxy", 2),
         ("rabbitmq", 3),
-        ("minio", 3),
+        ("minio", 4),
     ] {
         let mut value = sample();
         let nodes = value["stateful"][unit]["nodes"]
@@ -180,7 +180,7 @@ fn a_stateful_unit_below_quorum_is_refused() {
             .collect::<Vec<_>>();
         value["stateful"][unit]["nodes"] = Value::Array(nodes);
         if unit == "minio" {
-            value["stateful"][unit]["drives"] = serde_json::json!([1, 1]);
+            value["stateful"][unit]["drives"] = serde_json::json!([1, 1, 1]);
         }
         let error = reject(value);
         assert!(
@@ -193,6 +193,8 @@ fn a_stateful_unit_below_quorum_is_refused() {
 #[test]
 fn minio_needs_four_drives_and_one_count_per_node() {
     let mut value = sample();
+    value["profile"] = serde_json::json!("lab-single-host");
+    value["stateful"]["minio"]["nodes"] = serde_json::json!(["infra-1", "infra-2", "infra-3"]);
     value["stateful"]["minio"]["drives"] = serde_json::json!([1, 1, 1]);
     let error = reject(value);
     assert!(
@@ -201,12 +203,70 @@ fn minio_needs_four_drives_and_one_count_per_node() {
     );
 
     let mut value = sample();
-    value["stateful"]["minio"]["drives"] = serde_json::json!([2, 1]);
+    value["stateful"]["minio"]["drives"] = serde_json::json!([1, 1, 1]);
     let error = reject(value);
     assert!(
         error.to_string().contains("one drive count per node"),
         "{error}"
     );
+
+    let mut value = sample();
+    value["stateful"]["minio"]["drives"] = serde_json::json!([1, 1, 1, 2]);
+    let error = reject(value);
+    assert!(error.to_string().contains("one drive on each"), "{error}");
+}
+
+#[test]
+fn the_lab_may_run_minio_on_three_vms() {
+    let mut value = sample();
+    value["profile"] = serde_json::json!("lab-single-host");
+    value["stateful"]["minio"]["nodes"] = serde_json::json!(["infra-1", "infra-2", "infra-3"]);
+    value["stateful"]["minio"]["drives"] = serde_json::json!([2, 1, 1]);
+    validate(&descriptor(value)).expect("the lab may use three MinIO VMs");
+}
+
+#[test]
+fn minio_members_keep_distinct_failure_domains() {
+    let mut value = sample();
+    value["hosts"]["infra-4"]["failure_domain"] = serde_json::json!("az1");
+    let error = reject(value);
+    assert!(
+        error.to_string().contains("deploy.stateful.anti_affinity"),
+        "{error}"
+    );
+}
+
+#[test]
+fn the_swarm_control_plane_needs_three_odd_distinct_declared_managers() {
+    let mut value = sample();
+    value["swarm"]["managers"] = serde_json::json!([]);
+    let error = reject(value);
+    assert!(
+        error.to_string().contains("deploy.swarm.managers"),
+        "{error}"
+    );
+
+    let mut value = sample();
+    value["swarm"]["managers"] = serde_json::json!(["edge-1", "core-1"]);
+    let error = reject(value);
+    assert!(error.to_string().contains("odd number"), "{error}");
+
+    let mut value = sample();
+    value["swarm"]["managers"] = serde_json::json!(["edge-1", "core-1", "edge-1"]);
+    let error = reject(value);
+    assert!(error.to_string().contains("listed twice"), "{error}");
+
+    let mut value = sample();
+    value["swarm"]["managers"] = serde_json::json!(["edge-1", "core-1", "missing"]);
+    let error = reject(value);
+    assert!(
+        error.to_string().contains("not declared in hosts"),
+        "{error}"
+    );
+
+    let mut value = sample();
+    value["profile"] = serde_json::json!("lab-single-host");
+    validate(&descriptor(value)).expect("the lab uses its three VMs as managers");
 }
 
 #[test]
@@ -221,6 +281,7 @@ fn no_reschedule_field_is_accepted() {
 fn the_profiles_enforce_their_failure_domain_counts() {
     let mut value = sample();
     value["hosts"]["infra-3"]["failure_domain"] = serde_json::json!("az1");
+    value["hosts"]["infra-4"]["failure_domain"] = serde_json::json!("az1");
     value["hosts"]["compute-3"]["failure_domain"] = serde_json::json!("az2");
     let error = reject(value);
     assert!(

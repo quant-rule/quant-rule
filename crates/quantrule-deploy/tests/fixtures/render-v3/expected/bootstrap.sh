@@ -4,6 +4,8 @@
 # The script creates only the external objects HA-012 owns. Traefik's file
 # provider is PLAT-002; Patroni, RabbitMQ, MinIO and observability files are
 # PLAT-003..006. No secret value is read, printed, or passed as an argument.
+# A changed rendered file is refused: rotation is a new object name plus a
+# rolling service update, never an in-place overwrite.
 set -eu
 OVERLAY=quantrule
 STACK=quantrule-ha
@@ -12,10 +14,47 @@ EXPECTED_IMAGE=registry.quantrule.dev/quantrule/server@sha256:cdace4a996c06cd614
 REPLICAS="gateway:2 data:2 model:3 strategy:3 backtest:3 evidence:2 simulation:2"
 HOST_COUNTS="gateway:2 data:2 model:3 strategy:3 backtest:3 evidence:2 simulation:2"
 DOMAIN_MIN=replicas
+INGRESS_HOSTS=2
+INGRESS_REPLICAS=2
+EXPECTED_INGRESS_IMAGE=traefik@sha256:8330e8d28853641532609f63676dc2eec8d19e2bc7fadd5505a1d0c8c254d042
+CONVERGE_ATTEMPTS=120
 
 fail() {
     printf 'qr-deploy bootstrap: %s\n' "$*" >&2
     exit 1
+}
+
+file_sha256() {
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$1" | awk '{print $1}'
+    elif command -v shasum >/dev/null 2>&1; then
+        shasum -a 256 "$1" | awk '{print $1}'
+    else
+        fail "sha256sum or shasum is required to compare rendered secret files"
+    fi
+}
+
+create_object() {
+    kind=$1
+    name=$2
+    file=$3
+    [ -f "$file" ] || fail "missing rendered $kind source $file"
+    hash=$(file_sha256 "$file")
+    if docker "$kind" inspect "$name" >/dev/null 2>&1; then
+        labels=$(docker "$kind" inspect --format '{{json .Spec.Labels}}' "$name" 2>/dev/null || true)
+        if printf '%s' "$labels" | grep -Fq "\"quantrule.source_sha256\":\"$hash\""; then
+            return 0
+        fi
+        case "$labels" in
+            *quantrule.source_sha256*)
+                fail "$kind $name already exists with a different rendered file; rotate with a new name and a rolling update"
+                ;;
+            *)
+                fail "$kind $name exists without the quantrule.source_sha256 label; create a new name, update the stack, and remove the old object after it drains"
+                ;;
+        esac
+    fi
+    docker "$kind" create --label "quantrule.source_sha256=$hash" "$name" "$file" >/dev/null
 }
 
 command -v docker >/dev/null 2>&1 || fail "docker is required on the Swarm manager"
@@ -35,40 +74,52 @@ else
     docker network create --driver overlay --attachable --opt encrypted "$OVERLAY" >/dev/null
 fi
 
-create_secret() {
-    name=$1
-    file=$2
-    if docker secret inspect "$name" >/dev/null 2>&1; then
-        return 0
-    fi
-    [ -f "$file" ] || fail "missing rendered secret file $file"
-    docker secret create "$name" "$file" >/dev/null
-}
-
-create_config() {
-    name=$1
-    file=$2
-    if docker config inspect "$name" >/dev/null 2>&1; then
-        return 0
-    fi
-    [ -f "$file" ] || fail "missing rendered config file $file"
-    docker config create "$name" "$file" >/dev/null
+node_label() {
+    node=$1
+    key=$2
+    value=$(docker node inspect --format "{{index .Spec.Labels \"$key\"}}" "$node" 2>/dev/null || true)
+    [ "$value" = "<no value>" ] && value=""
+    printf '%s' "$value"
 }
 
 resolve_node() {
     name=$1
     address=$2
-    if docker node inspect "$name" >/dev/null 2>&1; then
-        printf '%s' "$name"
-        return 0
-    fi
+    found=""
     for node in $(docker node ls -q); do
-        if [ "$(docker node inspect --format '{{.Status.Addr}}' "$node")" = "$address" ]; then
-            printf '%s' "$node"
-            return 0
+        if [ "$(node_label "$node" quantrule.host)" = "$name" ]; then
+            [ -z "$found" ] || fail "host $name matches more than one node by quantrule.host; remove the duplicate label"
+            found=$node
         fi
     done
-    fail "cannot map host $name ($address) to a Swarm node; label it manually"
+    if [ -z "$found" ]; then
+        for node in $(docker node ls -q); do
+            hostname=$(docker node inspect --format '{{.Description.Hostname}}' "$node")
+            if [ "$hostname" = "$name" ]; then
+                [ -z "$found" ] || fail "host $name matches more than one node hostname; label one node quantrule.host=$name"
+                found=$node
+            fi
+        done
+    fi
+    if [ -z "$found" ]; then
+        for node in $(docker node ls -q); do
+            if [ "$(docker node inspect --format '{{.Status.Addr}}' "$node")" = "$address" ]; then
+                [ -z "$found" ] || fail "address $address matches more than one node for host $name"
+                found=$node
+            fi
+        done
+    fi
+    [ -n "$found" ] || fail "cannot map host $name ($address) to a Swarm node; label a node quantrule.host=$name"
+    existing=$(node_label "$found" quantrule.host)
+    [ -z "$existing" ] || [ "$existing" = "$name" ] || \
+        fail "node $found is labelled quantrule.host=$existing, not $name"
+    deploy=$(node_label "$found" quantrule.deploy)
+    [ -z "$deploy" ] || [ "$deploy" = "$STACK" ] || \
+        fail "node $found belongs to deployment $deploy; refusing to relabel it for $STACK"
+    availability=$(docker node inspect --format '{{.Spec.Availability}}' "$found")
+    [ "$availability" = "active" ] || \
+        fail "node $found is $availability; activate and undrain it before bootstrap"
+    printf '%s' "$found"
 }
 
 label_host() {
@@ -77,11 +128,18 @@ label_host() {
     domain=$3
     services=$4
     ingress=$5
+    manager=$6
     [ "$services" = "-" ] && services=""
     node=$(resolve_node "$name" "$address")
+    if [ "$manager" = "1" ]; then
+        role=$(docker node inspect --format '{{.Spec.Role}}' "$node")
+        [ "$role" = "manager" ] || \
+            fail "host $name is a $role; swarm.managers must name Swarm managers"
+    fi
     docker node update --label-add "quantrule.host=$name" \
         --label-add "quantrule.domain=$domain" \
-        --label-add "quantrule.profile=$PROFILE" "$node" >/dev/null
+        --label-add "quantrule.profile=$PROFILE" \
+        --label-add "quantrule.deploy=$STACK" "$node" >/dev/null
     for service in gateway data model strategy backtest evidence simulation; do
         docker node update --label-rm "quantrule.$service" "$node" >/dev/null 2>&1 || true
     done
@@ -99,11 +157,11 @@ label_host() {
 }
 
 count_label() {
-    docker node ls --filter "node.label=$1=true" -q | wc -l | tr -d ' '
+    docker node ls --filter "label=$1=true" -q | wc -l | tr -d ' '
 }
 
 domain_count() {
-    for node in $(docker node ls --filter "node.label=$1=true" -q); do
+    for node in $(docker node ls --filter "label=$1=true" -q); do
         docker node inspect --format '{{index .Spec.Labels "quantrule.domain"}}' "$node"
     done | sort -u | wc -l | tr -d ' '
 }
@@ -131,8 +189,8 @@ check_placement() {
         fi
     done
     ingress_have=$(count_label quantrule.ingress)
-    [ "$ingress_have" -eq 2 ] || \
-        fail "ingress is labelled on $ingress_have hosts; the descriptor names 2"
+    [ "$ingress_have" -eq "$INGRESS_HOSTS" ] || \
+        fail "ingress is labelled on $ingress_have hosts; the descriptor names $INGRESS_HOSTS"
     if [ "$PROFILE" != "lab-single-host" ]; then
         ingress_domains=$(domain_count quantrule.ingress)
         [ "$ingress_domains" -ge 2 ] || \
@@ -140,43 +198,117 @@ check_placement() {
     fi
 }
 
+wait_for_stack() {
+    attempt=1
+    while :; do
+        rows=$(docker stack services "$STACK" --format '{{.Name}} {{.Replicas}} {{.Image}}' 2>/dev/null || true)
+        pending=0
+        if [ -z "$rows" ]; then
+            pending=1
+        else
+            for entry in $REPLICAS; do
+                service=${entry%%:*}
+                wanted=${entry##*:}
+                row=$(printf '%s\n' "$rows" | awk -v name="${STACK}_${service}" '$1 == name { print; exit }')
+                [ -n "$row" ] || fail "service ${STACK}_${service} is missing from the stack"
+                replicas=$(printf '%s\n' "$row" | awk '{print $2}')
+                running=${replicas%%/*}
+                desired=${replicas##*/}
+                [ "$desired" = "$wanted" ] || \
+                    fail "service ${STACK}_${service} has $desired desired replicas; expected $wanted"
+                [ "$running" = "$desired" ] || pending=1
+                image=$(printf '%s\n' "$row" | awk '{print $3}')
+                [ "$image" = "$EXPECTED_IMAGE" ] || \
+                    fail "service ${STACK}_${service} runs $image; expected $EXPECTED_IMAGE"
+            done
+            row=$(printf '%s\n' "$rows" | awk -v name="${STACK}_ingress" '$1 == name { print; exit }')
+            [ -n "$row" ] || fail "service ${STACK}_ingress is missing from the stack"
+            replicas=$(printf '%s\n' "$row" | awk '{print $2}')
+            running=${replicas%%/*}
+            desired=${replicas##*/}
+            [ "$desired" = "$INGRESS_REPLICAS" ] || \
+                fail "service ${STACK}_ingress has $desired desired replicas; expected $INGRESS_REPLICAS"
+            [ "$running" = "$desired" ] || pending=1
+            image=$(printf '%s\n' "$row" | awk '{print $3}')
+            [ "$image" = "$EXPECTED_INGRESS_IMAGE" ] || \
+                fail "service ${STACK}_ingress runs $image; expected $EXPECTED_INGRESS_IMAGE"
+        fi
+        [ "$pending" -eq 0 ] && break
+        [ "$attempt" -lt "$CONVERGE_ATTEMPTS" ] || \
+            fail "stack $STACK did not converge within 10 minutes"
+        attempt=$((attempt + 1))
+        sleep 5
+    done
+    for entry in $REPLICAS; do
+        service=${entry%%:*}
+        states=$(docker service ps --filter desired-state=running --format '{{.CurrentState}}' "${STACK}_${service}")
+        case "$states" in
+            *Failed*|*Rejected*|*Shutdown*) fail "service ${STACK}_${service} has a failed task" ;;
+        esac
+        [ -n "$states" ] || fail "service ${STACK}_${service} has no running task"
+    done
+    states=$(docker service ps --filter desired-state=running --format '{{.CurrentState}}' "${STACK}_ingress")
+    case "$states" in
+        *Failed*|*Rejected*|*Shutdown*) fail "service ${STACK}_ingress has a failed task" ;;
+    esac
+    [ -n "$states" ] || fail "service ${STACK}_ingress has no running task"
+}
+
+verify_ports() {
+    ports=$(docker service inspect --format '{{json .Endpoint.Ports}}' "${STACK}_ingress")
+    case "$ports" in
+        *'"PublishedPort":443'*) ;;
+        *) fail "the ingress does not publish 443: $ports" ;;
+    esac
+    for entry in $REPLICAS; do
+        service=${entry%%:*}
+        ports=$(docker service inspect --format '{{json .Endpoint.Ports}}' "${STACK}_$service")
+        [ "$ports" = "null" ] || [ "$ports" = "[]" ] || \
+            fail "service ${STACK}_$service publishes a port: $ports"
+    done
+}
+
 for name in data_database_url data_owner_database_url evidence_database_url evidence_owner_database_url gateway_database_url gateway_owner_database_url gateway_token object_store_access_key object_store_secret_key queue_url simulation_database_url simulation_owner_database_url; do
-    create_secret "$name" "secrets/$name"
+    create_object secret "$name" "secrets/$name"
 done
-create_config quantrule_database_ca pki/database-ca.crt
-create_config quantrule_queue_ca pki/queue-ca.crt
-create_config quantrule_object_store_ca pki/object-store-ca.crt
+create_object config quantrule_database_ca pki/database-ca.crt
+create_object config quantrule_queue_ca pki/queue-ca.crt
+create_object config quantrule_object_store_ca pki/object-store-ca.crt
 docker config inspect quantrule_traefik >/dev/null 2>&1 || \
     fail "PLAT-002 must create the Traefik config quantrule_traefik before deploy"
 
 label_nodes() {
-    while read -r host address domain services ingress; do
+    while read -r host address domain services ingress manager; do
         [ -n "$host" ] || continue
-        label_host "$host" "$address" "$domain" "$services" "$ingress"
+        label_host "$host" "$address" "$domain" "$services" "$ingress" "$manager"
     done <<'NODES'
-compute-1 10.0.1.31 az1 model,strategy,backtest 0
-compute-2 10.0.1.32 az2 model,strategy,backtest 0
-compute-3 10.0.1.33 az3 model,strategy,backtest 0
-core-1 10.0.1.21 az1 data,evidence,simulation 0
-core-2 10.0.1.22 az2 data,evidence,simulation 0
-edge-1 10.0.1.11 az1 gateway 1
-edge-2 10.0.1.12 az2 gateway 1
-infra-1 10.0.1.41 az1 - 0
-infra-2 10.0.1.42 az2 - 0
-infra-3 10.0.1.43 az3 - 0
+compute-1 10.0.1.31 az1 model,strategy,backtest 0 0
+compute-2 10.0.1.32 az2 model,strategy,backtest 0 0
+compute-3 10.0.1.33 az3 model,strategy,backtest 0 1
+core-1 10.0.1.21 az1 data,evidence,simulation 0 0
+core-2 10.0.1.22 az2 data,evidence,simulation 0 1
+edge-1 10.0.1.11 az1 gateway 1 1
+edge-2 10.0.1.12 az2 gateway 1 0
+infra-1 10.0.1.41 az1 - 0 0
+infra-2 10.0.1.42 az2 - 0 0
+infra-3 10.0.1.43 az3 - 0 0
+infra-4 10.0.1.44 az4 - 0 0
 NODES
 }
 label_nodes
 check_placement
 
-docker stack deploy --with-registry-auth -c stack.yaml "$STACK"
-printf 'stack %s deployed; image %s; profile %s\n' "$STACK" "$EXPECTED_IMAGE" "$PROFILE"
-
 attempt=1
 while ! sh jobs/db-bootstrap.sh; do
-    [ "$attempt" -lt 30 ] || fail "db-bootstrap did not converge"
+    [ "$attempt" -lt 30 ] || fail "db-bootstrap did not converge after 30 attempts"
     attempt=$((attempt + 1))
     sleep 2
 done
-sh jobs/migrate.sh
-printf 'bootstrap complete: databases and migrations applied\n'
+sh jobs/migrate.sh || fail "owner migrations failed; the stack was not deployed"
+printf 'databases and migrations ready; deploying the stack\n'
+
+docker stack deploy --with-registry-auth -c stack.yaml "$STACK"
+printf 'stack %s deployed; image %s; profile %s\n' "$STACK" "$EXPECTED_IMAGE" "$PROFILE"
+wait_for_stack
+verify_ports
+printf 'bootstrap complete: stack converged, 443 published, databases and migrations applied\n'

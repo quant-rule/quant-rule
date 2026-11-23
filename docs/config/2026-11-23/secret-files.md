@@ -92,9 +92,10 @@ the role; never put a value in an env file.
 For `quantrule.deploy/v3`, the renderer reads each `secrets.files` source once
 and writes the same value to `secrets/<name>`; `secrets/manifest.json` lists the
 names, relative paths, modes, and Swarm names, never a value or a fingerprint.
-`bootstrap.sh` creates one external Swarm secret per file from `secrets/<name>`
-and never reads the value itself. The app services mount only the secrets they
-consume; owner URLs go only to the migration jobs. `QR_INTERNAL_ONLY=1` and the
+`bootstrap.sh` creates one external Swarm secret per file from `secrets/<name>`;
+it hashes the rendered file locally for the `quantrule.source_sha256` drift
+label and never prints, logs, or passes the value. The app services mount only
+the secrets they consume; owner URLs go only to the migration jobs. `QR_INTERNAL_ONLY=1` and the
 entrypoint's private-address resolution are unchanged; a task with no resolvable
 private address fails closed. The contract is
 [deploy/v3](../2026-11-22/deploy-v3.md).

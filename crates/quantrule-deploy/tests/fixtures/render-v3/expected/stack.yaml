@@ -77,6 +77,8 @@ services:
             "node.labels.quantrule.backtest == true"
           -
             "node.labels.quantrule.profile == swarm-ha"
+          -
+            "node.labels.quantrule.deploy == quantrule-ha"
         max_replicas_per_node: 1
         preferences:
           -
@@ -90,14 +92,16 @@ services:
       rollback_config:
         delay: "5s"
         failure_action: "pause"
-        order: "start-first"
+        max_failure_ratio: 0
+        monitor: "180s"
+        order: "stop-first"
         parallelism: 1
       update_config:
         delay: "10s"
         failure_action: "rollback"
         max_failure_ratio: 0
-        monitor: "30s"
-        order: "start-first"
+        monitor: "180s"
+        order: "stop-first"
         parallelism: 1
     environment:
       QR_BACKTEST_CONCURRENCY: "1"
@@ -119,6 +123,16 @@ services:
       QR_QUEUE_GENERATION: "1"
       QR_QUEUE_TLS_CA_PATH: "/run/quantrule/pki/queue-ca.crt"
       QR_QUEUE_URL_FILE: "/run/secrets/queue_url"
+    healthcheck:
+      interval: "15s"
+      retries: 6
+      start_period: "60s"
+      test:
+        -
+          "CMD-SHELL"
+        -
+          "curl -fsS http://127.0.0.1:9090/health | grep -q '\"state\":\"healthy\"'"
+      timeout: "5s"
     image: "registry.quantrule.dev/quantrule/server@sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
     networks:
       -
@@ -161,6 +175,8 @@ services:
             "node.labels.quantrule.data == true"
           -
             "node.labels.quantrule.profile == swarm-ha"
+          -
+            "node.labels.quantrule.deploy == quantrule-ha"
         max_replicas_per_node: 1
         preferences:
           -
@@ -174,14 +190,16 @@ services:
       rollback_config:
         delay: "5s"
         failure_action: "pause"
-        order: "start-first"
+        max_failure_ratio: 0
+        monitor: "180s"
+        order: "stop-first"
         parallelism: 1
       update_config:
         delay: "10s"
         failure_action: "rollback"
         max_failure_ratio: 0
-        monitor: "30s"
-        order: "start-first"
+        monitor: "180s"
+        order: "stop-first"
         parallelism: 1
     environment:
       QR_BIND: "0.0.0.0:8080"
@@ -200,6 +218,16 @@ services:
       QR_OBJECT_STORE_URL: "https://minio:9000"
       QR_PROFILE: "server"
       QR_QUEUE_GENERATION: "1"
+    healthcheck:
+      interval: "15s"
+      retries: 6
+      start_period: "60s"
+      test:
+        -
+          "CMD-SHELL"
+        -
+          "curl -fsS http://127.0.0.1:8080/health | grep -q '\"state\":\"healthy\"'"
+      timeout: "5s"
     image: "registry.quantrule.dev/quantrule/server@sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
     networks:
       -
@@ -246,6 +274,8 @@ services:
             "node.labels.quantrule.evidence == true"
           -
             "node.labels.quantrule.profile == swarm-ha"
+          -
+            "node.labels.quantrule.deploy == quantrule-ha"
         max_replicas_per_node: 1
         preferences:
           -
@@ -259,14 +289,16 @@ services:
       rollback_config:
         delay: "5s"
         failure_action: "pause"
-        order: "start-first"
+        max_failure_ratio: 0
+        monitor: "180s"
+        order: "stop-first"
         parallelism: 1
       update_config:
         delay: "10s"
         failure_action: "rollback"
         max_failure_ratio: 0
-        monitor: "30s"
-        order: "start-first"
+        monitor: "180s"
+        order: "stop-first"
         parallelism: 1
     environment:
       QR_BIND: "0.0.0.0:8080"
@@ -288,6 +320,16 @@ services:
       QR_QUEUE_TLS_CA_PATH: "/run/quantrule/pki/queue-ca.crt"
       QR_QUEUE_URL_FILE: "/run/secrets/queue_url"
       QR_STAGE_RETENTION_DAYS: "30"
+    healthcheck:
+      interval: "15s"
+      retries: 6
+      start_period: "60s"
+      test:
+        -
+          "CMD-SHELL"
+        -
+          "curl -fsS http://127.0.0.1:8080/health | grep -q '\"state\":\"healthy\"'"
+      timeout: "5s"
     image: "registry.quantrule.dev/quantrule/server@sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
     networks:
       -
@@ -330,6 +372,8 @@ services:
             "node.labels.quantrule.gateway == true"
           -
             "node.labels.quantrule.profile == swarm-ha"
+          -
+            "node.labels.quantrule.deploy == quantrule-ha"
         max_replicas_per_node: 1
         preferences:
           -
@@ -343,14 +387,16 @@ services:
       rollback_config:
         delay: "5s"
         failure_action: "pause"
-        order: "start-first"
+        max_failure_ratio: 0
+        monitor: "180s"
+        order: "stop-first"
         parallelism: 1
       update_config:
         delay: "10s"
         failure_action: "rollback"
         max_failure_ratio: 0
-        monitor: "30s"
-        order: "start-first"
+        monitor: "180s"
+        order: "stop-first"
         parallelism: 1
     environment:
       QR_BEARER_TOKEN_FILE: "/run/secrets/gateway_token"
@@ -373,6 +419,16 @@ services:
       QR_SIMULATION_URL: "http://simulation:8080"
       QR_STATIC_DIR: "/srv/static"
       QR_STRATEGY_URL: "http://strategy:8080"
+    healthcheck:
+      interval: "15s"
+      retries: 6
+      start_period: "60s"
+      test:
+        -
+          "CMD-SHELL"
+        -
+          "curl -fsS http://127.0.0.1:8080/health | grep -q '\"state\":\"healthy\"'"
+      timeout: "5s"
     image: "registry.quantrule.dev/quantrule/server@sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
     networks:
       -
@@ -404,6 +460,8 @@ services:
             "node.labels.quantrule.ingress == true"
           -
             "node.labels.quantrule.profile == swarm-ha"
+          -
+            "node.labels.quantrule.deploy == quantrule-ha"
         max_replicas_per_node: 1
         preferences:
           -
@@ -417,14 +475,16 @@ services:
       rollback_config:
         delay: "5s"
         failure_action: "pause"
-        order: "start-first"
+        max_failure_ratio: 0
+        monitor: "180s"
+        order: "stop-first"
         parallelism: 1
       update_config:
         delay: "10s"
         failure_action: "rollback"
         max_failure_ratio: 0
-        monitor: "30s"
-        order: "start-first"
+        monitor: "180s"
+        order: "stop-first"
         parallelism: 1
     image: "traefik@sha256:8330e8d28853641532609f63676dc2eec8d19e2bc7fadd5505a1d0c8c254d042"
     networks:
@@ -457,6 +517,8 @@ services:
             "node.labels.quantrule.model == true"
           -
             "node.labels.quantrule.profile == swarm-ha"
+          -
+            "node.labels.quantrule.deploy == quantrule-ha"
         max_replicas_per_node: 1
         preferences:
           -
@@ -470,14 +532,16 @@ services:
       rollback_config:
         delay: "5s"
         failure_action: "pause"
-        order: "start-first"
+        max_failure_ratio: 0
+        monitor: "180s"
+        order: "stop-first"
         parallelism: 1
       update_config:
         delay: "10s"
         failure_action: "rollback"
         max_failure_ratio: 0
-        monitor: "30s"
-        order: "start-first"
+        monitor: "180s"
+        order: "stop-first"
         parallelism: 1
     environment:
       QR_BIND: "0.0.0.0:8080"
@@ -494,6 +558,16 @@ services:
       QR_OBJECT_STORE_URL: "https://minio:9000"
       QR_PROFILE: "server"
       QR_QUEUE_GENERATION: "1"
+    healthcheck:
+      interval: "15s"
+      retries: 6
+      start_period: "60s"
+      test:
+        -
+          "CMD-SHELL"
+        -
+          "curl -fsS http://127.0.0.1:8080/health | grep -q '\"state\":\"healthy\"'"
+      timeout: "5s"
     image: "registry.quantrule.dev/quantrule/server@sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
     networks:
       -
@@ -532,6 +606,8 @@ services:
             "node.labels.quantrule.simulation == true"
           -
             "node.labels.quantrule.profile == swarm-ha"
+          -
+            "node.labels.quantrule.deploy == quantrule-ha"
         max_replicas_per_node: 1
         preferences:
           -
@@ -545,14 +621,16 @@ services:
       rollback_config:
         delay: "5s"
         failure_action: "pause"
-        order: "start-first"
+        max_failure_ratio: 0
+        monitor: "180s"
+        order: "stop-first"
         parallelism: 1
       update_config:
         delay: "10s"
         failure_action: "rollback"
         max_failure_ratio: 0
-        monitor: "30s"
-        order: "start-first"
+        monitor: "180s"
+        order: "stop-first"
         parallelism: 1
     environment:
       QR_BIND: "0.0.0.0:8080"
@@ -570,6 +648,16 @@ services:
       QR_OBJECT_STORE_URL: "https://minio:9000"
       QR_PROFILE: "server"
       QR_QUEUE_GENERATION: "1"
+    healthcheck:
+      interval: "15s"
+      retries: 6
+      start_period: "60s"
+      test:
+        -
+          "CMD-SHELL"
+        -
+          "curl -fsS http://127.0.0.1:8080/health | grep -q '\"state\":\"healthy\"'"
+      timeout: "5s"
     image: "registry.quantrule.dev/quantrule/server@sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
     networks:
       -
@@ -608,6 +696,8 @@ services:
             "node.labels.quantrule.strategy == true"
           -
             "node.labels.quantrule.profile == swarm-ha"
+          -
+            "node.labels.quantrule.deploy == quantrule-ha"
         max_replicas_per_node: 1
         preferences:
           -
@@ -621,14 +711,16 @@ services:
       rollback_config:
         delay: "5s"
         failure_action: "pause"
-        order: "start-first"
+        max_failure_ratio: 0
+        monitor: "180s"
+        order: "stop-first"
         parallelism: 1
       update_config:
         delay: "10s"
         failure_action: "rollback"
         max_failure_ratio: 0
-        monitor: "30s"
-        order: "start-first"
+        monitor: "180s"
+        order: "stop-first"
         parallelism: 1
     environment:
       QR_BIND: "0.0.0.0:8080"
@@ -646,6 +738,16 @@ services:
       QR_OBJECT_STORE_URL: "https://minio:9000"
       QR_PROFILE: "server"
       QR_QUEUE_GENERATION: "1"
+    healthcheck:
+      interval: "15s"
+      retries: 6
+      start_period: "60s"
+      test:
+        -
+          "CMD-SHELL"
+        -
+          "curl -fsS http://127.0.0.1:8080/health | grep -q '\"state\":\"healthy\"'"
+      timeout: "5s"
     image: "registry.quantrule.dev/quantrule/server@sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
     networks:
       -

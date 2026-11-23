@@ -1,6 +1,6 @@
 # Deployment
 
-- Status: Current; released as v1.0.0 on 2026-11-15 (prepared as v1.1.0); current in v1.4.2; v3 render/check current (HA-012); approved 2026-11-12
+- Status: Current; released as v1.0.0 on 2026-11-15 (prepared as v1.1.0); current in v1.4.2; v3 render/check and the PLAT-001 remote check current; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Decision: [`ADR-2026-11-12-01`](../adr/2026-11-12/01-adopt-distributed-service-based-architecture.md)
 - Claim type: Behaviour Claim
@@ -77,8 +77,7 @@ contracts are pinned in [four-databases](../config/2026-11-22/four-databases.md)
 | `make scale N=4` | Scale `model` and `backtest` to `N` |
 | `make verify` | Submit the two fixture configs through the gateway and print the canonical digest |
 | `make test` / `make test-fast` | Fast unit and integration tier, no network |
-| `make test-composed` | Composed tier against a running stack |
-| `make test-parity` | Port-parity tier |
+| `make test-composed` / `test-parity` / `test-ha` | Composed, port-parity, and opt-in Swarm HA lab tiers |
 | `make gate` | Full workspace gate |
 | `make remote` | Layer `compose.remote.yaml`, write `secrets/bearer_token`, publish only `:8080`, print the token and usage |
 | `make token` | Print a new 256-bit bearer token; `--out` writes a mode-600 file |
@@ -167,4 +166,4 @@ The split does not copy rows from the old `quantrule` database: use `make reset`
 for disposable data, or the migration runbook for kept evidence.
 ## 8. What deployment does not provide
 
-Autoscaling, registry signing, and real HA evidence are out of this profile. PostgreSQL, RabbitMQ and MinIO use internal TLS; the gateway serves plain HTTP behind the ingress. Multi-host placement is in [multi-host.md](multi-host.md); the v3 render/check is in [deploy/v3](../config/2026-11-22/deploy-v3.md); real HA is HA-014.
+Autoscaling, registry signing, and real HA evidence are out of this profile. PostgreSQL, RabbitMQ and MinIO use internal TLS; the gateway serves plain HTTP behind the ingress. Multi-host placement is in [multi-host.md](multi-host.md); the v3 render/check, read-only remote check, and `tools/swarm.sh` control plane are in [deploy/v3](../config/2026-11-22/deploy-v3.md) and [swarm-control](../config/2026-11-23/swarm-control.md); real HA is HA-014.
