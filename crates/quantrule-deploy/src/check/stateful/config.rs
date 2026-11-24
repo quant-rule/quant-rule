@@ -499,7 +499,7 @@ pub(super) fn etcd_rows(descriptor: &Descriptor, out: Option<&Path>) -> Vec<Chec
             "metrics: \"prometheus\"",
             "listen-metrics-urls: \"http://0.0.0.0:2381\"",
         ],
-        "Prometheus metrics on the overlay; PLAT-006 owns scraping",
+        "Prometheus metrics on the overlay; the PLAT-006 etcd job scrapes it",
     );
 
     let addresses: BTreeSet<&str> = descriptor

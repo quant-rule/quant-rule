@@ -424,7 +424,8 @@ pub fn haproxy_cfg(descriptor: &Descriptor, _host: &str) -> Result<String, Error
          \x20 bind 0.0.0.0:8404\n\
          \x20 stats enable\n\
          \x20 stats uri /stats\n\
-         \x20 stats refresh 10s\n"
+         \x20 stats refresh 10s\n\
+         \x20 http-request use-service prometheus-exporter if {{ path /metrics }}\n"
     ))
 }
 

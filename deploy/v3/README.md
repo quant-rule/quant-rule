@@ -16,23 +16,34 @@ and the object-store contract is
 Swarm stack, the static and dynamic Traefik files, the per-edge keepalived files,
 the per-host Patroni/etcd/HAProxy configuration, the per-broker RabbitMQ config
 and plugin list, the per-node MinIO config, the bucket policy, the
-RabbitMQ/MinIO/observability units, the stateful manifest,
-the ordered operator jobs, the secret/PKI copies, and `render.json`. The checker
+Prometheus/Alertmanager/Loki/promtail/blackbox/Grafana configuration and four
+dashboards, every host's node_exporter/promtail units, the stateful and
+observability manifests, the ordered operator jobs, the secret/PKI copies, and
+`render.json`. The checker
 validates the descriptor, placement, pins, secrets, PKI, and local files and
 probes the one HTTPS ingress. `tools/swarm.sh` wraps render, bootstrap, status,
 upgrade, rollback, and verify; the control-plane contract is
 [`docs/config/2026-11-23/swarm-control.md`](../../docs/config/2026-11-23/swarm-control.md).
+`tools/observability.sh` copies, starts, waits, verifies, and stamps the
+manager-quorum textfile; its contract is
+[`docs/config/2026-11-23/observability.md`](../../docs/config/2026-11-23/observability.md).
 `qr-deploy check` adds the stateful rows (Patroni sync/rewind/archive/TLS/
 pg_hba/watchdog, etcd mTLS, HAProxy `/primary`, the manifest, and the Postgres/
 etcd certificate SANs) and the queue rows (TLS-only broker, three-node cluster,
 alarms, HAProxy `rabbitmq`/5671, the broker unit, manifest hosts/modes, and the
 RabbitMQ leaf SANs), and the MinIO rows (config/quorum, unit/alias, HAProxy
-9000, manifest, app, and leaf SAN/expiry). `--out <render-dir>` or `QR_DEPLOY_OUT` reads a rendered
+9000, manifest, app, and leaf SAN/expiry), and the observability rows
+(placement, units, 14 jobs/auth, 38 rules/HA matrix, receiver, Loki/promtail,
+Grafana, manifest, logging, and internal metrics). `--out <render-dir>` or
+`QR_DEPLOY_OUT` reads a rendered
 tree; without it the configs render in memory and the certificates come from the
 descriptor CA. `--remote docker --overlay` adds the read-only Swarm, node,
 overlay, service, port, task, and ingress-mount rows; the default check stays
 Docker-free. `tools/test_tiers.sh ha` defaults to `deploy.lab.json` and runs the
-opt-in lab in `test.sh`; `--plan` is Docker-free. The harness drains the VIP
+opt-in lab in `test.sh`; `--plan` is Docker-free. The harness starts the
+observability tier, proves `GatewaySyntheticDown` with a promtool rule unit,
+and asserts `SwarmManagerQuorumAtRisk` and `GatewayReplicaDown` fire and
+resolve; `--skip-observability` leaves that row `Unverified`. It drains the VIP
 holder, pauses the Patroni primary and one HAProxy, stops the RabbitMQ quorum
 leader, measures RTO and the queue gap, writes and re-reads markers through
 `postgres`, proves a confirmed publish survives the queue loss, compares the
@@ -79,7 +90,9 @@ qr-deploy check /tmp/deploy.json --out /tmp/qr-v3-out
 `pki/`, and `render.json`. `--target infra` writes `infra/<host>.yaml`,
 `keepalived-<host>.conf`, `patroni-<host>.yml`, `etcd-<host>.conf.yml`,
 `haproxy-<host>.cfg`, `rabbitmq-<host>.conf`, `rabbitmq-enabled_plugins`,
-`minio-<host>.conf`, `minio-policy.json`, and the shared material. `--target all` writes both. A v3 render without `--target` is a
+`minio-<host>.conf`, `minio-policy.json`, `prometheus.yml`, `alert-rules.yml`,
+`alertmanager.yml`, `loki.yml`, `blackbox.yml`, `promtail-<host>.yml`,
+`grafana/`, `observability-manifest.json`, and the shared material. `--target all` writes both. A v3 render without `--target` is a
 usage error; v2 `render` is unchanged and rejects `--target`.
 
 ## Fixture secrets

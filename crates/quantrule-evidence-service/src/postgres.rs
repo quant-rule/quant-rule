@@ -34,7 +34,28 @@ impl PgRunStore {
             lease_seconds,
         }
     }
+
+    /// Count succeeded runs whose canonical digest is still missing.
+    ///
+    /// The observability gauge reads this value; a non-zero value for a bounded
+    /// interval is the partial-publish alert (F07). The query is read-only and
+    /// uses the existing status/digest columns.
+    ///
+    /// # Errors
+    ///
+    /// Returns the database error so the caller can keep the last good value
+    /// instead of publishing a false zero.
+    pub async fn missing_digest_count(&self) -> Result<u64, sqlx::Error> {
+        let row: (i64,) = sqlx::query_as(MISSING_DIGEST_QUERY)
+            .fetch_one(&self.pool)
+            .await?;
+        Ok(u64::try_from(row.0).unwrap_or(0))
+    }
 }
+
+/// The partial-publish query: a succeeded run without its canonical digest.
+pub(crate) const MISSING_DIGEST_QUERY: &str = "SELECT count(*)::bigint FROM runs.runs
+      WHERE status = 'succeeded' AND digest IS NULL";
 
 type RunRow = (
     String,
@@ -303,5 +324,18 @@ impl crate::research::HypothesisStore for PgHypothesisStore {
                 None => Ok(None),
             }
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::MISSING_DIGEST_QUERY;
+
+    #[test]
+    fn the_missing_digest_query_counts_only_succeeded_null_digest_rows() {
+        assert!(MISSING_DIGEST_QUERY.contains("status = 'succeeded'"));
+        assert!(MISSING_DIGEST_QUERY.contains("digest IS NULL"));
+        assert!(MISSING_DIGEST_QUERY.contains("runs.runs"));
+        assert!(!MISSING_DIGEST_QUERY.contains("state"));
     }
 }

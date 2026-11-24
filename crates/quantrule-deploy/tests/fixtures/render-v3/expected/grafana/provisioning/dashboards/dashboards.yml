@@ -1,0 +1,12 @@
+apiVersion: 1
+providers:
+  -
+    allowUiUpdates: false
+    disableDeletion: true
+    folder: "QuantRule"
+    name: "quantrule"
+    options:
+      path: "/etc/grafana/dashboards"
+    orgId: 1
+    type: "file"
+    updateIntervalSeconds: 30

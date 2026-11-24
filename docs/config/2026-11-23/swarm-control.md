@@ -160,7 +160,8 @@ tools/swarm.sh verify     # qr-deploy check the ingress; --remote docker --overl
 ```
 
 `DESCRIPTOR`, `OUT`, `TARGET`, `STACK`, and `QR_SWARM_STATE` select the input,
-output, render target, stack name, and snapshot directory. The wrapper calls
+output, render target, stack name, and snapshot directory. The observability
+tier is operated separately by `tools/observability.sh`. The wrapper calls
 `qr-deploy` on `PATH`, then `cargo run -p quantrule-deploy`, unless
 `QR_DEPLOY_BIN` names a binary. Make targets `make swarm-validate`,
 `swarm-render`, `swarm-bootstrap`, `swarm-status`, `swarm-upgrade`,

@@ -281,6 +281,13 @@ async fn main() -> Result<(), RuntimeError> {
             shutdown.clone(),
         ));
     }
+    if let Some(store) = run_store.as_ref() {
+        background.push(watch_missing_digest(
+            Arc::clone(store),
+            metrics.clone(),
+            shutdown.clone(),
+        ));
+    }
     background.push(watch_queue_depth(
         Arc::clone(&queue),
         evidence_queue.clone(),
@@ -376,13 +383,14 @@ async fn main() -> Result<(), RuntimeError> {
         tracing::warn!(%error, "the evidence leader lease was not released");
     }
     metrics.set_leader(false);
+    metrics.set_leader_term(0);
     if !server_done {
         let _ = server.as_mut().await;
     }
     failure.map_or(Ok(()), Err)
 }
 
-/// Follow the leadership watch and update the internal gauge.
+/// Follow the leadership watch and update the internal gauges.
 fn watch_leadership(
     mut leadership: tokio::sync::watch::Receiver<Leadership>,
     metrics: Metrics,
@@ -390,10 +398,16 @@ fn watch_leadership(
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         loop {
-            metrics.set_leader(matches!(
-                *leadership.borrow_and_update(),
-                Leadership::Leader(_)
-            ));
+            match *leadership.borrow_and_update() {
+                Leadership::Leader(term) => {
+                    metrics.set_leader(true);
+                    metrics.set_leader_term(term);
+                }
+                Leadership::Standby => {
+                    metrics.set_leader(false);
+                    metrics.set_leader_term(0);
+                }
+            }
             let mut drain = shutdown.clone();
             tokio::select! {
                 biased;
@@ -403,6 +417,30 @@ fn watch_leadership(
                         return;
                     }
                 }
+            }
+        }
+    })
+}
+
+/// Poll the succeeded-run missing-digest count for the partial-publish gauge.
+fn watch_missing_digest(
+    store: Arc<PgRunStore>,
+    metrics: Metrics,
+    shutdown: Shutdown,
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        loop {
+            match store.missing_digest_count().await {
+                Ok(missing) => metrics.set_runs_missing_digest(missing),
+                Err(error) => {
+                    tracing::debug!(%error, "the missing-digest count is unavailable")
+                }
+            }
+            let mut drain = shutdown.clone();
+            tokio::select! {
+                biased;
+                () = drain.wait() => return,
+                () = tokio::time::sleep(Duration::from_secs(30)) => {}
             }
         }
     })

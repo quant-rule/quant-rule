@@ -21,6 +21,11 @@ services:
       MINIO_SERVER_URL: "https://minio:9000"
     hostname: "minio-infra-4"
     image: "minio/minio@sha256:bdf0781acceb93983c15eec9e56bfbd59dcadc98ea57467022d61aeee074a2cc"
+    logging:
+      driver: "json-file"
+      options:
+        max-file: "5"
+        max-size: "50m"
     networks:
       quantrule:
         aliases:
@@ -54,9 +59,99 @@ services:
         source: "/etc/quantrule/secrets/minio_root_password"
         target: "/run/secrets/minio_root_password"
         type: "bind"
+  node-exporter-infra-4:
+    command:
+      -
+        "--path.rootfs=/host"
+      -
+        "--collector.textfile.directory=/var/lib/node_exporter/textfile"
+      -
+        "--web.listen-address=0.0.0.0:9100"
+    container_name: "quantrule-node-exporter-infra-4"
+    healthcheck:
+      interval: "15s"
+      retries: 5
+      start_period: "60s"
+      test:
+        -
+          "CMD-SHELL"
+        -
+          "wget -q -O /dev/null http://127.0.0.1:9100/metrics"
+      timeout: "5s"
+    image: "prom/node-exporter@sha256:c26a6b6c79c6a303387b01b3dcfc34824e4cf03fe9c2e9899a762b601e46a680"
+    logging:
+      driver: "json-file"
+      options:
+        max-file: "5"
+        max-size: "50m"
+    networks:
+      quantrule:
+        aliases:
+          -
+            "node-infra-4"
+    restart: "unless-stopped"
+    stop_grace_period: "40s"
+    volumes:
+      -
+        bind:
+          propagation: "rslave"
+        read_only: true
+        source: "/"
+        target: "/host"
+        type: "bind"
+      -
+        read_only: true
+        source: "/srv/quantrule/node_exporter/textfile"
+        target: "/var/lib/node_exporter/textfile"
+        type: "bind"
+  promtail-infra-4:
+    command:
+      -
+        "-config.file=/etc/promtail/promtail.yml"
+    container_name: "quantrule-promtail-infra-4"
+    healthcheck:
+      interval: "15s"
+      retries: 5
+      start_period: "60s"
+      test:
+        -
+          "CMD-SHELL"
+        -
+          "wget -q -O /dev/null http://127.0.0.1:9080/ready"
+      timeout: "5s"
+    image: "grafana/promtail@sha256:60b24aa368eea19a4fe8d35e294777963ba4a21f908a293de6f9e90d409ca919"
+    logging:
+      driver: "json-file"
+      options:
+        max-file: "5"
+        max-size: "50m"
+    networks:
+      quantrule:
+        aliases:
+          -
+            "promtail-infra-4"
+    restart: "unless-stopped"
+    stop_grace_period: "40s"
+    user: "0:0"
+    volumes:
+      -
+        read_only: true
+        source: "/etc/quantrule/promtail/promtail-infra-4.yml"
+        target: "/etc/promtail/promtail.yml"
+        type: "bind"
+      -
+        read_only: true
+        source: "/var/run/docker.sock"
+        target: "/var/run/docker.sock"
+        type: "bind"
+      -
+        read_only: false
+        source: "/srv/quantrule/promtail"
+        target: "/var/lib/promtail"
+        type: "bind"
 x-quantrule:
   evidence: "HA profile (unverified)"
   network: "overlay, attachable, encrypted; created by bootstrap.sh"
-  owner: "PLAT-003/PLAT-004/PLAT-005"
-  platform: "keepalived is PLAT-002; Patroni, etcd, and HAProxy are configured by PLAT-003; RabbitMQ is PLAT-004; MinIO is PLAT-005; observability remains PLAT-006"
+  owner: "PLAT-003/PLAT-004/PLAT-005/PLAT-006"
+  platform: "keepalived is PLAT-002; Patroni, etcd, and HAProxy are configured by PLAT-003; RabbitMQ is PLAT-004; MinIO is PLAT-005; Prometheus, Alertmanager, Loki, Grafana, blackbox, node_exporter, and promtail are PLAT-006"
   profile: "swarm-ha"

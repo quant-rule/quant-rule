@@ -1,6 +1,6 @@
 # Security
 
-- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); multi-host overlay added 2026-11-20; internal TLS added 2026-11-23 (#1108); PLAT-002 ingress, PLAT-003 Patroni/etcd/HAProxy, PLAT-004 RabbitMQ, and PLAT-005 MinIO object bootstrap/check rows/node-loss lab added 2026-11-23; approved 2026-11-12
+- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); multi-host overlay added 2026-11-20; internal TLS added 2026-11-23 (#1108); PLAT-002 ingress, PLAT-003 Patroni/etcd/HAProxy, PLAT-004 RabbitMQ, PLAT-005 MinIO object bootstrap/check rows/node-loss lab, and PLAT-006 observability added 2026-11-23; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Decision: [`ADR-2026-11-12-03`](../adr/2026-11-12/03-single-principal-no-accounts.md)
 - Claim type: Behaviour Claim
@@ -100,7 +100,11 @@ require TLS; RabbitMQ has no plaintext listener, its Erlang cookie is copied
 only to the three brokers, and definitions are stripped of users/permissions.
 MinIO keeps root files on MinIO hosts only, gives the app a least-privilege
 `qr_app` policy, never mounts root into an app, and is checked at the app path,
-manifest hosts, and leaf; the lab proves one node loss keeps writes. CA: [internal TLS](../config/2026-11-23/internal-tls.md).
+manifest hosts, and leaf; the lab proves one node loss keeps writes. Prometheus,
+Alertmanager, Loki, Grafana, blackbox, node_exporter, and promtail stay on the
+overlay with no published port; Grafana is anonymous Viewer with no login,
+Prometheus and Alertmanager sit on distinct hosts, and promtail's Docker socket,
+Prometheus's root read of the Patroni password file, and MinIO's public metrics auth are read-only overlay paths. CA: [internal TLS](../config/2026-11-23/internal-tls.md).
 
 Residual risks accepted for v1:
 
@@ -111,12 +115,10 @@ Residual risks accepted for v1:
   four databases and the bucket. v3 separates MinIO root from `qr_app`, but the
   app object credentials remain shared by six consumers.
 - PostgreSQL and RabbitMQ do not request client certificates, so a peer with a
-  credential and the CA bundle can connect; etcd uses mTLS. RabbitMQ's Erlang
+  credential and the CA bundle can connect; etcd uses mTLS, RabbitMQ's Erlang
   distribution is not TLS, and internal HTTP has no service authentication.
-- The overlay provides encryption and host authentication, not service authentication; route a client VPN peer to the gateway only.
-- v2 `qr-deploy check` compares the reported digest; v3 `--remote docker` reads the running service image and read-only node/overlay state.
-- `/ready` and `/metrics` are unauthenticated; `/ready` is network-gated and `/metrics` is internal.
-- The Compose/v2 infrastructure host is a single point of failure; v3 is the HA shape, not real-host evidence.
+- The overlay encrypts and authenticates hosts, not services; route a client VPN peer to the gateway only. `/ready` and `/metrics` are unauthenticated, though `/ready` is network-gated and `/metrics` is internal.
+- v2 `qr-deploy check` compares the reported digest; v3 `--remote docker` reads the running image and read-only node/overlay state. The Compose/v2 infrastructure host is a single point of failure; v3 is the HA shape, not real-host evidence.
 
 ## 3. Input boundaries
 
@@ -128,7 +130,6 @@ Residual risks accepted for v1:
 | Timeframes | Must belong to the configured ladder |
 
 Every rejection returns a code a client can act on and a message a human can read.
-
 ## 4. Data at rest
 
 - Candle and artifact bytes live in object storage; metadata in Postgres; volumes
@@ -138,7 +139,6 @@ Every rejection returns a code a client can act on and a message a human can rea
   stripped of credentials, mode 600, never in Git.
 - The local stack uses random store passwords from `make secrets`; `make remote`
   refuses a documented default and requires non-default values.
-
 ## 5. Data in transit
 
 - PostgreSQL, RabbitMQ and MinIO use TLS (`verify-full`/`amqps`/`https`) with a

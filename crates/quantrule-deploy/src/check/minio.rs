@@ -214,6 +214,9 @@ fn config_rows(descriptor: &Descriptor, out: Option<&Path>) -> Vec<CheckRow> {
         "MINIO_ROOT_PASSWORD_FILE=\"/run/secrets/minio_root_password\"",
         "MINIO_CONFIG_ENV_FILE=\"/etc/minio/minio.conf\"",
         "MINIO_REGION=\"us-east-1\"",
+        // The Prometheus job scrapes MinIO on the overlay with public metrics
+        // auth. The unit publishes no port, so this never reaches the underlay.
+        "MINIO_PROMETHEUS_AUTH_TYPE=\"public\"",
     ];
     if let Some(value) = standard.as_deref() {
         required.push(value);

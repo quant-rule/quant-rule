@@ -83,7 +83,7 @@ ssl_options.versions.2 = tlsv1.3
 
 There is no plaintext listener, no management listener, and no published port.
 The management plugin is not enabled; `rabbitmq_prometheus` is the only plugin
-and listens on 15692 on the overlay for PLAT-006 to scrape. TLS 1.2 and 1.3 are
+and listens on 15692 on the overlay for the PLAT-006 scrape. TLS 1.2 and 1.3 are
 the only protocol versions. `verify_none` means the broker does not request a
 client certificate; the application authenticates with its user and password
 over the encrypted connection.
@@ -204,7 +204,7 @@ HAProxy never terminates TLS; the broker leaf and CA verification reach the
 application unchanged. A plain TCP check marks a broker down when its listener
 stops answering; a marked-down server closes its sessions, and the client
 reconnects to a surviving broker through the same `rabbitmq` name. The stats
-listener stays on 8404 on the overlay; PLAT-006 owns scraping and alerting.
+listener stays on 8404 on the overlay; the PLAT-006 `haproxy` job scrapes it and the F12/F13 rules use it.
 
 ## 9. Boot order and operator commands
 

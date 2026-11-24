@@ -15,6 +15,7 @@ pub(crate) mod infra;
 pub(crate) mod ingress;
 mod jobs;
 pub(crate) mod minio;
+pub(crate) mod observability;
 pub(crate) mod queue;
 mod secrets;
 pub(crate) mod stateful;
@@ -141,6 +142,7 @@ pub fn render_v3(
         ingress::render_infra(descriptor, out, &mut files)?;
         infra::render(descriptor, out, &mut files)?;
         stateful::render(descriptor, &values, out, &mut files)?;
+        observability::render(descriptor, out, &mut files)?;
     }
     let files = canonical_files(&files);
     let descriptor_hash = descriptor_hash(descriptor)?;
@@ -300,11 +302,19 @@ fn prepare_output(out: &Path) -> Result<(), Error> {
         "traefik-dynamic.yml",
         "stateful-manifest.json",
         "minio-policy.json",
+        "prometheus.yml",
+        "alert-rules.yml",
+        "alertmanager.yml",
+        "loki.yml",
+        "blackbox.yml",
+        "grafana",
+        "observability-manifest.json",
     ] {
         remove_existing(&out.join(name))?;
     }
     remove_stale_keepalived(out)?;
     remove_stale_stateful(out)?;
+    remove_stale_observability(out)?;
     Ok(())
 }
 
@@ -353,6 +363,28 @@ fn remove_stale_keepalived(out: &Path) -> Result<(), Error> {
         let name = entry.file_name();
         let name = name.to_string_lossy();
         if name.starts_with("keepalived-") && name.ends_with(".conf") {
+            remove_existing(&entry.path())?;
+        }
+    }
+    Ok(())
+}
+
+/// Remove every rendered promtail file, including a host that left the descriptor.
+fn remove_stale_observability(out: &Path) -> Result<(), Error> {
+    let entries = match std::fs::read_dir(out) {
+        Ok(entries) => entries,
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(source) => {
+            return Err(Error::Write {
+                path: out.to_path_buf(),
+                source,
+            });
+        }
+    };
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if name.starts_with("promtail-") && name.ends_with(".yml") {
             remove_existing(&entry.path())?;
         }
     }

@@ -145,7 +145,7 @@ fn metadata(descriptor: &Descriptor) -> Yaml {
         .with(
             "platform",
             Yaml::string(
-                "Traefik ingress configuration is PLAT-002; Patroni, etcd, and HAProxy are PLAT-003; RabbitMQ is PLAT-004; MinIO is PLAT-005; observability remains PLAT-006",
+                "Traefik ingress configuration is PLAT-002; Patroni, etcd, and HAProxy are PLAT-003; RabbitMQ is PLAT-004; MinIO is PLAT-005; Prometheus, Alertmanager, Loki, Grafana, blackbox, node_exporter, and promtail are PLAT-006",
             ),
         )
 }
@@ -467,7 +467,8 @@ fn service_yaml(descriptor: &Descriptor, plan: &Plan) -> Yaml {
             ),
         )
         .with("stop_grace_period", Yaml::string("40s"))
-        .with("healthcheck", healthcheck(plan.port));
+        .with("healthcheck", healthcheck(plan.port))
+        .with("logging", logging());
     if !plan.secrets.is_empty() {
         service = service.with("secrets", Yaml::list(plan.secrets.iter().map(mount_yaml)));
     }
@@ -522,7 +523,8 @@ fn ingress_yaml(descriptor: &Descriptor) -> Yaml {
                 false,
             ),
         )
-        .with("stop_grace_period", Yaml::string("40s"));
+        .with("stop_grace_period", Yaml::string("40s"))
+        .with("logging", logging());
     if descriptor.ingress.tls == IngressTls::Cert {
         service = service.with(
             "secrets",
@@ -664,6 +666,15 @@ fn healthcheck(port: u16) -> Yaml {
         .with("timeout", Yaml::string("5s"))
         .with("retries", Yaml::number(6_u64))
         .with("start_period", Yaml::string("60s"))
+}
+
+fn logging() -> Yaml {
+    Yaml::map().with("driver", Yaml::string("json-file")).with(
+        "options",
+        Yaml::map()
+            .with("max-size", Yaml::string("50m"))
+            .with("max-file", Yaml::string("5")),
+    )
 }
 
 #[cfg(test)]

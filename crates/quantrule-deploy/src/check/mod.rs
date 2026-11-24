@@ -9,6 +9,7 @@
 mod ingress;
 mod local;
 mod minio;
+mod observability;
 mod queue;
 mod remote;
 mod report;

@@ -42,6 +42,8 @@ fn encoding_is_stable_and_families_are_ordered() {
         RUNS_TOTAL,
         STAGES_TOTAL,
         LEADER,
+        LEADER_TERM,
+        RUNS_MISSING_DIGEST,
         OUTBOX_PENDING,
         AUTH_RELOAD_FAILURES,
         AUTH_TOKEN_AGE,
@@ -202,6 +204,8 @@ fn worker_and_retry_families_are_deterministic() {
     metrics.record_run("failed");
     metrics.record_stage("computed");
     metrics.set_leader(true);
+    metrics.set_leader_term(7);
+    metrics.set_runs_missing_digest(2);
     metrics.set_outbox_pending(4);
     let first = metrics.encode();
     assert_eq!(first, metrics.encode());
@@ -235,6 +239,11 @@ fn worker_and_retry_families_are_deterministic() {
         first.contains("quantrule_leader{service=\"data\"} 1"),
         "{first}"
     );
+    assert!(
+        first.contains("quantrule_leader_term{service=\"data\"} 7"),
+        "{first}"
+    );
+    assert!(first.contains("quantrule_runs_missing_digest 2"), "{first}");
     assert!(first.contains("quantrule_outbox_pending 4"), "{first}");
 }
 

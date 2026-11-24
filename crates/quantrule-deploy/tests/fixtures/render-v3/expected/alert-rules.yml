@@ -1,0 +1,384 @@
+groups:
+  -
+    name: "quantrule-ha"
+    rules:
+      -
+        alert: "GatewaySyntheticDown"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "the synthetic ingress probe failed"
+        expr: "probe_success{job=\"blackbox\"} == 0"
+        for: "2m"
+        labels:
+          failure_row: "F01"
+          severity: "critical"
+      -
+        alert: "GatewaySyntheticSlow"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "the synthetic ingress probe is slow"
+        expr: "probe_duration_seconds{job=\"blackbox\"} > 2"
+        for: "10m"
+        labels:
+          failure_row: "F01"
+          severity: "warning"
+      -
+        alert: "GatewayReplicaDown"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "a gateway replica is not scraped"
+        expr: "up{job=\"app\", service=\"gateway\"} == 0"
+        for: "5m"
+        labels:
+          failure_row: "F01"
+          severity: "critical"
+      -
+        alert: "IngressCertificateExpiring"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "the ingress certificate expires within 14 days"
+        expr: "probe_ssl_earliest_cert_expiry{job=\"blackbox\"} - time() < 14 * 24 * 3600"
+        for: "1h"
+        labels:
+          failure_row: "F01"
+          severity: "warning"
+      -
+        alert: "ServiceNotReady"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "a service replica is not ready and is not draining"
+        expr: "quantrule_ready{job=\"app\"} == 0 unless on(instance) quantrule_draining == 1"
+        for: "5m"
+        labels:
+          failure_row: "F02"
+          severity: "critical"
+      -
+        alert: "ServiceTargetDown"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "a service replica is not scraped"
+        expr: "up{job=\"app\"} == 0"
+        for: "5m"
+        labels:
+          failure_row: "F03"
+          severity: "warning"
+      -
+        alert: "DrainStuck"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "a drain did not complete"
+        expr: "quantrule_draining == 1"
+        for: "15m"
+        labels:
+          failure_row: "F04"
+          severity: "warning"
+      -
+        alert: "ConsumerReconnectStorm"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "a consumer reconnected more than five times in fifteen minutes"
+        expr: "increase(quantrule_consumer_reconnects_total[15m]) > 5"
+        for: "15m"
+        labels:
+          failure_row: "F05"
+          severity: "warning"
+      -
+        alert: "EvidenceLeaderMissing"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "no evidence replica holds the leader lease"
+        expr: "sum(quantrule_leader{service=\"evidence\"}) < 1"
+        for: "2m"
+        labels:
+          failure_row: "F06"
+          severity: "critical"
+      -
+        alert: "EvidenceLeaderTermFlapping"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "the evidence leader term changed more than three times in thirty minutes"
+        expr: "changes(quantrule_leader_term{service=\"evidence\"}[30m]) > 3"
+        for: "5m"
+        labels:
+          failure_row: "F06"
+          severity: "warning"
+      -
+        alert: "RunsMissingDigest"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "a succeeded run is missing its digest"
+        expr: "quantrule_runs_missing_digest > 0"
+        for: "15m"
+        labels:
+          failure_row: "F07"
+          severity: "critical"
+      -
+        alert: "PatroniNoLeader"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "no Patroni member reports the primary role"
+        expr: "sum(patroni_primary) < 1"
+        for: "2m"
+        labels:
+          failure_row: "F08"
+          severity: "critical"
+      -
+        alert: "PatroniMultipleLeaders"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "more than one Patroni member reports the primary role"
+        expr: "sum(patroni_primary) > 1"
+        for: "2m"
+        labels:
+          failure_row: "F08"
+          severity: "critical"
+      -
+        alert: "PostgresNoPrimaryBackend"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "HAProxy has no active backend for the Patroni primary"
+        expr: "haproxy_backend_active_servers{proxy=\"postgres_primary\"} < 1"
+        for: "5m"
+        labels:
+          failure_row: "F08"
+          severity: "critical"
+      -
+        alert: "PatroniReplicaLagHigh"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "a Patroni replica lags by more than 64 MiB"
+        expr: "max(patroni_xlog_received_location - patroni_xlog_replayed_location) > 67108864"
+        for: "10m"
+        labels:
+          failure_row: "F09"
+          severity: "warning"
+      -
+        alert: "PatroniSyncStandbyMissing"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "no synchronous standby is registered"
+        expr: "sum(patroni_sync_standby) < 1"
+        for: "5m"
+        labels:
+          failure_row: "F10"
+          severity: "critical"
+      -
+        alert: "EtcdNoLeader"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "etcd reports no leader"
+        expr: "max(etcd_server_has_leader) == 0"
+        for: "1m"
+        labels:
+          failure_row: "F11"
+          severity: "critical"
+      -
+        alert: "EtcdNodeDown"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "fewer than three etcd members are scraped"
+        expr: "sum(up{job=\"etcd\"}) < 3"
+        for: "2m"
+        labels:
+          failure_row: "F11"
+          severity: "warning"
+      -
+        alert: "EtcdQuorumAtRisk"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "fewer than two etcd members are scraped"
+        expr: "sum(up{job=\"etcd\"}) < 2"
+        for: "2m"
+        labels:
+          failure_row: "F11"
+          severity: "critical"
+      -
+        alert: "RabbitMqNodeDown"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "fewer than three RabbitMQ nodes are running"
+        expr: "sum(rabbitmq_running) < 3"
+        for: "3m"
+        labels:
+          failure_row: "F12"
+          severity: "critical"
+      -
+        alert: "RabbitMqPartition"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "RabbitMQ reports a network partition"
+        expr: "max(rabbitmq_partitions) > 0"
+        for: "3m"
+        labels:
+          failure_row: "F12"
+          severity: "critical"
+      -
+        alert: "RabbitMqMemoryAlarm"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "a RabbitMQ memory alarm is active"
+        expr: "max(rabbitmq_alarms_memory_used_watermark) > 0"
+        for: "5m"
+        labels:
+          failure_row: "F13"
+          severity: "warning"
+      -
+        alert: "RabbitMqDiskAlarm"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "a RabbitMQ disk-free alarm is active"
+        expr: "max(rabbitmq_alarms_free_disk_space_watermark) > 0"
+        for: "5m"
+        labels:
+          failure_row: "F13"
+          severity: "warning"
+      -
+        alert: "RabbitMqBacklogHigh"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "the run or stage queue backlog exceeds 1000 messages"
+        expr: "sum(rabbitmq_queue_messages_ready{queue=~\"runs[.].*|stages[.].*\"}) > 1000"
+        for: "15m"
+        labels:
+          failure_row: "F13"
+          severity: "warning"
+      -
+        alert: "MinioNodeOffline"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "a MinIO node is offline"
+        expr: "max(minio_cluster_nodes_offline_total) > 0"
+        for: "3m"
+        labels:
+          failure_row: "F14"
+          severity: "critical"
+      -
+        alert: "MinioDriveOffline"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "a MinIO drive is offline"
+        expr: "max(minio_cluster_drive_offline_total) > 0"
+        for: "3m"
+        labels:
+          failure_row: "F14"
+          severity: "critical"
+      -
+        alert: "MinioClusterUnhealthy"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "the MinIO cluster health check is failing"
+        expr: "minio_cluster_health_status < 1"
+        for: "5m"
+        labels:
+          failure_row: "F14"
+          severity: "critical"
+      -
+        alert: "MinioHealing"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "MinIO is healing an erasure set"
+        expr: "max(minio_cluster_health_erasure_set_healing_drives) > 0"
+        for: "30m"
+        labels:
+          failure_row: "F15"
+          severity: "warning"
+      -
+        alert: "MinioCapacityLow"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "MinIO usable capacity is below 15 percent"
+        expr: "minio_cluster_capacity_usable_free_bytes / minio_cluster_capacity_usable_total_bytes < 0.15"
+        for: "30m"
+        labels:
+          failure_row: "F15"
+          severity: "warning"
+      -
+        alert: "SwarmManagerQuorumAtRisk"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "fewer than three Swarm managers are ready"
+        expr: "quantrule_swarm_managers_ready < 3"
+        for: "10m"
+        labels:
+          failure_row: "F17"
+          severity: "warning"
+      -
+        alert: "SwarmManagerQuorumLost"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "fewer than two Swarm managers are ready"
+        expr: "quantrule_swarm_managers_ready < 2"
+        for: "5m"
+        labels:
+          failure_row: "F17"
+          severity: "critical"
+      -
+        alert: "SwarmManagerTextfileMissing"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "the manager-quorum textfile is missing"
+        expr: "absent(quantrule_swarm_managers_ready)"
+        for: "15m"
+        labels:
+          failure_row: "F17"
+          severity: "warning"
+      -
+        alert: "NodeFilesystemAlmostFull"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "a host filesystem is more than 90 percent full"
+        expr: "100 - (node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|overlay\"} * 100) > 90"
+        for: "15m"
+        labels:
+          failure_row: "F17"
+          severity: "warning"
+      -
+        alert: "NodeMemoryHigh"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "a host uses more than 90 percent of memory"
+        expr: "100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 90"
+        for: "15m"
+        labels:
+          failure_row: "F17"
+          severity: "warning"
+      -
+        alert: "BackupAgeHigh"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "the last successful backup is more than eight days old"
+        expr: "time() - quantrule_backup_last_success_timestamp_seconds > 8 * 24 * 3600"
+        for: "1h"
+        labels:
+          failure_row: "F16"
+          severity: "critical"
+      -
+        alert: "VerifyAgeHigh"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "the last successful verification is more than eight days old"
+        expr: "time() - quantrule_verify_last_success_timestamp_seconds > 8 * 24 * 3600"
+        for: "1h"
+        labels:
+          failure_row: "F16"
+          severity: "warning"
+      -
+        alert: "ObservabilityTargetDown"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "an observability target is down"
+        expr: "up{job=~\"prometheus|alertmanager|loki|grafana|promtail|blackbox|node\"} == 0"
+        for: "5m"
+        labels:
+          failure_row: "F16"
+          severity: "warning"
+      -
+        alert: "GatewayTokenOld"
+        annotations:
+          runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
+          summary: "the gateway bearer token is more than 90 days old"
+        expr: "quantrule_auth_token_age_seconds > 90 * 24 * 3600"
+        for: "1h"
+        labels:
+          failure_row: "F16"
+          severity: "warning"

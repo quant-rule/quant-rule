@@ -7,9 +7,10 @@
 //! data/definitions directories; its configuration body lives in
 //! [`super::queue`]. The MinIO unit carries its PLAT-005 config, PKI, and root
 //! secret files; its configuration body lives in [`super::minio`]. Prometheus,
-//! Grafana, Loki, and Alertmanager remain pinned skeletons for PLAT-006. Every
-//! unit attaches to the encrypted overlay, publishes no port, and keeps its data
-//! on a host-local path.
+//! Alertmanager, Loki, Grafana, blackbox, node_exporter, and promtail carry their
+//! PLAT-006 commands, mounts, health checks, and logging; their configuration
+//! bodies live in [`super::observability`]. Every unit attaches to the encrypted
+//! overlay, publishes no port, and keeps its data on a host-local path.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -22,6 +23,7 @@ use super::minio::{
     MINIO_CERTS_TARGET, MINIO_CONFIG_TARGET, MINIO_PORT, MINIO_ROOT_PASSWORD_FILE,
     MINIO_ROOT_USER_FILE,
 };
+use super::observability::{HealthcheckSpec, UnitSpec, VolumeSpec};
 use super::queue::{
     RABBITMQ_CONFIG_TARGET, RABBITMQ_COOKIE_TARGET, RABBITMQ_DATA_PKI, RABBITMQ_DATA_TARGET,
     RABBITMQ_DEFINITIONS_TARGET, RABBITMQ_PKI_TARGET, RABBITMQ_PLUGINS_TARGET,
@@ -92,6 +94,8 @@ struct Unit {
     cap_add: Vec<&'static str>,
     command: Vec<String>,
     devices: Vec<String>,
+    healthcheck: Option<HealthcheckSpec>,
+    logging: bool,
 }
 
 #[derive(Debug)]
@@ -99,6 +103,7 @@ struct Volume {
     source: String,
     target: String,
     read_only: bool,
+    propagation: Option<&'static str>,
 }
 
 fn volume(source: impl Into<String>, target: impl Into<String>, read_only: bool) -> Volume {
@@ -106,6 +111,35 @@ fn volume(source: impl Into<String>, target: impl Into<String>, read_only: bool)
         source: source.into(),
         target: target.into(),
         read_only,
+        propagation: None,
+    }
+}
+
+fn from_volume(spec: VolumeSpec) -> Volume {
+    Volume {
+        source: spec.source,
+        target: spec.target,
+        read_only: spec.read_only,
+        propagation: spec.propagation,
+    }
+}
+
+fn from_spec(descriptor: &Descriptor, spec: UnitSpec) -> Unit {
+    Unit {
+        name: spec.name,
+        image: pinned(&descriptor.images[spec.image_key]),
+        container_name: spec.container_name,
+        hostname: spec.hostname,
+        environment: spec.environment.into_iter().collect(),
+        user: spec.user.map(str::to_owned),
+        volumes: spec.volumes.into_iter().map(from_volume).collect(),
+        aliases: spec.aliases,
+        host_network: false,
+        cap_add: Vec::new(),
+        command: spec.command,
+        devices: Vec::new(),
+        healthcheck: spec.healthcheck,
+        logging: true,
     }
 }
 
@@ -130,6 +164,8 @@ fn unit(
         cap_add: Vec::new(),
         command: Vec::new(),
         devices: Vec::new(),
+        healthcheck: None,
+        logging: true,
     }
 }
 
@@ -154,6 +190,8 @@ fn host_unit(
         cap_add: vec!["NET_ADMIN", "NET_BROADCAST"],
         command: Vec::new(),
         devices: Vec::new(),
+        healthcheck: None,
+        logging: true,
     }
 }
 
@@ -447,59 +485,41 @@ fn host_units(descriptor: &Descriptor) -> BTreeMap<String, Vec<Unit>> {
         hosts.entry(host.clone()).or_default().push(minio);
     }
 
-    for (unit_name, image_key, host, volumes) in [
-        (
-            "prometheus",
-            "prometheus",
-            &descriptor.observability.prometheus.host,
-            vec![
-                volume("/srv/quantrule/prometheus/data", "/prometheus", false),
-                volume(
-                    "/etc/quantrule/prometheus/prometheus.yml",
-                    "/etc/prometheus/prometheus.yml",
-                    true,
-                ),
-            ],
-        ),
-        (
-            "grafana",
-            "grafana",
-            &descriptor.observability.grafana.host,
-            vec![
-                volume("/srv/quantrule/grafana/data", "/var/lib/grafana", false),
-                volume("/etc/quantrule/grafana", "/etc/grafana/provisioning", true),
-            ],
-        ),
-        (
-            "loki",
-            "loki",
-            &descriptor.observability.loki.host,
-            vec![
-                volume("/srv/quantrule/loki/data", "/loki", false),
-                volume("/etc/quantrule/loki/loki.yml", "/etc/loki/loki.yml", true),
-            ],
-        ),
-        (
-            "alertmanager",
-            "alertmanager",
-            &descriptor.observability.alertmanager.host,
-            vec![
-                volume("/srv/quantrule/alertmanager/data", "/alertmanager", false),
-                volume(
-                    "/etc/quantrule/alertmanager/alertmanager.yml",
-                    "/etc/alertmanager/alertmanager.yml",
-                    true,
-                ),
-            ],
-        ),
-    ] {
-        hosts.entry(host.clone()).or_default().push(unit(
+    let observability = &descriptor.observability;
+    hosts
+        .entry(observability.prometheus.host.clone())
+        .or_default()
+        .push(from_spec(
             descriptor,
-            unit_name,
-            image_key,
-            host,
-            volumes,
-            Vec::new(),
+            super::observability::prometheus_spec(),
+        ));
+    hosts
+        .entry(observability.prometheus.host.clone())
+        .or_default()
+        .push(from_spec(descriptor, super::observability::blackbox_spec()));
+    hosts
+        .entry(observability.grafana.host.clone())
+        .or_default()
+        .push(from_spec(descriptor, super::observability::grafana_spec()));
+    hosts
+        .entry(observability.loki.host.clone())
+        .or_default()
+        .push(from_spec(descriptor, super::observability::loki_spec()));
+    hosts
+        .entry(observability.alertmanager.host.clone())
+        .or_default()
+        .push(from_spec(
+            descriptor,
+            super::observability::alertmanager_spec(),
+        ));
+    for host in descriptor.hosts.keys() {
+        hosts.entry(host.clone()).or_default().push(from_spec(
+            descriptor,
+            super::observability::node_exporter_spec(host),
+        ));
+        hosts.entry(host.clone()).or_default().push(from_spec(
+            descriptor,
+            super::observability::promtail_spec(host),
         ));
     }
     hosts.retain(|_, units| !units.is_empty());
@@ -545,6 +565,12 @@ fn host_yaml(descriptor: &Descriptor, host: &str, units: &[Unit]) -> String {
                 ),
             );
         }
+        if let Some(check) = &value.healthcheck {
+            service = service.with("healthcheck", healthcheck_yaml(check));
+        }
+        if value.logging {
+            service = service.with("logging", logging_yaml());
+        }
         if value.host_network {
             service = service.with("network_mode", Yaml::string("host"));
         }
@@ -570,11 +596,19 @@ fn host_yaml(descriptor: &Descriptor, host: &str, units: &[Unit]) -> String {
             service = service.with(
                 "volumes",
                 Yaml::list(value.volumes.iter().map(|volume| {
-                    Yaml::map()
+                    let mount = Yaml::map()
                         .with("type", Yaml::string("bind"))
                         .with("source", Yaml::string(volume.source.as_str()))
                         .with("target", Yaml::string(volume.target.as_str()))
-                        .with("read_only", Yaml::Bool(volume.read_only))
+                        .with("read_only", Yaml::Bool(volume.read_only));
+                    if let Some(propagation) = volume.propagation {
+                        mount.with(
+                            "bind",
+                            Yaml::map().with("propagation", Yaml::string(propagation)),
+                        )
+                    } else {
+                        mount
+                    }
                 })),
             );
         }
@@ -607,7 +641,7 @@ fn host_yaml(descriptor: &Descriptor, host: &str, units: &[Unit]) -> String {
         .with(
             "x-quantrule",
             Yaml::map()
-                .with("owner", Yaml::string("PLAT-003/PLAT-004/PLAT-005"))
+                .with("owner", Yaml::string("PLAT-003/PLAT-004/PLAT-005/PLAT-006"))
                 .with("profile", Yaml::string(descriptor.profile.as_str()))
                 .with("evidence", Yaml::string(evidence_tier(descriptor.profile)))
                 .with(
@@ -617,7 +651,7 @@ fn host_yaml(descriptor: &Descriptor, host: &str, units: &[Unit]) -> String {
                 .with(
                     "platform",
                     Yaml::string(
-                        "keepalived is PLAT-002; Patroni, etcd, and HAProxy are configured by PLAT-003; RabbitMQ is PLAT-004; MinIO is PLAT-005; observability remains PLAT-006",
+                        "keepalived is PLAT-002; Patroni, etcd, and HAProxy are configured by PLAT-003; RabbitMQ is PLAT-004; MinIO is PLAT-005; Prometheus, Alertmanager, Loki, Grafana, blackbox, node_exporter, and promtail are PLAT-006",
                     ),
                 ),
         )
@@ -636,6 +670,24 @@ fn external(name: &str) -> Yaml {
     Yaml::map()
         .with("external", Yaml::Bool(true))
         .with("name", Yaml::string(name))
+}
+
+fn healthcheck_yaml(check: &HealthcheckSpec) -> Yaml {
+    Yaml::map()
+        .with("test", Yaml::list(check.test.iter().map(Yaml::string)))
+        .with("interval", Yaml::string(check.interval))
+        .with("timeout", Yaml::string(check.timeout))
+        .with("retries", Yaml::number(check.retries))
+        .with("start_period", Yaml::string(check.start_period))
+}
+
+fn logging_yaml() -> Yaml {
+    Yaml::map().with("driver", Yaml::string("json-file")).with(
+        "options",
+        Yaml::map()
+            .with("max-size", Yaml::string("50m"))
+            .with("max-file", Yaml::string("5")),
+    )
 }
 
 #[cfg(test)]
@@ -853,9 +905,15 @@ mod tests {
     }
 
     #[test]
-    fn a_host_with_no_unit_is_not_rendered() {
-        let units = host_units(&descriptor());
+    fn every_host_has_the_agent_units_and_stateful_hosts_keep_theirs() {
+        let descriptor = descriptor();
+        let units = host_units(&descriptor);
         assert!(units.contains_key("infra-1"));
-        assert!(!units.contains_key("core-1"));
+        assert!(units.contains_key("core-1"));
+        let core = host_yaml(&descriptor, "core-1", &units["core-1"]);
+        assert!(core.contains("\n  node-exporter-core-1:\n"), "{core}");
+        assert!(core.contains("\n  promtail-core-1:\n"), "{core}");
+        assert!(!core.contains("\n  patroni:\n"), "{core}");
+        assert!(!core.contains("\n  minio-"), "{core}");
     }
 }

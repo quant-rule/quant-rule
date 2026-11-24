@@ -1,0 +1,12 @@
+modules:
+  https_2xx:
+    http:
+      preferred_ip_protocol: "ip4"
+      tls_config:
+        ca_file: "/etc/quantrule/pki/ca.crt"
+        server_name: "quantrule.dev"
+      valid_status_codes:
+        -
+          200
+    prober: "http"
+    timeout: "5s"

@@ -853,6 +853,66 @@ fn observability_names_declared_hosts() {
 }
 
 #[test]
+fn observability_image_pins_are_required_and_closed() {
+    assert_eq!(valid().images.len(), 16);
+    assert_eq!(REQUIRED_IMAGES.len(), 16);
+    for name in ["node_exporter", "promtail", "blackbox_exporter"] {
+        let mut value = sample();
+        value["images"]
+            .as_object_mut()
+            .expect("images")
+            .remove(name);
+        let error = reject(value);
+        assert!(
+            error.to_string().contains("deploy.images.missing"),
+            "{name}: {error}"
+        );
+        assert!(error.to_string().contains(name), "{name}: {error}");
+    }
+    let mut value = sample();
+    value["images"]
+        .as_object_mut()
+        .expect("images")
+        .remove("traefik");
+    let error = reject(value);
+    assert!(
+        error.to_string().contains("deploy.images.missing"),
+        "{error}"
+    );
+}
+
+#[test]
+fn observability_keeps_prometheus_and_alertmanager_on_distinct_hosts() {
+    let mut value = sample();
+    value["observability"]["alertmanager"]["host"] = serde_json::json!("infra-1");
+    let error = reject(value);
+    assert!(
+        error.to_string().contains("deploy.observability.placement"),
+        "{error}"
+    );
+    assert!(
+        error
+            .to_string()
+            .contains("observability.alertmanager.host"),
+        "{error}"
+    );
+}
+
+#[test]
+fn observability_refuses_all_four_units_on_one_host() {
+    let mut value = sample();
+    for unit in ["prometheus", "grafana", "loki", "alertmanager"] {
+        value["observability"][unit]["host"] = serde_json::json!("infra-1");
+    }
+    let error = reject(value);
+    assert!(
+        error.to_string().contains("deploy.observability.placement"),
+        "{error}"
+    );
+    assert!(error.to_string().contains("one host"), "{error}");
+}
+
+#[test]
 fn identifiers_and_secret_names_are_narrow() {
     for value in ["edge-1", "az1", "lab"] {
         assert!(is_identifier(value), "{value}");

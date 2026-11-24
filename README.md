@@ -321,7 +321,7 @@ run detail. The contract is
 | [Swarm control plane](docs/config/2026-11-23/swarm-control.md) | Managers, node labels, drift refusal, rolling update, remote check, `ha` tier, and `tools/swarm.sh` |
 | [HA deployment manual](docs/manual/15-ha-deployment.md) | Render, bootstrap, check, upgrade, and rotate the v3 profile |
 | [`docs/architecture/cross-database-consistency.md`](docs/architecture/cross-database-consistency.md) | Outbox, dataset references, reconciliation and tombstones across four databases |
-| [`docs/architecture/observability.md`](docs/architecture/observability.md) | Metrics, JSON logs, request/trace ids, and their non-goals |
+| [`docs/architecture/observability.md`](docs/architecture/observability.md) | Metrics, JSON logs, request/trace ids, the Prometheus/Alertmanager/Loki/Grafana tier, and non-goals |
 | [User manual](docs/manual/README.md) | Every journey, command, screen, term, and error |
 | [Stage to backtest tutorial](docs/tutorials/2026-11-17/stage-to-backtest.md) | Diagnostic stages to a promoted evidence run |
 | [End-to-end verification tutorial](docs/tutorials/2026-11-17/end-to-end-verification.md) | Clean-stack proof and the two-run digest |
