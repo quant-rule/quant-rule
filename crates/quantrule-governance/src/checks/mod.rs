@@ -14,6 +14,7 @@ pub mod doc_length;
 pub mod event_emitters;
 pub mod execution_plans;
 pub mod file_size;
+pub mod ha_matrix;
 pub mod labels;
 pub mod legacy;
 pub mod links;
@@ -87,6 +88,10 @@ pub const CHECKERS: &[Checker] = &[
     Checker {
         name: "execution-plans",
         run: execution_plans::check,
+    },
+    Checker {
+        name: "ha-matrix",
+        run: ha_matrix::check,
     },
     Checker {
         name: "labels",
@@ -201,7 +206,7 @@ mod tests {
 
     #[test]
     fn the_registry_has_one_unique_name_per_checker() {
-        assert_eq!(CHECKERS.len(), 27);
+        assert_eq!(CHECKERS.len(), 28);
         let names: BTreeSet<_> = CHECKERS.iter().map(|checker| checker.name).collect();
         assert_eq!(names.len(), CHECKERS.len());
     }

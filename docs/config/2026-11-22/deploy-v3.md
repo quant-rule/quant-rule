@@ -9,7 +9,7 @@
   versioning, least-privilege account, object bootstrap, check rows, node-loss
   lab), the PLAT-006 observability tier (16 pins, scrape, 38 rules over 17
   rows, Loki/promtail, four dashboards, operator tool, static check, lab), the
-  PLAT-007 registry/signing/SBOM/CVE phases 1–2, and HA-013 phase 1a pgBackRest/Compose archive/backup age, phase 2 stage lease/outbox and queue rebuild, and phase 3 object archive/DR/lab integration (running task images and the all-service runtime digest probe)
+  PLAT-007 registry/signing/SBOM/CVE phases 1–2, HA-013 phase 1a pgBackRest/Compose archive/backup age, phase 2 stage lease/outbox and queue rebuild, and phase 3 object archive/DR/lab integration, and HA-014's 23-row failure matrix, opt-in chaos cases, and operator Real HA gate (running task images and the all-service runtime digest probe)
 - Claim type: Behaviour Claim
 - Issue: [#1110](https://github.com/quant-rule/quant-rule/issues/1110)
 - Related: [ADR-HA](../../adr/2026-11-22/1082-ha-deployment-profile.md),

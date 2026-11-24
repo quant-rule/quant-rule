@@ -23,6 +23,8 @@
 #   deploy/v3/test.sh --confirm --skip-queue-rebuild
 #   deploy/v3/test.sh --confirm --skip-object
 #   deploy/v3/test.sh --confirm --skip-observability
+#   deploy/v3/test.sh --confirm --chaos
+#   deploy/v3/test.sh --confirm --skip-chaos
 #
 # Environment:
 #   DESCRIPTOR             descriptor path (default deploy/v3/deploy.example.json)
@@ -39,6 +41,9 @@
 #   QR_SWARM_EVIDENCE      database-failover evidence JSON (default
 #                          deploy/v3/evidence/<UTC>.json)
 #   QR_SWARM_SUDO          reserved for a guarded remote command; empty by default
+#   QR_HA_EVIDENCE         chaos evidence base (default QR_SWARM_EVIDENCE, then
+#                          deploy/v3/evidence/ha-<UTC>); one JSON per row
+#   QR_CHAOS_TIMEOUT       seconds to wait for a killed run to retry (default 300)
 set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -65,6 +70,8 @@ skip_queue=0
 skip_queue_rebuild=0
 skip_object=0
 skip_observability=0
+chaos=0
+skip_chaos=1
 dr=0
 skip_dr=0
 database_status="Unverified"
@@ -101,6 +108,8 @@ unverified() {
 . "$script_dir/minio-failover.sh"
 # shellcheck source=deploy/v3/observability.sh
 . "$script_dir/observability.sh"
+# shellcheck source=deploy/v3/chaos.sh
+. "$script_dir/chaos.sh"
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -136,6 +145,16 @@ while [ $# -gt 0 ]; do
       skip_observability=1
       shift
       ;;
+    --chaos)
+      chaos=1
+      skip_chaos=0
+      shift
+      ;;
+    --skip-chaos)
+      chaos=0
+      skip_chaos=1
+      shift
+      ;;
     --dr)
       dr=1
       shift
@@ -163,6 +182,10 @@ while [ $# -gt 0 ]; do
       ;;
   esac
 done
+
+if [ "$plan" -eq 0 ] && [ "$chaos" -eq 1 ] && [ "$confirm" -eq 0 ]; then
+  usage_error "--chaos requires --confirm"
+fi
 
 if [ "$plan" -eq 1 ]; then
   cat <<PLAN
@@ -207,6 +230,7 @@ ha: 32. observability: ingress drain keeps the VIP ready probe 1; a pause on the
 ha: 33. --skip-observability leaves the observability row Unverified; Simulated HA only when both alerts fired and resolved; Real HA is HA-014
 ha: 34. disaster recovery: deploy/v3/dr.sh --plan is Docker-free; --dr runs the in-place lab restore after the failure phase, and --skip-dr leaves the DR row Unverified
 ha: 34a. DR restores every lab PGDATA with pgbackrest --delta, objects before rows, the queue user, then the same run/config digest; a mismatch fails; never Real HA
+$(chaos_plan)
 ha: evidence: Simulated HA for lab-single-host; all-service image digest and end-to-end canonical digest are printed separately; Real HA is HA-014 only
 ha: this plan is not evidence
 PLAN
@@ -944,6 +968,9 @@ else
   obs_finish
 fi
 
+say "chaos: HA-18..HA-23 and the F-row live mappings; --chaos requires --confirm"
+chaos_run
+
 if [ "$skip_dr" -eq 1 ]; then
   say "dr: skipped (--skip-dr); DR row Unverified"
 elif [ "$dr" -eq 1 ]; then
@@ -958,6 +985,6 @@ elif [ "$dr" -eq 1 ]; then
 else
   say "dr: plan only; pass --dr --confirm to run the in-place drill; DR row Unverified"
 fi
-say "summary: $evidence; worker/manager/ingress; database $database_status; queue $queue_status; object_store $object_status; observability $observability_status; dr $dr_status"
+say "summary: $evidence; worker/manager/ingress; database $database_status; queue $queue_status; object_store $object_status; observability $observability_status; chaos $chaos_status (HA-18..HA-21; HA-22/HA-23 Unverified); dr $dr_status"
 say "all-service image digest: $digest_status"
 say "end-to-end canonical digest: $end_to_end_digest_status; Real HA is HA-014"

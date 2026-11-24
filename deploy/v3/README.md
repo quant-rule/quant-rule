@@ -98,6 +98,19 @@ is `apps/web/playwright.remote.config.ts` (`bun run test:remote`, CA in the OS
 store). Evidence is value-free JSON under `QR_LAB_EVIDENCE`; `Simulated HA` is
 the maximum and `Real HA` is HA-014.
 
+`deploy/v3/chaos.sh` owns the HA-014 chaos cases. `--plan` is
+Docker/SSH/jq/secret-free. `--chaos` requires `--confirm`; the default
+`--skip-chaos` leaves every chaos row `Unverified`. The cases SIGKILL a backtest
+worker and the evidence leader, SIGKILL a non-VIP gateway, stop and start one
+etcd member, assert no partial publish, and compare `tools/verify.sh --expected`
+with the clean baseline. Evidence is one value-free `quantrule.ha-evidence/v1`
+JSON per row under `QR_HA_EVIDENCE`/`QR_SWARM_EVIDENCE`. `deploy/v3/real-ha.sh`
+is the operator-only HA-22/HA-23 gate: it refuses `lab-single-host` and a missing
+human attestation, validates machine/product UUIDs and before/after digests, and
+never executes a power or disk command. The 23 rows are in
+[`docs/config/2026-11-24/chaos-matrix.md`](../../docs/config/2026-11-24/chaos-matrix.md);
+the 15 delivery issues are separate.
+
 ## Validate, render, check
 
 The sample names `/etc/quantrule/secrets/...` and `/etc/quantrule/pki/ca.crt`,
