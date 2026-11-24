@@ -12,9 +12,10 @@
 The Release and Operations Workflow answers one question: **is this change safe
 to release, and if it fails, how is it recovered?**
 
-QuantRule is a local shell application, so the operational surface is small. It
-still has releases, source fetches, data integrity, determinism, and rollback.
-This workflow keeps those deliberate and recorded.
+QuantRule is a self-hosted, single-operator research platform, so the operational
+surface is small but includes a distributed deployment. It still has releases,
+source fetches, data integrity, determinism, and rollback. This workflow keeps
+those deliberate and recorded.
 
 ## 2. When to use
 
@@ -62,6 +63,9 @@ A release is ready when:
   `qr-governance check --checker port-parity` passes;
 - the changelog release entry is present;
 - the release note names the scope, the verification, and the risks;
+- the release image digest, SBOM hash, CVE summary, and signature-bundle hash are
+  recorded, and `cosign verify --key deploy/v3/cosign.pub --local-image` verifies
+  the saved image;
 - no Critical audit finding is open on the changed path;
 - no unvalidated model or strategy change is included;
 - the command surface, README, help, and tutorials agree;
@@ -124,6 +128,9 @@ A release is green when:
 - the port-parity registry check passes and every registered port matches its
   fixture;
 - the changelog release entry and release note are present;
+- the image digest, SBOM hash, scan summary, and signature-bundle hash are present;
+- the Sigstore bundle and saved image verify against `deploy/v3/cosign.pub`, or the note is
+  explicitly `pending` before `Status: Released`;
 - the verification record is present;
 - no Critical finding is open on the changed path;
 - the rollback or recovery approach is stated;
@@ -145,6 +152,7 @@ An incident is green when:
 | Verification record | `docs/reports/<date>/<scope>-verification.md` |
 | Incident record | `docs/reports/<date>/<scope>-incident.md` or `docs/audits/<date>/` |
 | Changelog | `CHANGELOG.md` |
+| Registry and supply chain | `docs/config/2026-11-24/registry.md` |
 | AI log | `docs/ai-transparency-log/<date>/<issue>-<slug>.md` |
 
 ## 10. Stop conditions
@@ -177,29 +185,34 @@ Stop and request human direction when:
 - [`../../AGENTS.md`](../../AGENTS.md)
 - [`../../README.md`](../../README.md)
 
-## Distributed release — v0.9.0 (prepared as v1.0.0)
+## Distributed release
 
-The release has two distribution profiles: the server image is the release unit,
-and the desktop shell is two unsigned GitHub Release assets. GitHub Releases is
-the only place an artifact is fetched; there is no download page.
+The release unit is the server image; the desktop shell and its GitHub Release
+assets are retired. GitHub Releases carries the image digest, the SBOM, the CVE
+report, and the release note; there is no download page.
 
 | Step | Evidence |
 |---|---|
 | 1. Gate | `tools/gate.sh` passes |
-| 2. Image | Built from the release commit, pushed to the registry, digest recorded |
-| 3. Contract check | `/version` reports the product version; `/health` reports the digest |
-| 4. Verification | `make up` (nine containers) and `make verify` on a clean host |
-| 5. Note | `qr-governance release note --tag <tag>` names the digest and both artifacts |
-| 6. Tag | Annotated `vMAJOR.MINOR.PATCH` from `main` after the release PR merges; the first distributed release is `v0.9.0`, prepared as `v1.0.0` |
+| 2. Image | Built once for `linux/amd64` from `release-binaries-<sha>`; staging digest recorded |
+| 3. SBOM | syft SPDX JSON from the exact staging digest |
+| 4. CVE gate | Grype plus `cargo audit`; Critical and fixable High fail before the version image tag |
+| 5. Version image | `vX.Y.Z` and `sha-<commit>` pushed; digest equals the scanned staging digest |
+| 6. Contract check | `/version` reports the product version; `/health` reports the digest |
+| 7. Verification | Composed tier and a clean-host `make verify` |
+| 8. Signature | Operator records `cosign.bundle`, `attestation.bundle`, and `cosign save` `signed-image/`; `tools/release.sh verify` passes from the saved image |
+| 9. Note | The five supply-chain fields carry the digest and evidence hashes; PLAT-008 blocks the 16 fixture infra pins |
+| 10. Tag | Annotated `vMAJOR.MINOR.PATCH` from `main` after the release PR merges; human authorization |
 
-A `workflow_dispatch` with `publish_snapshot` pushes a `snapshot-<sha>` image and
-records its digest before the tag exists; that is the pre-tag GHCR proof. A tag
-run pushes the version tag, builds the Linux AppImage and the Windows NSIS
-installer, and writes the digest and both artifact names into the release body.
+A `workflow_dispatch` with `publish_snapshot` pushes, scans, and records a
+`snapshot-<sha>` digest before the tag exists; that is the pre-tag GHCR proof. A
+tag run pushes the version image only after the scan, attaches the SBOM and CVE
+report, and writes the digest, hashes, manual signing step, and fixture-pin
+blocker into the release body.
 
-Rollback is starting the previous image digest. Migrations are forward-only; a
+Rollback is the previous verified image digest. Migrations are forward-only; a
 rollback never reverts the schema, so the previous version must tolerate the
-newer one. For `v0.9.0` (prepared as `v1.0.0`), the first image release, there is no earlier digest:
-recovery is `make reset` and a rebuild from a known commit.
+newer one. For the first image release there is no earlier digest: recovery is
+`make reset` and a rebuild from a known commit.
 
 The retired static download page is recorded in `ADR-2026-11-12-08`.

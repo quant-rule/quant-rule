@@ -46,6 +46,8 @@ struct Fixture {
     qr_log: PathBuf,
     docker_log: PathBuf,
     bootstrap_log: PathBuf,
+    cosign_log: PathBuf,
+    public_key: PathBuf,
 }
 
 fn fixture() -> Fixture {
@@ -99,6 +101,18 @@ esac
 "#,
         0o755,
     );
+    write_mode(
+        &bin.join("cosign"),
+        r#"#!/bin/sh
+set -eu
+printf 'cosign %s\n' "$*" >> "$FAKE_COSIGN_LOG"
+case "$1" in
+    verify) exit 0 ;;
+    *) exit 0 ;;
+esac
+"#,
+        0o755,
+    );
     let out = directory.join("out");
     std::fs::create_dir_all(&out).expect("out");
     write_mode(
@@ -112,6 +126,9 @@ esac
     let qr_log = directory.join("qr.log");
     let docker_log = directory.join("docker.log");
     let bootstrap_log = directory.join("bootstrap.log");
+    let cosign_log = directory.join("cosign.log");
+    let public_key = directory.join("cosign.pub");
+    std::fs::write(&public_key, "fixture public key\n").expect("public key");
     Fixture {
         directory,
         bin,
@@ -120,12 +137,19 @@ esac
         qr_log,
         docker_log,
         bootstrap_log,
+        cosign_log,
+        public_key,
     }
 }
 
 impl Fixture {
     fn run(&self, args: &[&str]) -> Output {
-        Command::new("bash")
+        self.run_with(args, &[])
+    }
+
+    fn run_with(&self, args: &[&str], extra: &[(&str, &str)]) -> Output {
+        let mut command = Command::new("bash");
+        command
             .arg(repo("tools/swarm.sh"))
             .args(args)
             .env(
@@ -136,11 +160,15 @@ impl Fixture {
             .env("DESCRIPTOR", "deploy/v3/deploy.example.json")
             .env("OUT", &self.out)
             .env("QR_SWARM_STATE", &self.state)
+            .env("QR_RELEASE_PUBLIC_KEY", &self.public_key)
             .env("FAKE_QR_LOG", &self.qr_log)
             .env("FAKE_DOCKER_LOG", &self.docker_log)
             .env("FAKE_BOOTSTRAP_LOG", &self.bootstrap_log)
-            .output()
-            .expect("run swarm wrapper")
+            .env("FAKE_COSIGN_LOG", &self.cosign_log);
+        for (key, value) in extra {
+            command.env(key, value);
+        }
+        command.output().expect("run swarm wrapper")
     }
 
     fn qr(&self) -> String {
@@ -217,6 +245,52 @@ fn bootstrap_renders_before_it_runs_the_generated_script() {
         1,
         "{}",
         fixture.bootstrap()
+    );
+    let cosign = std::fs::read_to_string(&fixture.cosign_log).unwrap_or_default();
+    assert!(cosign.contains("verify"), "{cosign}");
+    let _ = std::fs::remove_dir_all(fixture.directory);
+}
+
+#[test]
+fn bootstrap_fails_closed_without_the_public_key() {
+    let fixture = fixture();
+    let output = fixture.run_with(
+        &["bootstrap"],
+        &[("QR_RELEASE_PUBLIC_KEY", "/nonexistent/cosign.pub")],
+    );
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("public key is missing"), "{stderr}");
+    assert!(fixture.qr().is_empty(), "{}", fixture.qr());
+    let _ = std::fs::remove_dir_all(fixture.directory);
+}
+
+#[test]
+fn only_the_lab_may_continue_unverified_and_it_prints_unverified() {
+    let fixture = fixture();
+    let output = fixture.run_with(
+        &["--allow-unverified", "bootstrap"],
+        &[("DESCRIPTOR", "deploy/v3/deploy.lab.json")],
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let printed = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(printed.contains("Unverified"), "{printed}");
+    assert!(!printed.contains("verified ghcr.io"), "{printed}");
+
+    let production = fixture.run(&["--allow-unverified", "bootstrap"]);
+    assert_eq!(production.status.code(), Some(1));
+    assert!(
+        String::from_utf8_lossy(&production.stderr).contains("only valid for lab-single-host"),
+        "{}",
+        String::from_utf8_lossy(&production.stderr)
     );
     let _ = std::fs::remove_dir_all(fixture.directory);
 }

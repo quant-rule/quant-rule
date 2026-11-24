@@ -66,6 +66,11 @@ fn validate_command(mut args: impl Iterator<Item = String>) -> Result<ExitCode, 
                     "validate --files is only valid for quantrule.deploy/v3".to_owned(),
                 ));
             }
+            if release_mode(&flags) {
+                return Err(Error::Usage(
+                    "validate --release is only valid for quantrule.deploy/v3".to_owned(),
+                ));
+            }
             let checked = if let Some(path) = &flags.secrets {
                 let secrets = descriptor::load_env(path)?;
                 validate::validate_with_secrets(descriptor, &secrets)?;
@@ -95,6 +100,9 @@ fn validate_command(mut args: impl Iterator<Item = String>) -> Result<ExitCode, 
                 validate::validate_document(&document)?;
                 "files not checked; pass --files"
             };
+            if release_mode(&flags) {
+                validate::v3::validate_release(descriptor)?;
+            }
             println!(
                 "ok: v3 {}, {} hosts, {} services, image {}, ingress {}:{} ({checked})",
                 descriptor.profile.as_str(),
@@ -112,10 +120,13 @@ fn validate_command(mut args: impl Iterator<Item = String>) -> Result<ExitCode, 
 fn render_command(mut args: impl Iterator<Item = String>) -> Result<ExitCode, Error> {
     let config = config_arg(&mut args)?;
     let flags = flags(&mut args)?;
-    if flags.remote.is_some() || flags.overlay {
+    if flags.remote.is_some() || flags.overlay || flags.runtime {
         return Err(Error::Usage(
-            "render does not accept --remote or --overlay".to_owned(),
+            "render does not accept --remote, --overlay, or --runtime".to_owned(),
         ));
+    }
+    if flags.release {
+        return Err(Error::Usage("render does not accept --release".to_owned()));
     }
     let out = flags
         .out
@@ -195,13 +206,23 @@ fn check_command(mut args: impl Iterator<Item = String>) -> Result<ExitCode, Err
             )));
         }
     };
+    if flags.runtime && !remote_docker {
+        return Err(Error::Usage(
+            "check --runtime needs --remote docker".to_owned(),
+        ));
+    }
     let document = descriptor::load(&config)?;
     match document {
         Document::V2(descriptor) => {
-            if remote_docker || flags.overlay {
+            if remote_docker || flags.overlay || flags.runtime {
                 return Err(Error::Usage(
-                    "check --remote and --overlay are only valid for quantrule.deploy/v3"
+                    "check --remote, --overlay, and --runtime are only valid for quantrule.deploy/v3"
                         .to_owned(),
+                ));
+            }
+            if flags.release {
+                return Err(Error::Usage(
+                    "check --release is only valid for quantrule.deploy/v3".to_owned(),
                 ));
             }
             if flags.out.is_some() {
@@ -265,6 +286,9 @@ fn check_command(mut args: impl Iterator<Item = String>) -> Result<ExitCode, Err
                         .to_owned(),
                 ));
             }
+            if release_mode(&flags) {
+                validate::v3::validate_release(&descriptor)?;
+            }
             let out = flags.out.clone().or_else(|| {
                 std::env::var_os("QR_DEPLOY_OUT")
                     .filter(|value| !value.is_empty())
@@ -273,6 +297,7 @@ fn check_command(mut args: impl Iterator<Item = String>) -> Result<ExitCode, Err
             let options = check::CheckOptions {
                 remote_docker,
                 overlay: flags.overlay,
+                runtime: flags.runtime,
                 out,
             };
             let report = check::v3::check(&descriptor, options)?;
@@ -293,9 +318,9 @@ fn reject_render_only(flags: &Flags, command: &str) -> Result<(), Error> {
     if flags.target.is_some() {
         return Err(Error::Usage(format!("{command} does not accept --target")));
     }
-    if flags.remote.is_some() || flags.overlay {
+    if flags.remote.is_some() || flags.overlay || flags.runtime {
         return Err(Error::Usage(format!(
-            "{command} does not accept --remote or --overlay"
+            "{command} does not accept --remote, --overlay, or --runtime"
         )));
     }
     Ok(())
@@ -320,6 +345,14 @@ struct Flags {
     remote: Option<String>,
     files: bool,
     overlay: bool,
+    runtime: bool,
+    release: bool,
+}
+
+fn release_mode(flags: &Flags) -> bool {
+    flags.release
+        || std::env::var("QR_DEPLOY_RELEASE")
+            .is_ok_and(|value| matches!(value.as_str(), "1" | "true" | "yes"))
 }
 
 fn flags(args: &mut impl Iterator<Item = String>) -> Result<Flags, Error> {
@@ -330,6 +363,8 @@ fn flags(args: &mut impl Iterator<Item = String>) -> Result<Flags, Error> {
         remote: None,
         files: false,
         overlay: false,
+        runtime: false,
+        release: false,
     };
     while let Some(value) = args.next() {
         match value.as_str() {
@@ -359,6 +394,8 @@ fn flags(args: &mut impl Iterator<Item = String>) -> Result<Flags, Error> {
             }
             "--files" => parsed.files = true,
             "--overlay" => parsed.overlay = true,
+            "--runtime" => parsed.runtime = true,
+            "--release" => parsed.release = true,
             other => return Err(Error::Usage(format!("unknown argument {other}"))),
         }
     }
@@ -369,21 +406,25 @@ fn usage() -> &'static str {
     "qr-deploy — validate, render, and check a QuantRule deployment
 
 Usage:
-  qr-deploy validate <deploy.json> [--secrets <secrets.env> | --files]
+  qr-deploy validate <deploy.json> [--secrets <secrets.env> | --files] [--release]
   qr-deploy render <deploy.json> --out <dir> [--secrets <secrets.env>]        (v2)
   qr-deploy render <deploy.json> --out <dir> --target swarm|infra|all         (v3)
   qr-deploy check <deploy.json> [--secrets <secrets.env>]                     (v2)
-  qr-deploy check <deploy.json> [--out <render-dir>] [--remote docker] [--overlay] (v3)
+  qr-deploy check <deploy.json> [--out <render-dir>] [--remote docker] [--overlay] [--runtime] [--release] (v3)
 
 The descriptor is quantrule.deploy/v2 or quantrule.deploy/v3. v2 secrets stay in
 a dotenv file and are referenced as ${NAME}. v3 names secrets.files, renders the
 Swarm stack and pinned per-host unit skeletons, and checks the one HTTPS ingress.
---out reads the rendered tree for the stateful config and certificate rows;
-QR_DEPLOY_OUT supplies the same path. Without it the stateful rows render in
-memory and read the certificate leaves under the descriptor CA's parent.
---remote docker and --overlay are explicit read-only Docker opt-ins; set
-QR_DEPLOY_DOCKER to override the docker executable. A lab-single-host profile
-reports Simulated HA, never Real HA.
+--release (or QR_DEPLOY_RELEASE=1) refuses the labelled sample/lab app digest and
+requires the published release pin. --out reads the rendered tree for the
+stateful config and certificate rows; QR_DEPLOY_OUT supplies the same path.
+Without it the stateful rows render in memory and read the certificate leaves
+under the descriptor CA's parent. --remote docker and --overlay are explicit
+read-only Docker opt-ins; set QR_DEPLOY_DOCKER to override the docker executable.
+--runtime (with --remote docker) runs only the all-service digest probe: it runs
+the descriptor image's curl on the overlay against /version (six services) and
+backtest:/health, and compares every image_digest with the descriptor. A
+lab-single-host profile reports Simulated HA, never Real HA.
 
 Exit codes: 0 success, 1 validation or check failure, 2 usage error."
 }

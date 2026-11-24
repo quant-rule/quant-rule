@@ -1,6 +1,6 @@
 # Security
 
-- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); multi-host overlay added 2026-11-20; internal TLS added 2026-11-23 (#1108); PLAT-002 ingress, PLAT-003 Patroni/etcd/HAProxy, PLAT-004 RabbitMQ, PLAT-005 MinIO object bootstrap/check rows/node-loss lab, and PLAT-006 observability added 2026-11-23; approved 2026-11-12
+- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); multi-host overlay added 2026-11-20; internal TLS added 2026-11-23 (#1108); PLAT-002 ingress, PLAT-003 Patroni/etcd/HAProxy, PLAT-004 RabbitMQ, PLAT-005 MinIO object bootstrap/check rows/node-loss lab, PLAT-006 observability, and PLAT-007 registry/signing/SBOM/CVE phases 1–2 added 2026-11-24; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Decision: [`ADR-2026-11-12-03`](../adr/2026-11-12/03-single-principal-no-accounts.md)
 - Claim type: Behaviour Claim
@@ -118,7 +118,7 @@ Residual risks accepted for v1:
   credential and the CA bundle can connect; etcd uses mTLS, RabbitMQ's Erlang
   distribution is not TLS, and internal HTTP has no service authentication.
 - The overlay encrypts and authenticates hosts, not services; route a client VPN peer to the gateway only. `/ready` and `/metrics` are unauthenticated, though `/ready` is network-gated and `/metrics` is internal.
-- v2 `qr-deploy check` compares the reported digest; v3 `--remote docker` reads the running image and read-only node/overlay state. The Compose/v2 infrastructure host is a single point of failure; v3 is the HA shape, not real-host evidence.
+- v2 `qr-deploy check` compares the reported digest; v3 `--remote docker` reads every running task image and read-only node/overlay state, and `--runtime` requires all seven service digests to equal the descriptor. The Compose/v2 infrastructure host is a single point of failure; v3 is the HA shape, not real-host evidence. The release image is pinned and operator-verified as a Sigstore bundle/saved image with an offline key, but a compromised signing key or registry is residual risk ([registry contract](../config/2026-11-24/registry.md)).
 
 ## 3. Input boundaries
 

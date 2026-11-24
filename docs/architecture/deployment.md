@@ -1,6 +1,6 @@
 # Deployment
 
-- Status: Current; released as v1.0.0 on 2026-11-15 (prepared as v1.1.0); current in v1.4.2; v3 render/check, the PLAT-001 remote check, the PLAT-002 ingress, the PLAT-003 stateful tier, the PLAT-004 RabbitMQ tier, the PLAT-005 MinIO tier/check rows/node-loss lab, and the PLAT-006 observability tier are current; approved 2026-11-12
+- Status: Current; released as v1.0.0 on 2026-11-15 (prepared as v1.1.0); current in v1.4.2; v3 render/check, the PLAT-001 remote check, the PLAT-002 ingress, the PLAT-003 stateful tier, the PLAT-004 RabbitMQ tier, the PLAT-005 MinIO tier/check rows/node-loss lab, the PLAT-006 observability tier, and the PLAT-007 registry/signing/SBOM/CVE phases 1–2 (running task images and the all-service digest probe) are current; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Decision: [`ADR-2026-11-12-01`](../adr/2026-11-12/01-adopt-distributed-service-based-architecture.md)
 - Claim type: Behaviour Claim
@@ -116,7 +116,7 @@ Service configuration is environment variables only; no config file is required.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `QR_IMAGE_DIGEST` | image label; `make up` records the built image id | Required for a run/stage submission; reported by `/health` and written to provenance. A server without it refuses the submission. |
+| `QR_IMAGE_DIGEST` | image digest; `make up` records the built image id, v3 sets the descriptor `image.digest` | Required for a run/stage submission; reported by `/health` and written to provenance. A server without it refuses the submission. |
 | `QR_INTERNAL_ONLY` | unset | When `1`, an HTTP service refuses a public or unspecified bind; the multi-host profile sets it on the internal services. |
 | `QR_DATABASE_URL_FILE` / `QR_DATABASE_OWNER_URL_FILE` | secret file | The app role of a long-running service / the owner role of its one-shot migration job; model and backtest receive neither; long-running services require `QR_MIGRATE=0` |
 | `QR_DATA_URL` | compose value | Data service, used by the gateway, worker and strategy service |
@@ -139,11 +139,11 @@ Service configuration is environment variables only; no config file is required.
 A config bundle is capped at 4 MiB by the config route, independently of `QR_UPLOAD_LIMIT_BYTES`; a larger config returns `413 upload.too_large`. Secrets come from files; no secret is committed.
 ## 5. Distribution profile
 
-QuantRule ships one deployment profile: the Linux image with Postgres, S3, and
-RabbitMQ; the embedded desktop profile, SQLite, filesystem CAS, and in-process
-queue are retired. Clients are the browser and the `quantrule` CLI on Windows and
-Linux; macOS is unsupported next release. A local server uses Docker or Podman
-Compose on Linux, or Docker Desktop on Windows.
+QuantRule ships one profile: the Linux image with Postgres, S3, and RabbitMQ;
+the desktop profile, SQLite, filesystem CAS, and in-process queue are retired.
+The release image is `ghcr.io/quant-rule/quantrule-platform`, pulled by digest;
+clients are browser and `quantrule` CLI on Windows/Linux (macOS unsupported), via
+Docker/Podman Compose or Docker Desktop; the Sigstore bundle, `cosign save` signed image, and SBOM/CVE are the [registry contract](../config/2026-11-24/registry.md).
 
 ## 6. Split host
 
@@ -166,5 +166,5 @@ The split does not copy rows from the old `quantrule` database: use `make reset`
 for disposable data, or the migration runbook for kept evidence.
 ## 8. What deployment does not provide
 
-Autoscaling, registry signing, and real HA evidence are out of this profile. PostgreSQL, RabbitMQ and MinIO use internal TLS; the gateway serves plain HTTP behind the ingress ([ingress contract](../config/2026-11-23/ingress.md)). Multi-host placement is in [multi-host.md](multi-host.md); v3 render/check and the `tools/swarm.sh` control plane are in [deploy/v3](../config/2026-11-22/deploy-v3.md) and [swarm-control](../config/2026-11-23/swarm-control.md); Patroni/etcd/HAProxy is in [patroni-cluster](../config/2026-11-23/patroni-cluster.md), RabbitMQ in [rabbitmq-cluster](../config/2026-11-23/rabbitmq-cluster.md), MinIO in [minio-cluster](../config/2026-11-23/minio-cluster.md), and observability in [observability](../config/2026-11-23/observability.md); real HA is HA-014.
+Autoscaling and real HA evidence are out of this profile; image distribution, signing, SBOM, and the CVE gate are the [registry contract](../config/2026-11-24/registry.md). PostgreSQL, RabbitMQ and MinIO use internal TLS; the gateway serves plain HTTP behind the ingress ([ingress contract](../config/2026-11-23/ingress.md)). Multi-host placement is in [multi-host.md](multi-host.md); v3 render/check and the `tools/swarm.sh` control plane are in [deploy/v3](../config/2026-11-22/deploy-v3.md) and [swarm-control](../config/2026-11-23/swarm-control.md); Patroni/etcd/HAProxy is in [patroni-cluster](../config/2026-11-23/patroni-cluster.md), RabbitMQ in [rabbitmq-cluster](../config/2026-11-23/rabbitmq-cluster.md), MinIO in [minio-cluster](../config/2026-11-23/minio-cluster.md), and observability in [observability](../config/2026-11-23/observability.md); real HA is HA-014.
 The ingress/stateful/queue/MinIO check rows (`--out`/`QR_DEPLOY_OUT`), the `QUANTRULE_CA_CERT` trust path, the measured lab RTO, the MinIO probe hash/write quorum, `--skip-object`, and the `Unverified` lab boundary are documented in those contracts.

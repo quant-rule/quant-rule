@@ -1,5 +1,4 @@
 # 15. HA Deployment
-
 - Status: Current
 - Audience: operator rendering, bootstrapping, upgrading, and checking the v3 HA profile
 - Boundary: HA-012 owns the descriptor, render, check, jobs, and static tests.
@@ -9,7 +8,8 @@
   owns RabbitMQ, the queue front door, definitions, reconnect, and broker loss.
   PLAT-005 owns MinIO erasure/TLS/front door, bucket/versioning/`qr_app`,
   object bootstrap, check rows, and node-loss lab. PLAT-006 owns observability;
-  HA-013/014 own backup and real HA.
+  PLAT-007 owns registry distribution, Sigstore bundle/signed image, SBOM/CVE
+  evidence, running-task image checks, and the all-service digest probe; HA-013/014 own backup and real HA.
 
 ## Goal
 Render the seven-service Swarm stack and the pinned per-host stateful units,
@@ -25,16 +25,15 @@ before the stack, and check the one HTTPS ingress without overclaiming.
 | Hosts | Eleven Linux hosts or VMs on one overlay: two edge, two core, three compute, four infra; the lab uses three VMs |
 | Managers | Three odd declared hosts (`swarm.managers`), preferably dedicated; the lab uses its three VMs |
 | Docker | Swarm mode initialized; the declared manager hosts hold the manager role |
-| Image | The app image and sixteen infrastructure images pinned by `sha256:` digest |
+| Image | `ghcr.io/quant-rule/quantrule-platform` pulled by digest, signed with the offline cosign key, and verified as a Sigstore bundle plus `cosign save` signed image before deploy (`jq` and `cosign` are required); the 16 infrastructure images are pinned by `sha256:` digest and remain fixtures until PLAT-008 |
 | Secrets | A mode-700 directory with one mode-600 file per name, including the five stateful secrets and the two MinIO root secrets; the fixture values are fake |
 | PKI | `endpoints.*.tls_ca` plus `postgres/server.*`, `etcd/{server,peer,client}.*`, `rabbitmq/server.*`, and `minio/{public.crt,private.key,CAs/ca.crt}` under the CA's parent; SANs `postgres`+every `patroni-<host>`, every `etcd-<host>`, `rabbitmq`+every `rabbitmq-<host>`, `minio`+every `minio-<host>`; keys mode 600 |
 | Ingress | One DNS `A` record TTL 60 -> `ingress.vip`; keepalived on the edge pair; cert mode; the private CA in the client trust store |
 | Stateful | MinIO, etcd, Patroni, HAProxy, and RabbitMQ units start before the full bootstrap; the overlay must exist first |
 | Client | A machine that resolves `quantrule.dev`, reaches 443, and trusts the private CA (`QUANTRULE_CA_CERT` for the shell, OS/browser store for the browser) |
 
-The lab profile runs three VMs on one physical host. It is the only co-location
-exception; its evidence is `Simulated HA`. Cert mode is the v1.5.10 path; `acme`
-is reserved and refused.
+The lab profile runs three VMs on one physical host: the only co-location
+exception, with `Simulated HA` evidence. Cert mode is current; `acme` is refused.
 
 ## Steps
 
@@ -48,14 +47,14 @@ is reserved and refused.
 | 6 | operator | `tools/stateful.sh wait` | MinIO nodes/drives/no healing, etcd health, Patroni leader + sync standby, brokers/no alarms, primary psql |
 | 7 | operator | `tools/stateful.sh queue-bootstrap`; `tools/queue-definitions.sh export` | `qr_queue`, default vhost, permissions; stripped definitions mode 600 |
 | 8 | operator | `tools/stateful.sh object-bootstrap` | `quantrule` bucket, versioning, `qr_app`, `quantrule-app` policy, put/get/delete probe |
-| 9 | manager | `tools/swarm.sh bootstrap` | App objects, labels, cluster/db/migrate jobs, stack convergence |
+| 9 | manager | `tools/swarm.sh bootstrap` | Signature verified; app objects, labels, cluster/db/migrate jobs, stack convergence |
 | 10 | operator | `tools/observability.sh copy`, `start`, `wait`, `verify` | Prometheus, Alertmanager, Loki, promtail, and Grafana ready; 17 rule rows |
 | 11 | operator | `tools/swarm.sh status`; `tools/stateful.sh status` | Stack converged; MinIO/Patroni/etcd/RabbitMQ healthy |
-| 12 | operator | `tools/swarm.sh verify --remote docker --overlay`; `ip addr show` | VIP present; digest, 443-only, secret paths, health/ready/version, stateful rows |
+| 12 | operator | `tools/swarm.sh verify --remote docker --overlay`; `qr-deploy check <deploy.json> --remote docker --runtime`; `ip addr show` | VIP present; digest, running task image, 443-only, secret paths, health/ready/version, stateful rows; all seven service digests |
 | 13 | operator | `tools/swarm.sh upgrade` / `rollback` | Snapshot; new render deployed; old stack recoverable |
 | 14 | client | Open `https://quantrule.dev`; enter the gateway token | Certificate valid; client loads; `/ready` healthy |
 | 15 | operator | Rotate the token with the sequence below | New secret name; rolling replacement; old secret removed |
-| 16 | lab | `tools/test_tiers.sh ha --plan`, then `ha --confirm` (`--skip-database`/`--skip-queue`/`--skip-object`) | Deploy; worker/manager, ingress, database, queue, and MinIO loss; RTO; probe hash; digest; restore; evidence |
+| 16 | lab | `tools/test_tiers.sh ha --plan`, then `ha --confirm` (`--skip-database`/`--skip-queue`/`--skip-object`) | Deploy; all-service digest; worker/manager, ingress, database, queue, MinIO loss; RTO; probe hash; restore; digest; evidence |
 
 `tools/stateful.sh network` runs `bootstrap.sh --network-only`, which creates and
 validates the overlay and exits before secrets, configs, labels, jobs, or stack.
@@ -113,31 +112,31 @@ update is `stop-first`; `start-first` is used only when a spare slot exists.
 together, and a failed update returns the previous image. `tools/swarm.sh
 upgrade` snapshots the stack and `render.json` into `QR_SWARM_STATE`, renders,
 and bootstraps; `rollback` redeploys the snapshot without removing an object.
-`qr-deploy check <deploy.json> --out <render-dir> --remote docker --overlay`
-reads Docker's inspect output and adds the stateful rows: Patroni
-sync/rewind/archive/TLS/pg_hba/watchdog, etcd mTLS, HAProxy `/primary`, the
-manifest, and the Postgres/etcd SANs. `--out` or `QR_DEPLOY_OUT` reads the
-rendered tree; the remote rows cover Swarm/managers, node labels, overlay
-encryption, replicas/image, 443-only ports, task errors, a limited health row,
-and the ingress mounts. A missing `openssl` is a failed `limited` row; no row
+`qr-deploy check <deploy.json> --out <render-dir> --remote docker --overlay` adds
+the stateful rows: Patroni sync/rewind/archive/TLS/pg_hba/watchdog, etcd mTLS,
+HAProxy `/primary`, the manifest, and the Postgres/etcd SANs.
+`--out`/`QR_DEPLOY_OUT` reads the rendered tree; the remote rows cover
+Swarm/managers, labels, overlay encryption, replicas, spec and running task
+images, 443-only ports, task errors, a limited health row, and ingress mounts.
+`--remote docker --runtime` runs the descriptor image's `curl` (`/version` six
+times, `/health` for backtest:9090) and requires all seven `image_digest` values
+to equal the descriptor. A missing `openssl` is a failed `limited` row; no row
 prints a secret, token, key, or inspect body. The MinIO rows add config/quorum,
 unit/alias, HAProxy 9000, manifest, app, and leaf SAN/expiry.
 
 ## Lab tier
 
 `tools/test_tiers.sh ha` defaults to `deploy/v3/deploy.lab.json`; an explicit
-descriptor wins. `--plan` is Docker-free. A real run preflights Docker, Swarm,
-three odd managers, hosts, SSH/jq/curl/nc, the VIP, and the CA, then deploys,
-checks, drains one worker and one manager, moves the VIP, and verifies quorum,
-443, the digest, and stateful containers. The database phase pauses the primary
-with watchdog `off`, waits for a new leader + sync (measured RTO), writes
-through `postgres`, compares digest/LSN, dials the surviving HAProxy with
-`PGHOSTADDR`, restores, and records the rejoin. The queue phase stops the quorum
-leader, proves a new leader/quorum/no alarms and a confirmed publish, restores,
-and publishes again. The MinIO phase stops one node, compares the probe SHA-256,
-restores, heals with a bounded `mc admin heal -r`, and waits for zero healing.
-`--confirm` is required; skip flags leave that row `Unverified`; a missing lab
-prints `UNVERIFIED`.
+descriptor wins, and `--plan` is Docker-free. A real run preflights Docker,
+Swarm, three odd managers, hosts, SSH/jq/curl/nc, the VIP, and the CA; deploys,
+checks, drains a worker and a manager, and moves the VIP; `--runtime` runs after
+deploy and restore, prints only service + digest, and sets the all-service row
+`Measured` only when all seven match. The database phase pauses the primary with
+watchdog `off`, measures a new leader + sync RTO, compares digest/LSN, dials the
+surviving HAProxy, and restores. The queue phase stops the quorum leader, proves
+quorum/no alarms and a confirmed publish, and restores. The MinIO phase stops one
+node, compares the probe SHA-256, heals with a bounded `mc admin heal -r`, and
+waits for zero healing. `--confirm` is required; skip flags leave that row `Unverified`; a missing lab prints `UNVERIFIED`.
 
 Three VMs on one computer are `Simulated HA`, not host/AZ loss; `swarm-ha`/
 `single-az` stay `HA profile (unverified)` until HA-014. The queue and object
@@ -159,17 +158,17 @@ HA-013 owns archive/off-host copy, restore drills, second-site replication, and 
 | `check` profile/evidence/image | `Simulated HA` for the lab; `HA profile (unverified)` or `Single-zone HA (unverified)` otherwise |
 | `check` secret/stateful rows | `checked` local files; Patroni/etcd/HAProxy sync, TLS, aliases, manifest, and certificate SANs |
 | `check` ingress rows | Static/dynamic/keepalived, certificate files and SAN/expiry, `/health` `/ready` `/version`, HSTS/nosniff/no-referrer/no-`Server`, port-80 closure, mounts |
-| `check --remote/--overlay` rows | Swarm state/managers, node labels/roles, overlay encryption, service replicas/image, 443-only ports, task errors, ingress mounts, limited DNS/route and VIP/firewall |
+| `check --remote/--overlay` rows | Swarm state/managers, node labels/roles, overlay encryption, service replicas, spec and running task images, 443-only ports, task errors, ingress mounts, limited DNS/route and VIP/firewall; `--runtime` adds the seven service digests |
 | `check` queue/MinIO rows | Broker TLS/cluster/alarms/HAProxy 5671/unit/manifest/SAN; MinIO config/quorum, unit/alias, HAProxy 9000, manifest, app, leaf SAN/expiry; Docker-free |
 | `check` observability rows | Placement, four units, per-host agents, 14 jobs/auth/TLS, 38 rules/HA matrix, null receiver, Loki/promtail/blackbox, Grafana, manifest, logging, internal metrics, socket/ports; Docker-free |
 
 ## What it proves
 
-**Verification.** A passing `qr-deploy check` proves the descriptor, local file
-contract, placement, one 443-only ingress, certificate SAN/expiry, headers,
-port-80 closure, mounts, and live digest/health; `--remote docker --overlay`
-adds the Swarm, labels, encryption, replicas, ports, and task state. The fast
-tier is static/golden/fake-probe; the lab proves simulated failure only.
+**Verification.** A passing `qr-deploy check` proves the descriptor, local files,
+placement, one 443-only ingress, certificate SAN/expiry, headers, port-80
+closure, mounts, and live digest/health; `--remote docker --overlay` adds Swarm,
+labels, encryption, replicas, task images, ports, and task state; `--runtime`
+proves all seven service digests. The fast tier is static/golden/fake-probe; the lab proves simulated failure only.
 
 ## Failure
 
@@ -185,7 +184,8 @@ tier is static/golden/fake-probe; the lab proves simulated failure only.
 | `deploy.stateful.rabbitmq.*` / `deploy.secret.queue_*` | Broker list/alarm or queue URL mismatch | Keep three odd brokers, 256+ MiB disk, 10–90% memory, and `qr_queue` on `rabbitmq:5671/%2f` |
 | `deploy.secret.mode` | A secret or PKI key is not mode 600 | `chmod 600`; never relax the rule |
 | `deploy.secret.duplicate_credential` | Two roles share a password | Issue a distinct credential |
-| `deploy.remote.docker` / `deploy.overlay.network` | Docker is unreachable, an inspect failed, or the overlay is missing | Fix the daemon/permission or let `bootstrap.sh` create the overlay; a failed row is not a pass |
+| Signature verification failed | The public key, Sigstore bundle, or signed image is absent, or cosign rejected the digest | Run `tools/release.sh verify <digest> <bundle>`; fix `deploy/v3/cosign.pub` or re-sign; do not use `--allow-unverified` outside the lab |
+| `deploy.remote.docker` / `deploy.overlay.network` / `runtime <service>` | Docker is unreachable, an inspect failed, the overlay is missing, or a service reports a foreign digest | Fix the daemon/permission/overlay/image; a failed or `Unverified` row is not a pass |
 | `UNVERIFIED` from `ha` | The lab or a preflight is not met | Fix the Swarm, managers, hosts, SSH, TLS, or watchdog mode; do not claim a pass |
 | `already exists with a different rendered file` / `exists without the quantrule.source_sha256 label` | A secret/config changed under the same name, or predates the drift check | Rotate with a new name and a rolling update; remove the old object after it drains |
 | `stateful: not ready after …` | MinIO, etcd, Patroni, HAProxy, or RabbitMQ did not converge | Run `tools/stateful.sh status`; check the drive owner, `mc admin info` healing, mTLS SANs, the REST password, the sync standby, and the broker cluster |

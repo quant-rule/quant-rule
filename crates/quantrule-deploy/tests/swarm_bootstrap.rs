@@ -434,7 +434,7 @@ fn fake_state(directory: &Path, nodes: &str) -> PathBuf {
 
 fn stack_rows() -> String {
     let digest = "sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe";
-    let image = format!("registry.quantrule.dev/quantrule/server@{digest}");
+    let image = format!("ghcr.io/quant-rule/quantrule-platform@{digest}");
     let mut rows = [
         ("gateway", 2),
         ("data", 2),

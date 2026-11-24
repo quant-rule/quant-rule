@@ -7,8 +7,9 @@
   RabbitMQ tier (broker, front door, reconnect, check rows, definitions, lab),
   the PLAT-005 MinIO tier (erasure, TLS, HAProxy front door, bucket,
   versioning, least-privilege account, object bootstrap, check rows, node-loss
-  lab), and the PLAT-006 observability tier (16 pins, scrape, 38 rules over 17
-  rows, Loki/promtail, four dashboards, operator tool, static check, lab)
+  lab), the PLAT-006 observability tier (16 pins, scrape, 38 rules over 17
+  rows, Loki/promtail, four dashboards, operator tool, static check, lab), and
+  the PLAT-007 registry/signing/SBOM/CVE phases 1–2 (running task images and the all-service runtime digest probe)
 - Claim type: Behaviour Claim
 - Issue: [#1110](https://github.com/quant-rule/quant-rule/issues/1110)
 - Related: [ADR-HA](../../adr/2026-11-22/1082-ha-deployment-profile.md),
@@ -29,7 +30,8 @@ infrastructure unit by digest, names secret files, and rejects unsafe placement.
 v2 remains readable for the older multi-host profile. The checked-in sample is
 [`deploy/v3/deploy.example.json`](../../../deploy/v3/deploy.example.json); the
 fixture secret directory is
-[`deploy/v3/secrets/`](../../../deploy/v3/secrets/README.md).
+[`deploy/v3/secrets/`](../../../deploy/v3/secrets/README.md). The app digest is a
+labelled fixture that `--release` rejects; the 16 infra pins are fixtures too.
 
 The document is JSON and every struct denies unknown fields. A v3-only field in
 a v2 document, or a v2-only field in a v3 document, is a parse error rather than
@@ -60,7 +62,7 @@ other blocks; the sample lists every pin.
   "v": "quantrule.deploy/v3",
   "profile": "swarm-ha",
   "name": "quantrule-ha",
-  "image": { "reference": "registry.quantrule.dev/quantrule/server", "digest": "sha256:…" },
+  "image": { "reference": "ghcr.io/quant-rule/quantrule-platform", "digest": "sha256:…" },
   "network": { "overlay": "quantrule", "encrypted": true },
   "ingress": {
     "dns": "quantrule.dev",
@@ -121,7 +123,7 @@ The sample has eleven hosts: two edge (ingress, gateway, keepalived), two core (
 | `v` | `quantrule.deploy/v3` only. |
 | `profile` | `swarm-ha`, `single-az`, or `lab-single-host`. |
 | `name` | Optional lowercase DNS label; the default stack name is `quantrule`. |
-| `image` | The server image every service runs; `sha256:` digest required. |
+| `image` | The server image every service runs; a registry/repository reference and a `sha256:` digest. The sample/lab digest is a labelled fixture that `--release` rejects. |
 | `images` | Pins for `traefik`, `postgres`, `patroni`, `etcd`, `haproxy`, `keepalived`, `rabbitmq`, `minio`, `minio_client`, `prometheus`, `grafana`, `loki`, `alertmanager`, `node_exporter`, `promtail`, `blackbox_exporter`; no other key. `postgres` stays for the psql and migration jobs; `minio_client` runs the one-shot `mc`. |
 | `network.overlay` | Overlay name; `encrypted` must be true. |
 | `ingress.dns` | Exactly `quantrule.dev`. |
@@ -165,7 +167,7 @@ files and credential quality.
 | Stateful members use distinct hosts and, in `swarm-ha`, distinct domains | `deploy.stateful.anti_affinity` |
 | Postgres `sslmode=verify-full`; queue `amqps`/5671 and the shared `rabbitmq` host; object store `https` | `deploy.endpoint.*` |
 | CA and secret paths are absolute; no userinfo | `deploy.endpoint.host`, `deploy.file.absolute` |
-| App and every infra unit carry a `sha256:` digest, never a tag or placeholder | `deploy.image.*`, `deploy.images.*` |
+| App and every infra unit carry a `sha256:` digest; a mutable tag is refused. The sample/lab app digest is a labelled fixture that `--release` rejects; the 16 infra pins stay fixtures until PLAT-008 | `deploy.image.*`, `deploy.images.*` |
 | `secrets.files` is non-empty and names every required secret | `deploy.secrets.*` |
 | The five stateful secrets are present, distinct, strong, and URL-safe; the cookie is 32+ characters and the two MinIO root secrets are strong and distinct | `deploy.secrets.missing`, `deploy.secret.url_safe`, `deploy.secret.default_credential`, `deploy.secret.duplicate_credential`, `deploy.secret.weak_cookie` |
 | `object_store_access_key` is the dedicated `qr_app` user; the secret is strong and distinct | `deploy.secret.object_store_user`, `deploy.secret.default_credential` |
@@ -267,7 +269,7 @@ the canonical `sha256:` descriptor hash, the pinned image, and the sorted file l
 
 ## 6. Check
 
-`qr-deploy check deploy.json [--out <render-dir>] [--remote docker] [--overlay]`
+`qr-deploy check deploy.json [--out <render-dir>] [--remote docker] [--overlay] [--runtime]`
 validates the descriptor, placement, local files, and stateful rows, rejects a
 second public port, and probes `/health`, `/ready`, and `/version` through the
 ingress. The stateful rows check Patroni sync/rewind/archive/TLS/pg_hba/aliases/
@@ -287,7 +289,10 @@ failed `limited` row.
 
 `--remote docker` and `--overlay` are read-only opt-ins; the default check is
 Docker-free, no row prints a secret or inspect body, and a missing object or
-command is a failed row.
+command is a failed row. `--remote docker` compares every running task image
+with the descriptor (a stopped task is ignored); `--runtime` runs only the
+all-service probe: the image's `curl` reads `/version` (six services) and
+backtest:9090 `/health`, and all seven `image_digest` values must match.
 
 ## 7. Token rotation, commands, and compatibility
 
@@ -298,7 +303,7 @@ rolling update; the mount target and `QR_BEARER_TOKEN_FILE` stay the same.
 |---|---|
 | `validate [--files]` | v2 unchanged; v3 structural, then secret/ingress/PKI files. |
 | `render --target swarm\|infra\|all` | v2 unchanged; v3 writes the selected set. |
-| `check [--out <dir>] [--remote docker] [--overlay]` | v2 unchanged; v3 probes the ingress and checks the stateful rows; `--out` reads a rendered tree. |
+| `check [--out <dir>] [--remote docker] [--overlay] [--runtime]` | v2 unchanged; v3 probes the ingress, checks the stateful rows and task images; `--out` reads a rendered tree; `--runtime` prints only the seven service digests. |
 
 v2 stays readable byte-identically. v3 is additive; a live move is a runbook, the
 old stack stays until the checks pass, and rollback restores the previous
@@ -307,13 +312,10 @@ descriptor and image with forward-only migrations.
 
 `lab-single-host` proves simulated node failure only. The `ha` tier loses one
 worker, one manager, the VIP, the Patroni primary, one HAProxy, and one MinIO
-node; it records the measured RTO, RPO 0 where the database path supports it,
-the rejoin, the object write quorum, and value-free `Simulated HA` evidence.
-`--skip-database`/`--skip-queue`/`--skip-object` leave that row `Unverified`;
-the end-to-end digest is `Measured` only when `tools/verify.sh` succeeds,
-otherwise `Unverified` or `Blocked`. `swarm-ha`/`single-az` stay unverified
-until HA-014 and no output says `Real HA`; PLAT-002 ingress, PLAT-003 stateful,
-PLAT-004 queue, PLAT-005 MinIO, PLAT-006 observability, HA-013 off-host.
+node; it records RTO, RPO 0, the rejoin, the object write quorum, and value-free
+`Simulated HA` evidence. Skip flags leave that row `Unverified`; the all-service
+digest is `Measured` only when all seven match, the end-to-end only after
+`tools/verify.sh`. `swarm-ha`/`single-az` stay unverified until HA-014; no output says `Real HA`.
 ## 9. Non-goals
 
 No Kubernetes, autoscaling, accounts, tenancy, live trading, desktop packaging,
@@ -322,9 +324,7 @@ certificates, headers, and body limits are in the
 [ingress contract](../2026-11-23/ingress.md). Patroni/etcd/HAProxy is
 [PLAT-003](../2026-11-23/patroni-cluster.md); RabbitMQ is
 [PLAT-004](../2026-11-23/rabbitmq-cluster.md); MinIO is
-[PLAT-005](../2026-11-23/minio-cluster.md); observability is
-[PLAT-006](../2026-11-23/observability.md); signing is
-PLAT-007; pgBackRest, off-host/archive copies, and any second-site replication
-are HA-013; failure evidence is HA-014. TLS/CA is in
-[internal TLS](../2026-11-23/internal-tls.md); secrets and rotation are in
-[file-backed secrets](../2026-11-23/secret-files.md).
+[PLAT-005](../2026-11-23/minio-cluster.md); observability is [PLAT-006](../2026-11-23/observability.md);
+[PLAT-007](../2026-11-24/registry.md) owns registry/signing/SBOM/CVE; HA-013 owns
+pgBackRest/off-host copy and any second-site replication; failure evidence is HA-014.
+TLS/CA is [internal TLS](../2026-11-23/internal-tls.md); secrets and rotation are [file-backed secrets](../2026-11-23/secret-files.md).

@@ -6,7 +6,9 @@
 //! `https://<dns>/health`, `/ready`, and `/version` through a [`Probe`]. A test
 //! supplies a recorded [`FixtureProbe`] through `QR_DEPLOY_PROBE_FIXTURE`; the
 //! production path uses [`HttpProbe`] with the cert-mode CA or the system roots.
-//! `--remote docker` and `--overlay` are explicit opt-ins owned by PLAT-001.
+//! `--remote docker` and `--overlay` are explicit opt-ins owned by PLAT-001;
+//! `--runtime` is the opt-in all-service digest probe and runs only its own
+//! rows.
 
 use std::collections::BTreeMap;
 use std::time::Duration;
@@ -33,6 +35,8 @@ pub struct CheckOptions {
     pub remote_docker: bool,
     /// Run the opt-in overlay inspector.
     pub overlay: bool,
+    /// Run only the all-service runtime digest probe.
+    pub runtime: bool,
     /// Read this rendered tree for the stateful rows instead of rendering in
     /// memory. `QR_DEPLOY_OUT` supplies the same path on the command line.
     pub out: Option<std::path::PathBuf>,
@@ -193,6 +197,10 @@ pub fn check_with(
         evidence_tier(descriptor.profile),
         app_image(descriptor),
     );
+    if options.runtime {
+        super::runtime::append_runtime(&mut report, descriptor, docker);
+        return Ok(report);
+    }
     local::add(&mut report, descriptor);
     let certificates = ingress::CommandCertificate::from_env();
     super::stateful::append(

@@ -3,7 +3,7 @@
   "profile": "swarm-ha",
   "name": "quantrule-ha",
   "image": {
-    "reference": "registry.quantrule.dev/quantrule/server",
+    "reference": "ghcr.io/quant-rule/quantrule-platform",
     "digest": "sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
   },
   "images": {

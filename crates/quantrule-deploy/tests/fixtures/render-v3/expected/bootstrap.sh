@@ -19,7 +19,7 @@ fi
 OVERLAY=quantrule
 STACK=quantrule-ha
 PROFILE=swarm-ha
-EXPECTED_IMAGE=registry.quantrule.dev/quantrule/server@sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe
+EXPECTED_IMAGE=ghcr.io/quant-rule/quantrule-platform@sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe
 REPLICAS="gateway:2 data:2 model:3 strategy:3 backtest:3 evidence:2 simulation:2"
 HOST_COUNTS="gateway:2 data:2 model:3 strategy:3 backtest:3 evidence:2 simulation:2"
 DOMAIN_MIN=replicas

@@ -1,6 +1,6 @@
 # Multi-Host Deployment
 
-- Status: Implemented; hardening #980; release pending; the v3 Patroni/etcd/HAProxy tier, check rows, and failover harness are separate and current; the v3 RabbitMQ broker/checks/definitions are current and its live lab is `Unverified` without a three-VM host; the v3 MinIO erasure/check rows/node-loss lab are current and its live lab is `Unverified` here
+- Status: Implemented; hardening #980; release pending; the v3 Patroni/etcd/HAProxy tier, check rows, and failover harness are separate and current; the v3 RabbitMQ broker/checks/definitions are current and its live lab is `Unverified` without a three-VM host; the v3 MinIO erasure/check rows/node-loss lab are current and its live lab is `Unverified` here; PLAT-007 running-task image and all-service digest checks are current
 - Part of: [`README.md`](README.md)
 - Decision: [ADR-2026-11-20-01](../adr/2026-11-20/958-multi-host-deployment.md)
 - Claim type: Behaviour Claim
@@ -103,12 +103,13 @@ subnet, it can call the internal services without the gateway token.
 
 ## 6. One image identity
 
-Every host must run the same image. Build once and distribute it with
-`docker save`/`docker load`; the role files use `pull_policy: never`. Keep the
-tag and `QR_IMAGE_DIGEST` identical and confirm
-`docker image inspect --format '{{.Id}}'` on every host. `qr-deploy check`
-compares the reported digest; that is an environment check, not proof of the
-running image. A canonical digest is comparable only with the same image.
+Every host must run the same `reference@sha256:<digest>`. The v2 role files keep
+`pull_policy: never`, so load the image once with `docker save`/`docker load`;
+v3 pulls by digest from `ghcr.io/quant-rule/quantrule-platform` or an offline OCI
+bundle from `tools/release.sh bundle`. Keep `QR_IMAGE_DIGEST` equal to the digest.
+`qr-deploy check` compares the reported digest; that is an environment check, not
+proof of the running image; a canonical digest is comparable only with the same
+image. The [registry contract](../config/2026-11-24/registry.md) covers the Sigstore bundle, saved signed image, SBOM, and CVE; `qr-deploy check` also compares every running task image.
 
 ## 7. Start order
 
@@ -150,13 +151,13 @@ The gateway `/ready` reports the upstream states.
 ## 10. What it does not provide
 
 No cloud provider integration, high availability, autoscaling, Kubernetes,
-multi-region placement, service-to-service mTLS, external registry, RPM, or DEB.
-Windows multi-host servers are not supported; the server profile is Linux.
+multi-region placement, service-to-service mTLS, a self-hosted HA registry, RPM,
+or DEB. Windows multi-host servers are not supported; the server profile is Linux.
 
 Residual risks accepted for v1: database roles are per service but v2 uses one
 Postgres password for every role; every service shares the MinIO root
 credentials and one queue user; the overlay is the only service-to-service
-boundary and internal HTTP has no mTLS (HA-012); v2 `qr-deploy check` does not inspect a remote image (v3 `--remote docker` does); the backup tools do not archive all four databases; the infrastructure host is a single point of failure.
+boundary and internal HTTP has no mTLS (HA-012); v2 `qr-deploy check` does not inspect a remote image (v3 `--remote docker` compares every running task image and `--runtime` proves seven digests); the backup tools do not archive all four databases; the infrastructure host is a single point of failure.
 
 ## 11. Related
 

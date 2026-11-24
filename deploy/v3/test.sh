@@ -54,6 +54,7 @@ verify=${QR_SWARM_VERIFY:-tools/verify.sh}
 verify_timeout=${QR_SWARM_VERIFY_TIMEOUT:-300}
 api_url=${QR_SWARM_API_URL:-}
 cacert=${QR_SWARM_CACERT:-}
+export QR_DEPLOY_DOCKER=${QR_DEPLOY_DOCKER:-$docker_bin}
 
 plan=0
 confirm=0
@@ -66,6 +67,7 @@ database_status="Unverified"
 queue_status="Unverified"
 object_status="Unverified"
 observability_status="Unverified"
+digest_status="Unverified"
 
 usage() {
   awk 'NR == 1 { next } /^#/ { sub(/^# ?/, ""); print; next } { exit }' "${BASH_SOURCE[0]}"
@@ -150,8 +152,10 @@ if [ "$plan" -eq 1 ]; then
 ha: plan (no Docker is contacted)
 ha: descriptor: $descriptor
 ha: 1. preflight: docker info, active Swarm manager, 3 odd managers, descriptor hosts resolve, VIP and CA present
-ha: 2. deploy: tools/swarm.sh bootstrap (render, labels, jobs, stack)
+ha: 2. deploy: tools/swarm.sh --allow-unverified bootstrap (render, labels, jobs, stack; Unverified)
 ha: 3. check: qr-deploy check --remote docker --overlay; ingress /health /ready /version over the private CA
+ha: 3a. runtime digest after deploy and after restore: docker run the descriptor image on the overlay; /version for gateway/data/model/strategy/evidence/simulation, /health for backtest:9090; every image_digest must equal the descriptor
+ha: 3b. the all-service digest row is Measured only when all seven match; a wrong or missing digest fails closed, an unavailable probe is Unverified
 ha: 4. ingress baseline: VIP holder, 2/2 ingress, targeted check and tools/verify.sh digest
 ha: 5. ingress loss: drain the VIP holder; bounded 1 Hz HTTPS /health loop; the VIP moves to the survivor
 ha: 6. negative controls: no port 80, each direct edge public 443 refused, VIP 443 answers, 8404/5432/8080/9000/5671/15692/15672 refused
@@ -182,7 +186,7 @@ ha: 30. observability: promtool rule-unit proof of GatewaySyntheticDown in the p
 ha: 31. observability: manager 3 -> 2; SwarmManagerQuorumAtRisk fires in Prometheus and Alertmanager; restore; resolved
 ha: 32. observability: ingress drain keeps the VIP ready probe 1; a pause on the non-VIP gateway makes GatewayReplicaDown fire; unpause; resolved
 ha: 33. --skip-observability leaves the observability row Unverified; Simulated HA only when both alerts fired and resolved; Real HA is HA-014
-ha: evidence: Simulated HA for lab-single-host; Real HA is HA-014 only
+ha: evidence: Simulated HA for lab-single-host; all-service image digest and end-to-end canonical digest are printed separately; Real HA is HA-014 only
 ha: this plan is not evidence
 PLAN
   exit 0
@@ -435,6 +439,43 @@ verify_run() {
   [ -n "$digest" ] || unverified "$phase: the verification run printed no canonical digest"
   last_digest=$digest
   say "$phase: verification run digest sha256:$digest"
+}
+
+# Prove every service reports the descriptor digest through its own endpoint.
+# The product image supplies curl; the probe uses the descriptor overlay and
+# image, never a lab-specific network or a second image pin. Only the service
+# name and digest are printed; a wrong or missing digest fails closed.
+digest_all() {
+  local phase=$1 expected output service digest seen=0
+  expected=$(jq -r '.image.digest' "$descriptor" 2>/dev/null || true)
+  if [ -z "$expected" ]; then
+    digest_status="Unverified"
+    unverified "$phase: cannot read the descriptor image digest"
+  fi
+  if ! output=$(qr_deploy check "$descriptor" --remote docker --runtime 2>&1); then
+    printf '%s\n' "$output" >&2
+    digest_status="Unverified"
+    unverified "$phase: the all-service runtime digest probe did not pass"
+  fi
+  for service in gateway data model strategy backtest evidence simulation; do
+    digest=$(printf '%s\n' "$output" | awk -F'\t' -v subject="runtime $service" \
+      '$1 == "ok" && $3 == subject { print $5; exit }')
+    if [ -z "$digest" ]; then
+      digest_status="Unverified"
+      unverified "$phase: $service reported no runtime digest"
+    fi
+    if [ "$digest" != "$expected" ]; then
+      digest_status="Unverified"
+      unverified "$phase: $service reported $digest, expected $expected"
+    fi
+    say "digest $service $digest"
+    seen=$((seen + 1))
+  done
+  if [ "$seen" -ne 7 ]; then
+    digest_status="Unverified"
+    unverified "$phase: only $seen of 7 services reported a digest"
+  fi
+  digest_status="Measured"
 }
 
 ingress_preflight() {
@@ -753,8 +794,8 @@ last_digest=""
 preflight
 
 if [ "$skip_deploy" -eq 0 ]; then
-  say "deploy: tools/swarm.sh bootstrap ($descriptor)"
-  DESCRIPTOR="$descriptor" OUT="$out" ./tools/swarm.sh bootstrap \
+  say "deploy: tools/swarm.sh --allow-unverified bootstrap ($descriptor)"
+  DESCRIPTOR="$descriptor" OUT="$out" ./tools/swarm.sh --allow-unverified bootstrap \
     || unverified "bootstrap failed"
   say "check: qr-deploy check --remote docker --overlay"
   qr_deploy check "$descriptor" --remote docker --overlay \
@@ -762,6 +803,7 @@ if [ "$skip_deploy" -eq 0 ]; then
 else
   say "deploy: skipped (--skip-deploy)"
 fi
+digest_all "after deploy"
 
 if [ "$confirm" -eq 0 ]; then
   say "loss checks not run: pass --confirm"
@@ -864,9 +906,10 @@ else
   qr_deploy check "$descriptor" --remote docker --overlay \
     || unverified "the full check failed after restore"
 fi
-digest_status=${o_digest_status:-Unverified}
+digest_all "after restore"
+end_to_end_digest_status=${o_digest_status:-Unverified}
 if [ "$skip_object" -eq 1 ]; then
-  digest_status="Unverified"
+  end_to_end_digest_status="Unverified"
 fi
 if [ "$skip_observability" -eq 1 ]; then
   observability_status="Unverified"
@@ -874,4 +917,5 @@ else
   obs_finish
 fi
 say "summary: $evidence; worker/manager/ingress; database $database_status; queue $queue_status; object_store $object_status; observability $observability_status"
-say "end-to-end canonical digest: $digest_status; Real HA is HA-014"
+say "all-service image digest: $digest_status"
+say "end-to-end canonical digest: $end_to_end_digest_status; Real HA is HA-014"

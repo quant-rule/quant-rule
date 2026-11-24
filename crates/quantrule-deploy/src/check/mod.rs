@@ -13,6 +13,7 @@ mod observability;
 mod queue;
 mod remote;
 mod report;
+mod runtime;
 mod stateful;
 mod text;
 pub mod v2;

@@ -62,7 +62,10 @@ fn the_plan_names_the_database_failover_and_the_skip_opt_out() {
     assert!(output.status.success(), "{}", stderr(&output));
     let printed = stdout(&output);
     for expected in [
+        "runtime digest",
+        "all-service digest row",
         "database preflight",
+        "--allow-unverified bootstrap",
         "database baseline",
         "database loss",
         "docker pause the primary Patroni container",
@@ -391,6 +394,25 @@ fn the_ha_harness_is_valid_bash() {
 }
 
 #[test]
+fn the_runtime_digest_probe_covers_all_seven_services_after_deploy_and_restore() {
+    let text = std::fs::read_to_string(repo("deploy/v3/test.sh")).expect("harness");
+    for expected in [
+        "qr_deploy check \"$descriptor\" --remote docker --runtime",
+        "for service in gateway data model strategy backtest evidence simulation",
+        "digest_status=\"Measured\"",
+        "digest_all \"after deploy\"",
+        "digest_all \"after restore\"",
+        "all-service image digest: $digest_status",
+    ] {
+        assert!(text.contains(expected), "{expected}");
+    }
+    assert!(
+        text.contains("$1 == \"ok\" && $3 == subject"),
+        "the probe must parse only a successful runtime row: {text}"
+    );
+}
+
+#[test]
 fn the_plan_is_docker_free_and_names_the_sequence() {
     let directory = temp_dir();
     let marker = directory.join("docker-called");
@@ -409,6 +431,7 @@ fn the_plan_is_docker_free_and_names_the_sequence() {
     for expected in [
         "plan (no Docker is contacted)",
         "preflight",
+        "runtime digest",
         "bootstrap",
         "drain",
         "stop",

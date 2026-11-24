@@ -18,7 +18,7 @@ SECRETS_DIR ?= secrets
 PKI_DIR ?= pki
 COMPOSE_ENV = QR_SECRETS_DIR="$(abspath $(SECRETS_DIR))" QR_PKI_DIR="$(abspath $(PKI_DIR))" $(COMPOSE) --env-file "$(abspath $(SECRETS_DIR))/compose.env"
 
-.PHONY: help secrets pki up down reset logs ps scale gate verify test test-fast test-composed test-parity test-ha remote token compose-check backup restore dev-web swarm-validate swarm-render swarm-bootstrap swarm-status swarm-upgrade swarm-rollback swarm-verify stateful observability observability-plan
+.PHONY: help secrets pki up down reset logs ps scale gate verify test test-fast test-composed test-parity test-ha remote token compose-check backup restore dev-web swarm-validate swarm-render swarm-bootstrap swarm-status swarm-upgrade swarm-rollback swarm-verify stateful observability observability-plan release-plan release-pin release-verify
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*## "; printf "QuantRule make targets\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -119,6 +119,15 @@ swarm-rollback: ## Redeploy the last snapshot; never removes the stack or data
 	./tools/swarm.sh rollback
 swarm-verify: ## Check the ingress, image digest, and local files
 	./tools/swarm.sh verify
+
+release-plan: ## Print the Docker/network-free release sequence and tool pins
+	./tools/release.sh --plan
+release-pin: ## Pin a release image into a descriptor (DESCRIPTOR= REF= DIGEST=)
+	@if [ -z "$(DESCRIPTOR)" ] || [ -z "$(REF)" ] || [ -z "$(DIGEST)" ]; then echo "release-pin: set DESCRIPTOR, REF, and DIGEST; the sample/lab fixture is not overwritten"; exit 2; fi
+	./tools/release.sh pin --descriptor "$(DESCRIPTOR)" --reference "$(REF)" --digest "$(DIGEST)"
+release-verify: ## Verify a signed digest locally (REF= reference@digest)
+	@if [ -z "$(REF)" ]; then echo "release-verify: set REF to reference@sha256:..."; exit 2; fi
+	./tools/release.sh verify "$(REF)"
 
 remote: ## Start with only :8080 published and a bearer token
 	QR_SECRETS_DIR="$(abspath $(SECRETS_DIR))" COMPOSE="$(COMPOSE)" ./tools/remote.sh

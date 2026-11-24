@@ -7,13 +7,18 @@
 # a Docker client crate. The fast test tier uses a fake `docker` binary and
 # `QR_DEPLOY_BIN`; no Docker daemon is required for `validate` or `render`.
 #
-# Usage: tools/swarm.sh <command>
+# `bootstrap` and `upgrade` verify the app image signature with
+# `tools/release.sh verify` before they render or deploy. `swarm-ha` and
+# `single-az` fail closed. `lab-single-host` may continue only with the explicit
+# `--allow-unverified` flag, and prints `Unverified`, never a pass.
+#
+# Usage: tools/swarm.sh [--allow-unverified] <command>
 #
 #   validate   Validate the descriptor and the local secret/CA files.
 #   render     Render the stack, infra skeletons, jobs, secrets, and PKI.
-#   bootstrap  Render, then run the generated bootstrap on a Swarm manager.
+#   bootstrap  Verify, render, then run the generated bootstrap on a Swarm manager.
 #   status     Show the stack services and the nodes that carry this deployment.
-#   upgrade    Validate, snapshot the current render, render the new one, and bootstrap.
+#   upgrade    Validate, verify, snapshot the current render, render the new one, and bootstrap.
 #   rollback   Redeploy the last snapshot; never removes the stack or its data.
 #   verify     Run `qr-deploy check` against the ingress; extra flags are forwarded.
 #
@@ -24,6 +29,7 @@
 #   STACK             override the stack name from render.json
 #   QR_SWARM_STATE    snapshot directory (default <OUT>/.swarm-state)
 #   QR_DEPLOY_BIN     qr-deploy binary; otherwise qr-deploy on PATH, then cargo
+#   QR_RELEASE_PUBLIC_KEY / COSIGN_BIN  forwarded to tools/release.sh verify
 set -euo pipefail
 
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
@@ -99,8 +105,40 @@ snapshot_previous() {
   printf 'swarm: snapshot %s\n' "$directory"
 }
 
+verify_release() {
+  command -v jq >/dev/null 2>&1 || die "jq is required to read the descriptor image"
+  local profile target
+  profile=$(jq -r '.profile // empty' "$descriptor") || die "cannot read the descriptor profile"
+  target=$(jq -r '(.image.reference // "") + "@" + (.image.digest // "")' "$descriptor") \
+    || die "cannot read the descriptor image"
+  case "$target" in
+    *@sha256:*) ;;
+    *) die "the descriptor image is not reference@sha256:<digest>" ;;
+  esac
+  if [ "$allow_unverified" -eq 1 ]; then
+    if [ "$profile" = "lab-single-host" ]; then
+      printf 'swarm: Unverified: image signature not verified for lab-single-host (--allow-unverified)\n' >&2
+      return 0
+    fi
+    die "--allow-unverified is only valid for lab-single-host; $profile must verify"
+  fi
+  "$root/tools/release.sh" verify "$target" \
+    || die "image signature verification failed; fix deploy/v3/cosign.pub or sign the digest"
+}
+
+allow_unverified=0
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --allow-unverified) allow_unverified=1; shift ;;
+    *) break ;;
+  esac
+done
+
 command=${1:-}
 shift || true
+if [ "$allow_unverified" -eq 1 ] && [ "$command" != "bootstrap" ] && [ "$command" != "upgrade" ]; then
+  die "--allow-unverified is only valid for bootstrap or upgrade"
+fi
 case "$command" in
   '' | -h | --help | help)
     usage
@@ -112,6 +150,7 @@ case "$command" in
     render
     ;;
   bootstrap)
+    verify_release
     render
     (cd "$out" && sh bootstrap.sh)
     ;;
@@ -127,6 +166,7 @@ case "$command" in
   upgrade)
     require_docker upgrade
     qr_deploy validate "$descriptor" --files
+    verify_release
     snapshot_previous
     render
     (cd "$out" && sh bootstrap.sh)

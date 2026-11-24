@@ -1,11 +1,12 @@
 //! Opt-in remote and overlay inspectors for a v3 check.
 //!
-//! The default check is local plus one HTTPS ingress probe. `--remote docker`
-//! and `--overlay` are explicit opt-ins. The inspectors read Docker's own
-//! read-only inspect output through a [`DockerQuery`] seam; the production
-//! adapter shells out to the Docker CLI, and tests inject a fixture. No
-//! inspector prints an environment value, a secret or config payload, a token,
-//! or a full inspect body.
+//! The default check is local plus one HTTPS ingress probe. `--remote docker`,
+//! `--overlay`, and `--runtime` are explicit opt-ins. The inspectors read
+//! Docker's own read-only inspect output through a [`DockerQuery`] seam; the
+//! production adapter shells out to the Docker CLI, and tests inject a fixture.
+//! `--runtime` additionally runs one short `curl` container from the pinned
+//! product image on the overlay. No inspector prints an environment value, a
+//! secret or config payload, a token, or a full inspect body.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::process::Command;
@@ -18,10 +19,12 @@ use crate::render::{APP_SERVICES, app_image, pinned, stack_name};
 
 use super::report::{CheckReport, CheckRow};
 
-/// The read-only Docker queries the inspectors need.
+/// The Docker queries the inspectors need.
 ///
-/// Every method maps to one `docker ... inspect` or `docker ... ls` read. The
-/// seam exists so the fast tier can prove every branch without a daemon.
+/// Every method maps to one `docker ... inspect`, `docker ... ls`, or `docker
+/// service ps` read; [`DockerQuery::runtime_probe`] is the one explicit opt-in
+/// `docker run` and is only reached by `--runtime`. The seam exists so the fast
+/// tier can prove every branch without a daemon.
 pub trait DockerQuery {
     /// Read the local Swarm state (`docker info --format '{{json .Swarm}}'`).
     fn swarm_info(&self) -> Result<String, String>;
@@ -35,6 +38,8 @@ pub trait DockerQuery {
     fn service_inspect(&self, name: &str) -> Result<String, String>;
     /// List one service's desired-running tasks as JSON lines.
     fn service_tasks(&self, name: &str) -> Result<String, String>;
+    /// Run the pinned product image's `curl` on the overlay and return the body.
+    fn runtime_probe(&self, network: &str, image: &str, url: &str) -> Result<String, String>;
 }
 
 /// The production adapter: one read-only Docker CLI process per query.
@@ -113,6 +118,20 @@ impl DockerQuery for CommandDocker {
             "--format",
             "{{json .}}",
             name,
+        ])
+    }
+
+    fn runtime_probe(&self, network: &str, image: &str, url: &str) -> Result<String, String> {
+        self.output(&[
+            "run",
+            "--rm",
+            "--network",
+            network,
+            "--entrypoint",
+            "curl",
+            image,
+            "-fsS",
+            url,
         ])
     }
 }
@@ -342,6 +361,8 @@ struct TaskInspect {
     desired_state: String,
     #[serde(rename = "CurrentState", default)]
     current_state: String,
+    #[serde(rename = "Image", default)]
+    image: String,
     #[serde(rename = "Error", default)]
     error: String,
 }
@@ -474,7 +495,7 @@ fn inspect_docker(
         }
     }
     rows.push(ports_row(descriptor, &inspected));
-    rows.push(tasks_row(descriptor, docker));
+    rows.extend(tasks_rows(descriptor, docker));
     rows.push(CheckRow::ok(
         "remote",
         "health",
@@ -801,16 +822,10 @@ fn ports_row(descriptor: &Descriptor, inspected: &BTreeMap<String, ServiceInspec
     }
 }
 
-fn tasks_row(descriptor: &Descriptor, docker: &dyn DockerQuery) -> CheckRow {
-    let stack = stack_name(descriptor);
-    let mut names: Vec<String> = APP_SERVICES
-        .iter()
-        .map(|(name, _)| (*name).to_owned())
-        .collect();
-    names.push("ingress".to_owned());
+fn tasks_rows(descriptor: &Descriptor, docker: &dyn DockerQuery) -> Vec<CheckRow> {
+    let mut images = Vec::new();
     let mut issues = Vec::new();
-    for kind in names {
-        let full = format!("{stack}_{kind}");
+    for (kind, full, expected_image, _) in service_table(descriptor) {
         match docker.service_tasks(&full) {
             Ok(text) => {
                 let mut tasks = Vec::new();
@@ -822,8 +837,16 @@ fn tasks_row(descriptor: &Descriptor, docker: &dyn DockerQuery) -> CheckRow {
                 }
                 if tasks.is_empty() {
                     issues.push(format!("{kind} has no running task"));
+                    images.push(CheckRow::failed(
+                        "remote",
+                        format!("running task image {kind}"),
+                        "missing",
+                        "no running task reports an image",
+                    ));
                     continue;
                 }
+                let mut running = 0_u32;
+                let mut wrong = Vec::new();
                 for task in tasks {
                     if task.desired_state != "Running" {
                         issues.push(format!("{kind} desired state {}", task.desired_state));
@@ -835,20 +858,68 @@ fn tasks_row(descriptor: &Descriptor, docker: &dyn DockerQuery) -> CheckRow {
                         .unwrap_or("unknown");
                     if state != "Running" {
                         issues.push(format!("{kind} task state {state}"));
+                        continue;
+                    }
+                    running += 1;
+                    if task.image != expected_image {
+                        wrong.push(task.image);
                     }
                     if !task.error.is_empty() {
                         issues.push(format!("{kind} has a task error"));
                     }
                 }
+                if running == 0 {
+                    images.push(CheckRow::failed(
+                        "remote",
+                        format!("running task image {kind}"),
+                        "missing",
+                        "no running task reports an image",
+                    ));
+                } else if wrong.is_empty() {
+                    images.push(CheckRow::ok(
+                        "remote",
+                        format!("running task image {kind}"),
+                        "equals",
+                        expected_image,
+                    ));
+                } else {
+                    images.push(CheckRow::failed(
+                        "remote",
+                        format!("running task image {kind}"),
+                        "mismatch",
+                        format!("runs {}, expected {expected_image}", wrong.join(", ")),
+                    ));
+                }
             }
-            Err(error) => issues.push(format!("{kind} tasks: {error}")),
+            Err(error) => {
+                issues.push(format!("{kind} tasks: {error}"));
+                images.push(CheckRow::failed(
+                    "remote",
+                    format!("running task image {kind}"),
+                    "missing",
+                    format!("deploy.remote.docker: {error}"),
+                ));
+            }
         }
     }
+    let mut rows = Vec::with_capacity(images.len() + 1);
     if issues.is_empty() {
-        CheckRow::ok("remote", "tasks", "running", "no failed or rejected tasks")
+        rows.push(CheckRow::ok(
+            "remote",
+            "tasks",
+            "running",
+            "no failed or rejected tasks",
+        ));
     } else {
-        CheckRow::failed("remote", "tasks", "failed", issues.join("; "))
+        rows.push(CheckRow::failed(
+            "remote",
+            "tasks",
+            "failed",
+            issues.join("; "),
+        ));
     }
+    rows.extend(images);
+    rows
 }
 
 fn parse_single<T: DeserializeOwned>(text: &str, what: &str) -> Result<T, String> {

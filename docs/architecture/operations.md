@@ -1,6 +1,6 @@
 # Operations
 
-- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); runtime drain, readiness, retries, file secrets, token rotation, the PLAT-003 stateful tier, check rows, and failover lab, the PLAT-004 queue tier, checks, definitions, and broker-loss lab, the PLAT-005 MinIO tier/object bootstrap/check rows/node-loss lab, and the PLAT-006 observability tier are in v1.6.0; approved 2026-11-12
+- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); runtime drain, readiness, retries, file secrets, token rotation, the PLAT-003 stateful tier, check rows, and failover lab, the PLAT-004 queue tier, checks, definitions, and broker-loss lab, the PLAT-005 MinIO tier/object bootstrap/check rows/node-loss lab, the PLAT-006 observability tier, and the PLAT-007 registry/signing/SBOM/CVE phases 1–2 (running task images and the all-service digest probe) are in v1.6.0; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 
@@ -146,6 +146,8 @@ and compares row digests and object hashes.
    the previous digest without the job; the schema is forward-only.
 
 The full migration contract and runbook are in [migrations.md](migrations.md).
+
+The release image is pulled by digest from GHCR and verified as a Sigstore bundle plus saved signed image before deploy; `qr-deploy check` compares running task images and `--runtime` proves seven service digests; SBOM/CVE are release assets ([registry contract](../config/2026-11-24/registry.md)).
 
 ## 6. Incident notes
 

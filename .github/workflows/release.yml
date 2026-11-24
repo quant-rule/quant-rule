@@ -1,8 +1,10 @@
-# The release pipeline: one image digest and one record.
+# The release pipeline: one image digest, one signature step, and one record.
 #
-# A pushed v* tag builds and verifies the image, pushes it to the registry,
-# records its digest, and attaches the image digest to the GitHub release.
-# Desktop artifacts are retired.
+# A pushed v* tag builds and verifies the image, pushes a staging tag, generates
+# an SPDX SBOM from that exact digest, runs the CVE gate, and only then pushes the
+# version tag. The version and staging manifests must have the same digest. The
+# SBOM and scan report are release assets; the body records their hashes and the
+# manual operator signing step. CI never signs and never holds a private key.
 #
 # The default registry is GHCR and the default image is
 # ghcr.io/<owner>/quantrule-platform, authenticated with the workflow's
@@ -142,10 +144,10 @@ jobs:
 
 
   image:
-    name: Image and digest
+    name: Image, SBOM, and CVE gate
     needs: gate
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     # Pushing to GHCR with GITHUB_TOKEN needs packages: write on this job only.
     permissions:
       contents: read
@@ -156,7 +158,9 @@ jobs:
       image: ${{ steps.reference.outputs.image }}
       ref: ${{ steps.reference.outputs.ref }}
       tag: ${{ steps.reference.outputs.tag }}
+      sha_tag: ${{ steps.reference.outputs.sha_tag }}
       source: ${{ steps.digest.outputs.source }}
+      evidence: release-evidence-${{ github.sha }}
     steps:
       - name: Check out the repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
@@ -176,6 +180,14 @@ jobs:
             --name "release-binaries-${{ needs.gate.outputs.commit }}" \
             --dir release-binaries
           (cd release-binaries && sha256sum -c manifest.sha256)
+
+      - name: Install the pinned supply-chain tools
+        env:
+          TOOLS: ${{ runner.temp }}/release-tools
+        run: |
+          tools/release.sh install-tools "$TOOLS" >/dev/null
+          cargo install cargo-audit --version 0.23.0 --locked
+          echo "$TOOLS" >> "$GITHUB_PATH"
 
       - name: Resolve the image reference
         id: reference
@@ -222,6 +234,9 @@ jobs:
             echo "tag=$tag"
             echo "publish=$publish"
             echo "source=$source"
+            commit="$(git rev-parse HEAD)"
+            echo "sha_tag=sha-$commit"
+            echo "staging_tag=staging-$commit"
           } >> "$GITHUB_OUTPUT"
           if [ "$publish" = "true" ]; then
             echo "ref=$image:$tag" >> "$GITHUB_OUTPUT"
@@ -256,16 +271,18 @@ jobs:
           IMAGE: ${{ steps.reference.outputs.image }}
           REF: ${{ steps.reference.outputs.ref }}
           PUBLISH: ${{ steps.reference.outputs.publish }}
+          SHA_TAG: ${{ steps.reference.outputs.sha_tag }}
+          STAGING_TAG: ${{ steps.reference.outputs.staging_tag }}
         run: |
           if [ "$PUBLISH" = "true" ]; then
             # The checked-out commit is the tag commit on a tag push and on a
             # manual release dispatch, so the sha tag names what was built.
-            sha_tag="sha-$(git rev-parse HEAD)"
             docker build \
               --platform linux/amd64 \
               --file Dockerfile.release \
               --tag "$REF" \
-              --tag "$IMAGE:$sha_tag" \
+              --tag "$IMAGE:$SHA_TAG" \
+              --tag "$IMAGE:$STAGING_TAG" \
               .
           else
             docker build --platform linux/amd64 --file Dockerfile.release --tag "$REF" .
@@ -309,28 +326,91 @@ jobs:
           trap 'docker compose down --volumes --remove-orphans' EXIT
           bash tools/test_tiers.sh composed
 
-      # Push only after both image checks and the composed suite pass: a
-      # rejected image must not be visible in the registry, where a deployment
-      # could pull it.
+      # Push a staging tag first. The scan subject is the exact digest; the
+      # version tag is pushed only after the gate passes and must resolve to the
+      # same digest. A staging tag is not a release and is never deployed.
+      - name: Push the staging digest
+        if: steps.reference.outputs.publish == 'true'
+        env:
+          IMAGE: ${{ steps.reference.outputs.image }}
+          STAGING_TAG: ${{ steps.reference.outputs.staging_tag }}
+        run: docker push "$IMAGE:$STAGING_TAG"
+
+      - name: Capture the staging digest
+        id: staging
+        if: steps.reference.outputs.publish == 'true'
+        env:
+          IMAGE: ${{ steps.reference.outputs.image }}
+          STAGING_TAG: ${{ steps.reference.outputs.staging_tag }}
+        run: |
+          digest="$(docker buildx imagetools inspect "$IMAGE:$STAGING_TAG" \
+            --format '{{.Manifest.Digest}}')"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "staging digest: $digest"
+
+      # The SBOM subject is the pushed staging digest, not a local tag. The
+      # final version tag is verified against this digest after the scan.
+      - name: Generate the SBOM
+        if: steps.reference.outputs.publish == 'true'
+        env:
+          IMAGE: ${{ steps.reference.outputs.image }}
+          DIGEST: ${{ steps.staging.outputs.digest }}
+          TAG: ${{ steps.reference.outputs.tag }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/evidence"
+          tools/release.sh sbom "$IMAGE@$DIGEST" "$RUNNER_TEMP/evidence/sbom-$TAG.spdx.json"
+
+      - name: Run the CVE gate
+        if: steps.reference.outputs.publish == 'true'
+        env:
+          TAG: ${{ steps.reference.outputs.tag }}
+          QR_RELEASE_ALLOWLIST: deploy/release/cve-allowlist.json
+        run: |
+          tools/release.sh scan \
+            "$RUNNER_TEMP/evidence/sbom-$TAG.spdx.json" \
+            "$RUNNER_TEMP/evidence/cve"
+          cp "$RUNNER_TEMP/evidence/cve/summary.json" \
+            "$RUNNER_TEMP/evidence/cve-report-$TAG.json"
+          (
+            cd "$RUNNER_TEMP/evidence"
+            sha256sum "sbom-$TAG.spdx.json" "cve-report-$TAG.json" > evidence.sha256
+            cat evidence.sha256
+          )
+
+      - name: Upload the release evidence
+        if: steps.reference.outputs.publish == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-evidence-${{ github.sha }}
+          path: ${{ runner.temp }}/evidence
+          retention-days: 7
+
+      # Push the version tag only after both image checks, the composed suite,
+      # and the CVE gate pass. A rejected image must not become a release.
       - name: Push the verified image
         if: steps.reference.outputs.publish == 'true'
         env:
           IMAGE: ${{ steps.reference.outputs.image }}
           REF: ${{ steps.reference.outputs.ref }}
+          SHA_TAG: ${{ steps.reference.outputs.sha_tag }}
         run: |
-          sha_tag="sha-$(git rev-parse HEAD)"
           docker push "$REF"
-          docker push "$IMAGE:$sha_tag"
+          docker push "$IMAGE:$SHA_TAG"
 
       - name: Capture the image digest
         id: digest
         env:
           REF: ${{ steps.reference.outputs.ref }}
           PUBLISH: ${{ steps.reference.outputs.publish }}
+          STAGING_DIGEST: ${{ steps.staging.outputs.digest }}
         run: |
           if [ "$PUBLISH" = "true" ]; then
             digest="$(docker buildx imagetools inspect "$REF" \
               --format '{{.Manifest.Digest}}')"
+            if [ "$digest" != "$STAGING_DIGEST" ]; then
+              echo "::error::the version tag digest $digest differs from the scanned staging digest $STAGING_DIGEST" >&2
+              exit 1
+            fi
             source=registry
           else
             digest="$(docker image inspect "$REF" --format '{{.Id}}')"
@@ -341,6 +421,7 @@ jobs:
           {
             echo "- Digest: \`$digest\`"
             echo "- Digest source: $source"
+            echo "- Scanned staging digest: \`$STAGING_DIGEST\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Verify the digest in /health
@@ -486,6 +567,12 @@ jobs:
         with:
           ref: ${{ inputs.release_tag || github.ref }}
 
+      - name: Download the release evidence
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.image.outputs.evidence }}
+          path: ${{ runner.temp }}/evidence
+
       - name: Build the release body
         env:
           IMAGE: ${{ needs.image.outputs.image }}
@@ -501,15 +588,33 @@ jobs:
           fi
           note="docs/releases/$relative"
           [ -f "$note" ] || { echo "::error::$RELEASE_TAG resolves to missing $note" >&2; exit 1; }
+          sbom="sbom-$RELEASE_TAG.spdx.json"
+          cve="cve-report-$RELEASE_TAG.json"
+          evidence="$RUNNER_TEMP/evidence"
+          [ -s "$evidence/$sbom" ] || { echo "::error::missing $sbom" >&2; exit 1; }
+          [ -s "$evidence/$cve" ] || { echo "::error::missing $cve" >&2; exit 1; }
+          sbom_sha="$(sha256sum "$evidence/$sbom" | awk '{print $1}')"
+          cve_sha="$(sha256sum "$evidence/$cve" | awk '{print $1}')"
+          counts="$(jq -r '.counts | "\(.critical) Critical, \(.high) High, \(.medium) Medium, \(.low) Low"' "$evidence/$cve")"
           {
             cat "$note"
             echo
             echo "## Image"
             echo
-            echo "- Image: \`$IMAGE\`"
+            echo "- Image: \`$IMAGE:$RELEASE_TAG\`"
             echo "- Image digest: \`$DIGEST\` ($SOURCE)"
+            echo "- Image signature: pending; the operator signs the pushed digest locally with \`tools/release.sh sign\`, records the Sigstore signature-bundle SHA-256, and verifies the \`signed-image\` with the offline key"
+            echo "- SBOM: \`$sbom\` sha256:\`$sbom_sha\`"
+            echo "- CVE scan: \`$cve\` sha256:\`$cve_sha\` ($counts)"
+            echo
+            echo "## Distribution boundary"
+            echo
+            echo "- The 16 \`images.*\` infrastructure pins are fixtures; a production descriptor needs real digests (PLAT-008)."
+            echo "- A live registry push, signature, SBOM, scan, and the three-VM lab are \`Unverified\`; \`Real HA\` is HA-014."
           } > release-body.md
           cp release-body.md "$RUNNER_TEMP/release-body.md"
+          cp "$evidence/$sbom" "$RUNNER_TEMP/$sbom"
+          cp "$evidence/$cve" "$RUNNER_TEMP/$cve"
 
       - name: Create or update the release
         env:
@@ -528,6 +633,10 @@ jobs:
               --title "$RELEASE_TAG" \
               --notes-file "$RUNNER_TEMP/release-body.md"
           fi
+          gh release upload "$RELEASE_TAG" \
+            "$RUNNER_TEMP/sbom-$RELEASE_TAG.spdx.json" \
+            "$RUNNER_TEMP/cve-report-$RELEASE_TAG.json" \
+            --clobber
 
       - name: Verify the released record
         env:
@@ -539,7 +648,20 @@ jobs:
             echo "::error::the release body does not name the digest $DIGEST" >&2
             exit 1
           fi
+          for field in "Image signature: pending" "SBOM: \`sbom-$RELEASE_TAG.spdx.json\`" \
+            "CVE scan: \`cve-report-$RELEASE_TAG.json\`" "PLAT-008"; do
+            if ! jq -e --arg field "$field" '.body | contains($field)' release.json >/dev/null; then
+              echo "::error::the release body does not name $field" >&2
+              exit 1
+            fi
+          done
           names="$(jq -r '.assets[].name' release.json)"
+          for expected in "sbom-$RELEASE_TAG.spdx.json" "cve-report-$RELEASE_TAG.json"; do
+            if ! printf '%s\n' "$names" | grep -Fxq "$expected"; then
+              echo "::error::the release is missing asset $expected" >&2
+              exit 1
+            fi
+          done
           if printf '%s\n' "$names" | grep -Eq '\.AppImage$|-setup\.exe$'; then
             echo "::error::desktop assets are not allowed in a current release: $names" >&2
             exit 1
