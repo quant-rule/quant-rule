@@ -1,6 +1,6 @@
 # Highly Available Runtime
 
-- Status: Target for the next release; the evidence leader (HA-006), data active/active (HA-007), runtime drain/readiness/retries/file secrets/token rotation (HA-009), internal TLS for PostgreSQL/RabbitMQ/MinIO (HA-010), v3 render/check (HA-012), the PLAT-001 control plane, the PLAT-002 ingress, the PLAT-003 Patroni/etcd/HAProxy tier, the PLAT-004 RabbitMQ tier, the PLAT-005 MinIO erasure/TLS/front door/object bootstrap/check rows/node-loss lab, and the PLAT-006 observability tier (including `check/observability.rs` and the lab assertions) are current; the lab is `Unverified` without a three-VM host; accepted by [ADR-HA](../adr/2026-11-22/1082-ha-deployment-profile.md)
+- Status: Target for the next release; the evidence leader (HA-006), data active/active (HA-007), runtime drain/readiness/retries/file secrets/token rotation (HA-009), internal TLS for PostgreSQL/RabbitMQ/MinIO (HA-010), v3 render/check (HA-012), the PLAT-001 control plane, the PLAT-002 ingress, the PLAT-003 Patroni/etcd/HAProxy tier, the PLAT-004 RabbitMQ tier, the PLAT-005 MinIO erasure/TLS/front door/object bootstrap/check rows/node-loss lab, the PLAT-006 observability tier (including `check/observability.rs` and the lab assertions), and the PLAT-007 registry/signing/SBOM/CVE phases 1–2 (running task images and the all-service digest probe) are current; the lab is `Unverified` without a three-VM host; accepted by [ADR-HA](../adr/2026-11-22/1082-ha-deployment-profile.md)
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 
@@ -113,7 +113,7 @@ and no cross-database joins.
 - Every service serves `/ready`; a drain flips it before the process stops, and `/metrics` stays internal.
 - Prometheus scrapes the seven services, ingress, Patroni, etcd, HAProxy, RabbitMQ, MinIO, node_exporter, blackbox, and itself; Prometheus and Alertmanager sit on distinct hosts, Loki/promtail keep 30 days of JSON logs, four dashboards are read-only, and every port stays overlay-only ([observability contract](../config/2026-11-23/observability.md)). The 38 rules cover F01..F17, including `GatewayReplicaDown`, `EtcdNodeDown`, `PostgresNoPrimaryBackend`, `MinioClusterUnhealthy`, and `SwarmManagerQuorumAtRisk`.
 - JSON logs carry request ids as observability only; they never enter evidence.
-- Image is signed, SBOM published and digest pinned.
+- The release image is pinned by digest and verified as a Sigstore bundle plus saved signed image before deploy; `qr-deploy check` compares every running task image, and `--runtime` proves all seven service digests; SBOM and CVE evidence are release assets ([registry contract](../config/2026-11-24/registry.md)). The 16 infrastructure pins remain fixtures until PLAT-008.
 
 ## 9. Deployment descriptor
 

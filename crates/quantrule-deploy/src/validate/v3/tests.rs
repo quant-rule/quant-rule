@@ -93,6 +93,33 @@ fn a_tag_only_app_image_is_refused() {
 }
 
 #[test]
+fn a_bare_app_image_reference_is_refused() {
+    let mut value = sample();
+    value["image"]["reference"] = serde_json::json!("quantrule-server");
+    let error = reject(value);
+    assert!(
+        error.to_string().contains("deploy.image.reference"),
+        "{error}"
+    );
+    assert!(error.to_string().contains("registry/repository"), "{error}");
+}
+
+#[test]
+fn release_mode_refuses_the_labelled_fixture_digest() {
+    let example = valid();
+    validate(&example).expect("the fixture remains valid by default");
+    let error = validate_release(&example).expect_err("release mode refuses the fixture");
+    assert!(
+        error.to_string().contains("deploy.image.fixture"),
+        "{error}"
+    );
+
+    let mut value = sample();
+    value["image"]["digest"] = serde_json::json!(format!("sha256:{}", "9".repeat(64)));
+    validate_release(&descriptor(value)).expect("a real digest is accepted");
+}
+
+#[test]
 fn exactly_seven_services_are_required() {
     let mut value = sample();
     value["services"]

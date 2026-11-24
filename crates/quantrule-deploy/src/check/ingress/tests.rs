@@ -369,6 +369,9 @@ impl DockerQuery for FakeDocker {
     fn service_tasks(&self, _name: &str) -> Result<String, String> {
         Err("unused".to_owned())
     }
+    fn runtime_probe(&self, _network: &str, _image: &str, _url: &str) -> Result<String, String> {
+        Err("unused".to_owned())
+    }
 }
 
 fn ingress_service(configs: serde_json::Value, secrets: serde_json::Value) -> String {

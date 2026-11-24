@@ -1,4 +1,6 @@
 use super::*;
+use serde_json::Value;
+
 use crate::descriptor::v3::Profile;
 
 fn descriptor() -> Descriptor {
@@ -59,6 +61,10 @@ impl DockerQuery for FakeDocker {
             .cloned()
             .unwrap_or_else(|| Err(format!("no task fixture for {name}")))
     }
+
+    fn runtime_probe(&self, _network: &str, _image: &str, _url: &str) -> Result<String, String> {
+        Err("unused".to_owned())
+    }
 }
 
 fn service_json(name: &str, image: &str, replicas: u32, ports: Vec<serde_json::Value>) -> String {
@@ -75,12 +81,13 @@ fn service_json(name: &str, image: &str, replicas: u32, ports: Vec<serde_json::V
     .to_string()
 }
 
-fn task_lines(replicas: u32) -> String {
+fn task_lines(replicas: u32, image: &str) -> String {
     (1..=replicas)
         .map(|_| {
             serde_json::json!({
                 "DesiredState": "Running",
                 "CurrentState": "Running",
+                "Image": image,
                 "Error": ""
             })
             .to_string()
@@ -159,14 +166,18 @@ fn healthy(descriptor: &Descriptor) -> FakeDocker {
                 Vec::new(),
             )),
         );
-        fake.tasks.insert(full, Ok(task_lines(expected.replicas)));
+        fake.tasks.insert(
+            full,
+            Ok(task_lines(expected.replicas, &app_image(descriptor))),
+        );
     }
     let ingress = format!("{stack}_ingress");
+    let ingress_image = pinned(&descriptor.images["traefik"]);
     fake.services.insert(
         ingress.clone(),
         Ok(service_json(
             &ingress,
-            &pinned(&descriptor.images["traefik"]),
+            &ingress_image,
             descriptor.ingress.replicas,
             vec![serde_json::json!({
                 "Protocol": "tcp",
@@ -176,8 +187,10 @@ fn healthy(descriptor: &Descriptor) -> FakeDocker {
             })],
         )),
     );
-    fake.tasks
-        .insert(ingress, Ok(task_lines(descriptor.ingress.replicas)));
+    fake.tasks.insert(
+        ingress,
+        Ok(task_lines(descriptor.ingress.replicas, &ingress_image)),
+    );
     fake
 }
 
@@ -244,7 +257,8 @@ fn a_wrong_replica_count_fails() {
         full.clone(),
         Ok(service_json(&full, &app_image(&descriptor), 1, Vec::new())),
     );
-    fake.tasks.insert(full, Ok(task_lines(1)));
+    fake.tasks
+        .insert(full, Ok(task_lines(1, &app_image(&descriptor))));
     let rows = rows(&fake);
     assert!(
         failures(&rows)
@@ -279,6 +293,98 @@ fn a_wrong_image_digest_fails() {
                     .as_deref()
                     .is_some_and(|error| error.contains("expected"))),
         "{}",
+        text(&rows)
+    );
+}
+
+#[test]
+fn every_running_task_image_must_equal_the_descriptor() {
+    let descriptor = descriptor();
+    let mut fake = healthy(&descriptor);
+    let full = format!("{}_gateway", stack_name(&descriptor));
+    let mut tasks: Vec<Value> = fake.tasks[&full]
+        .as_ref()
+        .expect("tasks")
+        .lines()
+        .map(|line| serde_json::from_str(line).expect("task"))
+        .collect();
+    tasks[0]["Image"] = serde_json::json!("ghcr.io/foreign/server@sha256:wrong");
+    fake.tasks.insert(
+        full,
+        Ok(tasks
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join("\n")),
+    );
+    let rows = rows(&fake);
+    assert!(
+        failures(&rows)
+            .iter()
+            .any(|row| row.subject == "running task image gateway"
+                && row
+                    .error
+                    .as_deref()
+                    .is_some_and(|error| error.contains("expected"))),
+        "{}",
+        text(&rows)
+    );
+}
+
+#[test]
+fn a_running_task_with_no_image_fails() {
+    let descriptor = descriptor();
+    let mut fake = healthy(&descriptor);
+    let full = format!("{}_gateway", stack_name(&descriptor));
+    fake.tasks.insert(
+        full,
+        Ok(serde_json::json!({
+            "DesiredState": "Running",
+            "CurrentState": "Running",
+            "Error": ""
+        })
+        .to_string()),
+    );
+    let rows = rows(&fake);
+    assert!(
+        failures(&rows)
+            .iter()
+            .any(|row| row.subject == "running task image gateway" && row.state == "mismatch"),
+        "{}",
+        text(&rows)
+    );
+}
+
+#[test]
+fn a_stopped_task_image_is_ignored_by_the_image_row() {
+    let descriptor = descriptor();
+    let mut fake = healthy(&descriptor);
+    let full = format!("{}_gateway", stack_name(&descriptor));
+    let tasks = format!(
+        "{}\n{}",
+        serde_json::json!({
+            "DesiredState": "Running",
+            "CurrentState": "Running",
+            "Image": app_image(&descriptor),
+            "Error": ""
+        }),
+        serde_json::json!({
+            "DesiredState": "Running",
+            "CurrentState": "Failed 2 minutes ago",
+            "Image": "ghcr.io/foreign/server@sha256:wrong",
+            "Error": ""
+        })
+    );
+    fake.tasks.insert(full, Ok(tasks));
+    let rows = rows(&fake);
+    let image = rows
+        .iter()
+        .find(|row| row.subject == "running task image gateway")
+        .expect("image row");
+    assert!(!image.is_failure(), "{}", text(&rows));
+    assert!(
+        failures(&rows).iter().any(|row| row.subject == "tasks"),
+        "the aggregate task row still reports the failed task: {}",
         text(&rows)
     );
 }

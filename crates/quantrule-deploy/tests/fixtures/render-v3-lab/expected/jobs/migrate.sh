@@ -6,7 +6,7 @@
 # public bundle. No app URL and no superuser URL is present.
 set -eu
 OVERLAY=quantrule
-IMAGE=registry.quantrule.dev/quantrule/server@sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe
+IMAGE=ghcr.io/quant-rule/quantrule-platform@sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe
 
 docker run --rm --network "$OVERLAY" \
     -e QR_MIGRATE=0 \

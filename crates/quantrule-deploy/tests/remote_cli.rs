@@ -108,6 +108,7 @@ fn write_service_with_mounts(
             serde_json::json!({
                 "DesiredState": "Running",
                 "CurrentState": "Running",
+                "Image": image,
                 "Error": ""
             })
             .to_string()
@@ -234,6 +235,22 @@ fn fake_docker(directory: &Path, descriptor: &Value) -> (PathBuf, PathBuf, PathB
             {"SecretName": "quantrule_ingress_key", "File": {"Name": "/etc/traefik/certs/ingress.key", "Mode": 256}}
         ]),
     );
+    let digest = descriptor["image"]["digest"].as_str().expect("digest");
+    for service in [
+        "gateway",
+        "data",
+        "model",
+        "strategy",
+        "backtest",
+        "evidence",
+        "simulation",
+    ] {
+        std::fs::write(
+            fixtures.join(format!("runtime-{service}.json")),
+            serde_json::json!({"image_digest": digest}).to_string(),
+        )
+        .expect("runtime fixture");
+    }
     let script = directory.join("fake-docker");
     write_mode(
         &script,
@@ -259,6 +276,13 @@ case "$1" in
             ps) cat "$dir/tasks-$7.json" ;;
             *) echo "unsupported service command" >&2; exit 2 ;;
         esac
+        ;;
+    run)
+        url=""
+        for argument in "$@"; do url=$argument; done
+        name=${url#http://}
+        name=${name%%:*}
+        cat "$dir/runtime-$name.json"
         ;;
     *) echo "unsupported docker command" >&2; exit 2 ;;
 esac
@@ -476,6 +500,17 @@ fn v3_check_remote_docker_passes_with_a_healthy_fixture() {
         printed.contains("ok\tremote\tports\tsingle-public-port"),
         "{printed}"
     );
+    assert!(
+        printed.contains(&format!(
+            "ok\tremote\trunning task image gateway\tequals\t{}",
+            pinned_image(&descriptor["image"])
+        )),
+        "{printed}"
+    );
+    assert!(
+        printed.contains("ok\tremote\trunning task image ingress\tequals"),
+        "{printed}"
+    );
     assert!(!printed.contains("FAIL"), "{printed}");
     let _ = std::fs::remove_dir_all(directory);
 }
@@ -577,6 +612,180 @@ fn v3_check_remote_docker_fails_when_a_service_is_missing() {
     assert!(
         printed.contains("FAIL\tremote\tservice gateway\tmissing"),
         "{printed}"
+    );
+    let _ = std::fs::remove_dir_all(directory);
+}
+
+#[test]
+fn v3_check_remote_docker_fails_on_a_wrong_running_task_image() {
+    let directory = temp_dir();
+    let descriptor_path = local_descriptor(&directory);
+    let descriptor = descriptor_value(&descriptor_path);
+    let digest = descriptor["image"]["digest"].as_str().expect("digest");
+    let probe = probe_fixture(&directory, &descriptor, digest, "healthy");
+    let (script, fixtures, log) = fake_docker(&directory, &descriptor);
+    let tasks = fixtures.join("tasks-quantrule-ha_gateway.json");
+    let text = std::fs::read_to_string(&tasks).expect("gateway tasks");
+    let mut rows: Vec<Value> = text
+        .lines()
+        .map(|line| serde_json::from_str(line).expect("task row"))
+        .collect();
+    rows[0]["Image"] = serde_json::json!("ghcr.io/foreign/server@sha256:wrong");
+    std::fs::write(
+        &tasks,
+        rows.iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join("\n"),
+    )
+    .expect("write tasks");
+    let envs = remote_envs(&probe, &script, &fixtures, &log);
+    let output = run_envs(
+        &[
+            "check",
+            descriptor_path.to_str().expect("path"),
+            "--remote",
+            "docker",
+        ],
+        &envs,
+    );
+    assert_eq!(output.status.code(), Some(1));
+    let printed = stdout(&output);
+    assert!(
+        printed.contains("FAIL\tremote\trunning task image gateway\tmismatch"),
+        "{printed}"
+    );
+    assert!(
+        printed.contains("ghcr.io/foreign/server@sha256:wrong"),
+        "{printed}"
+    );
+    let _ = std::fs::remove_dir_all(directory);
+}
+
+#[test]
+fn v3_check_remote_docker_fails_when_a_service_has_no_running_task() {
+    let directory = temp_dir();
+    let descriptor_path = local_descriptor(&directory);
+    let descriptor = descriptor_value(&descriptor_path);
+    let digest = descriptor["image"]["digest"].as_str().expect("digest");
+    let probe = probe_fixture(&directory, &descriptor, digest, "healthy");
+    let (script, fixtures, log) = fake_docker(&directory, &descriptor);
+    std::fs::write(fixtures.join("tasks-quantrule-ha_gateway.json"), "").expect("empty tasks");
+    let envs = remote_envs(&probe, &script, &fixtures, &log);
+    let output = run_envs(
+        &[
+            "check",
+            descriptor_path.to_str().expect("path"),
+            "--remote",
+            "docker",
+        ],
+        &envs,
+    );
+    assert_eq!(output.status.code(), Some(1));
+    let printed = stdout(&output);
+    assert!(
+        printed.contains("FAIL\tremote\trunning task image gateway\tmissing"),
+        "{printed}"
+    );
+    assert!(printed.contains("FAIL\tremote\ttasks\tfailed"), "{printed}");
+    let _ = std::fs::remove_dir_all(directory);
+}
+
+#[test]
+fn v3_check_runtime_reports_all_seven_service_digests() {
+    let directory = temp_dir();
+    let descriptor_path = local_descriptor(&directory);
+    let descriptor = descriptor_value(&descriptor_path);
+    let digest = descriptor["image"]["digest"].as_str().expect("digest");
+    let probe = probe_fixture(&directory, &descriptor, digest, "healthy");
+    let (script, fixtures, log) = fake_docker(&directory, &descriptor);
+    let envs = remote_envs(&probe, &script, &fixtures, &log);
+    let output = run_envs(
+        &[
+            "check",
+            descriptor_path.to_str().expect("path"),
+            "--remote",
+            "docker",
+            "--runtime",
+        ],
+        &envs,
+    );
+    assert!(
+        output.status.success(),
+        "{}{}",
+        stdout(&output),
+        stderr(&output)
+    );
+    let printed = stdout(&output);
+    for service in [
+        "gateway",
+        "data",
+        "model",
+        "strategy",
+        "backtest",
+        "evidence",
+        "simulation",
+    ] {
+        assert!(
+            printed.contains(&format!("ok\tremote\truntime {service}\tdigest\t{digest}")),
+            "{service}: {printed}"
+        );
+    }
+    assert!(!printed.contains("FAIL"), "{printed}");
+    let _ = std::fs::remove_dir_all(directory);
+}
+
+#[test]
+fn v3_check_runtime_fails_closed_on_a_wrong_digest() {
+    let directory = temp_dir();
+    let descriptor_path = local_descriptor(&directory);
+    let descriptor = descriptor_value(&descriptor_path);
+    let digest = descriptor["image"]["digest"].as_str().expect("digest");
+    let probe = probe_fixture(&directory, &descriptor, digest, "healthy");
+    let (script, fixtures, log) = fake_docker(&directory, &descriptor);
+    std::fs::write(
+        fixtures.join("runtime-data.json"),
+        serde_json::json!({"image_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"})
+            .to_string(),
+    )
+    .expect("wrong runtime digest");
+    let envs = remote_envs(&probe, &script, &fixtures, &log);
+    let output = run_envs(
+        &[
+            "check",
+            descriptor_path.to_str().expect("path"),
+            "--remote",
+            "docker",
+            "--runtime",
+        ],
+        &envs,
+    );
+    assert_eq!(output.status.code(), Some(1));
+    let printed = stdout(&output);
+    assert!(
+        printed.contains("FAIL\tremote\truntime data\tmismatch"),
+        "{printed}"
+    );
+    let _ = std::fs::remove_dir_all(directory);
+}
+
+#[test]
+fn v3_check_runtime_requires_remote_docker() {
+    let directory = temp_dir();
+    let descriptor_path = local_descriptor(&directory);
+    let output = run_envs(
+        &[
+            "check",
+            descriptor_path.to_str().expect("path"),
+            "--runtime",
+        ],
+        &[],
+    );
+    assert_eq!(output.status.code(), Some(2));
+    assert!(
+        stderr(&output).contains("needs --remote docker"),
+        "{}",
+        stderr(&output)
     );
     let _ = std::fs::remove_dir_all(directory);
 }

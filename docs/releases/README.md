@@ -186,17 +186,19 @@ keeps its historical heading and states the prepared version in a tag note.
   `1.0.0` is the desktop release, and `0.9.0` is the distributed platform.
 
 ## 6. Release note template
-
 ```markdown
 # <Tag> — <Title>
 
 - Date: <YYYY-MM-DD> (UTC)
 - Tag: `<Tag>`
 - Commit: `<commit>`
-- Status: Released
+- Status: Prepared (change to Released only after the tag, assets, and signature are final)
 - Previous release: [`<previous tag>`](<relative path>)
-- Image: `<registry>/<image>:<tag>`, assembled from `release-binaries-<sha>`
-- Image digest: `sha256:<64 hex characters>`
+- Image: `<registry>/<image>:<Tag>`, assembled from `release-binaries-<sha>`
+- Image digest: `sha256:<64 lowercase hex>`
+- Image signature: `cosign bundle sha256:<64 lowercase hex>` or `pending`
+- SBOM: `sbom-<Tag>.spdx.json sha256:<64 lowercase hex>` or `pending`
+- CVE scan: `cve-report-<Tag>.json sha256:<64 lowercase hex> (<counts>)` or `pending`
 - Changelog: [`CHANGELOG.md`](../../CHANGELOG.md#<version>)
 - Claim type: release record; no model, strategy, or edge claim.
 
@@ -204,6 +206,8 @@ keeps its historical heading and states the prepared version in a tag note.
 
 - Included:
 - Deliberately excluded:
+- Infrastructure pins: the 16 `images.*` digests are fixtures until PLAT-008; a
+  production descriptor needs real infrastructure digests.
 
 ## Verification
 
@@ -221,18 +225,24 @@ keeps its historical heading and states the prepared version in a tag note.
 - Entries:
 ```
 
+The five supply-chain fields are required for every release at or after
+`v1.5.10`. `pending` is allowed only while `- Status:` is not `Released`; a
+released note carries the signature-bundle, SBOM, and scan hashes. Historical
+notes are unchanged; the digest is the exact manifest digest, and the other
+values hash the attached evidence.
+
 ## 7. Release pipeline
 
 [`.github/workflows/release.yml`](../../.github/workflows/release.yml) builds the
-release artifacts. It creates no tag; the human creates and pushes the annotated
-tag after the release PR merges.
+release image and evidence. It creates no Git tag; the human creates and pushes
+the annotated tag after the release PR merges.
 
 | Trigger | Result |
 |---|---|
-| Annotated `vMAJOR.MINOR.PATCH` tag on `main` | Published image, Linux AppImage, Windows NSIS installer, GitHub release |
-| `workflow_dispatch` with `release_tag: vX.Y.Z` | Manual recovery of an existing tag: image pushed under that tag, both artifacts built, release created or updated |
-| `workflow_dispatch` with `publish_snapshot: true` | `snapshot-<sha>` image pushed, digest in the job summary, no release, no asset |
-| `workflow_dispatch` | Local build only, never pushes; the recorded digest is a local image ID; no release, no asset |
+| Annotated `vMAJOR.MINOR.PATCH` tag on `main` | Staging digest, SBOM, CVE gate, version image, GitHub release with SBOM and scan assets |
+| `workflow_dispatch` with `release_tag: vX.Y.Z` | Manual recovery of an existing tag: same evidence and image push, release created or updated |
+| `workflow_dispatch` with `publish_snapshot: true` | `snapshot-<sha>` image pushed and scanned; digest in the job summary; no release |
+| `workflow_dispatch` | Local build only, never pushes; the recorded digest is a local image ID; no release |
 
 The workflow fails a lightweight tag, a tag off `main`, and a tag whose release
 note is missing. The tag check runs `git fetch --tags --force origin` before
@@ -240,10 +250,16 @@ note is missing. The tag check runs `git fetch --tags --force origin` before
 `+<commit>:refs/tags/<tag>` with `--no-tags`, which leaves a lightweight local
 ref and made a valid annotated tag look lightweight. The explicit tag fetch
 restores the tag object, and a genuinely lightweight tag still fails. Before it
-publishes the workflow runs `tools/gate.sh`, the image contract checks
-(`--version` against `Cargo.toml`, no Python, no Bun), the desktop helper tests
-and boundary check, and a nine-container Compose smoke that reads the digest
-back from `/health` and the product version back from `/version`.
+publishes, the workflow runs `tools/gate.sh`, the image contract checks
+(`--version` against `Cargo.toml`, no Python, no Bun), the composed tier, the
+SBOM, and the CVE gate.
+
+The image is built once for `linux/amd64`. A staging tag is pushed first; syft
+writes the SBOM from that exact digest and Grype plus `cargo audit` gate it.
+Only then is the version image tag pushed, and its digest must equal the staging
+digest. A failed gate pushes no version tag and creates no release. The workflow
+does not sign; the operator signs the pushed digest locally after CI, records
+the signature-bundle SHA-256 in the release note, and verifies the saved image.
 
 The default registry is GHCR, so a tag run needs no repository value: it pushes
 `ghcr.io/<owner>/quantrule-platform` and logs in with `GITHUB_TOKEN` under the
@@ -257,21 +273,22 @@ overrides for another registry, and a custom registry then needs its own token.
 | `QR_REGISTRY_USERNAME` | secret | Registry user; defaults to the workflow actor |
 | `QR_REGISTRY_TOKEN` | secret | Registry token with push scope; defaults to `GITHUB_TOKEN` on GHCR |
 
-The desktop jobs use `GITHUB_TOKEN` only. The release job gets `contents: write`
-and `actions: read` to create or update the release and read the uploaded
-assets; every other job is read-only.
+The image job uses `GITHUB_TOKEN`; the release job gets `contents: write` and
+`actions: read` to create the release and read the uploaded evidence. Every
+other job is read-only.
 
-The workflow appends the image reference, the digest, and both artifact names to
-the GitHub release body. Copy the two fields into the release note's
-`- Image digest:` and `- Desktop artifacts:` lines in the follow-up record
-commit. A published tag is never moved.
+The workflow appends the image reference, digest, `pending` signature step,
+SBOM hash, scan hash/counts, and the PLAT-008 fixture-pin blocker to the GitHub
+release body, and attaches `sbom-<tag>.spdx.json` and `cve-report-<tag>.json`.
+Copy the final hashes, including the signature-bundle SHA-256, into the five
+supply-chain fields after signing; a published tag is never moved.
 
 The pre-tag proof is `gh workflow run release.yml --ref main -f
 publish_snapshot=true`, or **Release** from the Actions tab with the input
-checked. It pushes a `snapshot-<sha>` image and records its manifest digest
-without creating a release; that digest is the GHCR evidence the release note
-may cite before the tag exists. A run without the input records the local image
-ID only, and its artifacts hold the installers.
+checked. It pushes and scans a `snapshot-<sha>` image and records its manifest
+digest without creating a release; that digest is the GHCR evidence the release
+note may cite before the tag exists. A run without the input records the local
+image ID only.
 
 ### Manual recovery
 
@@ -279,16 +296,15 @@ A published tag is never moved, deleted, or recreated, so a failed tag run is
 recovered from the existing tag:
 
 ```bash
-gh workflow run release.yml --ref main -f release_tag=v1.2.0
+gh workflow run release.yml --ref main -f release_tag=v1.5.10
 ```
 
 Every job checks out that tag, the gate repeats the tag check, and the image job
-pushes the same version tag to the registry. Both desktop artifacts are rebuilt,
-and the release is created for the existing tag with `gh release create
---verify-tag`, so the step cannot create, move, or delete a tag. A rerun for a
-tag whose release already exists updates that release and replaces its assets
-instead of creating a second one. `release_tag` and `publish_snapshot` are
-mutually exclusive.
+pushes the same version tag to the registry after the SBOM and scan pass. The
+release is created for the existing tag with `gh release create --verify-tag`,
+so the step cannot create, move, or delete a tag. A rerun for a tag whose release
+already exists updates that release and replaces its assets instead of creating
+a second one. `release_tag` and `publish_snapshot` are mutually exclusive.
 
 ## 8. Checker
 
@@ -297,15 +313,18 @@ mutually exclusive.
 - release note file names and dates;
 - the `- Tag:` line;
 - changelog alignment for releases at or after the 2026-11-07 baseline;
+- the five supply-chain fields for releases at or after `v1.5.10`, with
+  `pending` allowed only before `Status: Released`;
 - duplicate release notes and duplicate changelog versions.
 
 Historical releases before the baseline are exempt from the changelog
-requirement. The checker does not create or move a Git tag; tag creation remains
-a human-authorized Git operation.
+requirement; releases before `v1.5.10` are exempt from the supply-chain fields.
+The checker does not create or move a Git tag; tag creation remains a
+human-authorized Git operation.
 
 ## 9. Related documents
 
-- [`docs/workflows/release-operations.md`](../workflows/release-operations.md)
+- [`docs/workflows/release-operations.md`](../workflows/release-operations.md), [registry contract](../config/2026-11-24/registry.md)
 - [`docs/workflows/recordkeeping.md`](../workflows/recordkeeping.md)
 - [`CHANGELOG.md`](../../CHANGELOG.md)
 - [`AGENTS.md`](../../AGENTS.md)

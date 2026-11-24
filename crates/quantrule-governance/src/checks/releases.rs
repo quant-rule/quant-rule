@@ -9,6 +9,7 @@ use serde_json::Value;
 use crate::report::Diagnostic;
 
 const BASELINE: &str = "2026-11-07";
+const SUPPLY_CHAIN_BASELINE: &str = "1.5.10";
 const LIVING: [&str; 5] = [
     "AGENTS.md",
     "README.md",
@@ -154,6 +155,9 @@ pub fn check(root: &Path) -> Vec<Diagnostic> {
                 )),
                 Some(_) => {}
             }
+        }
+        if version_at_least(version, SUPPLY_CHAIN_BASELINE) {
+            check_supply_chain(&path, root, &text, &mut diagnostics);
         }
         let _ = relative;
     }
@@ -396,6 +400,143 @@ fn living_tag_claims(
             }
         }
     }
+}
+
+fn check_supply_chain(path: &Path, root: &Path, text: &str, diagnostics: &mut Vec<Diagnostic>) {
+    let final_note = text
+        .lines()
+        .find_map(|line| line.strip_prefix("- Status:").map(str::trim))
+        .is_none_or(|status| status.to_ascii_lowercase().contains("released"));
+    let image = line_value(text, "- Image:");
+    match image {
+        None => diagnostics.push(Diagnostic::path(
+            "releases",
+            path,
+            root,
+            "missing '- Image:' line for a release at or after v1.5.10",
+        )),
+        Some(value) if !value.contains('/') || !(value.contains(':') || value.contains('@')) => {
+            diagnostics.push(Diagnostic::path(
+                "releases",
+                path,
+                root,
+                "'- Image:' must name a registry/repository and tag or digest",
+            ));
+        }
+        Some(_) => {}
+    }
+    let digest = line_value(text, "- Image digest:");
+    match digest {
+        None => diagnostics.push(Diagnostic::path(
+            "releases",
+            path,
+            root,
+            "missing '- Image digest: sha256:<64 lowercase hex>' line",
+        )),
+        Some(value) if !is_digest(value) => diagnostics.push(Diagnostic::path(
+            "releases",
+            path,
+            root,
+            "'- Image digest:' must be sha256:<64 lowercase hex>",
+        )),
+        Some(_) => {}
+    }
+    for (field, kind) in [
+        ("- Image signature:", "cosign signature"),
+        ("- SBOM:", "SBOM"),
+        ("- CVE scan:", "CVE scan"),
+    ] {
+        let Some(value) = line_value(text, field) else {
+            diagnostics.push(Diagnostic::path(
+                "releases",
+                path,
+                root,
+                format!("missing '{field}' line for a release at or after v1.5.10"),
+            ));
+            continue;
+        };
+        if is_pending(value) {
+            if final_note {
+                diagnostics.push(Diagnostic::path(
+                    "releases",
+                    path,
+                    root,
+                    format!("{kind} is pending in a Status: Released note"),
+                ));
+            }
+            continue;
+        }
+        match field {
+            "- Image signature:" if !value.contains("cosign") || find_digest(value).is_none() => {
+                diagnostics.push(Diagnostic::path(
+                    "releases",
+                    path,
+                    root,
+                    "the image signature must name cosign and sha256:<64 lowercase hex>",
+                ));
+            }
+            "- SBOM:" if !value.contains(".spdx.json") || find_digest(value).is_none() => {
+                diagnostics.push(Diagnostic::path(
+                    "releases",
+                    path,
+                    root,
+                    "the SBOM must name a .spdx.json asset and sha256:<64 lowercase hex>",
+                ));
+            }
+            "- CVE scan:" if find_digest(value).is_none() => {
+                diagnostics.push(Diagnostic::path(
+                    "releases",
+                    path,
+                    root,
+                    "the CVE scan must name sha256:<64 lowercase hex>",
+                ));
+            }
+            _ => {}
+        }
+    }
+}
+
+fn line_value<'a>(text: &'a str, prefix: &str) -> Option<&'a str> {
+    text.lines()
+        .find_map(|line| line.strip_prefix(prefix).map(str::trim))
+}
+
+fn version_at_least(value: &str, baseline: &str) -> bool {
+    version_parts(value)
+        .zip(version_parts(baseline))
+        .is_some_and(|(actual, expected)| actual >= expected)
+}
+
+fn version_parts(value: &str) -> Option<(u64, u64, u64)> {
+    let mut parts = value.split('.').map(|part| part.parse::<u64>().ok());
+    Some((parts.next()??, parts.next()??, parts.next()??))
+}
+
+fn is_digest(value: &str) -> bool {
+    let value = value.trim().trim_matches('`').trim();
+    find_digest(value).is_some_and(|digest| digest == value)
+}
+
+fn find_digest(value: &str) -> Option<&str> {
+    let start = value.find("sha256:")?;
+    let rest = &value[start + 7..];
+    if rest.len() < 64 || !rest.as_bytes()[..64].iter().all(u8::is_ascii_hexdigit) {
+        return None;
+    }
+    if rest.as_bytes()[..64]
+        .iter()
+        .any(|byte| byte.is_ascii_uppercase())
+    {
+        return None;
+    }
+    if rest.as_bytes().get(64).is_some_and(u8::is_ascii_hexdigit) {
+        return None;
+    }
+    Some(&value[start..start + 7 + 64])
+}
+
+fn is_pending(value: &str) -> bool {
+    value.to_ascii_lowercase().starts_with("pending")
 }
 
 fn changelog_releases(root: &Path) -> BTreeMap<String, String> {
@@ -685,6 +826,145 @@ mod tests {
                 .iter()
                 .any(|d| d.message.contains("not valid JSON"))
         );
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    const DIGEST: &str = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
+    fn supply_note(tag: &str, date: &str, status: &str, signature: &str) -> String {
+        format!(
+            "# {tag} - Test\n\n- Date: {date} (UTC)\n- Tag: `{tag}`\n- Status: {status}\n\
+             - Image: `ghcr.io/quant-rule/quantrule-platform:{tag}`\n\
+             - Image digest: `{DIGEST}`\n\
+             - Image signature: {signature}\n\
+             - SBOM: `sbom-{tag}.spdx.json sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef`\n\
+             - CVE scan: `cve-report-{tag}.json sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef` (0 Critical, 0 High)\n"
+        )
+    }
+
+    fn supply_changelog(tag: &str, date: &str) -> String {
+        let version = &tag[1..];
+        changelog(&format!(
+            "## [{version}] - {date}\n\n### Added\n\n- Supply chain.\n"
+        ))
+    }
+
+    #[test]
+    fn a_post_supply_chain_release_with_evidence_passes() {
+        let root = fixture("supply-pass");
+        write(
+            &root.join("docs/releases/2026-11-24/v1.5.10.md"),
+            &supply_note(
+                "v1.5.10",
+                "2026-11-24",
+                "Released",
+                "cosign sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            ),
+        );
+        write(
+            &root.join("CHANGELOG.md"),
+            &supply_changelog("v1.5.10", "2026-11-24"),
+        );
+        assert!(check(&root).is_empty(), "{:?}", check(&root));
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn a_supply_chain_release_may_start_pending() {
+        let root = fixture("supply-pending");
+        write(
+            &root.join("docs/releases/2026-11-24/v1.5.10.md"),
+            &supply_note("v1.5.10", "2026-11-24", "Prepared", "pending"),
+        );
+        write(
+            &root.join("CHANGELOG.md"),
+            &supply_changelog("v1.5.10", "2026-11-24"),
+        );
+        assert!(check(&root).is_empty(), "{:?}", check(&root));
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn a_pending_signature_in_a_released_note_is_reported() {
+        let root = fixture("supply-pending-final");
+        write(
+            &root.join("docs/releases/2026-11-24/v1.5.10.md"),
+            &supply_note("v1.5.10", "2026-11-24", "Released", "pending"),
+        );
+        write(
+            &root.join("CHANGELOG.md"),
+            &supply_changelog("v1.5.10", "2026-11-24"),
+        );
+        assert!(
+            check(&root)
+                .iter()
+                .any(|d| d.message.contains("pending in a Status: Released"))
+        );
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn a_missing_supply_chain_field_is_reported() {
+        for field in ["- Image signature:", "- SBOM:", "- CVE scan:"] {
+            let root = fixture("supply-missing");
+            let note = supply_note(
+                "v1.5.10",
+                "2026-11-24",
+                "Released",
+                "cosign sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            )
+            .lines()
+            .filter(|line| !line.starts_with(field))
+            .collect::<Vec<_>>()
+            .join("\n")
+                + "\n";
+            write(&root.join("docs/releases/2026-11-24/v1.5.10.md"), &note);
+            write(
+                &root.join("CHANGELOG.md"),
+                &supply_changelog("v1.5.10", "2026-11-24"),
+            );
+            assert!(
+                check(&root)
+                    .iter()
+                    .any(|d| d.message.contains(&format!("missing '{field}'"))),
+                "{field}"
+            );
+            fs::remove_dir_all(&root).expect("cleanup");
+        }
+    }
+
+    #[test]
+    fn a_malformed_supply_chain_digest_is_reported() {
+        let root = fixture("supply-digest");
+        let note = supply_note("v1.5.10", "2026-11-24", "Released", "cosign sha256:abc");
+        write(&root.join("docs/releases/2026-11-24/v1.5.10.md"), &note);
+        write(
+            &root.join("CHANGELOG.md"),
+            &supply_changelog("v1.5.10", "2026-11-24"),
+        );
+        assert!(
+            check(&root)
+                .iter()
+                .any(|d| d.message.contains("image signature must name cosign"))
+        );
+        fs::remove_dir_all(&root).expect("cleanup");
+    }
+
+    #[test]
+    fn a_historical_note_without_supply_chain_fields_passes() {
+        let root = fixture("supply-historical");
+        write(
+            &root.join("docs/releases/2026-11-21/v1.5.2.md"),
+            &format!(
+                "# v1.5.2 - Historical\n\n- Date: 2026-11-21 (UTC)\n- Tag: `v1.5.2`\n\
+                 - Status: Released\n- Image: `ghcr.io/quant-rule/quantrule-platform`, digest `{DIGEST}`\n"
+            ),
+        );
+        write(
+            &root.join("CHANGELOG.md"),
+            &supply_changelog("v1.5.2", "2026-11-21"),
+        );
+        assert!(check(&root).is_empty(), "{:?}", check(&root));
         fs::remove_dir_all(&root).expect("cleanup");
     }
 }

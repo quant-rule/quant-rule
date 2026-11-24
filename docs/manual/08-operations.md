@@ -12,7 +12,7 @@ recorded digest, and operate the deployment remotely without losing evidence.
 
 | Need | Value |
 |---|---|
-| Stack | Started with `make up` or `make remote` |
+| Stack | Started with `make up` or `make remote`; the v3 release image is pulled by digest from GHCR and verified as a Sigstore bundle plus `cosign save` signed image with the offline key ([registry contract](../config/2026-11-24/registry.md)) |
 | Profile | The active profile for record reads |
 | Token | Only when the gateway enforces one |
 | Host access | The machine that runs the containers for backup and restore |
@@ -63,7 +63,7 @@ token in local storage and sends it only as `Authorization: Bearer`.
 Loki 30d, Alertmanager 120h with one internal `quantrule-null` receiver, and
 four read-only Grafana dashboards. node_exporter and promtail run everywhere;
 manager quorum is a `docker node ls` textfile, never a container socket.
-F01..F17 and the ports are in the [observability contract](../config/2026-11-23/observability.md); `qr-deploy check` runs the 28 observability rows, and the `ha` lab asserts the manager and gateway alerts fire and resolve; no port is public.
+F01..F17 and the ports are in the [observability contract](../config/2026-11-23/observability.md); `qr-deploy check` runs the 28 observability rows, `--remote docker` adds every running task image, `--runtime` proves all seven service digests, and the `ha` lab asserts the manager and gateway alerts fire and resolve; no port is public.
 
 ## Retention fields
 
@@ -256,7 +256,7 @@ PLAT-005 runs `tools/stateful.sh object-bootstrap` after `wait`: it creates the
 and the check adds config/quorum, unit/alias, HAProxy 9000, manifest, app, and
 leaf SAN rows. The two root files are `minio` scope. One node loss keeps the
 write quorum; the lab re-reads the probe hash through `minio:9000`, heals to
-zero, and records `Simulated HA`; the digest is `Measured` only after `verify.sh`.
+zero, and records `Simulated HA`; the all-service image digest is `Measured` only when all seven services match, and the end-to-end digest only after `verify.sh`.
 HA-013 owns off-host/archive and restore; object lock is not in v1.5.10.
 
 `tools/backup.sh` and `tools/restore.sh` still dump one database, so a backup is

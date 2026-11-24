@@ -83,6 +83,11 @@ pub const DATABASE_FACTS: [(&str, &str, &str, &str); 4] = [
     ),
 ];
 
+/// The checked-in sample/lab application digest. It is an example, not a
+/// published image; release mode refuses it.
+pub const FIXTURE_IMAGE_DIGESTS: [&str; 1] =
+    ["sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"];
+
 /// Validate a v3 descriptor without opening local files.
 ///
 /// # Errors
@@ -105,6 +110,22 @@ pub fn validate(descriptor: &Descriptor) -> Result<(), Error> {
     validate_observability(descriptor)?;
     validate_backup(descriptor)?;
     placement::validate(descriptor)?;
+    Ok(())
+}
+
+/// Refuse the labelled sample/lab fixture in a release-mode descriptor.
+///
+/// # Errors
+///
+/// Returns `deploy.image.fixture` when the app digest is a checked-in example.
+pub fn validate_release(descriptor: &Descriptor) -> Result<(), Error> {
+    if FIXTURE_IMAGE_DIGESTS.contains(&descriptor.image.digest.as_str()) {
+        return Err(rule(
+            "deploy.image.fixture",
+            "image.digest",
+            "is the labelled sample/lab fixture; pin the published release digest with tools/release.sh pin",
+        ));
+    }
     Ok(())
 }
 
@@ -174,6 +195,13 @@ fn validate_image(pin: &ImagePin, prefix: &str) -> Result<(), Error> {
             "deploy.image.reference",
             format!("{prefix}.reference"),
             "must be a non-empty image reference without whitespace",
+        ));
+    }
+    if prefix == "image" && !pin.reference.contains('/') {
+        return Err(rule(
+            "deploy.image.reference",
+            format!("{prefix}.reference"),
+            "must name a registry/repository path, not a bare image name",
         ));
     }
     validate_digest(&format!("{prefix}.digest"), &pin.digest)
