@@ -31,11 +31,11 @@ v2 remains readable for the older multi-host profile. The checked-in sample is
 [`deploy/v3/deploy.example.json`](../../../deploy/v3/deploy.example.json); the
 fixture secret directory is
 [`deploy/v3/secrets/`](../../../deploy/v3/secrets/README.md). The app digest is a
-labelled fixture that `--release` rejects; the 16 infra pins are fixtures too.
+labelled fixture that `--release` rejects; 14 infra pins are resolved from registry
+metadata and `minio`/`minio_client` remain blockers ([reference contract](../2026-11-24/reference-topologies.md)).
 
-The document is JSON and every struct denies unknown fields. A v3-only field in
-a v2 document, or a v2-only field in a v3 document, is a parse error rather than
-a silent upgrade.
+The document is JSON and every struct denies unknown fields. A v3-only field in a
+v2 document, or a v2-only field in a v3 document, is a parse error rather than a silent upgrade.
 
 ## 1. Profiles
 
@@ -114,7 +114,7 @@ other blocks; the sample lists every pin.
 }
 ```
 
-The sample has eleven hosts: two edge (ingress, gateway, keepalived), two core (data, evidence, simulation), three compute (model, strategy, backtest), and four infrastructure hosts (PostgreSQL, etcd, HAProxy on the edge pair, RabbitMQ, MinIO, observability). Compute hosts span `az1`..`az3`; the four infrastructure hosts span `az1`..`az4`, so four MinIO nodes each contribute one drive in a distinct failure domain with EC:2. The lab uses three VMs, two drives each, EC:3, so one node loss keeps the write quorum. The six HTTP services use `8080`; backtest uses `9090`; no service port is published.
+The sample has eleven hosts: two edge (ingress, gateway, keepalived), two core (data, evidence, simulation), three compute (model, strategy, backtest), and four infrastructure hosts (PostgreSQL, etcd, HAProxy on the edge pair, RabbitMQ, MinIO, observability). Compute hosts span `az1`..`az3`; the four infrastructure hosts span `az1`..`az4`, so four MinIO nodes each contribute one drive in a distinct failure domain with EC:2. The lab uses three VMs, two drives each, EC:3, so one node loss keeps the write quorum. The two reference descriptors keep the same eleven host names: `reference/three-az.json` puts four racks across three AZs with the edge pair on one L2/AZ, and `reference/single-az.json` puts four racks in one AZ. The six HTTP services use `8080`; backtest uses `9090`; no service port is published.
 
 ## 3. Fields
 
@@ -167,7 +167,7 @@ files and credential quality.
 | Stateful members use distinct hosts and, in `swarm-ha`, distinct domains | `deploy.stateful.anti_affinity` |
 | Postgres `sslmode=verify-full`; queue `amqps`/5671 and the shared `rabbitmq` host; object store `https` | `deploy.endpoint.*` |
 | CA and secret paths are absolute; no userinfo | `deploy.endpoint.host`, `deploy.file.absolute` |
-| App and every infra unit carry a `sha256:` digest; a mutable tag is refused. The sample/lab app digest is a labelled fixture that `--release` rejects; the 16 infra pins stay fixtures until PLAT-008 | `deploy.image.*`, `deploy.images.*` |
+| App and every infra unit carry a `sha256:` digest; a mutable tag is refused. The sample/lab app digest is a labelled fixture that `--release` rejects; 14 infra pins are resolved and every remaining fixture or reverted pin is rejected at its field | `deploy.image.*`, `deploy.images.*` |
 | `secrets.files` is non-empty and names every required secret | `deploy.secrets.*` |
 | The five stateful secrets are present, distinct, strong, and URL-safe; the cookie is 32+ characters and the two MinIO root secrets are strong and distinct | `deploy.secrets.missing`, `deploy.secret.url_safe`, `deploy.secret.default_credential`, `deploy.secret.duplicate_credential`, `deploy.secret.weak_cookie` |
 | `object_store_access_key` is the dedicated `qr_app` user; the secret is strong and distinct | `deploy.secret.object_store_user`, `deploy.secret.default_credential` |

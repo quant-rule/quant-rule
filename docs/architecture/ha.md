@@ -113,7 +113,7 @@ and no cross-database joins.
 - Every service serves `/ready`; a drain flips it before the process stops, and `/metrics` stays internal.
 - Prometheus scrapes the seven services, ingress, Patroni, etcd, HAProxy, RabbitMQ, MinIO, node_exporter, blackbox, and itself; Prometheus and Alertmanager sit on distinct hosts, Loki/promtail keep 30 days of JSON logs, four dashboards are read-only, and every port stays overlay-only ([observability contract](../config/2026-11-23/observability.md)). The 38 rules cover F01..F17, including `GatewayReplicaDown`, `EtcdNodeDown`, `PostgresNoPrimaryBackend`, `MinioClusterUnhealthy`, and `SwarmManagerQuorumAtRisk`.
 - JSON logs carry request ids as observability only; they never enter evidence.
-- The release image is pinned by digest and verified as a Sigstore bundle plus saved signed image before deploy; `qr-deploy check` compares every running task image, and `--runtime` proves all seven service digests; SBOM and CVE evidence are release assets ([registry contract](../config/2026-11-24/registry.md)). The 16 infrastructure pins remain fixtures until PLAT-008.
+- The release image is pinned by digest and verified as a Sigstore bundle plus saved signed image before deploy; `qr-deploy check` compares every running task image, and `--runtime` proves all seven service digests; SBOM and CVE evidence are release assets ([registry contract](../config/2026-11-24/registry.md)). Fourteen infrastructure pins are resolved; `minio`, `minio_client`, and the app image remain blockers ([reference contract](../config/2026-11-24/reference-topologies.md)).
 
 ## 9. Deployment descriptor
 
@@ -123,6 +123,10 @@ port, an internal bind, a missing digest, co-located replicas/quorum members,
 inline secrets, unsupported stateful placement, or missing backup/TLS. The
 sample runs four MinIO nodes, one drive each in `az1`..`az4`, EC:2; the lab runs
 three VMs × two drives, EC:3, and `images.minio_client` runs the object bootstrap.
+The reference descriptors reuse the eleven host names: `reference/three-az.json`
+spreads four racks over three AZs with the edge pair on one L2/AZ (public ingress
+is a stated single-AZ dependency), and `reference/single-az.json` keeps four racks
+in one AZ without an AZ claim ([reference contract](../config/2026-11-24/reference-topologies.md)).
 
 `qr-deploy validate`, `render`, and `check` are implemented; `render` writes the
 stack, per-host units, Patroni/etcd/HAProxy/RabbitMQ/MinIO configs, jobs,
@@ -163,4 +167,4 @@ Contracts: [deploy/v3](../config/2026-11-22/deploy-v3.md),
 - RTO target: 15 minutes node/AZ, 1 hour region; the lab measures a pause RTO, not this SLO.
 ## 12. Evidence boundary
 
-The three-VM lab proves simulated node failure, not physical host, AZ, power or disk-controller failure; the `ha` tier records the pause RTO, rejoin, queue broker-loss gap, and MinIO probe hash as `Simulated HA` at each tier; the observability phase is `Simulated HA` only when `SwarmManagerQuorumAtRisk` and `GatewayReplicaDown` fired and resolved, and `check/observability.rs` is the Docker-free static contract; `--skip-object` or `--skip-observability` leaves that row `Unverified`; the digest is `Measured` only after `tools/verify.sh`; `Real HA` is HA-014.
+The three-VM lab proves simulated node failure, not physical host, AZ, power or disk-controller failure; `deploy/v3/lab.sh` preflights release mode, provisions stateful -> swarm -> observability -> the remote/overlay/runtime check, calls `deploy/v3/test.sh` for the failure phase, and stops at the app/`minio`/`minio_client` fixtures with `Unverified`; the remote client phase runs `QUANTRULE_API_URL`/`QUANTRULE_CA_CERT`/`QUANTRULE_TOKEN` outside the Swarm; the `ha` tier records the pause RTO, rejoin, queue broker-loss gap, and MinIO probe hash as `Simulated HA` at each tier; the observability phase is `Simulated HA` only when `SwarmManagerQuorumAtRisk` and `GatewayReplicaDown` fired and resolved, and `check/observability.rs` is the Docker-free static contract; `--skip-object` or `--skip-observability` leaves that row `Unverified`; the digest is `Measured` only after `tools/verify.sh`; `Real HA` is HA-014.

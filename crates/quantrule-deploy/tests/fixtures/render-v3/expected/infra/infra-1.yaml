@@ -19,7 +19,7 @@ services:
         -
           "wget -q -O /dev/null http://127.0.0.1:9115/"
       timeout: "5s"
-    image: "prom/blackbox-exporter@sha256:a4e65b27bff6ae4a3491998b70df242bafffc87b0ddacbd7f9d0a4132395732a"
+    image: "prom/blackbox-exporter@sha256:ea1c7aa3ef3f307cd03e85f34abb604478ccb90b567fc690da0cd9776da76b13"
     logging:
       driver: "json-file"
       options:
@@ -52,7 +52,7 @@ services:
       -
         "/etc/etcd/etcd.conf.yml"
     container_name: "quantrule-etcd-infra-1"
-    image: "quay.io/coreos/etcd@sha256:a6cec115044c30857d8458d120facbaa2251f21fd4ad39296a99017468d482dc"
+    image: "quay.io/coreos/etcd@sha256:316f5d367455f75a327f9dc72f669cbf645651859fa2e272f692a1f2dee6f5c9"
     logging:
       driver: "json-file"
       options:
@@ -110,7 +110,7 @@ services:
         -
           "wget -q -O /dev/null http://127.0.0.1:3000/api/health"
       timeout: "5s"
-    image: "grafana/grafana@sha256:2e28e87d9b98ca68880a966df73ad63f90db6b4df6ae86637e130f52f48264ba"
+    image: "grafana/grafana@sha256:0615ec4fbd4072004b7d86b46ded63013a74b7d6eb1119273dd89e8fa25c13cf"
     logging:
       driver: "json-file"
       options:
@@ -213,7 +213,7 @@ services:
         -
           "wget -q -O /dev/null http://127.0.0.1:9100/metrics"
       timeout: "5s"
-    image: "prom/node-exporter@sha256:c26a6b6c79c6a303387b01b3dcfc34824e4cf03fe9c2e9899a762b601e46a680"
+    image: "prom/node-exporter@sha256:7296504d4ada44b7d7ab4431e27e9f9900d8488f8d55842f4b12ae2704e16dfe"
     logging:
       driver: "json-file"
       options:
@@ -248,7 +248,7 @@ services:
       -
         "set -eu\numask 077\nexport PATRONI_SUPERUSER_PASSWORD=\"$$(cat /run/secrets/postgres_superuser_password)\"\nexport PATRONI_REPLICATION_PASSWORD=\"$$(cat /run/secrets/patroni_replication_password)\"\nexport PATRONI_REWIND_PASSWORD=\"$$(cat /run/secrets/patroni_rewind_password)\"\nexport PATRONI_RESTAPI_PASSWORD=\"$$(cat /run/secrets/patroni_rest_password)\"\nexec patroni /etc/patroni/patroni.yml"
     container_name: "quantrule-patroni-infra-1"
-    image: "patroni/patroni@sha256:e78141e6fe0807c466f17d8343f99249c7480a94d603bc03f91b10e79e7b94fd"
+    image: "batonogov/patroni-docker@sha256:0de7dc8bc5919c76721bee1475ed30155b1848c0a6bac7298605bf39eef1a7eb"
     logging:
       driver: "json-file"
       options:
@@ -340,7 +340,7 @@ services:
         -
           "wget -q -O /dev/null http://127.0.0.1:9090/-/ready"
       timeout: "5s"
-    image: "prom/prometheus@sha256:c4bfb1e3ef91709eca17ae08b3676ac008939765ad9cf6c2b4617f363b1354be"
+    image: "prom/prometheus@sha256:1f0f50f06acaceb0f5670d2c8a658a599affe7b0d8e78b898c1035653849a702"
     logging:
       driver: "json-file"
       options:
@@ -395,7 +395,7 @@ services:
         -
           "wget -q -O /dev/null http://127.0.0.1:9080/ready"
       timeout: "5s"
-    image: "grafana/promtail@sha256:60b24aa368eea19a4fe8d35e294777963ba4a21f908a293de6f9e90d409ca919"
+    image: "grafana/promtail@sha256:a761cb834cfaeee29745440d4884d6748f0a08d8f68928db1d707018c1dcfbe9"
     logging:
       driver: "json-file"
       options:
@@ -439,7 +439,7 @@ services:
       RABBITMQ_ENABLED_PLUGINS_FILE: "/var/lib/rabbitmq/enabled_plugins"
       RABBITMQ_NODENAME: "rabbit@rabbitmq-infra-1"
     hostname: "rabbitmq-infra-1"
-    image: "rabbitmq@sha256:605a57a95a166325381f132867163eafc20cb0ece6039504e45681136550e6b7"
+    image: "rabbitmq@sha256:183272aa2ff82718cabeef343de8d9a900931ea65fda4e563fed2a6d9efde578"
     logging:
       driver: "json-file"
       options:

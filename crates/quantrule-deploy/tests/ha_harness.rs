@@ -614,3 +614,252 @@ fn the_harness_never_contains_a_destructive_command() {
         assert!(text.contains(required), "{required}");
     }
 }
+
+#[test]
+fn the_lab_plan_is_docker_free_and_names_the_remote_phase() {
+    let directory = temp_dir();
+    let marker = directory.join("docker-called");
+    let docker = directory.join("fake-docker");
+    write_mode(
+        &docker,
+        &format!(
+            "#!/bin/sh\nprintf 'called\\n' > '{}'\nexit 1\n",
+            marker.display()
+        ),
+        0o755,
+    );
+    let output = Command::new("bash")
+        .arg(repo("deploy/v3/lab.sh"))
+        .arg("--plan")
+        .env("QR_LAB_DOCKER", &docker)
+        .output()
+        .expect("run lab plan");
+    assert!(output.status.success(), "{}", stderr(&output));
+    let printed = stdout(&output);
+    for expected in [
+        "lab: reference: lab",
+        "lab: references: three-az and single-az are designs; lab is the three-VM profile",
+        "lab: descriptor: deploy/v3/deploy.lab.json",
+        "tools/stateful.sh network",
+        "queue-bootstrap, object-bootstrap",
+        "tools/swarm.sh --allow-unverified bootstrap",
+        "tools/observability.sh copy, start, wait, verify",
+        "--remote docker --overlay --runtime",
+        "deploy/v3/test.sh --confirm --skip-deploy",
+        "remote client",
+        "QUANTRULE_API_URL",
+        "QUANTRULE_CA_CERT",
+        "QUANTRULE_TOKEN",
+        "openssl s_client",
+        "curl --cacert /dev/null",
+        "browser (separate",
+        "Simulated HA",
+        "Real HA is HA-014",
+    ] {
+        assert!(printed.contains(expected), "{expected}: {printed}");
+    }
+    assert!(!printed.contains("deploy.example.json"), "{printed}");
+    assert!(!marker.exists(), "the plan contacted Docker");
+    let _ = std::fs::remove_dir_all(directory);
+}
+
+#[test]
+fn the_lab_preflight_stops_at_the_fixture_without_docker() {
+    let directory = temp_dir();
+    let marker = directory.join("docker-called");
+    let docker = directory.join("fake-docker");
+    write_mode(
+        &docker,
+        &format!(
+            "#!/bin/sh\nprintf 'called\\n' > '{}'\nexit 1\n",
+            marker.display()
+        ),
+        0o755,
+    );
+    let deploy = directory.join("fake-qr-deploy");
+    write_mode(
+        &deploy,
+        "#!/bin/sh\nprintf 'qr-deploy: deploy.image.fixture at image.digest: is the labelled application fixture\\n' >&2\nexit 1\n",
+        0o755,
+    );
+    let output = Command::new("bash")
+        .arg(repo("deploy/v3/lab.sh"))
+        .args(["--reference", "lab"])
+        .env("QR_DEPLOY_BIN", &deploy)
+        .env("QR_LAB_DOCKER", &docker)
+        .output()
+        .expect("run lab preflight");
+    assert_eq!(output.status.code(), Some(1));
+    let printed = stderr(&output);
+    assert!(
+        printed.contains("deploy.image.fixture at image.digest"),
+        "{printed}"
+    );
+    assert!(printed.contains("no host is contacted"), "{printed}");
+    assert!(printed.contains("Unverified"), "{printed}");
+    assert!(!marker.exists(), "the fixture blocker contacted Docker");
+    let _ = std::fs::remove_dir_all(directory);
+}
+
+#[test]
+fn the_lab_refuses_a_non_lab_profile_even_with_a_descriptor_override() {
+    let directory = temp_dir();
+    let mut value: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(repo("deploy/v3/deploy.lab.json")).expect("lab descriptor"),
+    )
+    .expect("lab JSON");
+    value["profile"] = serde_json::json!("swarm-ha");
+    let descriptor = directory.join("deploy.json");
+    std::fs::write(&descriptor, value.to_string()).expect("descriptor");
+    let marker = directory.join("docker-called");
+    let docker = directory.join("fake-docker");
+    write_mode(
+        &docker,
+        &format!(
+            "#!/bin/sh\nprintf 'called\\n' > '{}'\nexit 1\n",
+            marker.display()
+        ),
+        0o755,
+    );
+    let deploy = directory.join("fake-qr-deploy");
+    write_mode(&deploy, "#!/bin/sh\nexit 0\n", 0o755);
+    let output = Command::new("bash")
+        .arg(repo("deploy/v3/lab.sh"))
+        .args(["--reference", "lab"])
+        .env("DESCRIPTOR", &descriptor)
+        .env("QR_DEPLOY_BIN", &deploy)
+        .env("QR_LAB_DOCKER", &docker)
+        .output()
+        .expect("run lab profile guard");
+    assert_eq!(output.status.code(), Some(1));
+    let printed = stderr(&output);
+    assert!(
+        printed.contains("only the lab-single-host profile has lab hosts"),
+        "{printed}"
+    );
+    assert!(printed.contains("Unverified"), "{printed}");
+    assert!(!marker.exists(), "the profile guard contacted Docker");
+    let _ = std::fs::remove_dir_all(directory);
+}
+
+#[test]
+fn the_lab_remote_client_requires_a_provisioned_lab() {
+    let output = Command::new("bash")
+        .arg(repo("deploy/v3/lab.sh"))
+        .args(["--remote-client", "--confirm"])
+        .env_remove("QR_LAB_PROVISIONED")
+        .env_remove("QUANTRULE_API_URL")
+        .env_remove("QUANTRULE_CA_CERT")
+        .env_remove("QUANTRULE_TOKEN")
+        .output()
+        .expect("run remote gate");
+    assert_eq!(output.status.code(), Some(1));
+    let printed = stderr(&output);
+    assert!(printed.contains("QR_LAB_PROVISIONED=1"), "{printed}");
+    assert!(printed.contains("Unverified"), "{printed}");
+
+    let output = Command::new("bash")
+        .arg(repo("deploy/v3/lab.sh"))
+        .args(["--remote-client", "--confirm"])
+        .env("QR_LAB_PROVISIONED", "1")
+        .env_remove("QUANTRULE_API_URL")
+        .output()
+        .expect("run remote URL gate");
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        stderr(&output).contains("QUANTRULE_API_URL must be https://quantrule.dev/api/v1"),
+        "{}",
+        stderr(&output)
+    );
+}
+
+#[test]
+fn the_lab_script_is_valid_bash() {
+    for script in [
+        "deploy/v3/lab.sh",
+        "deploy/v3/lab/evidence.sh",
+        "deploy/v3/lab/remote.sh",
+    ] {
+        let output = Command::new("bash")
+            .args(["-n", repo(script).to_str().expect("path")])
+            .output()
+            .expect("bash -n");
+        assert!(
+            output.status.success(),
+            "{script}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+}
+
+#[test]
+fn the_lab_keeps_the_provisioning_order_and_avoids_destructive_commands() {
+    let text = std::fs::read_to_string(repo("deploy/v3/lab.sh")).expect("lab harness");
+    let markers = [
+        "./tools/stateful.sh network",
+        "./tools/stateful.sh copy",
+        "./tools/stateful.sh start",
+        "./tools/stateful.sh wait",
+        "./tools/stateful.sh queue-bootstrap",
+        "./tools/stateful.sh object-bootstrap",
+        "./tools/swarm.sh \"${bootstrap[@]}\"",
+        "./tools/observability.sh copy",
+        "./tools/observability.sh start",
+        "./tools/observability.sh wait",
+        "./tools/observability.sh verify",
+        "qr_deploy check \"$descriptor\" --remote docker --overlay --runtime",
+        "./deploy/v3/test.sh \"${args[@]}\"",
+    ];
+    let mut previous = 0;
+    for marker in markers {
+        let position = text.find(marker).unwrap_or_else(|| panic!("{marker}"));
+        assert!(position > previous, "{marker} is out of order");
+        previous = position;
+    }
+    assert!(text.contains("--allow-unverified bootstrap"), "{text}");
+    assert!(text.contains("--remote-client"), "{text}");
+    assert!(text.contains("QUANTRULE_API_URL"), "{text}");
+    for script in [
+        "deploy/v3/lab.sh",
+        "deploy/v3/lab/evidence.sh",
+        "deploy/v3/lab/remote.sh",
+    ] {
+        let text = std::fs::read_to_string(repo(script)).expect("lab script");
+        for forbidden in [
+            "docker stack rm",
+            "docker volume rm",
+            "docker secret rm",
+            "docker config rm",
+            "docker node rm",
+            "docker swarm leave",
+            "docker service rm",
+            "down -v",
+            "rm -rf",
+        ] {
+            assert!(!text.contains(forbidden), "{script}: {forbidden}");
+        }
+    }
+}
+
+#[test]
+fn the_ha_tier_plan_lists_the_lab_reference_and_remote_phases() {
+    let output = Command::new("bash")
+        .arg(repo("tools/test_tiers.sh"))
+        .args(["ha", "--plan"])
+        .env("DESCRIPTOR", "deploy/v3/deploy.lab.json")
+        .output()
+        .expect("run ha tier plan");
+    assert!(output.status.success(), "{}", stderr(&output));
+    let printed = stdout(&output);
+    for expected in [
+        "lab: reference: lab",
+        "lab: descriptor: deploy/v3/deploy.lab.json",
+        "lab: 6 remote client",
+        "lab: 7 browser (separate, lab-gated)",
+        "deploy/v3/test.sh --plan",
+        "Real HA is HA-014",
+    ] {
+        assert!(printed.contains(expected), "{expected}: {printed}");
+    }
+    assert!(!printed.contains("deploy.example.json"), "{printed}");
+}

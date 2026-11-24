@@ -142,7 +142,7 @@ release: tools: skopeo image=$SKOPEO_IMAGE (bundle path)
 release: tools: registry image=$REGISTRY_IMAGE (transient offline serve)
 release: tools: cargo-audit=$CARGO_AUDIT_VERSION (crates.io)
 release: evidence: sbom-<tag>.spdx.json, cve-report-<tag>.json, Sigstore cosign.bundle + attestation.bundle, signed-image/
-release: blocker: the 16 infrastructure image pins are fixtures; a production descriptor needs real digests (PLAT-008)
+release: blocker: app, minio, and minio_client remain fixture digests; --release names each field (PLAT-008)
 release: boundary: a live push, signature, SBOM, scan, and the three-VM lab are Unverified here; Real HA is HA-014
 PLAN
 }

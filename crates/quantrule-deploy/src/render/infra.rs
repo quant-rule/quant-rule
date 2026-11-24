@@ -738,7 +738,10 @@ mod tests {
         let units = host_units(&descriptor);
         let patroni = host_yaml(&descriptor, "infra-1", &units["infra-1"]);
         assert!(patroni.contains("\n  patroni:\n"), "{patroni}");
-        assert!(patroni.contains("patroni/patroni@sha256:"), "{patroni}");
+        assert!(
+            patroni.contains("batonogov/patroni-docker@sha256:"),
+            "{patroni}"
+        );
         assert!(!patroni.contains("postgres@sha256:"), "{patroni}");
         assert!(patroni.contains("\"patroni-infra-1\""), "{patroni}");
         assert!(

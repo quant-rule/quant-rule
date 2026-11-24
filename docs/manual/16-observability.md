@@ -24,7 +24,9 @@ prove the observability tier is up without publishing a single extra port.
 | Images | `prometheus`, `alertmanager`, `loki`, `grafana`, `blackbox_exporter`, `node_exporter`, `promtail` pinned by digest |
 | Client | Browser or shell reaches `https://quantrule.dev`; Grafana stays overlay-only |
 
-The image digests and PKI in the repository are fixtures. Do not deploy them.
+Fourteen image pins are real registry digests; `minio`, `minio_client`, and the
+application image remain fixtures. The PKI in the repository is a fixture. Do
+not deploy the fixture material.
 
 ## Steps
 

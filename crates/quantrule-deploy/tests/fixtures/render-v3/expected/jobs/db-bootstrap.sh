@@ -8,7 +8,7 @@
 # as an argument.
 set -eu
 OVERLAY=quantrule
-IMAGE=postgres@sha256:dc184ed86a2b6421fd5ea1bf2ffa3d6e9f1df86796bf0830a7476eb064a186ff
+IMAGE=postgres@sha256:156d40cfa063d6babb15d329a8e15b26a8d0690ebb6084c956084f3b025c3b30
 CA=pki/database-ca.crt
 
 fail() {

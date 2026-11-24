@@ -1,6 +1,6 @@
 # Deployment
 
-- Status: Current; released as v1.0.0 on 2026-11-15 (prepared as v1.1.0); current in v1.4.2; v3 render/check, the PLAT-001 remote check, the PLAT-002 ingress, the PLAT-003 stateful tier, the PLAT-004 RabbitMQ tier, the PLAT-005 MinIO tier/check rows/node-loss lab, the PLAT-006 observability tier, and the PLAT-007 registry/signing/SBOM/CVE phases 1–2 (running task images and the all-service digest probe) are current; approved 2026-11-12
+- Status: Current; released as v1.0.0 on 2026-11-15 (prepared as v1.1.0); current in v1.4.2; v3 render/check, the PLAT-001 remote check, the PLAT-002 ingress, the PLAT-003 stateful tier, the PLAT-004 RabbitMQ tier, the PLAT-005 MinIO tier/check rows/node-loss lab, the PLAT-006 observability tier, the PLAT-007 registry/signing/SBOM/CVE phases 1–2 (running task images and the all-service digest probe), and the PLAT-008 reference topologies/sizing phase 1 are current; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Decision: [`ADR-2026-11-12-01`](../adr/2026-11-12/01-adopt-distributed-service-based-architecture.md)
 - Claim type: Behaviour Claim

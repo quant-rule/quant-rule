@@ -1,10 +1,10 @@
 # Image Registry, Signing, SBOM, and CVE Contract
 
 - Date: 2026-11-24 (UTC)
-- Status: Current; PLAT-007 phases 1–2
-- Issue: [#1120](https://github.com/quant-rule/quant-rule/issues/1120)
+- Status: Current; PLAT-007 phases 1–2 and PLAT-008 phase 1
+- Issue: [#1120](https://github.com/quant-rule/quant-rule/issues/1120), [#1121](https://github.com/quant-rule/quant-rule/issues/1121)
 - Claim type: Behaviour Claim
-- Related: [ADR-1120](../../adr/2026-11-24/1120-image-distribution.md), [release workflow](../../workflows/release-operations.md), [releases](../../releases/README.md), [deploy/v3](../2026-11-22/deploy-v3.md), [HA deployment](../../manual/15-ha-deployment.md)
+- Related: [ADR-1120](../../adr/2026-11-24/1120-image-distribution.md), [reference topologies](reference-topologies.md), [release workflow](../../workflows/release-operations.md), [releases](../../releases/README.md), [deploy/v3](../2026-11-22/deploy-v3.md), [HA deployment](../../manual/15-ha-deployment.md)
 
 The release unit is one application image, addressed by a registry reference and
 a `sha256:` manifest digest. The image is pullable from a public package, signed
@@ -39,10 +39,14 @@ That digest is a labelled example, not a published image. `qr-deploy check
 green. An operator writes a production descriptor with
 `tools/release.sh pin`.
 
-The 16 infrastructure image pins (`images.*`) are separate fixtures. PLAT-007
-does not refresh them. A production descriptor is incomplete until PLAT-008 or a
-later work item supplies real infrastructure digests; the release note and plan
-record this blocker.
+The 16 infrastructure image pins (`images.*`) are separate from the app pin.
+PLAT-008 resolved 14 of them from registry metadata and recorded the index and
+linux/amd64 digests in section 11. Two remain exact blockers because anonymous
+registry metadata is denied here: `minio` and `minio_client`. The app digest is
+also still the labelled fixture. A production descriptor is incomplete until an
+operator supplies those three digests; `qr-deploy validate --release` names every
+remaining fixture at its exact field. PLAT-007 did not refresh the infra pins;
+PLAT-008 does not guess the blockers.
 
 ## 2. GHCR package and permissions
 
@@ -250,7 +254,68 @@ verifies the checksum before extraction, and never uses `curl | sh`. CI installs
 cargo-audit with `cargo install cargo-audit --version 0.23.0 --locked`. A pin is
 changed only with a reviewed release-tool change.
 
-## 11. Ownership and residual risks
+## 11. Infrastructure pins
+
+Fourteen infrastructure images were resolved from registry metadata on
+2026-11-24 with `skopeo inspect --raw` and `skopeo inspect --format '{{.Digest}}'`.
+No layer was pulled. The descriptor pins the multi-arch index digest; the
+linux/amd64 manifest digest is recorded so a single-platform audit is possible.
+The tag is metadata for review; the deployment always uses `reference@digest`.
+
+| Key | Reference | Tag | Index digest |
+|---|---|---|---|
+| `traefik` | `traefik` | `v3.7.20` | `sha256:8301d6f60957a422f98918aacf2b01482abde3e74ead3719aabdb7c64045fe28` |
+| `postgres` | `postgres` | `17.12` | `sha256:156d40cfa063d6babb15d329a8e15b26a8d0690ebb6084c956084f3b025c3b30` |
+| `patroni` | `batonogov/patroni-docker` | `main-17.10-4.0.7-trixie` | `sha256:0de7dc8bc5919c76721bee1475ed30155b1848c0a6bac7298605bf39eef1a7eb` |
+| `etcd` | `quay.io/coreos/etcd` | `v3.6.17` | `sha256:316f5d367455f75a327f9dc72f669cbf645651859fa2e272f692a1f2dee6f5c9` |
+| `haproxy` | `haproxy` | `3.4.8` | `sha256:8ab12982db911f3f13e53c8e4c11312f65b8367301787acbab86459cddf288ea` |
+| `keepalived` | `osixia/keepalived` | `2.4.3` | `sha256:4bf02d569ed240e6da272242b368ce5a25cf0f7d92114536367ee2c963c318a2` |
+| `rabbitmq` | `rabbitmq` | `4.4.1` | `sha256:183272aa2ff82718cabeef343de8d9a900931ea65fda4e563fed2a6d9efde578` |
+| `prometheus` | `prom/prometheus` | `v3.9.1` | `sha256:1f0f50f06acaceb0f5670d2c8a658a599affe7b0d8e78b898c1035653849a702` |
+| `grafana` | `grafana/grafana` | `13.3.1` | `sha256:0615ec4fbd4072004b7d86b46ded63013a74b7d6eb1119273dd89e8fa25c13cf` |
+| `loki` | `grafana/loki` | `3.7.10` | `sha256:b43c257ccfc925d4a50b8717cac61a3b51df8c48d01847936057e5c4075a24a7` |
+| `alertmanager` | `prom/alertmanager` | `v0.35.0` | `sha256:e638797febd034838eca8b98cdbd46f951e9bf7f178777aa8669167406a9946c` |
+| `node_exporter` | `prom/node-exporter` | `v1.13.1` | `sha256:7296504d4ada44b7d7ab4431e27e9f9900d8488f8d55842f4b12ae2704e16dfe` |
+| `promtail` | `grafana/promtail` | `3.6.11` | `sha256:a761cb834cfaeee29745440d4884d6748f0a08d8f68928db1d707018c1dcfbe9` |
+| `blackbox_exporter` | `prom/blackbox-exporter` | `v0.29.1` | `sha256:ea1c7aa3ef3f307cd03e85f34abb604478ccb90b567fc690da0cd9776da76b13` |
+
+| Key | linux/amd64 manifest digest |
+|---|---|
+| `traefik` | `sha256:cb035e329ea90292290e0199a062aa9bbc78e427356a63a0f8d31e40b058b3bb` |
+| `postgres` | `sha256:e711be2c7ff64c9eb8883fc87571621be6caa2f943d825a49e5d20ac5b0221d7` |
+| `patroni` | `sha256:f7f34a52db6218941315d40cc1008156c4694fe93b486efe99f33fd15499534f` |
+| `etcd` | `sha256:c521f860433f4f1696e95ff2124c90e8a979766c8443f5f487bdf1b02d238de2` |
+| `haproxy` | `sha256:6ad3bce68cc37443c16f0a1be909d82af126e4ebf419aaa9b31db8ee9d6e8d94` |
+| `keepalived` | `sha256:3cf650f7570f5e3f1b0a7fe33a900af09cda47569845cdd12947fa8e4553a941` |
+| `rabbitmq` | `sha256:cf6a49ed990149e548f13fa4e02e9446aab2c6e5d51980f0d9a88fe4160fece2` |
+| `prometheus` | `sha256:2024d7bdfc559f6254de22d65e62d799eaa8eb818fe5dbeca212d3f200b70890` |
+| `grafana` | `sha256:1c88285f1dd391a62232c010e6c224846e6a73bdc583b3365be2eba614b7919e` |
+| `loki` | `sha256:6d789ab9a603ee4429d0fdc4d11512bf2423e8a8c5fc898a9e5aa2d8471ce459` |
+| `alertmanager` | `sha256:0f6727a39ff00b6cf95e8a5ebaf7442c55af855b79c689fb9a060e2bada1ecbf` |
+| `node_exporter` | `sha256:f99f6e8dcad00fb95ff9fe81ceb1e6442fd9b4180f177da02e8437c845d570eb` |
+| `promtail` | `sha256:90a93ba8969799344f197d408334b57d4b86b8b11f32506f840606fc9588366d` |
+| `blackbox_exporter` | `sha256:66eae352a79e6f677aeddd8c25a9bdb017586dc5fbd230f22329213d891f94bd` |
+
+The remaining blockers are exact, not guessed:
+
+| Field | Reference | Digest | Reason |
+|---|---|---|---|
+| `image.digest` | `ghcr.io/quant-rule/quantrule-platform` | `sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe` | Labelled application fixture |
+| `images.minio.digest` | `minio/minio` | `sha256:bdf0781acceb93983c15eec9e56bfbd59dcadc98ea57467022d61aeee074a2cc` | Anonymous registry metadata is denied here |
+| `images.minio_client.digest` | `minio/mc` | `sha256:5c5b1f8f2a4e3d6c9b7a1e0f8d2c4b6a9e7f1d3c5b8a0e2f4d6c8b1a3e5f7d9c` | Anonymous registry metadata is denied here |
+
+`qr-deploy validate --release` rejects every one of these three and every retired
+infrastructure fixture at the exact field path. The check is a denylist; it does
+not prove a fabricated digest exists. The registry is not queried at deploy time.
+
+Compatibility notes from the image metadata (no layer was pulled): the Patroni
+image entrypoint is `/usr/bin/patroni` with `PG_MAJOR=17`, `PGDATA=/var/lib/postgresql/data`,
+and Patroni 4.0.7, matching the rendered config; the keepalived image is
+Alpine-based with BusyBox `nc`, entrypoint `/usr/sbin/container`, and keepalived
+2.4.3, matching the mounted `/etc/keepalived/keepalived.conf` and the 443
+`nc -z` health check.
+
+## 12. Ownership and residual risks
 
 The operator owns the registry package, the offline private key, the public key
 rotation, the allowlist approval, and the manual signature. Release Engineering
@@ -259,6 +324,6 @@ allowlist exception.
 
 Residual risks: GHCR availability and retention are outside the operator's
 control; a compromised signing key can sign a malicious digest; a vulnerability
-disclosed after the release is not covered; the 16 infrastructure pins remain
-fixtures; the live push, signature, SBOM, scan, and lab are `Unverified` here;
-`Real HA` is HA-014.
+disclosed after the release is not covered; 14 infrastructure pins are resolved
+but `minio`, `minio_client`, and the app image remain exact blockers; the live
+push, signature, SBOM, scan, and lab are `Unverified` here; `Real HA` is HA-014.

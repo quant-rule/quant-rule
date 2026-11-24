@@ -147,7 +147,7 @@ and compares row digests and object hashes.
 
 The full migration contract and runbook are in [migrations.md](migrations.md).
 
-The release image is pulled by digest from GHCR and verified as a Sigstore bundle plus saved signed image before deploy; `qr-deploy check` compares running task images and `--runtime` proves seven service digests; SBOM/CVE are release assets ([registry contract](../config/2026-11-24/registry.md)).
+The release image is pulled by digest from GHCR and verified as a Sigstore bundle plus saved signed image before deploy; `qr-deploy check` compares running task images and `--runtime` proves seven service digests; SBOM/CVE are release assets ([registry contract](../config/2026-11-24/registry.md)). Reference sizing, lab preconditions, and the three remaining image blockers are in the [reference contract](../config/2026-11-24/reference-topologies.md); `deploy/v3/lab.sh` fails closed at those blockers and runs the remote client phase from outside the Swarm.
 
 ## 6. Incident notes
 
