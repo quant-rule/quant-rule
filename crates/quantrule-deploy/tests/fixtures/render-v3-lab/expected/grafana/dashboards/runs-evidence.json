@@ -1,0 +1,104 @@
+{
+  "annotations": { "list": [] },
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "qr-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "colorMode": "value", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "sum(quantrule_runs_total)", "instant": true, "legendFormat": "runs", "refId": "A" }],
+      "title": "Runs observed",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "qr-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "id": 2,
+      "options": { "colorMode": "value", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "max(quantrule_runs_missing_digest)", "instant": true, "legendFormat": "missing digest", "refId": "A" }],
+      "title": "Succeeded runs without digest",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "qr-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "id": 3,
+      "options": { "colorMode": "value", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "max(quantrule_leader{service=\"evidence\"})", "instant": true, "legendFormat": "leader", "refId": "A" }],
+      "title": "Evidence leader",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "qr-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "id": 4,
+      "options": { "colorMode": "value", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "max(quantrule_leader_term{service=\"evidence\"})", "instant": true, "legendFormat": "term", "refId": "A" }],
+      "title": "Leader term",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "qr-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "id": 5,
+      "targets": [{ "expr": "sum by (state) (rate(quantrule_runs_total[15m]))", "legendFormat": "{{state}}", "refId": "A" }],
+      "title": "Run outcomes",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "qr-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "id": 6,
+      "targets": [{ "expr": "sum by (state) (rate(quantrule_stages_total[15m]))", "legendFormat": "{{state}}", "refId": "A" }],
+      "title": "Stage outcomes",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "qr-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "id": 7,
+      "targets": [{ "expr": "sum by (service, reason) (rate(quantrule_http_retries_total[15m]))", "legendFormat": "{{service}} {{reason}}", "refId": "A" }],
+      "title": "HTTP retries",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "qr-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "id": 8,
+      "targets": [{ "expr": "sum by (service, consumer) (rate(quantrule_consumer_reconnects_total[15m]))", "legendFormat": "{{service}} {{consumer}}", "refId": "A" }],
+      "title": "Consumer reconnects",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "qr-loki" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 20 },
+      "id": 9,
+      "options": { "showTime": true, "wrapLogMessage": true },
+      "targets": [{ "expr": "{service=~\"evidence|backtest\"}", "refId": "A" }],
+      "title": "Evidence and worker logs",
+      "type": "logs"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["quantrule", "runs"],
+  "templating": { "list": [] },
+  "time": { "from": "now-24h", "to": "now" },
+  "timezone": "utc",
+  "title": "QuantRule — Runs and evidence",
+  "uid": "qr-runs-evidence",
+  "version": 1
+}

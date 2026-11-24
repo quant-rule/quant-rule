@@ -1,6 +1,6 @@
 # Observability
 
-- Status: Current for HA-009 slices 1–3 (metrics, JSON logs, request/trace IDs, drain, readiness, retries, reconnect, file secrets and token rotation)
+- Status: Current for HA-009 slices 1–3 and PLAT-006 phases 1–2 (seven-service scrape, 38 alert rules over 17 rows, Loki/promtail, four dashboards, operator tool, `check/observability.rs`, lab assertions)
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 - Issue: [#1107](https://github.com/quant-rule/quant-rule/issues/1107)
@@ -32,6 +32,8 @@ metric name.
 | `quantrule_runs_total` | counter | `state` | Worker run outcomes |
 | `quantrule_stages_total` | counter | `state` | Worker stage outcomes |
 | `quantrule_leader` | gauge | `service` | Whether this replica holds the evidence lease |
+| `quantrule_leader_term` | gauge | `service` | The evidence term held; zero on a standby |
+| `quantrule_runs_missing_digest` | gauge | — | Succeeded runs whose digest is still missing |
 | `quantrule_outbox_pending` | gauge | — | Run notifications still to publish |
 | `quantrule_auth_reload_failures_total` | counter | `reason` | Bearer-token reload failures (`read`, `empty`, `format`, `short`) |
 | `quantrule_auth_token_age_seconds` | gauge | — | Age of the token currently in use |
@@ -67,14 +69,15 @@ upstream family and never proxies upstream metrics. `queue` is a fixed kind
 
 The listener starts for all seven services. The backtest listener also serves
 `/health` and `/ready`; every other service serves those two on its own HTTP
-port. A Prometheus service and its scrape configuration belong to PLAT-006; this
-contract only publishes the endpoint.
+port. PLAT-006 scrapes `tasks.<service>:9100`, the stateful and ingress
+endpoints, node_exporter, blackbox, and itself; the rules, null receiver, logs,
+and dashboards are in the [observability contract](../config/2026-11-23/observability.md).
 
 ## 3. Structured logs
 
-`QR_LOG` is the filter, default `info`. `QR_LOG_FORMAT` is `json` (the server
-default) or `text` (a local-debugging opt-in). Records go to stderr, one JSON
-object per line.
+`QR_LOG` is the filter, default `info`. `QR_LOG_FORMAT` is `json` (server
+default) or `text` (local debugging); records go to stderr, one JSON object per
+line.
 
 | Field | Presence | Meaning |
 |---|---|---|
@@ -88,15 +91,14 @@ object per line.
 | `method`, `route`, `status`, `duration_ms` | completion event | Request result |
 
 The `hyper`, pool, S3 and AMQP driver targets stay at `warn` unless `QR_LOG`
-names them explicitly, so raising the process to `debug` cannot reveal a
-connection string by itself. `Config` debug output stays redacted.
+names them explicitly, so `debug` cannot reveal a connection string; `Config`
+debug output stays redacted.
 
 Redaction is a safety net, not permission to log sensitive structures: no
 header map, body, artifact byte or token is passed to a log event. The formatter
 redacts `://user:pass@`, `Bearer <token>` and `password=` in every string value.
-The workers keep `run_id` and `stage_run_id` on the events that already carry
-them; no request id is persisted in a database. A reconnect logs its attempt,
-the backoff and the bounded reason; it never logs a payload or a header.
+A reconnect logs its attempt, backoff and bounded reason, never a payload or
+header.
 
 ## 4. Drain and readiness
 
@@ -119,8 +121,8 @@ writes `failed` and never publishes a partial artifact set.
 
 ## 5. Bounded retries
 
-The policy is deterministic: three attempts, a 200 ms base delay, factor four, a
-5 s maximum delay and a 15 s total deadline. There is no jitter.
+The policy is deterministic: three attempts, a 200 ms base, factor four, a 5 s
+maximum and a 15 s deadline; there is no jitter.
 
 | Failure | Retry |
 |---|---|
@@ -129,18 +131,16 @@ The policy is deterministic: three attempts, a 200 ms base delay, factor four, a
 | Other `4xx`, invalid response, invalid base, unconfigured, draining | no |
 
 Only idempotent calls opt in: the typed GET reads and the two audited
-dataset-reference writes. The readiness probe is a single sampled attempt, so a
-deliberate `503` is reported immediately. A claim, a model compute, a signal
-create, a stage create, a decision, a cancel and a streaming body stay on the
-default single-attempt path. A shutdown stops the policy before the next attempt.
+dataset-reference writes. The readiness probe is one sampled attempt; a claim,
+compute, signal/stage create, decision, cancel and streaming body stay
+single-attempt. A shutdown stops the policy before the next attempt.
 
 ## 6. Consumer reconnect
 
-A consumer error reconnects in-process with a fixed backoff of 1, 2, 4, 8, 16
-and 30 seconds, then returns an error so the container restarts. Shutdown is a
-clean stop, not a failure. A reconnect is counted in
-`quantrule_consumer_reconnects_total` and logged with the attempt, backoff and
-reason.
+A consumer error reconnects in-process with a fixed 1, 2, 4, 8, 16, 30 s backoff,
+then returns an error so the container restarts. Shutdown is a clean stop. A
+reconnect is counted in `quantrule_consumer_reconnects_total` and logged with
+the attempt, backoff and reason.
 
 ## 7. Request and trace identifiers
 
@@ -164,7 +164,6 @@ or the canonical digest.
 
 ## 8. Non-goals and later slices
 
-- A token rotation logs a stable reason and never a value, fingerprint or
-  generation; the auth series are gateway-only.
-- Queue depth is read with a passive declare; a broker management query, a dashboard, an alert and a scrape configuration belong to PLAT-006.
-- No database migration, public API route or command changes in HA-009.
+- Token rotation logs a stable reason, never a value or fingerprint; auth series are gateway-only.
+- Queue depth is a passive declare; PLAT-006 scrapes it, the stateful endpoints, and routes 38 rules over F01..F17 to one null receiver with four dashboards.
+- Phase 2 adds `check/observability.rs` (28 Docker-free rows, including the 38-rule/17-row HA matrix guard) and the lab assertions; no migration, route, or command changes.

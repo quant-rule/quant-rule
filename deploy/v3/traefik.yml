@@ -4,7 +4,8 @@
 # stack-name agnostic: the stack name lives only in the rendered dynamic config.
 # The file provider reads one rendered router and service from the mounted
 # dynamic directory. There is no port 80 entrypoint, no dashboard, no insecure
-# API, no public metrics endpoint, no writable ACME state, and no ingress auth.
+# API, no writable ACME state, and no ingress auth. The one metrics entrypoint
+# (8082) is overlay-only: the stack publishes only 443.
 global:
   checkNewVersion: false
   sendAnonymousUsage: false
@@ -17,6 +18,8 @@ entryPoints:
         readTimeout: 900s
         writeTimeout: 900s
         idleTimeout: 900s
+  metrics:
+    address: ":8082"
 
 providers:
   file:
@@ -26,6 +29,12 @@ providers:
 api:
   dashboard: false
   insecure: false
+
+metrics:
+  prometheus:
+    entryPoint: metrics
+    addEntryPointsLabels: true
+    addServicesLabels: true
 
 tls:
   stores:

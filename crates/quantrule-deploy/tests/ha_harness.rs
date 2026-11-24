@@ -93,6 +93,41 @@ fn the_plan_names_the_database_failover_and_the_skip_opt_out() {
 }
 
 #[test]
+fn the_plan_names_the_observability_phase_and_its_skip_opt_out() {
+    let output = run(&["--plan"], None);
+    assert!(output.status.success(), "{}", stderr(&output));
+    let printed = stdout(&output);
+    for expected in [
+        "observability: copy/start/wait/verify",
+        "promtool rule-unit proof of GatewaySyntheticDown",
+        "SwarmManagerQuorumAtRisk",
+        "GatewayReplicaDown",
+        "pause on the non-VIP gateway",
+        "VIP ready probe 1",
+        "--skip-observability",
+        "Simulated HA only when both alerts fired and resolved",
+        "Real HA is HA-014",
+    ] {
+        assert!(printed.contains(expected), "{expected}: {printed}");
+    }
+}
+
+#[test]
+fn the_observability_lab_phase_is_valid_bash() {
+    for script in ["deploy/v3/observability.sh", "tools/observability.sh"] {
+        let output = Command::new("bash")
+            .args(["-n", repo(script).to_str().expect("path")])
+            .output()
+            .expect("bash -n");
+        assert!(
+            output.status.success(),
+            "{script}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+}
+
+#[test]
 fn the_ha_tier_defaults_to_the_lab_descriptor() {
     let output = Command::new("bash")
         .arg(repo("tools/test_tiers.sh"))

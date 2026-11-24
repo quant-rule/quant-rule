@@ -1,0 +1,284 @@
+alerting:
+  alertmanagers:
+    -
+      static_configs:
+        -
+          targets:
+            -
+              "alertmanager:9093"
+global:
+  evaluation_interval: "15s"
+  external_labels:
+    stack: "quantrule-lab"
+  scrape_interval: "15s"
+rule_files:
+  -
+    "/etc/prometheus/alert-rules.yml"
+scrape_configs:
+  -
+    dns_sd_configs:
+      -
+        names:
+          -
+            "tasks.gateway"
+          -
+            "tasks.data"
+          -
+            "tasks.model"
+          -
+            "tasks.strategy"
+          -
+            "tasks.backtest"
+          -
+            "tasks.evidence"
+          -
+            "tasks.simulation"
+        port: 9100
+        refresh_interval: "30s"
+        type: "A"
+    job_name: "app"
+    relabel_configs:
+      -
+        regex: "tasks\\.(.+)"
+        replacement: "$1"
+        source_labels:
+          -
+            "__meta_dns_name"
+        target_label: "service"
+      -
+        replacement: "quantrule-lab"
+        target_label: "stack"
+  -
+    dns_sd_configs:
+      -
+        names:
+          -
+            "tasks.ingress"
+        port: 8082
+        refresh_interval: "30s"
+        type: "A"
+    job_name: "ingress"
+    relabel_configs:
+      -
+        replacement: "ingress"
+        target_label: "service"
+  -
+    basic_auth:
+      password_file: "/etc/prometheus/secrets/patroni_rest_password"
+      username: "patroni"
+    job_name: "patroni"
+    metrics_path: "/metrics"
+    static_configs:
+      -
+        labels:
+          host: "lab-1"
+        targets:
+          -
+            "patroni-lab-1:8008"
+      -
+        labels:
+          host: "lab-2"
+        targets:
+          -
+            "patroni-lab-2:8008"
+      -
+        labels:
+          host: "lab-3"
+        targets:
+          -
+            "patroni-lab-3:8008"
+  -
+    job_name: "etcd"
+    metrics_path: "/metrics"
+    static_configs:
+      -
+        labels:
+          host: "lab-1"
+        targets:
+          -
+            "etcd-lab-1:2381"
+      -
+        labels:
+          host: "lab-2"
+        targets:
+          -
+            "etcd-lab-2:2381"
+      -
+        labels:
+          host: "lab-3"
+        targets:
+          -
+            "etcd-lab-3:2381"
+  -
+    job_name: "haproxy"
+    metrics_path: "/metrics"
+    static_configs:
+      -
+        labels:
+          host: "lab-1"
+        targets:
+          -
+            "haproxy-lab-1:8404"
+      -
+        labels:
+          host: "lab-2"
+        targets:
+          -
+            "haproxy-lab-2:8404"
+  -
+    job_name: "rabbitmq"
+    metrics_path: "/metrics"
+    static_configs:
+      -
+        labels:
+          host: "lab-1"
+        targets:
+          -
+            "rabbitmq-lab-1:15692"
+      -
+        labels:
+          host: "lab-2"
+        targets:
+          -
+            "rabbitmq-lab-2:15692"
+      -
+        labels:
+          host: "lab-3"
+        targets:
+          -
+            "rabbitmq-lab-3:15692"
+  -
+    job_name: "minio"
+    metrics_path: "/minio/v2/metrics/cluster"
+    scheme: "https"
+    static_configs:
+      -
+        labels:
+          host: "lab-3"
+        targets:
+          -
+            "minio-lab-1:9000"
+          -
+            "minio-lab-2:9000"
+          -
+            "minio-lab-3:9000"
+    tls_config:
+      ca_file: "/etc/quantrule/pki/ca.crt"
+  -
+    job_name: "node"
+    metrics_path: "/metrics"
+    static_configs:
+      -
+        labels:
+          host: "lab-1"
+        targets:
+          -
+            "node-lab-1:9100"
+      -
+        labels:
+          host: "lab-2"
+        targets:
+          -
+            "node-lab-2:9100"
+      -
+        labels:
+          host: "lab-3"
+        targets:
+          -
+            "node-lab-3:9100"
+  -
+    job_name: "promtail"
+    metrics_path: "/metrics"
+    static_configs:
+      -
+        labels:
+          host: "lab-1"
+        targets:
+          -
+            "promtail-lab-1:9080"
+      -
+        labels:
+          host: "lab-2"
+        targets:
+          -
+            "promtail-lab-2:9080"
+      -
+        labels:
+          host: "lab-3"
+        targets:
+          -
+            "promtail-lab-3:9080"
+  -
+    job_name: "blackbox"
+    metrics_path: "/probe"
+    params:
+      module:
+        -
+          "https_2xx"
+    relabel_configs:
+      -
+        source_labels:
+          -
+            "__address__"
+        target_label: "__param_target"
+      -
+        source_labels:
+          -
+            "__param_target"
+        target_label: "instance"
+      -
+        replacement: "blackbox:9115"
+        target_label: "__address__"
+    static_configs:
+      -
+        labels:
+          check: "health"
+        targets:
+          -
+            "https://quantrule.dev/health"
+      -
+        labels:
+          check: "ready"
+        targets:
+          -
+            "https://quantrule.dev/ready"
+  -
+    job_name: "prometheus"
+    metrics_path: "/metrics"
+    static_configs:
+      -
+        labels:
+          host: "prometheus"
+        targets:
+          -
+            "localhost:9090"
+  -
+    job_name: "alertmanager"
+    metrics_path: "/metrics"
+    static_configs:
+      -
+        labels:
+          host: "alertmanager"
+        targets:
+          -
+            "alertmanager:9093"
+  -
+    job_name: "loki"
+    metrics_path: "/metrics"
+    static_configs:
+      -
+        labels:
+          host: "loki"
+        targets:
+          -
+            "loki:3100"
+  -
+    job_name: "grafana"
+    metrics_path: "/metrics"
+    static_configs:
+      -
+        labels:
+          host: "grafana"
+        targets:
+          -
+            "grafana:3000"

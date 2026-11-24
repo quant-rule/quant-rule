@@ -102,7 +102,8 @@ stack's gateway service.
 
 The static file creates one `websecure` entrypoint on `:443`, a file provider at
 `/etc/traefik/dynamic`, and no `web` entrypoint. `api.dashboard` is `false`,
-`api.insecure` is `false`, no metrics endpoint is enabled, and no ingress auth
+`api.insecure` is `false`, the only metrics listener is the internal entrypoint
+on `:8082` (never published), and no ingress auth
 middleware exists. The access log is JSON and drops `Authorization`; the log is
 JSON too. Responding timeouts are 900 s (read, write, idle).
 
@@ -164,7 +165,7 @@ key, token, environment value, or inspect body.
 
 | Row | Checks |
 |---|---|
-| `ingress traefik static` | One `websecure` 443 entrypoint; no `web`/80; dashboard and insecure API off; no metrics, ACME resolver, or `acme:`; TLS 1.2+; 900 s read/write/idle; JSON access log dropping `Authorization`; default cert paths |
+| `ingress traefik static` | One `websecure` 443 entrypoint; no `web`/80; dashboard and insecure API off; internal Prometheus metrics on 8082, no public metrics, ACME resolver, or `acme:`; TLS 1.2+; 900 s read/write/idle; JSON access log dropping `Authorization`; default cert paths |
 | `ingress traefik dynamic` | `Host(<dns>)` on `websecure`, `tls: {}`, `http://<stack>_gateway:8080`, HSTS 31,536,000 s plus `includeSubDomains` without preload, nosniff, no-referrer, `Server` removed, 512 MiB body cap, no `basicAuth` |
 | `ingress keepalived <host>` | One row per ingress host: descriptor interface, `<vip>/32`, unicast source and peers, 101/100 priorities, `nc -z 127.0.0.1 443` with fall 3/rise 2 |
 | `ingress certificate files` | Certificate regular/readable/not group- or world-writable; key regular and mode 600 |

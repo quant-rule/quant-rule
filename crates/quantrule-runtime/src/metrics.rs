@@ -54,6 +54,8 @@ const WORKERS: &str = "quantrule_workers";
 const RUNS_TOTAL: &str = "quantrule_runs_total";
 const STAGES_TOTAL: &str = "quantrule_stages_total";
 const LEADER: &str = "quantrule_leader";
+const LEADER_TERM: &str = "quantrule_leader_term";
+const RUNS_MISSING_DIGEST: &str = "quantrule_runs_missing_digest";
 const OUTBOX_PENDING: &str = "quantrule_outbox_pending";
 const AUTH_RELOAD_FAILURES: &str = "quantrule_auth_reload_failures_total";
 const AUTH_TOKEN_AGE: &str = "quantrule_auth_token_age_seconds";
@@ -110,6 +112,8 @@ struct Inner {
     runs: Mutex<BTreeMap<String, u64>>,
     stages: Mutex<BTreeMap<String, u64>>,
     leader: AtomicBool,
+    leader_term: AtomicU64,
+    runs_missing_digest: AtomicU64,
     outbox_pending: AtomicU64,
     auth_reload_failures: Mutex<BTreeMap<String, u64>>,
     auth_token_age_seconds: AtomicU64,
@@ -193,6 +197,8 @@ impl Metrics {
                 runs: Mutex::new(BTreeMap::new()),
                 stages: Mutex::new(BTreeMap::new()),
                 leader: AtomicBool::new(false),
+                leader_term: AtomicU64::new(0),
+                runs_missing_digest: AtomicU64::new(0),
                 outbox_pending: AtomicU64::new(0),
                 auth_reload_failures: Mutex::new(BTreeMap::new()),
                 auth_token_age_seconds: AtomicU64::new(0),
@@ -299,6 +305,19 @@ impl Metrics {
     /// Set whether this replica currently holds the evidence leader lease.
     pub fn set_leader(&self, leader: bool) {
         self.inner.leader.store(leader, Ordering::Relaxed);
+    }
+
+    /// Set the evidence leader term this replica currently holds; zero when it
+    /// is a standby.
+    pub fn set_leader_term(&self, term: u64) {
+        self.inner.leader_term.store(term, Ordering::Relaxed);
+    }
+
+    /// Set the number of succeeded runs whose digest is still missing.
+    pub fn set_runs_missing_digest(&self, missing: u64) {
+        self.inner
+            .runs_missing_digest
+            .store(missing, Ordering::Relaxed);
     }
 
     /// Set the number of outbox notifications still pending.
@@ -472,6 +491,30 @@ impl Metrics {
             LEADER,
             &[("service", self.inner.build.service.as_str())],
             u64::from(self.inner.leader.load(Ordering::Relaxed)),
+        );
+        write_header(
+            &mut output,
+            LEADER_TERM,
+            "gauge",
+            "The evidence leader term this replica holds; zero on a standby.",
+        );
+        write_sample(
+            &mut output,
+            LEADER_TERM,
+            &[("service", self.inner.build.service.as_str())],
+            self.inner.leader_term.load(Ordering::Relaxed),
+        );
+        write_header(
+            &mut output,
+            RUNS_MISSING_DIGEST,
+            "gauge",
+            "Succeeded runs whose canonical digest is still missing.",
+        );
+        write_sample(
+            &mut output,
+            RUNS_MISSING_DIGEST,
+            &[],
+            self.inner.runs_missing_digest.load(Ordering::Relaxed),
         );
         write_header(
             &mut output,

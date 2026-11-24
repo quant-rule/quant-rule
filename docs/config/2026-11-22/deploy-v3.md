@@ -5,8 +5,10 @@
   inspector, the PLAT-001 bootstrap/rolling-update control plane, the PLAT-002
   cert-mode ingress, the PLAT-003 Patroni/etcd/HAProxy tier, the PLAT-004
   RabbitMQ tier (broker, front door, reconnect, check rows, definitions, lab),
-  and the PLAT-005 MinIO tier (erasure, TLS, HAProxy front door, bucket,
-  versioning, least-privilege account, object bootstrap, check rows, node-loss lab); observability remains PLAT-006
+  the PLAT-005 MinIO tier (erasure, TLS, HAProxy front door, bucket,
+  versioning, least-privilege account, object bootstrap, check rows, node-loss
+  lab), and the PLAT-006 observability tier (16 pins, scrape, 38 rules over 17
+  rows, Loki/promtail, four dashboards, operator tool, static check, lab)
 - Claim type: Behaviour Claim
 - Issue: [#1110](https://github.com/quant-rule/quant-rule/issues/1110)
 - Related: [ADR-HA](../../adr/2026-11-22/1082-ha-deployment-profile.md),
@@ -50,7 +52,7 @@ the other profiles keep `1`.
 ## 2. Shape
 
 The sample is authoritative. This excerpt repeats one host, one database, and
-two services and omits the thirteen pinned infrastructure images to show the
+two services and omits the sixteen pinned infrastructure images to show the
 other blocks; the sample lists every pin.
 
 ```json
@@ -120,7 +122,7 @@ The sample has eleven hosts: two edge (ingress, gateway, keepalived), two core (
 | `profile` | `swarm-ha`, `single-az`, or `lab-single-host`. |
 | `name` | Optional lowercase DNS label; the default stack name is `quantrule`. |
 | `image` | The server image every service runs; `sha256:` digest required. |
-| `images` | Pins for `traefik`, `postgres`, `patroni`, `etcd`, `haproxy`, `keepalived`, `rabbitmq`, `minio`, `minio_client`, `prometheus`, `grafana`, `loki`, `alertmanager`; no other key. `postgres` stays for the psql and migration jobs; `minio_client` runs the one-shot `mc`. |
+| `images` | Pins for `traefik`, `postgres`, `patroni`, `etcd`, `haproxy`, `keepalived`, `rabbitmq`, `minio`, `minio_client`, `prometheus`, `grafana`, `loki`, `alertmanager`, `node_exporter`, `promtail`, `blackbox_exporter`; no other key. `postgres` stays for the psql and migration jobs; `minio_client` runs the one-shot `mc`. |
 | `network.overlay` | Overlay name; `encrypted` must be true. |
 | `ingress.dns` | Exactly `quantrule.dev`. |
 | `ingress.port` | Exactly `443`; no second public port. |
@@ -136,7 +138,7 @@ The sample has eleven hosts: two edge (ingress, gateway, keepalived), two core (
 | `databases` | Exactly `gateway`, `catalog`, `evidence`, `simulation`, each with its fixed `qr_*` database, owner role, and app role. |
 | `services` | Exactly `gateway`, `data`, `model`, `strategy`, `backtest`, `evidence`, `simulation`; `replicas`, `hosts`, `port`; no published port. |
 | `stateful` | PostgreSQL, etcd, HAProxy, RabbitMQ, and MinIO nodes; `postgres.watchdog` is `off`, `automatic`, or `required` (default `off`); `synchronous_standby` must be exactly one; RabbitMQ is odd and >=3 with `disk_free_limit_mib` (default 5120) and `memory_high_watermark_percent` (default 60); MinIO parity is `auto` or `EC:<n>` and must keep the write quorum after one node loss; no `reschedule` field. |
-| `observability` | `prometheus`, `grafana`, `loki`, `alertmanager`, each on a declared host. |
+| `observability` | `prometheus`, `grafana`, `loki`, `alertmanager`, each on a declared host; Prometheus and Alertmanager must be distinct; all four may not share one host. |
 | `backup` | `pitr` true (configured, not verified); retention 1–3650 days; `object_replication` must be false in v1.5.10 because HA-013 owns off-host/archive and any second-site copy. |
 | `secrets.files` | Non-empty raw name-to-absolute-path map; no inline value. The five stateful secrets, the two MinIO root secrets, and `object_store_access_key`/`object_store_secret_key` are required; the stateful values are URL-safe. |
 
@@ -170,7 +172,7 @@ files and credential quality.
 | `queue_url` names `qr_queue`, the shared `rabbitmq` host, the default `%2f` vhost, and port 5671 | `deploy.secret.queue_user`, `.queue_host`, `.queue_vhost`, `.queue_port` |
 | `--files`: regular, non-symlink, mode 600, <=8 KiB | `deploy.file.*`, `deploy.secret.mode` |
 | `--files`: no default or duplicate role credentials | `deploy.secret.default_credential`, `deploy.secret.duplicate_credential` |
-| Backup PITR, retention, and the HA-013 replication boundary; four observability units | `deploy.backup.*`, `deploy.host.undeclared` |
+| Backup PITR, retention, the HA-013 replication boundary; four observability units on distinct alerting hosts | `deploy.backup.*`, `deploy.host.undeclared`, `deploy.observability.placement` |
 | Unknown field, or a v2-only field in v3 | JSON parse error naming the field |
 
 The required names are `queue_url`, `object_store_access_key`,
@@ -194,7 +196,7 @@ usage errors.
 | Target | Writes |
 |---|---|
 | `swarm` | `stack.yaml`, `quantrule_traefik.yml`, `traefik-dynamic.yml`, `bootstrap.sh`, `jobs/cluster-bootstrap.sh`, `jobs/db-bootstrap.sh`, `jobs/migrate.sh`, `secrets/`, `pki/`, `render.json` |
-| `infra` | `infra/<host>.yaml`, `keepalived-<host>.conf`, `patroni-<host>.yml`, `etcd-<host>.conf.yml`, `haproxy-<host>.cfg`, `rabbitmq-<host>.conf`, `rabbitmq-enabled_plugins`, `minio-<host>.conf`, `minio-policy.json`, `stateful-manifest.json`, `secrets/`, `pki/`, `render.json` |
+| `infra` | `infra/<host>.yaml`, `keepalived-<host>.conf`, `patroni-<host>.yml`, `etcd-<host>.conf.yml`, `haproxy-<host>.cfg`, `rabbitmq-<host>.conf`, `rabbitmq-enabled_plugins`, `minio-<host>.conf`, `minio-policy.json`, `prometheus.yml`, `alert-rules.yml`, `alertmanager.yml`, `loki.yml`, `blackbox.yml`, `promtail-<host>.yml`, `grafana/`, `observability-manifest.json`, `stateful-manifest.json`, `secrets/`, `pki/`, `render.json` |
 | `all` | Both sets |
 
 `secrets/` is the one copy of the source values: one mode-600 file per name and a
@@ -225,20 +227,18 @@ without a max attempt because they consume the queue; the other services keep
 the bounded `on-failure` policy. The overlay is external, attachable, and
 encrypted.
 
-`infra/<host>.yaml` is a pinned unit per host for Patroni/PostgreSQL, etcd,
-HAProxy, RabbitMQ, MinIO, Prometheus, Grafana, Loki, Alertmanager, and keepalived
-on each ingress host. Each unit has a pinned image, host-local bind volumes,
-config-file references, no `ports`, `restart: unless-stopped`, and the
-attachable overlay. The Patroni unit uses `images.patroni`,
-an explicit command, the config/PKI/secret mounts, a unique `patroni-<host>`
-alias, and a `/dev/watchdog` mapping only for `required`. etcd uses
-`--config-file` and a unique alias; HAProxy uses the config, the REST password
-file, and unique plus `postgres`, `rabbitmq`, and `minio` aliases. RabbitMQ uses
-the short hostname, `RABBITMQ_NODENAME`, config/plugin/cookie/PKI/data mounts,
-the cookie install command, no long name, no shared alias, and no published port.
-MinIO uses `hostname: minio-<host>`, a unique key/alias, the root/config/PKI
-mounts, `--certs-dir /certs`, the explicit `MINIO_VOLUMES` list, and no published
-9000/9001 or console. Observability remains PLAT-006.
+`infra/<host>.yaml` is a pinned unit per host. Every declared host carries
+`node_exporter` (host root read-only) and `promtail` (Docker JSON logs, 30-day
+Loki); the Prometheus host also carries `blackbox`; the four observability units
+carry config/CA/Patroni-password mounts, health checks, and 50m×5 JSON logging.
+Patroni/etcd/HAProxy/RabbitMQ/MinIO/keepalived keep their PLAT-002..005 units;
+every unit has a pinned image, host-local binds, no `ports`, and
+`restart: unless-stopped`. HAProxy serves `/primary` and native `8404/metrics`;
+MinIO sets `MINIO_PROMETHEUS_AUTH_TYPE=public` on the overlay. Prometheus uses
+30d/20GB, Alertmanager 120h with one `quantrule-null` receiver, Loki 30d, and
+Grafana anonymous Viewer with no published port. Contracts:
+[observability](../2026-11-23/observability.md), [Patroni](../2026-11-23/patroni-cluster.md),
+[RabbitMQ](../2026-11-23/rabbitmq-cluster.md), [MinIO](../2026-11-23/minio-cluster.md).
 
 `bootstrap.sh` runs on a manager: it checks the daemon and manager role,
 creates or verifies the encrypted attachable overlay, creates the external
@@ -278,7 +278,9 @@ cluster, alarms, queue default, Prometheus/JSON logs, HAProxy `rabbitmq`/5671,
 the broker unit, the manifest host selector/modes, and the RabbitMQ leaf SANs;
 they stay Docker-free. The MinIO rows check the exact config/parity/quorum, the
 unique unit and alias, the HAProxy 9000 frontend/backend, the manifest
-hosts/modes, the app URL/`_FILE`/`qr_app` path, and the MinIO leaf SANs. `--out`
+hosts/modes, the app URL/`_FILE`/`qr_app` path, and the MinIO leaf SANs. The
+observability rows check placement, units, jobs/auth, 38 rules/HA matrix,
+receiver, Loki/promtail, Grafana, manifest, logging, and internal metrics. `--out`
 or `QR_DEPLOY_OUT` reads the rendered tree; without it the configs render in
 memory and certificates come from the descriptor CA. A missing `openssl` is a
 failed `limited` row.
@@ -307,14 +309,11 @@ descriptor and image with forward-only migrations.
 worker, one manager, the VIP, the Patroni primary, one HAProxy, and one MinIO
 node; it records the measured RTO, RPO 0 where the database path supports it,
 the rejoin, the object write quorum, and value-free `Simulated HA` evidence.
-`--skip-database`/`--skip-queue`/`--skip-object` leave that row `Unverified`.
-The queue phase proves quorum after the leader stops and a confirmed publish
-survives; the MinIO phase stops one node, reads the probe hash through
-`minio:9000`, restores it, runs a bounded heal, and waits for zero healing. The
-end-to-end digest is `Measured` only when `tools/verify.sh` succeeds, otherwise
-`Unverified` or `Blocked`. `swarm-ha`/`single-az` stay unverified until HA-014
-and no output says `Real HA`; PLAT-002 ingress, PLAT-003 stateful, PLAT-004 queue, PLAT-005 MinIO, HA-013 off-host, PLAT-006 scrape.
-
+`--skip-database`/`--skip-queue`/`--skip-object` leave that row `Unverified`;
+the end-to-end digest is `Measured` only when `tools/verify.sh` succeeds,
+otherwise `Unverified` or `Blocked`. `swarm-ha`/`single-az` stay unverified
+until HA-014 and no output says `Real HA`; PLAT-002 ingress, PLAT-003 stateful,
+PLAT-004 queue, PLAT-005 MinIO, PLAT-006 observability, HA-013 off-host.
 ## 9. Non-goals
 
 No Kubernetes, autoscaling, accounts, tenancy, live trading, desktop packaging,
@@ -323,7 +322,8 @@ certificates, headers, and body limits are in the
 [ingress contract](../2026-11-23/ingress.md). Patroni/etcd/HAProxy is
 [PLAT-003](../2026-11-23/patroni-cluster.md); RabbitMQ is
 [PLAT-004](../2026-11-23/rabbitmq-cluster.md); MinIO is
-[PLAT-005](../2026-11-23/minio-cluster.md); observability is PLAT-006; signing is
+[PLAT-005](../2026-11-23/minio-cluster.md); observability is
+[PLAT-006](../2026-11-23/observability.md); signing is
 PLAT-007; pgBackRest, off-host/archive copies, and any second-site replication
 are HA-013; failure evidence is HA-014. TLS/CA is in
 [internal TLS](../2026-11-23/internal-tls.md); secrets and rotation are in

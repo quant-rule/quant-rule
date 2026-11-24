@@ -141,6 +141,11 @@ services:
           "curl -fsS http://127.0.0.1:9090/health | grep -q '\"state\":\"healthy\"'"
       timeout: "5s"
     image: "registry.quantrule.dev/quantrule/server@sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
+    logging:
+      driver: "json-file"
+      options:
+        max-file: "5"
+        max-size: "50m"
     networks:
       -
         "quantrule"
@@ -236,6 +241,11 @@ services:
           "curl -fsS http://127.0.0.1:8080/health | grep -q '\"state\":\"healthy\"'"
       timeout: "5s"
     image: "registry.quantrule.dev/quantrule/server@sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
+    logging:
+      driver: "json-file"
+      options:
+        max-file: "5"
+        max-size: "50m"
     networks:
       -
         "quantrule"
@@ -336,6 +346,11 @@ services:
           "curl -fsS http://127.0.0.1:8080/health | grep -q '\"state\":\"healthy\"'"
       timeout: "5s"
     image: "registry.quantrule.dev/quantrule/server@sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
+    logging:
+      driver: "json-file"
+      options:
+        max-file: "5"
+        max-size: "50m"
     networks:
       -
         "quantrule"
@@ -435,6 +450,11 @@ services:
           "curl -fsS http://127.0.0.1:8080/health | grep -q '\"state\":\"healthy\"'"
       timeout: "5s"
     image: "registry.quantrule.dev/quantrule/server@sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
+    logging:
+      driver: "json-file"
+      options:
+        max-file: "5"
+        max-size: "50m"
     networks:
       -
         "quantrule"
@@ -500,6 +520,11 @@ services:
         order: "stop-first"
         parallelism: 1
     image: "traefik@sha256:8330e8d28853641532609f63676dc2eec8d19e2bc7fadd5505a1d0c8c254d042"
+    logging:
+      driver: "json-file"
+      options:
+        max-file: "5"
+        max-size: "50m"
     networks:
       -
         "quantrule"
@@ -587,6 +612,11 @@ services:
           "curl -fsS http://127.0.0.1:8080/health | grep -q '\"state\":\"healthy\"'"
       timeout: "5s"
     image: "registry.quantrule.dev/quantrule/server@sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
+    logging:
+      driver: "json-file"
+      options:
+        max-file: "5"
+        max-size: "50m"
     networks:
       -
         "quantrule"
@@ -677,6 +707,11 @@ services:
           "curl -fsS http://127.0.0.1:8080/health | grep -q '\"state\":\"healthy\"'"
       timeout: "5s"
     image: "registry.quantrule.dev/quantrule/server@sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
+    logging:
+      driver: "json-file"
+      options:
+        max-file: "5"
+        max-size: "50m"
     networks:
       -
         "quantrule"
@@ -767,6 +802,11 @@ services:
           "curl -fsS http://127.0.0.1:8080/health | grep -q '\"state\":\"healthy\"'"
       timeout: "5s"
     image: "registry.quantrule.dev/quantrule/server@sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
+    logging:
+      driver: "json-file"
+      options:
+        max-file: "5"
+        max-size: "50m"
     networks:
       -
         "quantrule"
@@ -786,5 +826,5 @@ x-quantrule:
   network_attachable: true
   network_encrypted: true
   owner: "HA-012"
-  platform: "Traefik ingress configuration is PLAT-002; Patroni, etcd, and HAProxy are PLAT-003; RabbitMQ is PLAT-004; MinIO is PLAT-005; observability remains PLAT-006"
+  platform: "Traefik ingress configuration is PLAT-002; Patroni, etcd, and HAProxy are PLAT-003; RabbitMQ is PLAT-004; MinIO is PLAT-005; Prometheus, Alertmanager, Loki, Grafana, blackbox, node_exporter, and promtail are PLAT-006"
   profile: "swarm-ha"

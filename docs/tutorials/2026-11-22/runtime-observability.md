@@ -111,6 +111,7 @@ They never enter a model reading, signal bytes, strategy decision or run digest.
 ## 6. Limits
 
 This tutorial runs the default single-host Compose profile. It does not prove
-composed, HA, DR or multi-host behavior. No Prometheus service or scrape
-configuration is added here; PLAT-006 owns that. Drain, readiness and bounded
+composed, HA, DR or multi-host behavior. The default Compose stack ships no
+Prometheus service; PLAT-006 ships the separate v3 scrape/rule/log/dashboard
+tier. Drain, readiness and bounded
 retries are slice 2, and `*_FILE` secrets are slice 3.

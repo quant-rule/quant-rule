@@ -219,7 +219,7 @@ mod tests {
     }
 
     #[test]
-    fn traefik_static_has_only_the_secure_entrypoint_and_no_public_api() {
+    fn traefik_static_has_only_the_secure_entrypoint_and_an_internal_metrics_port() {
         for expected in [
             "websecure:",
             "address: \":443\"",
@@ -233,13 +233,15 @@ mod tests {
             "Authorization: drop",
             "certFile: /etc/traefik/certs/ingress.crt",
             "keyFile: /etc/traefik/certs/ingress.key",
+            "metrics:",
+            "address: \":8082\"",
+            "entryPoint: metrics",
         ] {
             assert!(STATIC_CONFIG.contains(expected), "{expected}");
         }
         for forbidden in [
             "address: \":80\"",
             "web:",
-            "metrics:",
             "acme:",
             "certificatesResolvers:",
             "dashboard: true",

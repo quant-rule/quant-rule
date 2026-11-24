@@ -58,6 +58,18 @@
     "alertmanager": {
       "reference": "prom/alertmanager",
       "digest": "sha256:62187e72213c4a4a0d1e1634c2350b73f3a1320777fb2274827a1f8c524f0ff2"
+    },
+    "node_exporter": {
+      "reference": "prom/node-exporter",
+      "digest": "sha256:c26a6b6c79c6a303387b01b3dcfc34824e4cf03fe9c2e9899a762b601e46a680"
+    },
+    "promtail": {
+      "reference": "grafana/promtail",
+      "digest": "sha256:60b24aa368eea19a4fe8d35e294777963ba4a21f908a293de6f9e90d409ca919"
+    },
+    "blackbox_exporter": {
+      "reference": "prom/blackbox-exporter",
+      "digest": "sha256:a4e65b27bff6ae4a3491998b70df242bafffc87b0ddacbd7f9d0a4132395732a"
     }
   },
   "network": {

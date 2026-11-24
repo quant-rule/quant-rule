@@ -8,7 +8,8 @@
   PLAT-003 owns Patroni, etcd, HAProxy, stateful rows, and failover. PLAT-004
   owns RabbitMQ, the queue front door, definitions, reconnect, and broker loss.
   PLAT-005 owns MinIO erasure/TLS/front door, bucket/versioning/`qr_app`,
-  object bootstrap, check rows, and node-loss lab; PLAT-006/007; HA-013/014.
+  object bootstrap, check rows, and node-loss lab. PLAT-006 owns observability;
+  HA-013/014 own backup and real HA.
 
 ## Goal
 Render the seven-service Swarm stack and the pinned per-host stateful units,
@@ -24,7 +25,7 @@ before the stack, and check the one HTTPS ingress without overclaiming.
 | Hosts | Eleven Linux hosts or VMs on one overlay: two edge, two core, three compute, four infra; the lab uses three VMs |
 | Managers | Three odd declared hosts (`swarm.managers`), preferably dedicated; the lab uses its three VMs |
 | Docker | Swarm mode initialized; the declared manager hosts hold the manager role |
-| Image | The app image and thirteen infrastructure images pinned by `sha256:` digest |
+| Image | The app image and sixteen infrastructure images pinned by `sha256:` digest |
 | Secrets | A mode-700 directory with one mode-600 file per name, including the five stateful secrets and the two MinIO root secrets; the fixture values are fake |
 | PKI | `endpoints.*.tls_ca` plus `postgres/server.*`, `etcd/{server,peer,client}.*`, `rabbitmq/server.*`, and `minio/{public.crt,private.key,CAs/ca.crt}` under the CA's parent; SANs `postgres`+every `patroni-<host>`, every `etcd-<host>`, `rabbitmq`+every `rabbitmq-<host>`, `minio`+every `minio-<host>`; keys mode 600 |
 | Ingress | One DNS `A` record TTL 60 -> `ingress.vip`; keepalived on the edge pair; cert mode; the private CA in the client trust store |
@@ -48,35 +49,35 @@ is reserved and refused.
 | 7 | operator | `tools/stateful.sh queue-bootstrap`; `tools/queue-definitions.sh export` | `qr_queue`, default vhost, permissions; stripped definitions mode 600 |
 | 8 | operator | `tools/stateful.sh object-bootstrap` | `quantrule` bucket, versioning, `qr_app`, `quantrule-app` policy, put/get/delete probe |
 | 9 | manager | `tools/swarm.sh bootstrap` | App objects, labels, cluster/db/migrate jobs, stack convergence |
-| 10 | operator | `tools/swarm.sh status`; `tools/stateful.sh status` | Stack converged; MinIO/Patroni/etcd/RabbitMQ healthy |
-| 11 | operator | `tools/swarm.sh verify --remote docker --overlay`; `ip addr show` | VIP present; digest, 443-only, secret paths, health/ready/version, stateful rows |
-| 12 | operator | `tools/swarm.sh upgrade` / `rollback` | Snapshot; new render deployed; old stack recoverable |
-| 13 | client | Open `https://quantrule.dev`; enter the gateway token | Certificate valid; client loads; `/ready` healthy |
-| 14 | operator | Rotate the token with the sequence below | New secret name; rolling replacement; old secret removed |
-| 15 | lab | `tools/test_tiers.sh ha --plan`, then `ha --confirm` (`--skip-database`/`--skip-queue`/`--skip-object`) | Deploy; worker/manager, ingress, database, queue, and MinIO loss; RTO; probe hash; digest; restore; evidence |
+| 10 | operator | `tools/observability.sh copy`, `start`, `wait`, `verify` | Prometheus, Alertmanager, Loki, promtail, and Grafana ready; 17 rule rows |
+| 11 | operator | `tools/swarm.sh status`; `tools/stateful.sh status` | Stack converged; MinIO/Patroni/etcd/RabbitMQ healthy |
+| 12 | operator | `tools/swarm.sh verify --remote docker --overlay`; `ip addr show` | VIP present; digest, 443-only, secret paths, health/ready/version, stateful rows |
+| 13 | operator | `tools/swarm.sh upgrade` / `rollback` | Snapshot; new render deployed; old stack recoverable |
+| 14 | client | Open `https://quantrule.dev`; enter the gateway token | Certificate valid; client loads; `/ready` healthy |
+| 15 | operator | Rotate the token with the sequence below | New secret name; rolling replacement; old secret removed |
+| 16 | lab | `tools/test_tiers.sh ha --plan`, then `ha --confirm` (`--skip-database`/`--skip-queue`/`--skip-object`) | Deploy; worker/manager, ingress, database, queue, and MinIO loss; RTO; probe hash; digest; restore; evidence |
 
 `tools/stateful.sh network` runs `bootstrap.sh --network-only`, which creates and
 validates the overlay and exits before secrets, configs, labels, jobs, or stack.
 `copy` sends each manifest file over SSH standard input, never as an argument,
 and honors `hosts`: broker material only to brokers, MinIO root/config/PKI only
-to MinIO hosts. `start` starts each MinIO node, then etcd, Patroni, HAProxy, and
-the first RabbitMQ broker, waits for it, then starts the other two.
+to MinIO hosts. `start` runs MinIO, etcd, Patroni, HAProxy, then the seed broker
+and the other two.
 
-`wait` writes a mode-600 `mc` config and runs `mc` with the MinIO CA at
-`/certs/ca.crt` and `SSL_CERT_FILE`; it requires every `minio-<host>:9000` in
-`mc admin info`, zero offline/healing, the expected count, then etcd health, a
-Patroni leader + sync standby, three brokers with no alarms, and a primary
-psql. `queue-bootstrap` reads `queue_url` from `QR_STATEFUL_QUEUE_URL` (or the
-descriptor path) and hashes the password on stdin. `object-bootstrap` uses the
-pinned client, a mode-700 directory with a mode-600 `config.json`, and creates
-the bucket, versioning, policy, `qr_app`, and probe; run both before `bootstrap`.
+`wait` writes a mode-600 `mc` config and runs `mc` with the MinIO CA; it requires
+every `minio-<host>:9000` in `mc admin info`, zero offline/healing, the expected
+count, then etcd health, a Patroni leader + sync standby, three brokers with no
+alarms, and a primary psql. `queue-bootstrap` reads `queue_url` from
+`QR_STATEFUL_QUEUE_URL` (or the descriptor path) and hashes the password on
+stdin. `object-bootstrap` uses the pinned client, a mode-600 `config.json`, and
+creates the bucket, versioning, policy, `qr_app`, and probe; run both before
+`bootstrap`.
 
 `bootstrap.sh` labels every declared host with exactly `quantrule.host`,
 `quantrule.domain`, `quantrule.profile`, `quantrule.deploy`,
 `quantrule.<service>`, and `quantrule.ingress`. It resolves a host by label,
 hostname, then a unique `Status.Addr`, stops on ambiguity, an unmapped or drained
-node, or a foreign deployment, refuses a non-overlay/attachable/encrypted
-network, hashes the rendered file, and creates only app Swarm secrets; the five
+node, or a foreign deployment, and creates only app Swarm secrets; the five
 stateful and two MinIO root secrets are already on the hosts.
 
 The jobs run **before** `docker stack deploy` in the fixed order
@@ -133,24 +134,25 @@ with watchdog `off`, waits for a new leader + sync (measured RTO), writes
 through `postgres`, compares digest/LSN, dials the surviving HAProxy with
 `PGHOSTADDR`, restores, and records the rejoin. The queue phase stops the quorum
 leader, proves a new leader/quorum/no alarms and a confirmed publish, restores,
-and publishes again. The MinIO phase writes a probe through `minio:9000`,
-stops one node, compares the SHA-256, restores it, heals with a bounded
-`mc admin heal -r`, and waits for zero healing. `--confirm` is required; the
-skip flags leave that row `Unverified`; a missing lab prints `UNVERIFIED`.
+and publishes again. The MinIO phase stops one node, compares the probe SHA-256,
+restores, heals with a bounded `mc admin heal -r`, and waits for zero healing.
+`--confirm` is required; skip flags leave that row `Unverified`; a missing lab
+prints `UNVERIFIED`.
 
 Three VMs on one computer are `Simulated HA`, not host/AZ loss; `swarm-ha`/
 `single-az` stay `HA profile (unverified)` until HA-014. The queue and object
 results are `Simulated HA` at their own level only; the end-to-end digest is
 `Measured` only when `tools/verify.sh` succeeds, otherwise `Unverified`/`Blocked`.
-HA-013 owns archive/off-host copy, restore drills, and any second-site
-replication; object lock is not in v1.5.10.
+HA-013 owns archive/off-host copy, restore drills, second-site replication, and object-lock scope; none is in v1.5.10.
 ## What you see
 
 | Field | Meaning |
 |---|---|
 | `render.json` | Contract, profile, evidence tier, target, stack name, descriptor hash, pinned image, sorted file list; no timestamp |
 | `stack.yaml` | Seven services plus one ingress; no internal published port; external secrets/configs; stop-first when no spare slot, `/health` checks, 180 s monitor |
-| `infra/<host>.yaml` | Pinned Patroni/etcd/HAProxy/RabbitMQ/MinIO/observability units; host-local volumes; no ports; explicit commands; watchdog device only for `required` |
+| `infra/<host>.yaml` | Pinned stateful and observability units; node_exporter/promtail on every host; host-local volumes; no ports; pinned commands/env; watchdog device only for `required` |
+| `prometheus.yml` / `alert-rules.yml` / `alertmanager.yml` | 14 scrape jobs; 38 rules over F01..F17; one `quantrule-null` receiver |
+| `loki.yml` / `promtail-<host>.yml` / `grafana/` | 30-day logs; Docker JSON label whitelist; four read-only dashboards with fixed UIDs |
 | `rabbitmq-<host>.conf` / `rabbitmq-enabled_plugins` | TLS-only 5671, three-node discovery, `pause_minority`, quorum default, alarms, Prometheus 15692; no plaintext/management port |
 | `minio-<host>.conf` / `minio-policy.json` | Explicit `MINIO_VOLUMES`, `EC:N`, browser off, root `_FILE` references; bucket-scoped `qr_app` policy |
 | `stateful-manifest.json` | Sources, absolute targets, modes, owners, scopes, and `hosts`; never a value or fingerprint |
@@ -159,6 +161,7 @@ replication; object lock is not in v1.5.10.
 | `check` ingress rows | Static/dynamic/keepalived, certificate files and SAN/expiry, `/health` `/ready` `/version`, HSTS/nosniff/no-referrer/no-`Server`, port-80 closure, mounts |
 | `check --remote/--overlay` rows | Swarm state/managers, node labels/roles, overlay encryption, service replicas/image, 443-only ports, task errors, ingress mounts, limited DNS/route and VIP/firewall |
 | `check` queue/MinIO rows | Broker TLS/cluster/alarms/HAProxy 5671/unit/manifest/SAN; MinIO config/quorum, unit/alias, HAProxy 9000, manifest, app, leaf SAN/expiry; Docker-free |
+| `check` observability rows | Placement, four units, per-host agents, 14 jobs/auth/TLS, 38 rules/HA matrix, null receiver, Loki/promtail/blackbox, Grafana, manifest, logging, internal metrics, socket/ports; Docker-free |
 
 ## What it proves
 
@@ -188,12 +191,10 @@ tier is static/golden/fake-probe; the lab proves simulated failure only.
 | `stateful: not ready after …` | MinIO, etcd, Patroni, HAProxy, or RabbitMQ did not converge | Run `tools/stateful.sh status`; check the drive owner, `mc admin info` healing, mTLS SANs, the REST password, the sync standby, and the broker cluster |
 | `qr_app probe failed` | An existing user has a different secret | Rotate `object_store_secret_key`, update the app Swarm secret, rerun `object-bootstrap` |
 | `stateful: cannot copy …` | SSH or sudo failed, or the rendered file is missing | Fix the SSH/sudo path; render again; never put a secret on the command line |
-
 ## Related
 
 - [Deployment v3 contract](../config/2026-11-22/deploy-v3.md), [ingress](../config/2026-11-23/ingress.md), [Patroni cluster](../config/2026-11-23/patroni-cluster.md), [RabbitMQ cluster](../config/2026-11-23/rabbitmq-cluster.md), [MinIO cluster](../config/2026-11-23/minio-cluster.md)
 - [Swarm control plane](../config/2026-11-23/swarm-control.md)
-- [HA architecture](../architecture/ha.md)
-- [File-backed secrets](../config/2026-11-23/secret-files.md)
-- [Internal TLS](../config/2026-11-23/internal-tls.md)
+- [HA architecture](../architecture/ha.md) and [observability](../config/2026-11-23/observability.md)
+- [File-backed secrets](../config/2026-11-23/secret-files.md) and [internal TLS](../config/2026-11-23/internal-tls.md)
 - [Operations](08-operations.md) and [Multi-host v2](14-multi-host.md)

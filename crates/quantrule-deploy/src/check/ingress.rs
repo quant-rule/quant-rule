@@ -156,7 +156,7 @@ fn static_row() -> CheckRow {
             "ingress",
             "traefik static",
             "443-only",
-            "one websecure 443 entrypoint; no port 80; dashboard/API off; no metrics or ACME; TLS 1.2+; 900 s timeouts; Authorization dropped",
+            "one websecure 443 entrypoint; no port 80; dashboard/API off; internal metrics on 8082; ACME off; TLS 1.2+; 900 s timeouts; Authorization dropped",
         )
     } else {
         CheckRow::failed(
@@ -180,7 +180,6 @@ fn static_issues(text: &str) -> Vec<String> {
     for forbidden in [
         "address: \":80\"",
         "\n  web:",
-        "metrics:",
         "acme:",
         "certificatesResolvers:",
     ] {
@@ -201,6 +200,9 @@ fn static_issues(text: &str) -> Vec<String> {
         "Authorization: drop",
         "certFile: /etc/traefik/certs/ingress.crt",
         "keyFile: /etc/traefik/certs/ingress.key",
+        "metrics:",
+        "address: \":8082\"",
+        "entryPoint: metrics",
     ] {
         if !text.contains(expected) {
             issues.push(format!("missing static configuration {expected:?}"));

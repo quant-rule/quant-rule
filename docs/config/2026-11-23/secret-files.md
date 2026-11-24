@@ -102,6 +102,8 @@ to the migration jobs. The five stateful secrets (four Patroni passwords and
 `stateful.rabbitmq.nodes`. The two MinIO root secrets (`minio_root_user`,
 `minio_root_password`) have `minio` scope: they go only to
 `stateful.minio.nodes`, never an app Swarm secret and never an app container.
+`patroni_rest_password` is also copied read-only to the Prometheus host for the
+scrape; it stays a `stateful` secret and never enters an app container.
 `object_store_access_key` is exactly `qr_app`; that pair stays an app Swarm
 secret and is copied to the MinIO hosts only for the one-shot object bootstrap.
 `QR_INTERNAL_ONLY=1` and the entrypoint's private-address resolution are

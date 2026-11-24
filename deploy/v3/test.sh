@@ -6,10 +6,13 @@
 # moves the ingress VIP, pauses the Patroni primary and one HAProxy with the
 # watchdog off, and stops the RabbitMQ quorum leader; it proves that the
 # surviving gateway, ingress, database, and queue still deliver the pinned
-# digest and a confirmed quorum message. It never removes a stack, volume,
-# secret, config, or node. `--plan` prints the sequence without contacting
-# Docker. `tools/test_tiers.sh ha` defaults to `deploy/v3/deploy.lab.json`; an
-# explicit descriptor still wins.
+# digest and a confirmed quorum message. The observability phase starts
+# Prometheus/Alertmanager/Loki/Grafana, proves GatewaySyntheticDown with a
+# promtool rule unit, and asserts SwarmManagerQuorumAtRisk and
+# GatewayReplicaDown fire and resolve during the existing manager and ingress
+# phases. It never removes a stack, volume, secret, config, or node. `--plan`
+# prints the sequence without contacting Docker. `tools/test_tiers.sh ha`
+# defaults to `deploy/v3/deploy.lab.json`; an explicit descriptor still wins.
 #
 # Usage:
 #   deploy/v3/test.sh --plan
@@ -18,6 +21,7 @@
 #   deploy/v3/test.sh --confirm --skip-database
 #   deploy/v3/test.sh --confirm --skip-queue
 #   deploy/v3/test.sh --confirm --skip-object
+#   deploy/v3/test.sh --confirm --skip-observability
 #
 # Environment:
 #   DESCRIPTOR             descriptor path (default deploy/v3/deploy.example.json)
@@ -57,9 +61,11 @@ skip_deploy=0
 skip_database=0
 skip_queue=0
 skip_object=0
+skip_observability=0
 database_status="Unverified"
 queue_status="Unverified"
 object_status="Unverified"
+observability_status="Unverified"
 
 usage() {
   awk 'NR == 1 { next } /^#/ { sub(/^# ?/, ""); print; next } { exit }' "${BASH_SOURCE[0]}"
@@ -86,6 +92,8 @@ unverified() {
 . "$script_dir/queue-failover.sh"
 # shellcheck source=deploy/v3/minio-failover.sh
 . "$script_dir/minio-failover.sh"
+# shellcheck source=deploy/v3/observability.sh
+. "$script_dir/observability.sh"
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -111,6 +119,10 @@ while [ $# -gt 0 ]; do
       ;;
     --skip-object)
       skip_object=1
+      shift
+      ;;
+    --skip-observability)
+      skip_observability=1
       shift
       ;;
     --descriptor)
@@ -165,6 +177,11 @@ ha: 25. object baseline: write the lab probe through https://minio:9000 with qr_
 ha: 26. object loss: docker stop the chosen MinIO node; reduced mc admin info; read the probe through minio:9000 and compare; app check; digest comparison
 ha: 27. object restore: docker start; wait for three nodes/all drives; bounded mc admin heal -r qr/quantrule; zero healing; probe hash; full check; value-free Simulated HA evidence
 ha: 28. --skip-object leaves the object row Unverified; the end-to-end digest is Measured only after tools/verify.sh succeeds; Real HA is HA-014
+ha: 29. observability: copy/start/wait/verify; health/ready probes 1; every job has a target; no unexpected alert
+ha: 30. observability: promtool rule-unit proof of GatewaySyntheticDown in the pinned image (not Simulated HA)
+ha: 31. observability: manager 3 -> 2; SwarmManagerQuorumAtRisk fires in Prometheus and Alertmanager; restore; resolved
+ha: 32. observability: ingress drain keeps the VIP ready probe 1; a pause on the non-VIP gateway makes GatewayReplicaDown fire; unpause; resolved
+ha: 33. --skip-observability leaves the observability row Unverified; Simulated HA only when both alerts fired and resolved; Real HA is HA-014
 ha: evidence: Simulated HA for lab-single-host; Real HA is HA-014 only
 ha: this plan is not evidence
 PLAN
@@ -270,11 +287,7 @@ stateful_containers() {
     (unit("etcd"; .stateful.etcd.nodes)),
     (unit("haproxy"; .stateful.haproxy.nodes)),
     (unit("rabbitmq"; .stateful.rabbitmq.nodes)),
-    (unit("minio"; .stateful.minio.nodes)),
-    ([.observability.prometheus.host, "quantrule-prometheus-\(.observability.prometheus.host)"] | @tsv),
-    ([.observability.grafana.host, "quantrule-grafana-\(.observability.grafana.host)"] | @tsv),
-    ([.observability.loki.host, "quantrule-loki-\(.observability.loki.host)"] | @tsv),
-    ([.observability.alertmanager.host, "quantrule-alertmanager-\(.observability.alertmanager.host)"] | @tsv)
+    (unit("minio"; .stateful.minio.nodes))
   ' "$descriptor"
 }
 
@@ -557,6 +570,9 @@ ingress_loss() {
   [ -n "$other" ] && [ "$other" != "$holder" ] \
     || unverified "the VIP did not move from $holder"
   say "ingress loss: VIP moved from $holder to $other"
+  if [ "$skip_observability" -eq 0 ]; then
+    obs_ingress_loss
+  fi
 
   failures=$(awk '$2 == "000" { n++ } END { print n + 0 }' "$probe_log")
   server_errors=$(awk '$2 ~ /^5/ { n++ } END { print n + 0 }' "$probe_log")
@@ -702,9 +718,7 @@ preflight() {
     || unverified "cannot SSH to manager $manager_host ($manager_addr); set QR_SWARM_SSH"
   stateful_hosts=$(jq -r '
     [.stateful.postgres.nodes[], .stateful.etcd.nodes[], .stateful.haproxy.nodes[],
-     .stateful.rabbitmq.nodes[], .stateful.minio.nodes[],
-     .observability.prometheus.host, .observability.grafana.host,
-     .observability.loki.host, .observability.alertmanager.host] | unique | .[]
+     .stateful.rabbitmq.nodes[], .stateful.minio.nodes[]] | unique | .[]
   ' "$descriptor") || unverified "cannot read the stateful host list"
   if [ -z "$api_url" ]; then
     api_url="https://$dns/api/v1"
@@ -765,6 +779,13 @@ if [ "$confirm" -eq 0 ]; then
   exit 2
 fi
 
+if [ "$skip_observability" -eq 1 ]; then
+  say "observability: skipped (--skip-observability); observability row Unverified"
+else
+  say "observability: copy, start, wait, verify, baseline, rule-unit proof"
+  obs_start
+fi
+
 say "loss: drain worker-capacity node $worker_host ($worker_id)"
 "$docker_bin" node update --availability drain "$worker_id" >/dev/null
 sleep 5
@@ -783,6 +804,9 @@ $ssh_bin "$manager_addr" "$stop_cmd" \
   || unverified "cannot stop the manager on $manager_host"
 wait_manager_down "$manager_host"
 manager_quorum
+if [ "$skip_observability" -eq 0 ]; then
+  obs_manager_loss "$manager_host"
+fi
 targeted_check "after manager stop"
 stateful_check_all "$manager_host"
 stateful_no_move "$manager_host"
@@ -792,6 +816,9 @@ $ssh_bin "$manager_addr" "$start_cmd" \
   || unverified "cannot start the manager on $manager_host"
 wait_ready "$manager_host"
 manager_quorum
+if [ "$skip_observability" -eq 0 ]; then
+  obs_manager_restore
+fi
 stateful_check_all
 stateful_no_move
 targeted_check "after manager restore"
@@ -801,6 +828,9 @@ say "ingress: preflight"
 ingress_preflight
 say "ingress: VIP loss and negative controls"
 ingress_loss
+if [ "$skip_observability" -eq 0 ]; then
+  obs_gateway_replica_loss
+fi
 
 if [ "$skip_database" -eq 1 ]; then
   say "database: skipped (--skip-database); failover row Unverified"
@@ -838,5 +868,10 @@ digest_status=${o_digest_status:-Unverified}
 if [ "$skip_object" -eq 1 ]; then
   digest_status="Unverified"
 fi
-say "summary: $evidence; worker/manager/ingress; database $database_status; queue $queue_status; object_store $object_status"
+if [ "$skip_observability" -eq 1 ]; then
+  observability_status="Unverified"
+else
+  obs_finish
+fi
+say "summary: $evidence; worker/manager/ingress; database $database_status; queue $queue_status; object_store $object_status; observability $observability_status"
 say "end-to-end canonical digest: $digest_status; Real HA is HA-014"

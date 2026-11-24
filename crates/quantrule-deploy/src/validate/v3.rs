@@ -36,7 +36,7 @@ pub const REQUIRED_SERVICES: [&str; 7] = [
 pub const REQUIRED_DATABASES: [&str; 4] = ["gateway", "catalog", "evidence", "simulation"];
 
 /// Every infrastructure unit the v3 renderer places must be pinned.
-pub const REQUIRED_IMAGES: [&str; 13] = [
+pub const REQUIRED_IMAGES: [&str; 16] = [
     "traefik",
     "postgres",
     "patroni",
@@ -50,6 +50,9 @@ pub const REQUIRED_IMAGES: [&str; 13] = [
     "grafana",
     "loki",
     "alertmanager",
+    "node_exporter",
+    "promtail",
+    "blackbox_exporter",
 ];
 
 /// The fixed database facts for one logical database.
@@ -738,6 +741,30 @@ fn validate_observability(descriptor: &Descriptor) -> Result<(), Error> {
             &value.host,
             &format!("observability.{unit}.host"),
         )?;
+    }
+    // The two alerting-path units must survive one host loss independently:
+    // Prometheus evaluates and Alertmanager routes, so a shared host would lose
+    // both. This is a placement rule, not a new descriptor field.
+    let hosts: BTreeSet<&str> = [prometheus, grafana, loki, alertmanager]
+        .iter()
+        .map(|unit| unit.host.as_str())
+        .collect();
+    if hosts.len() == 1 {
+        return Err(rule(
+            "deploy.observability.placement",
+            "observability",
+            "must not place all four observability units on one host; spread them so one host loss does not remove metrics, logs, dashboards, and alerting together",
+        ));
+    }
+    if prometheus.host == alertmanager.host {
+        return Err(rule(
+            "deploy.observability.placement",
+            "observability.alertmanager.host",
+            format!(
+                "must differ from observability.prometheus.host; {} hosts both Prometheus and Alertmanager",
+                prometheus.host
+            ),
+        ));
     }
     Ok(())
 }

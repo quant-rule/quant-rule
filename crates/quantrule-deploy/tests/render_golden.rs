@@ -273,6 +273,19 @@ fn the_render_matches_its_checked_in_golden_files() {
             "minio-infra-1.conf",
             "minio-policy.json",
             "stateful-manifest.json",
+            "prometheus.yml",
+            "alert-rules.yml",
+            "alertmanager.yml",
+            "loki.yml",
+            "blackbox.yml",
+            "promtail-core-1.yml",
+            "observability-manifest.json",
+            "grafana/dashboards/overview.json",
+            "grafana/dashboards/ha-matrix.json",
+            "grafana/dashboards/capacity.json",
+            "grafana/dashboards/runs-evidence.json",
+            "grafana/provisioning/datasources/datasources.yml",
+            "grafana/provisioning/dashboards/dashboards.yml",
         ],
     );
     let rabbitmq =
@@ -315,6 +328,58 @@ fn the_render_matches_its_checked_in_golden_files() {
     let policy = std::fs::read_to_string(out.join("minio-policy.json")).expect("minio policy");
     assert!(policy.contains("\"s3:PutObject\""), "{policy}");
     assert!(policy.contains("\"arn:aws:s3:::quantrule/*\""), "{policy}");
+    let prometheus = std::fs::read_to_string(out.join("prometheus.yml")).expect("prometheus");
+    for expected in [
+        "\"tasks.gateway\"",
+        "\"tasks.ingress\"",
+        "\"patroni-infra-1:8008\"",
+        "\"haproxy-edge-1:8404\"",
+        "\"rabbitmq-infra-1:15692\"",
+        "\"minio-infra-1:9000\"",
+        "\"node-core-1:9100\"",
+        "password_file: \"/etc/prometheus/secrets/patroni_rest_password\"",
+        "ca_file: \"/etc/quantrule/pki/ca.crt\"",
+        "check: \"health\"",
+        "check: \"ready\"",
+    ] {
+        assert!(prometheus.contains(expected), "{expected}: {prometheus}");
+    }
+    let rules = std::fs::read_to_string(out.join("alert-rules.yml")).expect("rules");
+    for row in 1..=17 {
+        assert!(
+            rules.contains(&format!("failure_row: \"F{row:02}\"")),
+            "F{row:02}"
+        );
+    }
+    assert_eq!(rules.matches("failure_row:").count(), 38, "{rules}");
+    for expected in [
+        "GatewayReplicaDown",
+        "EtcdNodeDown",
+        "PostgresNoPrimaryBackend",
+        "MinioClusterUnhealthy",
+        "SwarmManagerQuorumAtRisk",
+        "patroni_primary",
+        "patroni_xlog_received_location - patroni_xlog_replayed_location",
+        "patroni_sync_standby",
+        "minio_cluster_drive_offline_total",
+        "minio_cluster_health_erasure_set_healing_drives",
+        "minio_cluster_health_status",
+    ] {
+        assert!(rules.contains(expected), "{expected}: {rules}");
+    }
+    assert!(!rules.contains("patroni_master"), "{rules}");
+    assert!(
+        !rules.contains("minio_cluster_disk_offline_total"),
+        "{rules}"
+    );
+    assert!(!rules.contains("minio_cluster_heal_status"), "{rules}");
+    let alertmanager = std::fs::read_to_string(out.join("alertmanager.yml")).expect("alertmanager");
+    assert_eq!(
+        alertmanager.matches("name: \"quantrule-null\"").count(),
+        1,
+        "{alertmanager}"
+    );
+    assert!(!alertmanager.contains("webhook_configs"), "{alertmanager}");
     let _ = std::fs::remove_dir_all(directory);
 }
 

@@ -104,13 +104,16 @@ MINIO_STORAGE_CLASS_STANDARD="EC:2"
 MINIO_ROOT_USER_FILE="/run/secrets/minio_root_user"
 MINIO_ROOT_PASSWORD_FILE="/run/secrets/minio_root_password"
 MINIO_CONFIG_ENV_FILE="/etc/minio/minio.conf"
+MINIO_PROMETHEUS_AUTH_TYPE="public"
 MINIO_REGION="us-east-1"
 ```
 
 The volumes list is explicit per node and drive, in descriptor order. Every node
 receives the same list; each server resolves its own `minio-<host>` and local
 `/dataN` path. The `_FILE` names are references; the values are mode-600 host
-files mounted read-only. The unit starts as the image's default user; if a later
+files mounted read-only. Public metrics auth is overlay-only: the PLAT-006
+`minio` job scrapes `/minio/v2/metrics/cluster` on `minio-<host>:9000` with the
+private CA. The unit starts as the image's default user; if a later
 image pin runs non-root, set `QR_STATEFUL_DATA_OWNER` and install the leaf for
 that user.
 
@@ -230,7 +233,7 @@ rendered bytes:
 
 | Row | Checks |
 |---|---|
-| `minio` / `conf` | exact `MINIO_VOLUMES`, `https://minio:9000`, browser off, `EC:N`, root `_FILE`, region |
+| `minio` / `conf` | exact `MINIO_VOLUMES`, `https://minio:9000`, browser off, `EC:N`, root `_FILE`, public overlay-only metrics auth, region |
 | `minio` / `no-secret` | no root/app secret value and no console port 9001 |
 | `minio` / `overlay-only` | no host underlay address |
 | `minio` / `quorum` | drives, parity, write quorum after one node loss; `[2,1,1]` is refused |

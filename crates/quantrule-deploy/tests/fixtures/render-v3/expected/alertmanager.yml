@@ -1,0 +1,28 @@
+global:
+  resolve_timeout: "5m"
+inhibit_rules:
+  -
+    equal:
+      -
+        "alertname"
+      -
+        "failure_row"
+    source_matchers:
+      -
+        "severity=\"critical\""
+    target_matchers:
+      -
+        "severity=\"warning\""
+receivers:
+  -
+    name: "quantrule-null"
+route:
+  group_by:
+    -
+      "alertname"
+    -
+      "failure_row"
+  group_interval: "5m"
+  group_wait: "30s"
+  receiver: "quantrule-null"
+  repeat_interval: "4h"

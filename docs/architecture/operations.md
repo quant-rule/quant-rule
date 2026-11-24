@@ -1,6 +1,6 @@
 # Operations
 
-- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); runtime drain, readiness, retries, file secrets, token rotation, the PLAT-003 stateful tier, check rows, and failover lab, the PLAT-004 queue tier, checks, definitions, and broker-loss lab, and the PLAT-005 MinIO tier/object bootstrap/check rows/node-loss lab in v1.6.0; approved 2026-11-12
+- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); runtime drain, readiness, retries, file secrets, token rotation, the PLAT-003 stateful tier, check rows, and failover lab, the PLAT-004 queue tier, checks, definitions, and broker-loss lab, the PLAT-005 MinIO tier/object bootstrap/check rows/node-loss lab, and the PLAT-006 observability tier are in v1.6.0; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 
@@ -35,7 +35,7 @@ Each service serves `/metrics` on `QR_METRICS_BIND`, on the internal network
 only; the gateway never proxies it and no host port is published. Logs are one
 JSON object per line on stderr unless `QR_LOG_FORMAT=text`. Every gateway
 response carries `x-request-id`, and a valid W3C `traceparent` is forwarded.
-These fields are observability, never evidence or a run identity.
+In v3, Prometheus scrapes the services and stateful endpoints, routes 38 rules over F01..F17 to one internal `quantrule-null` receiver, and ships four read-only dashboards; `tools/observability.sh` starts and verifies the tier, `qr-deploy check` runs the 28 static observability rows, and the `ha` lab asserts the manager/gateway alerts fire and resolve. These fields are observability, never evidence or a run identity.
 
 `quantrule_ready` is `0` while draining and `quantrule_draining` is `1`. A
 `SIGTERM` waits up to 20 s for HTTP and 25 s for a worker; `stop_grace_period:
@@ -57,20 +57,17 @@ docker compose logs --tail 20 gateway
 The work queues are generated quorum queues (`runs.backtest.g<n>`,
 `runs.evidence.g<n>`, `stages.worker.g<n>`) with a three-redelivery limit and a
 dead-letter exchange; `runs.dead-letter.g<n>` is the quorum dead-letter queue.
-Inspect in v1/v2 with `docker compose exec -T rabbitmq rabbitmqctl list_queues
-name type messages consumers arguments --formatter json`; in v3 use `docker exec
--u rabbitmq quantrule-rabbitmq-<host> rabbitmqctl ...`.
+Inspect with `docker compose exec -T rabbitmq rabbitmqctl list_queues ...`, or
+in v3 `docker exec -u rabbitmq quantrule-rabbitmq-<host> rabbitmqctl ...`.
 
 A message that exhausts the limit is in the dead-letter queue with its original
-routing key and an `x-death` header; the run row remains the record. Each
-rejection logs the queue, routing key, and `x-delivery-count`. A changed queue
-declaration moves to a new `QR_QUEUE_GENERATION`: drain the old generation with
-its consumers, stop them, then unbind or delete the empty queues. In v3, three
-brokers sit behind the HAProxy `rabbitmq` alias; a consumer rebuilds its
-connection from the stored URL/CA; queue consumers use `restart_policy: any`.
+routing key and an `x-death` header; the run row remains the record. A changed
+queue declaration moves to a new `QR_QUEUE_GENERATION`: drain the old
+generation, stop its consumers, then unbind or delete the empty queues. In v3,
+three brokers sit behind the HAProxy `rabbitmq` alias; a consumer rebuilds its
+connection from the stored URL/CA and uses `restart_policy: any`.
 `tools/queue-definitions.sh` exports stripped topology, verifies the four
 queues/bindings/no policy, and retains 30 days; HA-013 owns archive/restore.
-
 ### Evidence leader
 
 `runs.leader_lease` names the one finalizer; the leader renews every 10 s with a

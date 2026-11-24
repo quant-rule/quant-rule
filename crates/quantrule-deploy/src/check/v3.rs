@@ -216,6 +216,7 @@ pub fn check_with(
     for row in ingress::local_rows(descriptor) {
         report.push(row);
     }
+    super::observability::append(&mut report, descriptor, options.out.as_deref());
     match probe(descriptor) {
         Ok(probe) => ingress::probe_rows(&mut report, descriptor, probe.as_ref()),
         Err(error) => report.push(CheckRow::failed(

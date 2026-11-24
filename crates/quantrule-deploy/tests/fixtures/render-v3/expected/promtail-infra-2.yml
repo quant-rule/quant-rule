@@ -1,0 +1,47 @@
+clients:
+  -
+    url: "http://loki:3100/loki/api/v1/push"
+positions:
+  filename: "/var/lib/promtail/positions.yaml"
+scrape_configs:
+  -
+    docker_sd_configs:
+      -
+        host: "unix:///var/run/docker.sock"
+        refresh_interval: "30s"
+    job_name: "docker"
+    pipeline_stages:
+      -
+        docker: {}
+    relabel_configs:
+      -
+        action: "keep"
+        regex: "/(quantrule.*)"
+        source_labels:
+          -
+            "__meta_docker_container_name"
+      -
+        regex: "/(quantrule.*)"
+        source_labels:
+          -
+            "__meta_docker_container_name"
+        target_label: "container"
+      -
+        source_labels:
+          -
+            "__meta_docker_container_label_com_docker_swarm_service_name"
+        target_label: "service"
+      -
+        source_labels:
+          -
+            "__meta_docker_container_label_com_docker_compose_service"
+        target_label: "service"
+      -
+        replacement: "infra-2"
+        target_label: "host"
+      -
+        action: "labeldrop"
+        regex: "__meta_docker_.*"
+server:
+  grpc_listen_port: 0
+  http_listen_port: 9080

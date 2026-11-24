@@ -1,0 +1,29 @@
+# The deterministic rule-unit proof for GatewaySyntheticDown.
+#
+# Run inside the pinned Prometheus image with the rendered alert rules mounted
+# at /etc/prometheus/alert-rules.yml:
+#
+#   promtool test rules /tests/gateway-synthetic-down.yml
+#
+# This proves the rule expression and the bounded F01 label; it is not a live
+# ingress failure and it is not `Simulated HA`.
+rule_files:
+  - /etc/prometheus/alert-rules.yml
+evaluation_interval: 1m
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'probe_success{job="blackbox",check="ready"}'
+        values: '0x6'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: GatewaySyntheticDown
+        exp_alerts:
+          - exp_labels:
+              check: ready
+              failure_row: F01
+              job: blackbox
+              severity: critical
+            exp_annotations:
+              runbook: https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md
+              summary: the synthetic ingress probe failed

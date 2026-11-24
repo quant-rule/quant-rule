@@ -166,7 +166,7 @@ certificate and `verify-full` reach PostgreSQL unchanged.
 The rendered file contains a placeholder, not the password. The unit reads
 `/run/secrets/patroni_rest_password`, Base64-encodes `patroni:<password>`, writes
 a runtime copy under `/run`, and execs HAProxy. The stats listener is on the
-overlay only; PLAT-006 owns scraping and alerting.
+overlay only; PLAT-006 scrapes it with `basic_auth.password_file` and alerts it.
 
 ## 7. Boot order
 
@@ -236,8 +236,8 @@ evidence.
 
 The etcd metrics listener is `http://0.0.0.0:2381` on the overlay; HAProxy
 exposes `/stats` on 8404; Patroni exposes REST `/primary`, `/replica`, `/health`,
-and `/metrics` on 8008. None is published. PLAT-006 owns Prometheus scrape
-configuration, dashboards, and alerts.
+and `/metrics` on 8008. None is published. PLAT-006 Prometheus scrapes
+`patroni-<host>:8008` with the REST password file; see the observability contract.
 
 `qr-deploy check` adds the stateful rows. Patroni: strict sync, count 1, commit
 `on`, pg_rewind/slots, `wal_log_hints`, archive commands, TLS paths,
@@ -295,7 +295,7 @@ does not exercise the watchdog `automatic`/`required` paths.
 | Watchdog `automatic`/`required` is not exercised by the pause lab | Keep the lab `off`; verify a softdog on the host before a separate phase |
 | A lost etcd quorum has no automatic failover; mTLS leaves rotate by restart | Keep three members across hosts; plan a rolling restart; never remove a member while quorum is lost |
 | The archive commands are file placeholders, not a backup repository | HA-013 owns pgBackRest, retention, and the restore drill |
-| Scrape, dashboard, and alert configuration is out of scope | PLAT-006 owns it; the metrics listeners stay on the overlay |
+| Scrape, dashboard, and alert configuration is out of scope | PLAT-006 ships it; the metrics listeners stay on the overlay |
 
 The fast tier proves the rendered contract, not a live Patroni cluster,
 failover, or TLS handshake. A lab run is the only source of a measured RTO and a

@@ -1,6 +1,6 @@
 # Highly Available Runtime
 
-- Status: Target for the next release; the evidence leader (HA-006), data active/active (HA-007), runtime drain/readiness/retries/file secrets/token rotation (HA-009), internal TLS for PostgreSQL/RabbitMQ/MinIO (HA-010), v3 render/check (HA-012), the PLAT-001 control plane, the PLAT-002 ingress, the PLAT-003 Patroni/etcd/HAProxy tier, the PLAT-004 RabbitMQ tier, and the PLAT-005 MinIO erasure/TLS/front door/object bootstrap/check rows/node-loss lab are current; the lab is `Unverified` without a three-VM host; accepted by [ADR-HA](../adr/2026-11-22/1082-ha-deployment-profile.md)
+- Status: Target for the next release; the evidence leader (HA-006), data active/active (HA-007), runtime drain/readiness/retries/file secrets/token rotation (HA-009), internal TLS for PostgreSQL/RabbitMQ/MinIO (HA-010), v3 render/check (HA-012), the PLAT-001 control plane, the PLAT-002 ingress, the PLAT-003 Patroni/etcd/HAProxy tier, the PLAT-004 RabbitMQ tier, the PLAT-005 MinIO erasure/TLS/front door/object bootstrap/check rows/node-loss lab, and the PLAT-006 observability tier (including `check/observability.rs` and the lab assertions) are current; the lab is `Unverified` without a three-VM host; accepted by [ADR-HA](../adr/2026-11-22/1082-ha-deployment-profile.md)
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 
@@ -23,7 +23,6 @@ Backtest ×N (quorum consumers)
         ▼
 Run artifacts → evidence leader → run record + digest
 ```
-
 
 ## 2. Services
 
@@ -112,6 +111,7 @@ and no cross-database joins.
 - Postgres, RabbitMQ and MinIO use TLS with a private CA; per-service credentials.
 - Internal HTTP stays plaintext on the encrypted overlay. mTLS remains deferred beyond HA-012; a compromised overlay host can impersonate a service ([TLS contract](../config/2026-11-23/internal-tls.md)).
 - Every service serves `/ready`; a drain flips it before the process stops, and `/metrics` stays internal.
+- Prometheus scrapes the seven services, ingress, Patroni, etcd, HAProxy, RabbitMQ, MinIO, node_exporter, blackbox, and itself; Prometheus and Alertmanager sit on distinct hosts, Loki/promtail keep 30 days of JSON logs, four dashboards are read-only, and every port stays overlay-only ([observability contract](../config/2026-11-23/observability.md)). The 38 rules cover F01..F17, including `GatewayReplicaDown`, `EtcdNodeDown`, `PostgresNoPrimaryBackend`, `MinioClusterUnhealthy`, and `SwarmManagerQuorumAtRisk`.
 - JSON logs carry request ids as observability only; they never enter evidence.
 - Image is signed, SBOM published and digest pinned.
 
@@ -137,7 +137,6 @@ Contracts: [deploy/v3](../config/2026-11-22/deploy-v3.md),
 [rabbitmq-cluster](../config/2026-11-23/rabbitmq-cluster.md),
 [minio-cluster](../config/2026-11-23/minio-cluster.md), [swarm-control](../config/2026-11-23/swarm-control.md),
 [manual 15](../manual/15-ha-deployment.md).
-
 ## 10. Failure behaviour
 
 | Failure | Behaviour |
@@ -164,7 +163,4 @@ Contracts: [deploy/v3](../config/2026-11-22/deploy-v3.md),
 - RTO target: 15 minutes node/AZ, 1 hour region; the lab measures a pause RTO, not this SLO.
 ## 12. Evidence boundary
 
-The three-VM lab proves simulated node failure, not physical host, AZ, power or
-disk-controller failure; the `ha` tier records the pause RTO, rejoin, queue
-broker-loss gap, and the MinIO probe hash/write quorum as `Simulated HA` at each
-tier; `--skip-object` leaves that row `Unverified`; the digest is `Measured` only after `tools/verify.sh`; `Real HA` is HA-014.
+The three-VM lab proves simulated node failure, not physical host, AZ, power or disk-controller failure; the `ha` tier records the pause RTO, rejoin, queue broker-loss gap, and MinIO probe hash as `Simulated HA` at each tier; the observability phase is `Simulated HA` only when `SwarmManagerQuorumAtRisk` and `GatewayReplicaDown` fired and resolved, and `check/observability.rs` is the Docker-free static contract; `--skip-object` or `--skip-observability` leaves that row `Unverified`; the digest is `Measured` only after `tools/verify.sh`; `Real HA` is HA-014.

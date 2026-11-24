@@ -55,10 +55,15 @@ there is no plaintext fallback. Internal HTTP stays plaintext on the overlay
 | 7 | `make remote` | Connection → enter the printed token | Only `:8080` published; token required |
 | 8 | `make backup` | — | One timestamped archive and a SHA-256 sidecar |
 | 9 | `make restore FILE=<archive>` | — | A clean stack restored from the verified archive |
-
 `make remote` creates missing files under `secrets/`, refuses a documented
 default password, and checks the 401/401/200 token matrix. The browser keeps the
 token in local storage and sends it only as `Authorization: Bearer`.
+
+`tools/observability.sh` starts the v3 observability tier: Prometheus 30d/20GB,
+Loki 30d, Alertmanager 120h with one internal `quantrule-null` receiver, and
+four read-only Grafana dashboards. node_exporter and promtail run everywhere;
+manager quorum is a `docker node ls` textfile, never a container socket.
+F01..F17 and the ports are in the [observability contract](../config/2026-11-23/observability.md); `qr-deploy check` runs the 28 observability rows, and the `ha` lab asserts the manager and gateway alerts fire and resolve; no port is public.
 
 ## Retention fields
 
@@ -131,8 +136,8 @@ a network gate, not an account. There is one principal.
 ## Metrics and logs
 
 Each service starts an internal Prometheus listener when `QR_METRICS_BIND` is
-set. The default Compose stack sets it to `0.0.0.0:9090` inside the container
-network and publishes no metrics port. The gateway does not proxy `/metrics`.
+set; the default Compose stack sets `0.0.0.0:9090` inside the container network
+and publishes no metrics port. The gateway does not proxy `/metrics`.
 
 ```bash
 docker compose exec -T gateway curl -fsS http://127.0.0.1:9090/metrics
@@ -140,42 +145,37 @@ docker compose exec -T data curl -fsS http://127.0.0.1:9090/metrics
 ```
 
 The common families are build identity, process start, readiness, draining,
-dependency health, HTTP request counts, a duration histogram, and in-flight
-requests. The workers add queue depth, worker count, run/stage outcome counters,
-retry and reconnect counters; evidence adds the leader gauge and outbox depth; the
-gateway adds `quantrule_auth_reload_failures_total` and
-`quantrule_auth_token_age_seconds`. Labels use the route template
-(`/runs/{id}`) or a fixed queue kind; never a raw path, generated queue name or
-id.
+dependency health, HTTP counts/duration/in-flight, queue depth, worker count,
+run/stage outcomes, retries/reconnects, the evidence leader and outbox, and the
+gateway auth families. Labels use the route template (`/runs/{id}`) or a fixed
+queue kind; never a raw path, generated queue name or id.
 
-`quantrule_ready` is `0` and `quantrule_draining` is `1` as soon as a SIGTERM
-arrives. `/ready` answers `503` with a `draining` detail immediately; `/health`
-stays `200` while the process lives. The HTTP server waits up to
-`QR_DRAIN_TIMEOUT_HTTP` (20 s) and a worker up to `QR_DRAIN_TIMEOUT_WORK` (25 s);
-Compose allows 40 s before a forced kill. If a request or run outlives its
-deadline the process still exits `0` and logs `drain.deadline_exceeded`.
+`quantrule_ready` is `0` and `quantrule_draining` is `1` on SIGTERM; `/ready`
+answers `503 draining` immediately while `/health` stays `200`. The HTTP server
+waits `QR_DRAIN_TIMEOUT_HTTP` (20 s), a worker `QR_DRAIN_TIMEOUT_WORK` (25 s),
+and Compose allows 40 s. A deadline still exits `0` and logs
+`drain.deadline_exceeded`.
 
 ### Drain and retries
 
-A draining worker stops claiming and lets its in-flight run finish. If the
-deadline aborts it, the run stays `running` with its lease and no digest; lease
-expiry and the outbox recover it. Shutdown never writes `failed`.
+A draining worker stops claiming and lets its in-flight run finish; if the
+deadline aborts it, the run stays `running` with its lease and no digest, and
+lease expiry plus the outbox recover it. Shutdown never writes `failed`.
 
 Internal GET reads and the audited dataset-reference writes retry three times
-with a 200 ms base delay, factor four, a 5 s maximum delay and a 15 s total
-deadline. A claim, a model compute, a signal create, a stage create, a decision,
-a cancel and a streaming body never retry. A queue consumer that errors
-reconnects with 1–30 s backoff and rebuilds the connection; it then restarts
-with `restart_policy: any`, and a drain during a backoff is a clean stop.
+with a 200 ms base, factor four, a 5 s maximum and a 15 s deadline. A claim,
+compute, signal/stage create, decision, cancel and streaming body never retry.
+A queue consumer that errors reconnects with 1–30 s backoff, rebuilds the
+connection, then restarts with `restart_policy: any`; a drain during backoff is
+a clean stop.
 
-The shell retries GET reads on 3 attempts, 200 ms base, factor four, 5 s cap and
-15 s deadline; the browser uses 3 attempts, 250 ms base, factor four and 4 s cap.
-A mutation never retries; the browser banner persists until a read succeeds.
+The shell retries a GET on 3 attempts, 200 ms base, factor four, 5 s cap and
+15 s deadline; the browser uses 3 attempts, 250 ms base, factor four and 4 s
+cap. A mutation never retries; the browser banner persists until a read succeeds.
 
-Logs are one JSON object per line on stderr. Set `QR_LOG_FORMAT=text` only for
-local debugging; `QR_LOG` is the filter. A request returns `x-request-id`, and a
-valid W3C `traceparent` is forwarded. Neither enters an artifact or the
-canonical digest.
+Logs are one JSON object per line on stderr; `QR_LOG_FORMAT=text` is local
+debugging only and `QR_LOG` is the filter. `x-request-id` and a valid W3C
+`traceparent` are forwarded; neither enters an artifact or the digest.
 
 ```bash
 docker compose logs --tail 20 gateway

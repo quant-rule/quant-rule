@@ -1,0 +1,108 @@
+{
+  "annotations": { "list": [] },
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "qr-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "colorMode": "value", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "count(count by (failure_row) (ALERTS{alertstate=\"firing\"}))", "instant": true, "legendFormat": "firing", "refId": "A" }],
+      "title": "Firing HA rows",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "qr-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "id": 2,
+      "options": { "colorMode": "value", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "max(probe_success{job=\"blackbox\"})", "instant": true, "legendFormat": "synthetic", "refId": "A" }],
+      "title": "Ingress synthetic",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "qr-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+      "id": 3,
+      "options": { "colorMode": "value", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "sum(patroni_primary)", "instant": true, "legendFormat": "primary", "refId": "A" }],
+      "title": "PostgreSQL primary",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "qr-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
+      "id": 4,
+      "options": { "colorMode": "value", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "max(etcd_server_has_leader)", "instant": true, "legendFormat": "etcd", "refId": "A" }],
+      "title": "etcd leader",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "qr-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 0 },
+      "id": 5,
+      "options": { "colorMode": "value", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "sum(rabbitmq_running)", "instant": true, "legendFormat": "brokers", "refId": "A" }],
+      "title": "RabbitMQ nodes",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "qr-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 0 },
+      "id": 6,
+      "options": { "colorMode": "value", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "expr": "max(quantrule_swarm_managers_ready)", "instant": true, "legendFormat": "managers", "refId": "A" }],
+      "title": "Swarm managers ready",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "qr-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 26, "w": 24, "x": 0, "y": 4 },
+      "id": 7,
+      "options": { "showHeader": true, "sortBy": [{ "desc": false, "displayName": "failure_row" }] },
+      "targets": [
+        { "expr": "max(ALERTS{alertstate=\"firing\", failure_row=\"F01\"}) or on() vector(0)", "instant": true, "legendFormat": "F01 Ingress and certificate", "refId": "A" },
+        { "expr": "max(ALERTS{alertstate=\"firing\", failure_row=\"F02\"}) or on() vector(0)", "instant": true, "legendFormat": "F02 Readiness", "refId": "B" },
+        { "expr": "max(ALERTS{alertstate=\"firing\", failure_row=\"F03\"}) or on() vector(0)", "instant": true, "legendFormat": "F03 Service replica", "refId": "C" },
+        { "expr": "max(ALERTS{alertstate=\"firing\", failure_row=\"F04\"}) or on() vector(0)", "instant": true, "legendFormat": "F04 Drain", "refId": "D" },
+        { "expr": "max(ALERTS{alertstate=\"firing\", failure_row=\"F05\"}) or on() vector(0)", "instant": true, "legendFormat": "F05 Consumer reconnect", "refId": "E" },
+        { "expr": "max(ALERTS{alertstate=\"firing\", failure_row=\"F06\"}) or on() vector(0)", "instant": true, "legendFormat": "F06 Evidence leader", "refId": "F" },
+        { "expr": "max(ALERTS{alertstate=\"firing\", failure_row=\"F07\"}) or on() vector(0)", "instant": true, "legendFormat": "F07 Partial publish", "refId": "G" },
+        { "expr": "max(ALERTS{alertstate=\"firing\", failure_row=\"F08\"}) or on() vector(0)", "instant": true, "legendFormat": "F08 Patroni leader", "refId": "H" },
+        { "expr": "max(ALERTS{alertstate=\"firing\", failure_row=\"F09\"}) or on() vector(0)", "instant": true, "legendFormat": "F09 Patroni lag", "refId": "I" },
+        { "expr": "max(ALERTS{alertstate=\"firing\", failure_row=\"F10\"}) or on() vector(0)", "instant": true, "legendFormat": "F10 Patroni sync", "refId": "J" },
+        { "expr": "max(ALERTS{alertstate=\"firing\", failure_row=\"F11\"}) or on() vector(0)", "instant": true, "legendFormat": "F11 etcd quorum", "refId": "K" },
+        { "expr": "max(ALERTS{alertstate=\"firing\", failure_row=\"F12\"}) or on() vector(0)", "instant": true, "legendFormat": "F12 RabbitMQ node", "refId": "L" },
+        { "expr": "max(ALERTS{alertstate=\"firing\", failure_row=\"F13\"}) or on() vector(0)", "instant": true, "legendFormat": "F13 RabbitMQ alarm/backlog", "refId": "M" },
+        { "expr": "max(ALERTS{alertstate=\"firing\", failure_row=\"F14\"}) or on() vector(0)", "instant": true, "legendFormat": "F14 MinIO node/drive", "refId": "N" },
+        { "expr": "max(ALERTS{alertstate=\"firing\", failure_row=\"F15\"}) or on() vector(0)", "instant": true, "legendFormat": "F15 MinIO healing/capacity", "refId": "O" },
+        { "expr": "max(ALERTS{alertstate=\"firing\", failure_row=\"F16\"}) or on() vector(0)", "instant": true, "legendFormat": "F16 Backup/verify/token/self", "refId": "P" },
+        { "expr": "max(ALERTS{alertstate=\"firing\", failure_row=\"F17\"}) or on() vector(0)", "instant": true, "legendFormat": "F17 Manager/node capacity", "refId": "Q" }
+      ],
+      "title": "HA failure matrix F01–F17 (1 = firing)",
+      "transformations": [{ "id": "merge", "options": {} }],
+      "type": "table"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["quantrule", "ha"],
+  "templating": { "list": [] },
+  "time": { "from": "now-6h", "to": "now" },
+  "timezone": "utc",
+  "title": "QuantRule — HA matrix",
+  "uid": "qr-ha-matrix",
+  "version": 1
+}

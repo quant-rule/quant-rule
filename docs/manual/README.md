@@ -1,7 +1,7 @@
 # QuantRule User Manual
 
 - Date: 2026-11-23 (UTC)
-- Status: Current; 15 chapters
+- Status: Current; 16 chapters
 - Audience: operator, quant researcher, reviewer
 - Scope: the end-to-end use of the product through the CLI and the browser
 - Claim type: Behaviour Claim
@@ -33,10 +33,11 @@ authoritative.
 | 13 | Client access | [13-client-access.md](13-client-access.md) | Browser and CLI on Windows/Linux; macOS unsupported; local server paths | Current |
 | 14 | Multi-host | [14-multi-host.md](14-multi-host.md) | How to place the six services on several hosts | Current |
 | 15 | HA deployment | [15-ha-deployment.md](15-ha-deployment.md) | How to render, bootstrap, and check the v3 Swarm HA profile | Current |
+| 16 | Observability | [16-observability.md](16-observability.md) | How to run Prometheus, Alertmanager, Loki, promtail, blackbox, node_exporter, and Grafana | Current |
 
 ## 3. How the chapters are written
 
-Chapters 1–8 and 13–15 are runnable procedures, not a reference dump:
+Chapters 1–8 and 13–16 are runnable procedures, not a reference dump:
 
 - **Goal:** the trader's question in one sentence.
 - **Before you start:** the profile, data, config, or artifact you need.

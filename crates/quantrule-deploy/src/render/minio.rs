@@ -152,6 +152,7 @@ pub fn minio_conf(descriptor: &Descriptor, host: &str) -> Result<String, Error> 
          MINIO_ROOT_USER_FILE=\"{MINIO_ROOT_USER_FILE}\"\n\
          MINIO_ROOT_PASSWORD_FILE=\"{MINIO_ROOT_PASSWORD_FILE}\"\n\
          MINIO_CONFIG_ENV_FILE=\"{MINIO_CONFIG_TARGET}\"\n\
+         MINIO_PROMETHEUS_AUTH_TYPE=\"public\"\n\
          MINIO_REGION=\"us-east-1\"\n",
         volumes = volumes.join(" "),
     ))
@@ -234,6 +235,7 @@ mod tests {
             "MINIO_ROOT_USER_FILE=\"/run/secrets/minio_root_user\"",
             "MINIO_ROOT_PASSWORD_FILE=\"/run/secrets/minio_root_password\"",
             "MINIO_CONFIG_ENV_FILE=\"/etc/minio/minio.conf\"",
+            "MINIO_PROMETHEUS_AUTH_TYPE=\"public\"",
             "MINIO_REGION=\"us-east-1\"",
         ] {
             assert!(text.contains(expected), "{expected}: {text}");

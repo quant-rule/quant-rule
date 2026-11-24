@@ -1,0 +1,166 @@
+{
+  "v": "quantrule.deploy/v3",
+  "note": "copy each source to its absolute target on the listed hosts; no secret value or fingerprint is listed",
+  "files": [
+    {
+      "source": "prometheus.yml",
+      "target": "/etc/quantrule/prometheus/prometheus.yml",
+      "mode": "644",
+      "owner": "root",
+      "scope": "config",
+      "hosts": [
+        "lab-1"
+      ]
+    },
+    {
+      "source": "alert-rules.yml",
+      "target": "/etc/quantrule/prometheus/alert-rules.yml",
+      "mode": "644",
+      "owner": "root",
+      "scope": "config",
+      "hosts": [
+        "lab-1"
+      ]
+    },
+    {
+      "source": "alertmanager.yml",
+      "target": "/etc/quantrule/alertmanager/alertmanager.yml",
+      "mode": "644",
+      "owner": "root",
+      "scope": "config",
+      "hosts": [
+        "lab-2"
+      ]
+    },
+    {
+      "source": "loki.yml",
+      "target": "/etc/quantrule/loki/loki.yml",
+      "mode": "644",
+      "owner": "root",
+      "scope": "config",
+      "hosts": [
+        "lab-2"
+      ]
+    },
+    {
+      "source": "blackbox.yml",
+      "target": "/etc/quantrule/blackbox/blackbox.yml",
+      "mode": "644",
+      "owner": "root",
+      "scope": "config",
+      "hosts": [
+        "lab-1"
+      ]
+    },
+    {
+      "source": "grafana/provisioning/datasources/datasources.yml",
+      "target": "/etc/quantrule/grafana/provisioning/datasources/datasources.yml",
+      "mode": "644",
+      "owner": "root",
+      "scope": "config",
+      "hosts": [
+        "lab-1"
+      ]
+    },
+    {
+      "source": "grafana/provisioning/dashboards/dashboards.yml",
+      "target": "/etc/quantrule/grafana/provisioning/dashboards/dashboards.yml",
+      "mode": "644",
+      "owner": "root",
+      "scope": "config",
+      "hosts": [
+        "lab-1"
+      ]
+    },
+    {
+      "source": "grafana/dashboards/overview.json",
+      "target": "/etc/quantrule/grafana/dashboards/overview.json",
+      "mode": "644",
+      "owner": "root",
+      "scope": "config",
+      "hosts": [
+        "lab-1"
+      ]
+    },
+    {
+      "source": "grafana/dashboards/ha-matrix.json",
+      "target": "/etc/quantrule/grafana/dashboards/ha-matrix.json",
+      "mode": "644",
+      "owner": "root",
+      "scope": "config",
+      "hosts": [
+        "lab-1"
+      ]
+    },
+    {
+      "source": "grafana/dashboards/capacity.json",
+      "target": "/etc/quantrule/grafana/dashboards/capacity.json",
+      "mode": "644",
+      "owner": "root",
+      "scope": "config",
+      "hosts": [
+        "lab-1"
+      ]
+    },
+    {
+      "source": "grafana/dashboards/runs-evidence.json",
+      "target": "/etc/quantrule/grafana/dashboards/runs-evidence.json",
+      "mode": "644",
+      "owner": "root",
+      "scope": "config",
+      "hosts": [
+        "lab-1"
+      ]
+    },
+    {
+      "source": "promtail-lab-1.yml",
+      "target": "/etc/quantrule/promtail/promtail-lab-1.yml",
+      "mode": "644",
+      "owner": "root",
+      "scope": "config",
+      "hosts": [
+        "lab-1"
+      ]
+    },
+    {
+      "source": "promtail-lab-2.yml",
+      "target": "/etc/quantrule/promtail/promtail-lab-2.yml",
+      "mode": "644",
+      "owner": "root",
+      "scope": "config",
+      "hosts": [
+        "lab-2"
+      ]
+    },
+    {
+      "source": "promtail-lab-3.yml",
+      "target": "/etc/quantrule/promtail/promtail-lab-3.yml",
+      "mode": "644",
+      "owner": "root",
+      "scope": "config",
+      "hosts": [
+        "lab-3"
+      ]
+    },
+    {
+      "source": "pki/database-ca.crt",
+      "target": "/etc/quantrule/pki/ca.crt",
+      "mode": "644",
+      "owner": "root",
+      "scope": "pki",
+      "hosts": [
+        "lab-1"
+      ]
+    },
+    {
+      "source": "secrets/patroni_rest_password",
+      "target": "/etc/quantrule/secrets/patroni_rest_password",
+      "mode": "600",
+      "owner": "root",
+      "scope": "secret",
+      "hosts": [
+        "lab-1"
+      ]
+    }
+  ]
+}
