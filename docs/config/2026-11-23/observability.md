@@ -1,7 +1,7 @@
 # Observability tier — Prometheus, Alertmanager, Loki, Grafana
 
 - Date: 2026-11-23 (UTC)
-- Status: Current for phase 1 and phase 2 (schema, render, units, rules, dashboards, tool, metrics, `check/observability.rs`, and the lab phase)
+- Status: Current for phase 1, phase 2, and HA-013 phase 1a (schema, render, units, rules including `BackupAgeHigh`, dashboards including Backup & DR, tool, metrics, `check/observability.rs`, and the lab phase)
 - Claim type: Behaviour Claim
 - Issue: [#1119](https://github.com/quant-rule/quant-rule/issues/1119)
 - Related: [HA architecture](../../architecture/ha.md), [observability architecture](../../architecture/observability.md), [deploy/v3](../2026-11-22/deploy-v3.md), [ingress](ingress.md), [Patroni](patroni-cluster.md), [RabbitMQ](rabbitmq-cluster.md), [MinIO](minio-cluster.md), [manual 16](../../manual/16-observability.md)
@@ -115,8 +115,7 @@ The `SwarmManagerQuorumAtRisk` warning (`< 3`, 10 m) and `SwarmManagerQuorumLost
 critical (`< 2`, 5 m) are separate: one manager loss is visible but the quorum
 still holds. `for` windows are conservative: readiness 5 m, leader 2 m, etcd 1 m,
 queue backlog 15 m, healing/capacity 30 m, certificate 1 h, manager-at-risk
-10 m. A missing backup or verify timestamp makes its rule dormant; the row is
-then `Unverified`, not a pass.
+10 m. `BackupAgeHigh` is `absent(quantrule_backup_last_success_timestamp_seconds) or time() - ... > 8d`, so a missing textfile fires rather than looking healthy; `VerifyAgeHigh` stays dormant until the verify stamp exists. The v3 backup host writes the stamp; the Compose path has no node_exporter and is not the production signal.
 
 ## 5. Logs and dashboards
 
@@ -132,7 +131,7 @@ four read-only dashboards:
 | Dashboard | UID | Content |
 |---|---|---|
 | Overview | `qr-overview` | targets, readiness, request rate/latency, queue depth, leader term, logs |
-| HA matrix | `qr-ha-matrix` | F01..F17 firing state and the HA stat row |
+| HA matrix | `qr-ha-matrix` | F01..F17 firing state, the HA stat row, and Backup & DR age |
 | Capacity | `qr-capacity` | filesystem, memory, MinIO capacity/healing, Prometheus storage |
 | Runs and evidence | `qr-runs-evidence` | run/stage outcomes, missing digest, leader, retries, reconnects, logs |
 

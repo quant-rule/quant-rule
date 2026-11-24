@@ -1,8 +1,9 @@
 # Internal TLS Contract
 
 - Date: 2026-11-23 (UTC)
-- Status: Current for the Compose stack, the v2 multi-host profile, and the v3
-  Patroni/etcd/HAProxy and RabbitMQ tiers; pgBackRest TLS is HA-013
+- Status: Current for the Compose stack, the v2 multi-host profile, the v3
+  Patroni/etcd/HAProxy and RabbitMQ tiers, and the HA-013 phase 1a pgBackRest
+  repository; the live backup/restore drill is `Unverified`
 - Issue: [#1108](https://github.com/quant-rule/quant-rule/issues/1108)
 - Claim type: Behaviour Claim
 - Related: [ADR](../../adr/2026-11-23/1108-internal-tls.md),
@@ -28,7 +29,7 @@ failover result.
 | Swarm secret objects, v3 `secrets.files` | none | HA-012 |
 | Patroni REST, etcd client/peer, HAProxy | mTLS or basic auth | PLAT-003 (this contract) |
 | RabbitMQ broker/front door | TLS-only 5671, shared `rabbitmq` alias | PLAT-004 (this contract) |
-| pgBackRest repository TLS | none | HA-013 |
+| pgBackRest S3 repository TLS | `repo1-storage-verify-tls=y` plus `repo1-storage-ca-file` | HA-013 phase 1a (current) |
 
 The TLS contract is deliberately ready for Patroni and HAProxy: it names a CA
 bundle, a hostname, and a port, so the same client code points at a HAProxy
@@ -222,9 +223,11 @@ Client:
 | Failure | client construction or handshake fails; no plaintext retry |
 
 PLAT-005 owns local erasure, versioning, the bucket policy, the app account, and
-the MinIO check rows/node-loss lab; HA-013 owns off-host/archive copies, restore
-drills, and any second-site replication. Root files are stateful host files,
-never app Swarm secrets or app containers; object lock is not in v1.5.10.
+the MinIO check rows/node-loss lab; HA-013 phase 1a configures the pgBackRest S3
+repository with TLS verification and the private CA, and phase 3 owns the object
+archive, restore drills, and any second-site replication. Root files are stateful
+host files, never app Swarm secrets or app containers; object lock is not in v1.5.10.
+The repository contract is [backup and restore](../2026-11-24/backup-restore.md).
 
 ## 7. Configuration
 
@@ -284,7 +287,7 @@ option B with this residual risk; human acceptance remains the final gate.
 | Private CA, leaf rotation, bundled CA | yes | — |
 | Client CA path in Compose and v2 | yes | — |
 | Patroni/etcd mTLS, HAProxy REST auth | no | PLAT-003 (current) |
-| pgBackRest repository TLS | no | HA-013 |
+| pgBackRest repository TLS | yes (S3 verify-tls and CA) | HA-013 phase 1a (current) |
 | Client certificates and service identity for application clients | no | HA-012 |
 | Internal HTTP TLS/mTLS | no | HA-012 |
 | Swarm secrets, v3 `secrets.files` | no | HA-012 (app), PLAT-003 (stateful) |

@@ -318,6 +318,32 @@ fn dashboard_row(out: Option<&Path>) -> CheckRow {
         if value["title"].as_str().is_none_or(str::is_empty) {
             issues.push(format!("{name} has no title"));
         }
+        if name == "ha-matrix.json" {
+            let backup = value["panels"].as_array().is_some_and(|panels| {
+                panels.iter().any(|panel| {
+                    panel["title"]
+                        .as_str()
+                        .is_some_and(|title| title.contains("Backup & DR"))
+                        && panel["targets"].as_array().is_some_and(|targets| {
+                            let expressions: Vec<&str> = targets
+                                .iter()
+                                .filter_map(|target| target["expr"].as_str())
+                                .collect();
+                            expressions.iter().any(|expr| {
+                                expr.contains("quantrule_backup_last_success_timestamp_seconds")
+                            }) && expressions.iter().any(|expr| {
+                                expr.contains("quantrule_verify_last_success_timestamp_seconds")
+                            })
+                        })
+                })
+            });
+            if !backup {
+                issues.push(
+                    "ha-matrix.json has no Backup & DR panel with the backup and verify age queries"
+                        .to_owned(),
+                );
+            }
+        }
         let mut uids = BTreeSet::new();
         datasource_uids(&value, &mut uids);
         for datasource in uids {

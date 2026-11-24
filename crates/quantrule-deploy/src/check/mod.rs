@@ -6,6 +6,7 @@
 //! ingress, and offers the read-only remote Docker and overlay inspectors as
 //! explicit opt-ins. The default check never starts Docker.
 
+mod backup;
 mod ingress;
 mod local;
 mod minio;

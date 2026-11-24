@@ -177,10 +177,12 @@ pub(super) fn patroni_rows(descriptor: &Descriptor, out: Option<&Path>) -> Vec<C
         &texts,
         &[
             "archive_mode: \"on\"",
-            "archive_command: \"",
-            "restore_command: \"",
+            "archive_timeout: 60",
+            "wal_level: \"replica\"",
+            "pgbackrest --stanza=quantrule archive-push %p",
+            "pgbackrest --stanza=quantrule archive-get %f",
         ],
-        "archive/recovery commands are configured placeholders for HA-013",
+        "archive-push and archive-get use the quantrule pgBackRest stanza",
     );
     push_requirement(
         &mut rows,

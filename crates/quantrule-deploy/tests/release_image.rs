@@ -120,11 +120,12 @@ fn write_descriptor(directory: &Path, value: &Value) -> PathBuf {
     path
 }
 
-/// Replace the three remaining blockers with format-valid non-fixture digests.
-fn unblock_minio(value: &mut Value) {
+/// Replace the four remaining blockers with format-valid non-fixture digests.
+fn unblock_fixtures(value: &mut Value) {
     value["image"]["digest"] = json!(REAL_STYLE);
     value["images"]["minio"]["digest"] = json!(REAL_STYLE);
     value["images"]["minio_client"]["digest"] = json!(REAL_STYLE);
+    value["images"]["patroni"]["digest"] = json!(REAL_STYLE);
 }
 
 #[test]
@@ -143,7 +144,7 @@ fn the_sample_and_lab_name_the_public_ghcr_package_and_fixture_digest() {
 }
 
 #[test]
-fn every_checked_in_infrastructure_pin_is_resolved_except_the_two_blockers() {
+fn every_checked_in_infrastructure_pin_is_resolved_except_the_three_blockers() {
     for path in [SAMPLE, LAB, THREE_AZ, SINGLE_AZ] {
         let value = descriptor(path);
         let images = value["images"].as_object().expect("images");
@@ -153,6 +154,17 @@ fn every_checked_in_infrastructure_pin_is_resolved_except_the_two_blockers() {
             match key.as_str() {
                 "minio" => assert_eq!(digest, MINIO_FIXTURE, "{path}"),
                 "minio_client" => assert_eq!(digest, MINIO_CLIENT_FIXTURE, "{path}"),
+                "patroni" => {
+                    assert_eq!(
+                        digest,
+                        "sha256:ffbf6f5298ec083505b31ebe962c70c32d791050d21c328a401f31c1cbe927a5",
+                        "{path}"
+                    );
+                    assert_eq!(
+                        pin["reference"], "ghcr.io/quant-rule/patroni-pgbackrest",
+                        "{path}"
+                    );
+                }
                 _ => assert!(
                     !OLD_INFRA.iter().any(|(_, old)| *old == digest),
                     "{path}: images.{key}.digest is still a retired fixture"
@@ -241,6 +253,7 @@ fn release_mode_names_the_minio_and_minio_client_blockers() {
         let directory = temp_dir();
         let mut value = descriptor(path);
         value["image"]["digest"] = json!(REAL_STYLE);
+        value["images"]["patroni"]["digest"] = json!(REAL_STYLE);
         let descriptor = write_descriptor(&directory, &value);
 
         let output = validate(descriptor.to_str().expect("path"), &["--release"], &[]);
@@ -274,7 +287,7 @@ fn release_mode_refuses_every_retired_infrastructure_fixture_at_its_field() {
     for (key, digest) in OLD_INFRA {
         let directory = temp_dir();
         let mut value = descriptor(SAMPLE);
-        unblock_minio(&mut value);
+        unblock_fixtures(&mut value);
         value["images"][key]["digest"] = json!(digest);
         let descriptor = write_descriptor(&directory, &value);
         let output = validate(descriptor.to_str().expect("path"), &["--release"], &[]);
@@ -290,10 +303,49 @@ fn release_mode_refuses_every_retired_infrastructure_fixture_at_its_field() {
 }
 
 #[test]
+fn release_mode_names_the_derived_patroni_fixture_and_the_base_digest() {
+    let directory = temp_dir();
+    let mut value = descriptor(SAMPLE);
+    value["image"]["digest"] = json!(REAL_STYLE);
+    value["images"]["minio"]["digest"] = json!(REAL_STYLE);
+    value["images"]["minio_client"]["digest"] = json!(REAL_STYLE);
+    let path = write_descriptor(&directory, &value);
+    let output = validate(path.to_str().expect("path"), &["--release"], &[]);
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("images.patroni.digest"), "{stderr}");
+    assert!(stderr.contains("pgBackRest"), "{stderr}");
+
+    value["images"]["patroni"]["digest"] =
+        json!("sha256:0de7dc8bc5919c76721bee1475ed30155b1848c0a6bac7298605bf39eef1a7eb");
+    let path = write_descriptor(&directory, &value);
+    let output = validate(path.to_str().expect("path"), &["--release"], &[]);
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("images.patroni.digest"), "{stderr}");
+    assert!(stderr.contains("without pgBackRest"), "{stderr}");
+    let _ = std::fs::remove_dir_all(directory);
+}
+
+#[test]
+fn release_mode_refuses_an_unencrypted_repository() {
+    let directory = temp_dir();
+    let mut value = descriptor(SAMPLE);
+    unblock_fixtures(&mut value);
+    value["backup"]["cipher"] = json!("none");
+    let path = write_descriptor(&directory, &value);
+    let output = validate(path.to_str().expect("path"), &["--release"], &[]);
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("deploy.backup.cipher"), "{stderr}");
+    let _ = std::fs::remove_dir_all(directory);
+}
+
+#[test]
 fn release_mode_accepts_a_fully_pinned_descriptor() {
     let directory = temp_dir();
     let mut value = descriptor(SAMPLE);
-    unblock_minio(&mut value);
+    unblock_fixtures(&mut value);
     let path = write_descriptor(&directory, &value);
     let output = validate(path.to_str().expect("path"), &["--release"], &[]);
     assert!(

@@ -107,9 +107,10 @@ each owner/app password from its URL file, and runs before `db-bootstrap.sh` and
 (`tools/test_tiers.sh ha`) writes a marker through the primary, pauses the
 Patroni primary with the watchdog off, verifies the marker and canonical digest
 through the new primary, and records the rejoin; `--skip-database` leaves the row
-`Unverified`. The v3 file-based `archive_command`/`restore_command` and the
-`/srv/quantrule/wal-archive` volume are configured placeholders for the HA-013
-pgBackRest repository, not PITR evidence. The service URLs are
+`Unverified`. The v3 `archive_command`/`restore_command` use one pgBackRest
+`quantrule` stanza, and the node-local `/srv/quantrule/wal-archive` volume is
+removed; a live backup/restore/PITR drill is `Unverified`
+([backup contract](../2026-11-24/backup-restore.md)). The service URLs are
 rendered into mode-600 files, not env values. The forward-only migration
 contract, the checksum pin, and the failed-job and rollback runbook are in
 [`migrations.md`](../../architecture/migrations.md).
@@ -128,14 +129,14 @@ the services. The old rows in `quantrule` are not copied. A local deployment
 that must keep them needs the migration path in the release runbook, or
 `make reset` for disposable data. The services do not read `quantrule`.
 
-## 6. What remains stale
+## 6. What changed and what remains open
 
 | Contract | State | Consequence |
 |---|---|---|
-| `tools/backup.sh`, `tools/restore.sh` | Dump and restore one `quantrule` database | They do not yet archive the four databases; a restore drill must be re-run after the backup change |
-| `qr-deploy` descriptor | v2 remains readable; v3 renders per-service `_FILE` envs, per-role URL secrets, the cluster job, and the Patroni/etcd/HAProxy tier | v3 per-role passwords are current; v2 keeps its one password |
+| `tools/backup.sh`, `tools/restore.sh` | Current for the local stack: one custom-format dump per database, `kind=database`, a partial-set refusal, and `--check` | A live restore drill still needs a disposable stack |
+| `qr-deploy` descriptor | v2 remains readable; v3 renders per-service `_FILE` envs, per-role URL secrets, the cluster job, the Patroni/etcd/HAProxy tier, and the pgBackRest files | v3 per-role passwords are current; v2 keeps its one password |
 | Existing `quantrule` rows | Not migrated | A disposable local stack is reset; a kept stack needs a data migration |
-| Multi-host backup wrapper | Calls the single-database tools; HA-013 owns pgBackRest/PITR | Same limitation until HA-013 |
+| Multi-host backup wrapper | Calls the Compose four-database tools; v3 uses one pgBackRest `quantrule` stanza | The v3 live backup/restore/PITR drill is `Unverified` |
 
 These are recorded rather than silently widened in HA-002.
 
@@ -143,10 +144,12 @@ These are recorded rather than silently widened in HA-002.
 
 The evidence database adds `runs.outbox` and `runs.dataset_reference_releases`
 in migration 18, and `lease_holder`, `lease_term`, and `lease_expires_at` in
-migration 19. The outbox commits with a run write and is delivered by the
-publisher; the release tombstone commits with a consumer delete and is retried
-by the reconciler; the lease fences a stale worker. None of these is read by
-another service. The contract is
+migration 19. Migration 22 adds the same lease fence to `stage.runs` and
+`stage.outbox`, so a queued or expired running stage is re-armed by evidence and
+a terminal stage is never claimed. Each outbox commits with its row and is
+delivered by the publisher; the release tombstone commits with a consumer delete
+and is retried by the reconciler. None of these is read by another service. The
+contract is
 [`cross-database-consistency.md`](../../architecture/cross-database-consistency.md).
 
 - `cargo test -p quantrule-runtime --test database_topology` checks the Compose
@@ -155,12 +158,16 @@ another service. The contract is
   secret or an owner URL appears in a long-running service.
 - `cargo test -p quantrule-deploy` checks the rendered service and migration env
   files, the mode-600 secret files, the role URL builder, the v3 cluster job, the
-  Patroni/etcd/HAProxy configuration and check rows, the failover harness, and
-  the stateful manifest.
+  Patroni/etcd/HAProxy configuration and check rows, the failover harness, the
+  pgBackRest files, and the stateful manifest.
+- `cargo test -p quantrule-deploy --test backup_tools` checks the four-database
+  archive schema, the `--check` refusal of a partial set and a changed payload,
+  and the Docker-free plans; `tools/test_backup.sh` is the opt-in live round trip.
 - `cargo test -p quantrule-evidence-service --test outbox_conformance` checks
-  the notification outbox, the restart re-arm, and the release tombstone against
-  the memory store, and the same body against Postgres when
-  `QR_TEST_DATABASE_URL` names a disposable database.
+  the run outbox, the restart re-arm, and the release tombstone against the
+  memory store, and the same body against Postgres when `QR_TEST_DATABASE_URL`
+  names a disposable database; `--test stage_outbox` covers the stage lease,
+  terminal exclusion, duplicate suppression, and the exact rebuild set.
 - The simulation database adds migration 16: a terminal-decision constraint and
   trigger. `cargo test -p quantrule-simulation-service --test concurrency` runs
   the mark and decision race against the memory store, and the Postgres cases

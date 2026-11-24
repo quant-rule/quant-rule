@@ -8,10 +8,13 @@
 # The scripts run on the operator host and call `docker compose`; they add no
 # runtime dependency to the image and never read a client path.
 
-# The archive schema and the names inside every archive.
-BACKUP_SCHEMA='quantrule.backup/v1'
+# The archive schema and the names inside every archive. The schema moved to v2
+# when one dump became one dump per logical database; restore refuses a v1
+# archive rather than guessing that it covers all four.
+BACKUP_SCHEMA='quantrule.backup/v2'
 BACKUP_MANIFEST='manifest.json'
-BACKUP_POSTGRES_FILE='postgres/quantrule.dump'
+BACKUP_DATABASES='qr_gateway qr_catalog qr_evidence qr_simulation'
+BACKUP_DATABASES_DIR='postgres'
 BACKUP_OBJECTS_DIR='objects'
 BACKUP_ARCHIVE_PREFIX='quantrule-'
 

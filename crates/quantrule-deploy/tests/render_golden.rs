@@ -266,6 +266,8 @@ fn the_render_matches_its_checked_in_golden_files() {
         SAMPLE_EXPECTED,
         &[
             "patroni-infra-1.yml",
+            "pgbackrest-infra-1.conf",
+            "pgbackrest-backup.sh",
             "etcd-infra-1.conf.yml",
             "haproxy-edge-1.cfg",
             "rabbitmq-infra-1.conf",
@@ -380,6 +382,48 @@ fn the_render_matches_its_checked_in_golden_files() {
         "{alertmanager}"
     );
     assert!(!alertmanager.contains("webhook_configs"), "{alertmanager}");
+    let patroni = std::fs::read_to_string(out.join("patroni-infra-1.yml")).expect("patroni");
+    for expected in [
+        "archive_command: \"pgbackrest --stanza=quantrule archive-push %p\"",
+        "pgbackrest --stanza=quantrule archive-get %f",
+        "archive_timeout: 60",
+    ] {
+        assert!(patroni.contains(expected), "{expected}: {patroni}");
+    }
+    assert!(!patroni.contains("/srv/quantrule/wal-archive"), "{patroni}");
+    let pgbackrest =
+        std::fs::read_to_string(out.join("pgbackrest-infra-1.conf")).expect("pgbackrest config");
+    for expected in [
+        "[quantrule]",
+        "pg1-path=/var/lib/postgresql/data",
+        "pg1-port=5432",
+        "pg1-socket-path=/run/postgresql",
+        "repo1-retention-full=30",
+        "repo1-retention-full-type=time",
+        "repo1-retention-diff=7",
+        "repo1-cipher-type=aes-256-cbc",
+    ] {
+        assert!(pgbackrest.contains(expected), "{expected}: {pgbackrest}");
+    }
+    let script = std::fs::read_to_string(out.join("pgbackrest-backup.sh")).expect("backup script");
+    for expected in [
+        "backup --type=full",
+        "backup --type=diff",
+        "quantrule_backup_last_success_timestamp_seconds",
+        "never on a dry-run",
+    ] {
+        assert!(script.contains(expected), "{expected}: {script}");
+    }
+    assert!(!script.contains("not-off-host"), "{script}");
+    let ha = std::fs::read_to_string(out.join("grafana/dashboards/ha-matrix.json"))
+        .expect("ha dashboard");
+    for expected in [
+        "Backup & DR",
+        "quantrule_backup_last_success_timestamp_seconds",
+        "quantrule_verify_last_success_timestamp_seconds",
+    ] {
+        assert!(ha.contains(expected), "{expected}: {ha}");
+    }
     let _ = std::fs::remove_dir_all(directory);
 }
 
@@ -394,6 +438,8 @@ fn the_lab_render_matches_its_checked_in_golden_files() {
         LAB_EXPECTED,
         &[
             "patroni-lab-1.yml",
+            "pgbackrest-lab-1.conf",
+            "pgbackrest-backup.sh",
             "etcd-lab-1.conf.yml",
             "haproxy-lab-1.cfg",
             "rabbitmq-lab-1.conf",

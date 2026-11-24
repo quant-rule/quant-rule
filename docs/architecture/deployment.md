@@ -1,6 +1,6 @@
 # Deployment
 
-- Status: Current; released as v1.0.0 on 2026-11-15 (prepared as v1.1.0); current in v1.4.2; v3 render/check, the PLAT-001 remote check, the PLAT-002 ingress, the PLAT-003 stateful tier, the PLAT-004 RabbitMQ tier, the PLAT-005 MinIO tier/check rows/node-loss lab, the PLAT-006 observability tier, the PLAT-007 registry/signing/SBOM/CVE phases 1–2 (running task images and the all-service digest probe), and the PLAT-008 reference topologies/sizing phase 1 are current; approved 2026-11-12
+- Status: Current; released as v1.0.0 on 2026-11-15 (prepared as v1.1.0); current in v1.4.2; v3 render/check, the PLAT-001 remote check, the PLAT-002 ingress, the PLAT-003 stateful tier, the PLAT-004 RabbitMQ tier, the PLAT-005 MinIO tier/check rows/node-loss lab, the PLAT-006 observability tier, the PLAT-007 registry/signing/SBOM/CVE phases 1–2 (running task images and the all-service digest probe), the PLAT-008 reference topologies/sizing phase 1, and HA-013 phase 1a pgBackRest/Compose four-database archive/backup age plus phase 2 stage lease/outbox and queue rebuild are current; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Decision: [`ADR-2026-11-12-01`](../adr/2026-11-12/01-adopt-distributed-service-based-architecture.md)
 - Claim type: Behaviour Claim
@@ -82,7 +82,7 @@ contracts are pinned in [four-databases](../config/2026-11-22/four-databases.md)
 | `make remote` | Layer `compose.remote.yaml`, write `secrets/bearer_token`, publish only `:8080`, print the token and usage |
 | `make token` | Print a new 256-bit bearer token; `--out` writes a mode-600 file |
 | `make compose-check` | Validate both Compose files with disposable secrets |
-| `make backup` | Dump Postgres (one database until the four-database archive lands) and mirror objects |
+| `make backup` | Dump the four logical databases and mirror objects; `--check` verifies an archive without Docker |
 | `make restore FILE=…` | Restore into a clean stack |
 | `make dev-web` | Bun dev server for the web client, proxying `localhost:8080` |
 
@@ -160,11 +160,11 @@ runs none and points at `http://<server>:8080`. Scaling is configuration.
    previous image is retired.
 4. Rollback starts the previous digest without its job; the schema stays
    expanded and the previous image must tolerate it. See [migrations.md](migrations.md)
-   §5. A destructive contract migration closes the window; recovery is PITR.
+   §5. A destructive contract migration closes the window; recovery is the pgBackRest PITR, and a live drill is `Unverified`.
 
 The split does not copy rows from the old `quantrule` database: use `make reset`
 for disposable data, or the migration runbook for kept evidence.
 ## 8. What deployment does not provide
 
-Autoscaling and real HA evidence are out of this profile; image distribution, signing, SBOM, and the CVE gate are the [registry contract](../config/2026-11-24/registry.md). PostgreSQL, RabbitMQ and MinIO use internal TLS; the gateway serves plain HTTP behind the ingress ([ingress contract](../config/2026-11-23/ingress.md)). Multi-host placement is in [multi-host.md](multi-host.md); v3 render/check and the `tools/swarm.sh` control plane are in [deploy/v3](../config/2026-11-22/deploy-v3.md) and [swarm-control](../config/2026-11-23/swarm-control.md); Patroni/etcd/HAProxy is in [patroni-cluster](../config/2026-11-23/patroni-cluster.md), RabbitMQ in [rabbitmq-cluster](../config/2026-11-23/rabbitmq-cluster.md), MinIO in [minio-cluster](../config/2026-11-23/minio-cluster.md), and observability in [observability](../config/2026-11-23/observability.md); real HA is HA-014.
+Autoscaling and real HA evidence are out of this profile; image distribution, signing, SBOM, and the CVE gate are the [registry contract](../config/2026-11-24/registry.md). PostgreSQL, RabbitMQ and MinIO use internal TLS; the gateway serves plain HTTP behind the ingress ([ingress contract](../config/2026-11-23/ingress.md)). Multi-host placement is in [multi-host.md](multi-host.md); v3 render/check and the `tools/swarm.sh` control plane are in [deploy/v3](../config/2026-11-22/deploy-v3.md) and [swarm-control](../config/2026-11-23/swarm-control.md); Patroni/etcd/HAProxy is in [patroni-cluster](../config/2026-11-23/patroni-cluster.md), RabbitMQ in [rabbitmq-cluster](../config/2026-11-23/rabbitmq-cluster.md), MinIO in [minio-cluster](../config/2026-11-23/minio-cluster.md), observability in [observability](../config/2026-11-23/observability.md), and backup in [backup and restore](../config/2026-11-24/backup-restore.md); real HA is HA-014.
 The ingress/stateful/queue/MinIO check rows (`--out`/`QR_DEPLOY_OUT`), the `QUANTRULE_CA_CERT` trust path, the measured lab RTO, the MinIO probe hash/write quorum, `--skip-object`, and the `Unverified` lab boundary are documented in those contracts.

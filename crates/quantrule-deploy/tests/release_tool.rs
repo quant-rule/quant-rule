@@ -207,7 +207,7 @@ fn the_plan_is_offline_and_names_the_pins_and_manual_signing_step() {
         "tools/release.sh verify",
         "cosign verify --key cosign.pub --local-image",
         "signed-image",
-        "app, minio, and minio_client remain fixture digests",
+        "app, minio, minio_client, and the derived Patroni pgBackRest image remain fixture digests",
         "Unverified",
         "Real HA is HA-014",
     ] {

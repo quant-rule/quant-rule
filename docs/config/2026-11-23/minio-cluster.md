@@ -127,15 +127,19 @@ PLAT-005 owns the local object contract:
 | Versioning | enabled |
 | App user | `qr_app` (the `object_store_access_key` file value) |
 | App secret | the `object_store_secret_key` file value |
-| Policy | `quantrule-app`, bucket-scoped |
+| Policy | `quantrule-app`, bucket-scoped; `quantrule-archive-reader` is list/get only |
 | Root credentials | `minio_root_user` / `minio_root_password` host files, `minio` scope |
+| Archive reader | `qr_archive_reader` (fixed access key); `object_archive_reader_secret_key`, list/get only |
 
 The policy allows `GetBucketLocation`, `GetBucketVersioning`, `ListBucket`, and
-`ListBucketMultipartUploads` on the bucket, and `GetObject`, `PutObject`,
+`ListMultipartUploads` on the bucket, and `GetObject`, `PutObject`,
 `DeleteObject`, `AbortMultipartUpload`, and `ListMultipartUploadParts` on its
 objects. It has no admin action, no bucket creation/deletion, no policy change,
 and no wildcard resource. The app bucket is content-addressed and put-if-absent;
 versioning keeps a superseded object recoverable without changing the key.
+`object_archive_reader_secret_key` adds the read-only `qr_archive_reader` with
+`quantrule-archive-reader`: `GetBucketLocation`, `ListBucket`, and `GetObject`
+only; the archive copies out and never writes or deletes the source.
 
 Root credentials never enter a rendered config, an app Swarm secret, or an app
 container. The app `object_store_access_key` and `object_store_secret_key` stay
@@ -189,12 +193,13 @@ probe.
 ## 7. HA-013 boundary
 
 PLAT-005 owns local erasure coding, versioning, the bucket policy, and the app
-account. HA-013 owns off-host/archive copies, restore drills, and any second-site
-replication. `backup.object_replication` must be `false`; a true value is refused
-as a replication claim without a second site. There is no object lock in
-v1.5.10. A node or drive loss inside the cluster preserves the write quorum and
-every committed object; a site loss is not protected by PLAT-005 and is not
-claimed.
+account. HA-013 phase 3 implements the object archive, restore drills, and any
+second-site replication; phase 1a's PostgreSQL repository is separate and may be
+S3, and the lab may use this cluster only with the `not-off-host` label.
+`backup.object_replication` must be `false`; a true value is refused as a
+replication claim without a second site. `tools/object-archive.sh` is a one-way
+archive, not replication; `deploy/v3/dr.sh` restores a scratch bucket before rows. There is no object lock in v1.5.10. A node or drive loss inside the cluster preserves the write quorum and every committed object; a site loss is not protected by PLAT-005 and is not claimed
+([backup contract](../2026-11-24/backup-restore.md)).
 
 ## 8. Failure behaviour and evidence
 
@@ -244,14 +249,10 @@ rendered bytes:
 | `app` / `object-store`, `credentials`, `replication` | URL, `_FILE` pair, CA, `qr_app`, `object_replication: false` |
 
 ```bash
-cargo test -p quantrule-deploy minio
-cargo test -p quantrule-deploy --test render_golden
-cargo test -p quantrule-deploy --test stateful_tool
-qr-deploy validate deploy/v3/deploy.example.json
-qr-deploy validate deploy/v3/deploy.lab.json
+cargo test -p quantrule-deploy --test render_golden --test stateful_tool
+qr-deploy validate deploy/v3/deploy.example.json; qr-deploy validate deploy/v3/deploy.lab.json
 docker compose -f <render>/infra/infra-1.yaml config -q
-tools/stateful.sh --plan
-tools/test_tiers.sh ha --plan
+tools/stateful.sh --plan; tools/test_tiers.sh ha --plan
 bash -n tools/stateful.sh deploy/v3/test.sh deploy/v3/minio-failover.sh
 ```
 

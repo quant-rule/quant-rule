@@ -116,6 +116,7 @@ impl Fixture {
             evidence: Arc::new(evidence.clone()),
             objects: Arc::new(objects.clone()),
             queue: Arc::new(queue.clone()),
+            holder: "stage-worker-test".to_owned(),
         };
         Self {
             evidence,
@@ -245,6 +246,7 @@ pub fn services_with_manifest_failure(fixture: &Fixture) -> StageWorkerServices 
             inner: fixture.objects.clone(),
         }),
         queue: Arc::clone(&fixture.services.queue),
+        holder: "stage-worker-test".to_owned(),
     }
 }
 

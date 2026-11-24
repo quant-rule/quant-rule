@@ -2,9 +2,9 @@
 
 - Date: 2026-11-23 (UTC)
 - Status: Current for the v3 broker render, queue front door, boot order, app-user
-  bootstrap, consumer reconnect, check rows, definitions tool, and broker-loss
-  lab phase; the end-to-end digest is `Measured` only after a successful
-  `tools/verify.sh`, and a live three-VM result is `Unverified` here
+  bootstrap, consumer reconnect, check rows, definitions tool, queue rebuild,
+  and broker-loss lab phase; the empty-broker drill is a plan on paper; the
+  end-to-end digest is `Measured` only after a successful `tools/verify.sh`
 - Issue: [#1117](https://github.com/quant-rule/quant-rule/issues/1117)
 - Claim type: Behaviour Claim
 - Related: [ADR-HA](../../adr/2026-11-22/1082-ha-deployment-profile.md),
@@ -172,9 +172,9 @@ check the four queues, quorum type, delivery limit 3, the DLX/DLQ, every require
 binding, and no policy on `runs.*`/`stages.*`. `import <file>` refuses a
 non-empty cluster; a live `.g*` generation needs an explicit `--force`, and the
 tool never purges a queue or deletes a user or vhost. `prune` deletes only
-timestamped definition files older than 30 days. HA-013 owns the archive/off-host
-copy and the empty-broker restore drill. A definitions import is not a message
-restore; a lost queue is rebuilt from run and stage rows.
+timestamped definition files older than 30 days. HA-013 adds
+`tools/queue-rebuild.sh` (import, `queue-bootstrap`, evidence re-arm); the
+empty-broker drill is a plan, the queue is not archived, and a lost queue is rebuilt from run and stage rows. `deploy/v3/dr.sh` reuses `queue-bootstrap` and evidence re-arm after a restore; it never imports into a non-empty broker.
 
 ## 7. Resource alarms
 
@@ -263,8 +263,7 @@ at the queue level; `--skip-queue` leaves the row `Unverified`. The probe queue
 `qr.lab.queue-probe` is durable, lab-only, and empty after a successful consume.
 The end-to-end canonical digest is `Measured` only after `tools/verify.sh`
 succeeds; a queue-only test does not prove the run digest, so it is otherwise
-`Unverified` or `Blocked`; the MinIO phase follows with its own probe. `Real HA`
-is HA-014.
+`Unverified` or `Blocked`; the MinIO phase follows with its own probe. `--dr` adds the in-place DR drill and `--skip-dr` leaves that row `Unverified`; `Real HA` is HA-014.
 
 ## 11. Verification
 
@@ -281,16 +280,16 @@ tree.
 cargo test -p quantrule-deploy rabbitmq
 cargo test -p quantrule-deploy --test render_golden
 cargo test -p quantrule-deploy --test queue_cli
-cargo test -p quantrule-deploy --test queue_definitions_tool
+cargo test -p quantrule-deploy --test queue_definitions_tool --test queue_rebuild
 cargo test -p quantrule-deploy --test ha_harness
 cargo test -p quantrule-runtime reconnect
 qr-deploy validate deploy/v3/deploy.example.json
 qr-deploy validate deploy/v3/deploy.lab.json
 docker compose -f <render>/infra/infra-1.yaml config -q
 tools/stateful.sh --plan
-tools/queue-definitions.sh --plan
+tools/queue-definitions.sh --plan; tools/queue-rebuild.sh --plan
 tools/queue-definitions.sh verify <fixture.json>
-bash -n tools/stateful.sh tools/queue-definitions.sh deploy/v3/queue-failover.sh
+bash -n tools/stateful.sh tools/queue-definitions.sh tools/queue-rebuild.sh deploy/v3/queue-failover.sh
 ```
 
 The fast tier proves the rendered contract, the check rows, the definitions
@@ -309,7 +308,7 @@ phase is implemented; a real three-VM run is `Unverified` here.
 | `cluster_status` shows fewer than three running nodes | Start the missing broker; do not remove a member while quorum is lost |
 | An alarm blocks publishes | Free disk/memory or raise the descriptor threshold deliberately; never patch a host config |
 | The consumer cannot reconnect | Check the queue URL/CA file, the broker quorum, and the service restart count |
-| A definitions import is refused | The cluster is not empty or has a live `.g*` generation; drain and freeze it, or pass `--force` deliberately |
+| A definitions import is refused | The cluster is not empty or has a live `.g*` generation; use `tools/queue-rebuild.sh --confirm` only on an empty cluster, never `--force` in a rebuild |
 | A policy targets `runs.*` or `stages.*` | Remove it; the app declaration is the only queue definition |
 
 The previous image, descriptor, render directory, broker data, and cookie stay in
@@ -325,6 +324,6 @@ service.
 | A broker key or cookie reaches a non-broker host | The manifest `hosts` selector and the copy test assert the broker-only set |
 | A policy silently changes an app-declared queue | No policy on `runs.*`/`stages.*`; the app declaration is the only definition |
 | A definitions file leaks credentials | The export strips users, permissions, and topic permissions; it is mode 600, never in Git |
-| A lost queue is mistaken for a message restore | Definitions restore topology only; rebuild rows from the database; HA-013 owns the archive and empty-broker drill |
+| A lost queue is mistaken for a message restore | Definitions restore topology only; `tools/queue-rebuild.sh` re-arms run and stage rows; the empty-broker drill is a lab plan and no queue archive exists |
 | A stale probe message fails the lab | The queue phase drains only `quantrule-lab-queue-probe`-prefixed messages from `qr.lab.queue-probe` before publishing |
 | No live three-VM lab | The static contract and tests pass; the lab row is `Unverified`; `Real HA` is HA-014 |

@@ -110,6 +110,10 @@ fn routes() -> Router<Arc<EvidenceState>> {
             post(stage_internal::claim_stage),
         )
         .route(
+            "/internal/v1/stages/{id}/heartbeat",
+            post(stage_internal::heartbeat_stage),
+        )
+        .route(
             "/internal/v1/stages/{id}/computed",
             post(stage_internal::computed_stage),
         )

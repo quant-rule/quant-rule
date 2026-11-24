@@ -6,7 +6,7 @@
 //! text; `tests/swarm_bootstrap.rs` executes it against a fake `docker`.
 
 use crate::descriptor::v3::{Descriptor, IngressTls, Profile};
-use crate::validate::secrets::{MINIO_SECRETS, STATEFUL_SECRETS};
+use crate::validate::secrets::scope;
 
 use super::ingress::{TRAEFIK_CONFIG, TRAEFIK_DYNAMIC_CONFIG};
 use super::{APP_SERVICES, app_image, pinned, shell_quote, stack_name};
@@ -80,9 +80,7 @@ pub(super) fn bootstrap_script(descriptor: &Descriptor) -> String {
         .secrets
         .files
         .keys()
-        .filter(|name| {
-            !STATEFUL_SECRETS.contains(&name.as_str()) && !MINIO_SECRETS.contains(&name.as_str())
-        })
+        .filter(|name| scope(name) == "app")
         .collect();
     secret_names.sort();
     let secrets = secret_names
@@ -164,8 +162,9 @@ const BOOTSTRAP_TEMPLATE: &str = r#"#!/bin/sh
 # The script creates only the external objects the deployment owns. The two
 # Traefik configs are PLAT-002; Patroni, etcd, and HAProxy files are PLAT-003;
 # RabbitMQ is PLAT-004; MinIO is PLAT-005; observability is PLAT-006. The five
-# stateful secrets and the two MinIO root secrets are copied to the hosts by
-# tools/stateful.sh, never created as app Swarm secrets. No secret value is read,
+# stateful secrets, the two MinIO root secrets, and the pgBackRest passphrase
+# and S3 credentials are copied to the hosts by tools/stateful.sh, never created
+# as app Swarm secrets. No secret value is read,
 # printed, or passed as an argument. A changed rendered file is refused: rotation
 # is a new object name plus a rolling service update, never an in-place overwrite.
 set -eu

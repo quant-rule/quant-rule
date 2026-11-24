@@ -30,11 +30,31 @@
       ]
     },
     {
+      "source": "pgbackrest-lab-1.conf",
+      "target": "/etc/pgbackrest/pgbackrest.conf",
+      "mode": "644",
+      "owner": "root",
+      "scope": "config",
+      "hosts": [
+        "lab-1"
+      ]
+    },
+    {
       "source": "patroni-lab-2.yml",
       "target": "/etc/quantrule/patroni/patroni.yml",
       "mode": "600",
       "owner": "root",
       "scope": "patroni",
+      "hosts": [
+        "lab-2"
+      ]
+    },
+    {
+      "source": "pgbackrest-lab-2.conf",
+      "target": "/etc/pgbackrest/pgbackrest.conf",
+      "mode": "644",
+      "owner": "root",
+      "scope": "config",
       "hosts": [
         "lab-2"
       ]
@@ -46,6 +66,62 @@
       "owner": "root",
       "scope": "patroni",
       "hosts": [
+        "lab-3"
+      ]
+    },
+    {
+      "source": "pgbackrest-lab-3.conf",
+      "target": "/etc/pgbackrest/pgbackrest.conf",
+      "mode": "644",
+      "owner": "root",
+      "scope": "config",
+      "hosts": [
+        "lab-3"
+      ]
+    },
+    {
+      "source": "pgbackrest-backup.sh",
+      "target": "/etc/quantrule/backup/pgbackrest-backup.sh",
+      "mode": "700",
+      "owner": "root",
+      "scope": "script",
+      "hosts": [
+        "lab-1"
+      ]
+    },
+    {
+      "source": "secrets/pgbackrest_cipher_pass",
+      "target": "/etc/quantrule/secrets/pgbackrest_cipher_pass",
+      "mode": "600",
+      "owner": "root",
+      "scope": "secret",
+      "hosts": [
+        "lab-1",
+        "lab-2",
+        "lab-3"
+      ]
+    },
+    {
+      "source": "secrets/pgbackrest_s3_access_key",
+      "target": "/etc/quantrule/secrets/pgbackrest_s3_access_key",
+      "mode": "600",
+      "owner": "root",
+      "scope": "secret",
+      "hosts": [
+        "lab-1",
+        "lab-2",
+        "lab-3"
+      ]
+    },
+    {
+      "source": "secrets/pgbackrest_s3_secret_key",
+      "target": "/etc/quantrule/secrets/pgbackrest_s3_secret_key",
+      "mode": "600",
+      "owner": "root",
+      "scope": "secret",
+      "hosts": [
+        "lab-1",
+        "lab-2",
         "lab-3"
       ]
     },
@@ -184,6 +260,18 @@
       ]
     },
     {
+      "source": "minio-archive-policy.json",
+      "target": "/etc/quantrule/minio/quantrule-archive-reader-policy.json",
+      "mode": "644",
+      "owner": "root",
+      "scope": "config",
+      "hosts": [
+        "lab-1",
+        "lab-2",
+        "lab-3"
+      ]
+    },
+    {
       "source": "secrets/postgres_superuser_password",
       "target": "/etc/quantrule/secrets/postgres_superuser_password",
       "mode": "600",
@@ -258,6 +346,18 @@
     {
       "source": "secrets/minio_root_password",
       "target": "/etc/quantrule/secrets/minio_root_password",
+      "mode": "600",
+      "owner": "root",
+      "scope": "secret",
+      "hosts": [
+        "lab-1",
+        "lab-2",
+        "lab-3"
+      ]
+    },
+    {
+      "source": "secrets/object_archive_reader_secret_key",
+      "target": "/etc/quantrule/secrets/object_archive_reader_secret_key",
       "mode": "600",
       "owner": "root",
       "scope": "secret",

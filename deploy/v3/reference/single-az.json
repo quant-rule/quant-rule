@@ -16,8 +16,8 @@
       "digest": "sha256:156d40cfa063d6babb15d329a8e15b26a8d0690ebb6084c956084f3b025c3b30"
     },
     "patroni": {
-      "reference": "batonogov/patroni-docker",
-      "digest": "sha256:0de7dc8bc5919c76721bee1475ed30155b1848c0a6bac7298605bf39eef1a7eb"
+      "reference": "ghcr.io/quant-rule/patroni-pgbackrest",
+      "digest": "sha256:ffbf6f5298ec083505b31ebe962c70c32d791050d21c328a401f31c1cbe927a5"
     },
     "etcd": {
       "reference": "quay.io/coreos/etcd",
@@ -320,7 +320,23 @@
   "backup": {
     "pitr": true,
     "retention_days": 30,
-    "object_replication": false
+    "object_replication": false,
+    "repo": {
+      "kind": "s3",
+      "endpoint": "s3.example.internal:443",
+      "bucket": "quantrule-backup",
+      "path": "/quantrule",
+      "tls_ca": "/etc/quantrule/pki/ca.crt"
+    },
+    "cipher": "aes-256-cbc",
+    "schedule": {
+      "full_at": "02:00",
+      "diff_at": "14:00"
+    },
+    "host": "edge-1",
+    "object_archive": {
+      "enabled": false
+    }
   },
   "secrets": {
     "files": {
@@ -342,7 +358,10 @@
       "patroni_rest_password": "/etc/quantrule/secrets/patroni_rest_password",
       "rabbitmq_erlang_cookie": "/etc/quantrule/secrets/rabbitmq_erlang_cookie",
       "minio_root_user": "/etc/quantrule/secrets/minio_root_user",
-      "minio_root_password": "/etc/quantrule/secrets/minio_root_password"
+      "minio_root_password": "/etc/quantrule/secrets/minio_root_password",
+      "pgbackrest_cipher_pass": "/etc/quantrule/secrets/pgbackrest_cipher_pass",
+      "pgbackrest_s3_access_key": "/etc/quantrule/secrets/pgbackrest_s3_access_key",
+      "pgbackrest_s3_secret_key": "/etc/quantrule/secrets/pgbackrest_s3_secret_key"
     }
   }
 }

@@ -23,18 +23,25 @@ validate --files`. Git does not preserve mode 600 on checkout.
 | `patroni_rewind_password` | At least 16 characters, URL-safe, distinct; the pg_rewind role. |
 | `patroni_rest_password` | At least 16 characters, URL-safe, distinct; the Patroni REST basic-auth password and HAProxy check header. |
 | `rabbitmq_erlang_cookie` | At least 32 URL-safe characters, distinct; installed as `.erlang.cookie` on the three brokers only. |
+| `pgbackrest_cipher_pass` | At least 16 characters, distinct; read from a mode-600 file for the AES-256 repository. Never in `pgbackrest.conf`, an argument, or a log. |
+| `pgbackrest_s3_access_key` | The off-host S3 repository account; required only for an S3 `backup.repo`. |
+| `pgbackrest_s3_secret_key` | The paired secret; at least 16 characters and distinct. |
+| `object_archive_reader_secret_key` | The read-only `qr_archive_reader` secret; required when `backup.object_archive.enabled`, `minio` scope, MinIO hosts only. |
 
-The five stateful secrets are rendered with `scope: stateful` and the two MinIO
-root files with `scope: minio` in `secrets/manifest.json`; they are copied to the
-hosts by `tools/stateful.sh` and are not app Swarm secrets. The stateful values
-are fake and URL-safe so they can enter a Patroni, HAProxy, or RabbitMQ runtime
+The five stateful secrets are rendered with `scope: stateful`, the two MinIO
+root files and the optional read-only archive reader with `scope: minio`, and
+the pgBackRest passphrase and S3 pair with `scope: backup` in
+`secrets/manifest.json`; they are copied to the hosts by
+`tools/stateful.sh` and are not app Swarm secrets. The stateful values are fake
+and URL-safe so they can enter a Patroni, HAProxy, or RabbitMQ runtime
 configuration without percent-encoding. The manifest carries a per-entry `hosts`
 selector: the Postgres secrets go to the Patroni hosts (the REST password also to
-the HAProxy pair), the Erlang cookie only to the brokers, and the MinIO root
-files only to the MinIO hosts. The app `qr_app` pair is an app Swarm secret and
-is also copied to the MinIO hosts only for the one-shot object bootstrap. The queue
-definitions export is a separate credential-free file (`users`/`permissions`
-stripped, mode 600) and never contains these values.
+the HAProxy pair), the Erlang cookie only to the brokers, the MinIO root files
+only to the MinIO hosts, and the pgBackRest files to every Patroni host and the
+backup host. The app `qr_app` pair is an app Swarm secret and is also copied to
+the MinIO hosts only for the one-shot object bootstrap. The queue definitions
+export is a separate credential-free file (`users`/`permissions` stripped, mode
+600) and never contains these values.
 
 The required names and the full file contract are in
 [`docs/config/2026-11-22/deploy-v3.md`](../../../docs/config/2026-11-22/deploy-v3.md).

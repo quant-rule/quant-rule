@@ -4,7 +4,7 @@
 - Status: Current; PLAT-008 phases 1–2
 - Issue: [#1121](https://github.com/quant-rule/quant-rule/issues/1121)
 - Claim type: Behaviour Claim
-- Related: [ADR-1121](../../adr/2026-11-24/1121-reference-topologies.md), [deploy/v3](../2026-11-22/deploy-v3.md), [registry](registry.md), [multi-host chapter](../../manual/14-multi-host.md), [HA chapter](../../manual/15-ha-deployment.md), [remote compute](../../tutorials/2026-11-12/03-remote-compute.md)
+- Related: [ADR-1121](../../adr/2026-11-24/1121-reference-topologies.md), [deploy/v3](../2026-11-22/deploy-v3.md), [registry](registry.md), [backup and restore](backup-restore.md), [multi-host chapter](../../manual/14-multi-host.md), [HA chapter](../../manual/15-ha-deployment.md), [remote compute](../../tutorials/2026-11-12/03-remote-compute.md)
 
 This contract defines the two reference descriptors, the machine-readable sizing
 table, the lab template, and the evidence boundary. The descriptors are designs
@@ -210,9 +210,9 @@ Before a lab run:
 
 `deploy/v3/lab.sh` is the harness; `deploy/v3/test.sh` remains the failure phase.
 `--plan` reads no Docker, SSH, jq, or secret file. A real run first executes
-`qr-deploy validate <descriptor> --release`; the app, `minio`, and
-`minio_client` fixtures stop it at the exact field with `Unverified` before any
-host is contacted, and there is no bypass.
+`qr-deploy validate <descriptor> --release`; the app, `minio`, `minio_client`,
+and derived Patroni fixtures stop it at the exact field with `Unverified` before
+any host is contacted, and there is no bypass.
 
 | # | Phase | Command |
 |---:|---|---|
@@ -236,15 +236,18 @@ reference descriptors use documentation addresses and are not lab hosts. Only
 ## 7. Image pins and blockers
 
 The sample, lab, and both reference descriptors carry the same 16
-infrastructure keys. Fourteen are resolved from registry metadata (tag, index
-digest, and linux/amd64 digest) and are listed in the [registry contract](registry.md#11-infrastructure-pins).
-The three blockers are exact and deliberate:
+infrastructure keys. Thirteen are resolved deployable pins from registry
+metadata (tag, index digest, and linux/amd64 digest) and are listed in the
+[registry contract](registry.md#11-infrastructure-pins); the Patroni base is
+resolved, but the derived pgBackRest image is not built or pushed yet. The four
+blockers are exact and deliberate:
 
 | Field | Fixture | Why it is blocked | `--release` result |
 |---|---|---|---|
 | `image.digest` | `sha256:cdace4…` | Labelled application example; not a published image | `deploy.image.fixture` at `image.digest` |
 | `images.minio.digest` | `sha256:bdf0781a…` | Anonymous registry metadata is denied here | `deploy.image.fixture` at `images.minio.digest` |
 | `images.minio_client.digest` | `sha256:5c5b1f8f…` | Anonymous registry metadata is denied here | `deploy.image.fixture` at `images.minio_client.digest` |
+| `images.patroni.digest` | `sha256:ffbf6f52…` | Derived pgBackRest image not built/pushed; base digest `sha256:0de7…` is also refused | `deploy.image.fixture` at `images.patroni.digest` |
 | any retired infra pin | the 16 old values | A revert must not pass silently | `deploy.image.fixture` at `images.<key>.digest` |
 
 Release mode is a denylist, not a signature, a vulnerability scan, or proof that
@@ -298,7 +301,7 @@ and tests; a live lab remains `Unverified`, `Simulated HA` is the maximum, and
 | Rendered-tree check | `qr-deploy check <descriptor> --out <dir>` | Validated locally |
 | Sizing/doc agreement | `cargo test -p quantrule-deploy --test reference` | Validated locally |
 | Lab harness and remote tests | `deploy/v3/lab.sh --plan`; `cargo test -p quantrule-deploy --test ha_harness`; `cargo test -p quantrule-shell --test remote`; `bun test apps/web/e2e-remote/config.test.ts` | Validated locally; no host contacted |
-| 14 registry pins | `skopeo inspect --raw` plus `--format '{{.Digest}}'` | Measured from registry metadata |
+| 13 deployable pins plus the Patroni base | `skopeo inspect --raw` plus `--format '{{.Digest}}'` | Measured from registry metadata; the derived image is a blocker |
 | Live lab, VIP, remote TLS | `deploy/v3/lab.sh --confirm`; `deploy/v3/lab.sh --remote-client --confirm` | Unverified; fixtures block provisioning |
 | Physical host/AZ/power failure | HA-014 | `Real HA` only after HA-014 |
 

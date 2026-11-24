@@ -147,6 +147,7 @@ async fn main() -> Result<(), RuntimeError> {
         evidence: stage_evidence,
         objects: Arc::clone(&stage_objects),
         queue: stage_publish,
+        holder: worker_holder(),
     });
     let dispatch = Arc::new(
         StageDispatch::new()
@@ -405,13 +406,23 @@ fn make_stage_handler(
                 return Ok(());
             }
             let mut redelivered = message.redelivered;
+            let mut continuation = None;
             loop {
-                match process_stage(stage_run_id.clone(), redelivered, &services, &dispatch).await {
-                    Ok(StageProcessOutcome::Retry { delay }) => {
+                match process_stage(
+                    stage_run_id.clone(),
+                    continuation,
+                    redelivered,
+                    &services,
+                    &dispatch,
+                )
+                .await
+                {
+                    Ok(StageProcessOutcome::Retry { delay, term }) => {
                         metrics.record_stage("retry");
                         tracing::warn!(stage_run_id = %stage_run_id, ?delay, "retrying the stage");
                         tokio::time::sleep(delay).await;
                         redelivered = true;
+                        continuation = Some(term);
                     }
                     Ok(outcome) => {
                         metrics.record_stage(stage_outcome(outcome));

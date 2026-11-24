@@ -20,7 +20,7 @@ use quantrule_api::{Digest, StageArtifact, StageRunId, StageState};
 use quantrule_runtime::adapters::{ObjectStore, Queue};
 use quantrule_runtime::client::{ClientError, StageClient};
 use quantrule_runtime::queue::{ROUTING_STAGE_COMPUTED, ROUTING_STAGE_FAILED};
-use quantrule_service_api::{StageClaimOutcome, StageManifest, StageRecord};
+use quantrule_service_api::{StageClaimOutcome, StageHeartbeatOutcome, StageManifest, StageRecord};
 
 use crate::backtest::retry::{self, RetryDecision};
 use crate::stage::executor::{StageDispatch, StageFile};
@@ -48,6 +48,8 @@ pub enum StageProcessOutcome {
     Retry {
         /// How long to wait before the next attempt.
         delay: Duration,
+        /// The lease term this worker already holds.
+        term: u64,
     },
     /// The retry budget is spent; the stage is failed.
     Exhausted,
@@ -63,12 +65,15 @@ pub struct StageWorkerServices {
     pub objects: Arc<dyn ObjectStore>,
     /// The control-plane queue.
     pub queue: Arc<dyn Queue>,
+    /// The worker identity recorded in the stage lease.
+    pub holder: String,
 }
 
 /// Process one `stage.requested` stage run id.
 ///
-/// `redelivered` is the broker's flag. It is the only proof that the previous
-/// holder is gone, so it is what lets a running stage be reclaimed.
+/// `continuation` is the lease term this worker already holds when it retries
+/// its own delivery. The lease, not the broker's redelivery flag, decides a
+/// claim: a live lease is never stolen, and an expired one is reclaimable.
 ///
 /// # Errors
 ///
@@ -77,13 +82,19 @@ pub struct StageWorkerServices {
 /// not an error, so the consumer acknowledges it.
 pub async fn process_stage(
     stage_run_id: String,
+    continuation: Option<u64>,
     redelivered: bool,
     services: &StageWorkerServices,
     dispatch: &StageDispatch,
 ) -> Result<StageProcessOutcome, StageWorkerError> {
     let record = match services
         .evidence
-        .claim_stage(stage_run_id.clone(), redelivered)
+        .claim_stage(
+            stage_run_id.clone(),
+            services.holder.clone(),
+            continuation,
+            redelivered,
+        )
         .await
         .map_err(stage_error)?
     {
@@ -105,6 +116,7 @@ pub async fn process_stage(
             return exhaust(
                 services,
                 &stage_run_id,
+                record.lease_term,
                 "the retry budget was exhausted",
                 record.attempts,
             )
@@ -113,13 +125,23 @@ pub async fn process_stage(
         StageClaimOutcome::Missing => return Ok(StageProcessOutcome::Skipped),
     };
     let attempts = record.attempts;
+    let term = record.lease_term;
+    let lease = StageLeaseHeartbeat::start(
+        Arc::clone(&services.evidence),
+        &stage_run_id,
+        &services.holder,
+        term,
+    );
 
-    // A cancel between the claim and the engine call writes nothing.
-    match cancelled(services, &stage_run_id).await? {
+    // A cancel before the engine call writes nothing. A lost lease stops this
+    // attempt without removing anything: a later attempt may already own the
+    // same content-addressed manifest.
+    match stopped(services, &lease, &stage_run_id).await? {
         Cancellation::Gone | Cancellation::Cancelled => {
             remove_manifest(&services.objects, &record).await;
             return Ok(StageProcessOutcome::Skipped);
         }
+        Cancellation::LeaseLost => return Ok(StageProcessOutcome::Skipped),
         Cancellation::Live => {}
     }
 
@@ -127,6 +149,7 @@ pub async fn process_stage(
         return fail(
             services,
             &stage_run_id,
+            term,
             &format!(
                 "no executor is configured for the {} stage",
                 record.kind.as_str()
@@ -136,38 +159,45 @@ pub async fn process_stage(
     };
     let output = match executor.execute(&record).await {
         Ok(output) => output,
-        Err(error) => return fail(services, &stage_run_id, &error.to_string()).await,
+        Err(error) => return fail(services, &stage_run_id, term, &error.to_string()).await,
     };
 
-    // A cancel before the first CAS write must leave no manifest.
-    match cancelled(services, &stage_run_id).await? {
+    // A cancel before the first CAS write must leave no manifest. A lost lease
+    // only stops this attempt; the row and a later attempt own the manifest.
+    match stopped(services, &lease, &stage_run_id).await? {
         Cancellation::Gone | Cancellation::Cancelled => {
             remove_manifest(&services.objects, &record).await;
             return Ok(StageProcessOutcome::Skipped);
         }
+        Cancellation::LeaseLost => return Ok(StageProcessOutcome::Skipped),
         Cancellation::Live => {}
     }
 
     let artifact = match publish_artifact(&services.objects, &record, output.files).await {
         Ok(artifact) => artifact,
         Err(error) => {
-            return retry_or_exhaust(services, &stage_run_id, &error.to_string(), attempts).await;
+            return retry_or_exhaust(services, &stage_run_id, term, &error.to_string(), attempts)
+                .await;
         }
     };
     let stored = match services
         .evidence
-        .stage_computed(stage_run_id.clone(), artifact)
+        .stage_computed(stage_run_id.clone(), term, artifact)
         .await
     {
         Ok(record) => record,
         Err(error) => {
-            return retry_or_exhaust(services, &stage_run_id, &error.to_string(), attempts).await;
+            return retry_or_exhaust(services, &stage_run_id, term, &error.to_string(), attempts)
+                .await;
         }
     };
     if stored.state != StageState::Succeeded {
-        // A cancel or a competing terminal transition won the race after the
-        // manifest was written. The row stays authoritative; remove the visible
-        // edge so no artifact is exposed.
+        // A stale term means a later attempt owns the stage; leave its
+        // manifest alone. A cancel or competing terminal transition with our
+        // own term won the race, so the visible edge is removed.
+        if stored.lease_term != term {
+            return Ok(StageProcessOutcome::Skipped);
+        }
         remove_manifest(&services.objects, &record).await;
         return Ok(StageProcessOutcome::Skipped);
     }
@@ -175,20 +205,76 @@ pub async fn process_stage(
     Ok(StageProcessOutcome::Computed)
 }
 
-/// Whether a stage was cancelled or deleted between two worker boundaries.
+/// A stage's claim lease, renewed from a worker task.
+///
+/// The guard aborts the heartbeat when the attempt returns. A heartbeat that
+/// evidence rejects as stale sets `lost`, so the worker stops before its next
+/// lifecycle write or manifest.
+struct StageLeaseHeartbeat {
+    handle: tokio::task::JoinHandle<()>,
+    lost: Arc<std::sync::atomic::AtomicBool>,
+}
+
+impl StageLeaseHeartbeat {
+    fn start(evidence: Arc<dyn StageClient>, stage_run_id: &str, holder: &str, term: u64) -> Self {
+        let lost = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let flag = Arc::clone(&lost);
+        let stage_run_id = stage_run_id.to_owned();
+        let holder = holder.to_owned();
+        let handle = tokio::spawn(async move {
+            let interval = Duration::from_secs(quantrule_service_api::STAGE_LEASE_RENEW_SECONDS);
+            loop {
+                tokio::time::sleep(interval).await;
+                match evidence
+                    .heartbeat_stage(stage_run_id.clone(), holder.clone(), term)
+                    .await
+                {
+                    Ok(StageHeartbeatOutcome::Renewed(_)) => {}
+                    Ok(StageHeartbeatOutcome::Stale | StageHeartbeatOutcome::Missing) => {
+                        flag.store(true, std::sync::atomic::Ordering::SeqCst);
+                        break;
+                    }
+                    Err(error) => {
+                        tracing::warn!(stage_run_id = %stage_run_id, %error, "the stage lease heartbeat will retry");
+                    }
+                }
+            }
+        });
+        Self { handle, lost }
+    }
+
+    fn lost(&self) -> bool {
+        self.lost.load(std::sync::atomic::Ordering::SeqCst)
+    }
+}
+
+impl Drop for StageLeaseHeartbeat {
+    fn drop(&mut self) {
+        self.handle.abort();
+    }
+}
+
+/// Whether a stage was cancelled, deleted, or lost its lease between two
+/// worker boundaries.
 enum Cancellation {
-    /// The stage is still running.
+    /// The stage is still running under a live lease.
     Live,
+    /// This attempt no longer owns the lease; another attempt may.
+    LeaseLost,
     /// The operator cancelled it.
     Cancelled,
     /// Explicit cleanup deleted the row.
     Gone,
 }
 
-async fn cancelled(
+async fn stopped(
     services: &StageWorkerServices,
+    lease: &StageLeaseHeartbeat,
     stage_run_id: &str,
 ) -> Result<Cancellation, StageWorkerError> {
+    if lease.lost() {
+        return Ok(Cancellation::LeaseLost);
+    }
     let record = services
         .evidence
         .get_stage(stage_run_id.to_owned())
@@ -297,24 +383,26 @@ async fn remove_manifest_by_id(objects: &Arc<dyn ObjectStore>, stage_run_id: &st
 async fn retry_or_exhaust(
     services: &StageWorkerServices,
     stage_run_id: &str,
+    term: u64,
     message: &str,
     attempts: u32,
 ) -> Result<StageProcessOutcome, StageWorkerError> {
     match retry::decide(attempts) {
-        RetryDecision::Retry(delay) => Ok(StageProcessOutcome::Retry { delay }),
-        RetryDecision::DeadLetter => exhaust(services, stage_run_id, message, attempts).await,
+        RetryDecision::Retry(delay) => Ok(StageProcessOutcome::Retry { delay, term }),
+        RetryDecision::DeadLetter => exhaust(services, stage_run_id, term, message, attempts).await,
     }
 }
 
 async fn exhaust(
     services: &StageWorkerServices,
     stage_run_id: &str,
+    term: u64,
     message: &str,
     _attempts: u32,
 ) -> Result<StageProcessOutcome, StageWorkerError> {
     let record = services
         .evidence
-        .stage_failed(stage_run_id.to_owned(), message.to_owned())
+        .stage_failed(stage_run_id.to_owned(), term, message.to_owned())
         .await
         .map_err(stage_error)?;
     if record.state != StageState::Failed {
@@ -328,11 +416,12 @@ async fn exhaust(
 async fn fail(
     services: &StageWorkerServices,
     stage_run_id: &str,
+    term: u64,
     message: &str,
 ) -> Result<StageProcessOutcome, StageWorkerError> {
     let record = services
         .evidence
-        .stage_failed(stage_run_id.to_owned(), message.to_owned())
+        .stage_failed(stage_run_id.to_owned(), term, message.to_owned())
         .await
         .map_err(stage_error)?;
     if record.state != StageState::Failed {

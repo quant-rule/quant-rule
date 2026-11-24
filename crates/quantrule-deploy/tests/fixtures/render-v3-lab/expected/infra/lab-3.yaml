@@ -159,9 +159,9 @@ services:
       -
         "-c"
       -
-        "set -eu\numask 077\nexport PATRONI_SUPERUSER_PASSWORD=\"$$(cat /run/secrets/postgres_superuser_password)\"\nexport PATRONI_REPLICATION_PASSWORD=\"$$(cat /run/secrets/patroni_replication_password)\"\nexport PATRONI_REWIND_PASSWORD=\"$$(cat /run/secrets/patroni_rewind_password)\"\nexport PATRONI_RESTAPI_PASSWORD=\"$$(cat /run/secrets/patroni_rest_password)\"\nexec patroni /etc/patroni/patroni.yml"
+        "set -eu\numask 077\nexport PATRONI_SUPERUSER_PASSWORD=\"$$(cat /run/secrets/postgres_superuser_password)\"\nexport PATRONI_REPLICATION_PASSWORD=\"$$(cat /run/secrets/patroni_replication_password)\"\nexport PATRONI_REWIND_PASSWORD=\"$$(cat /run/secrets/patroni_rewind_password)\"\nexport PATRONI_RESTAPI_PASSWORD=\"$$(cat /run/secrets/patroni_rest_password)\"\nif [ -f /run/secrets/pgbackrest_cipher_pass ]; then\nexport PGBACKREST_REPO1_CIPHER_PASS=\"$$(cat /run/secrets/pgbackrest_cipher_pass)\"\nfi\nif [ -f /run/secrets/pgbackrest_s3_access_key ]; then\nexport PGBACKREST_REPO1_S3_KEY=\"$$(cat /run/secrets/pgbackrest_s3_access_key)\"\nexport PGBACKREST_REPO1_S3_KEY_SECRET=\"$$(cat /run/secrets/pgbackrest_s3_secret_key)\"\nfi\nexec patroni /etc/patroni/patroni.yml"
     container_name: "quantrule-patroni-lab-3"
-    image: "batonogov/patroni-docker@sha256:0de7dc8bc5919c76721bee1475ed30155b1848c0a6bac7298605bf39eef1a7eb"
+    image: "ghcr.io/quant-rule/patroni-pgbackrest@sha256:ffbf6f5298ec083505b31ebe962c70c32d791050d21c328a401f31c1cbe927a5"
     logging:
       driver: "json-file"
       options:
@@ -181,14 +181,14 @@ services:
         target: "/var/lib/postgresql/data"
         type: "bind"
       -
-        read_only: false
-        source: "/srv/quantrule/patroni/wal-archive"
-        target: "/srv/quantrule/wal-archive"
-        type: "bind"
-      -
         read_only: true
         source: "/etc/quantrule/patroni/patroni.yml"
         target: "/etc/patroni/patroni.yml"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/pgbackrest/pgbackrest.conf"
+        target: "/etc/pgbackrest/pgbackrest.conf"
         type: "bind"
       -
         read_only: true
@@ -229,6 +229,21 @@ services:
         read_only: true
         source: "/etc/quantrule/secrets/rabbitmq_erlang_cookie"
         target: "/run/secrets/rabbitmq_erlang_cookie"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/secrets/pgbackrest_cipher_pass"
+        target: "/run/secrets/pgbackrest_cipher_pass"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/secrets/pgbackrest_s3_access_key"
+        target: "/run/secrets/pgbackrest_s3_access_key"
+        type: "bind"
+      -
+        read_only: true
+        source: "/etc/quantrule/secrets/pgbackrest_s3_secret_key"
+        target: "/run/secrets/pgbackrest_s3_secret_key"
         type: "bind"
   promtail-lab-3:
     command:

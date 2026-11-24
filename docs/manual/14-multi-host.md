@@ -48,7 +48,7 @@ Do not start this profile while the single-host stack owns
 | 13 | compute host | `docker ps --filter name=backtest`; `docker image inspect --format '{{.Id}}' <image>` | Worker present; image ID matches |
 | 14 | client | `QUANTRULE_API_URL=http://<gateway>:8080/api/v1`; `quantrule health` | Connected |
 | 15 | client | Submit the verification fixture and read the digest | Same digest as single-host |
-| 16 | infra host | Stop gateway, compute, and core; run the backup wrapper with `--application-stopped` | Archive and sidecar written; the current tools cover one database, so treat it as incomplete until the four-database archive lands |
+| 16 | infra host | Stop gateway, compute, and core; run the backup wrapper with `--application-stopped` | Archive and sidecar written with one dump per database; `--check` verifies it without Docker; the v3 pgBackRest path is separate and its live drill is `Unverified` |
 
 Each host needs only the files for the services it runs. The image is already
 loaded; the Compose files use `network_mode: host` and the env file's
@@ -88,7 +88,7 @@ ends in `.g1`. The work queues are quorum with a delivery limit and a dead-lette
 queue. A release that changes the topology uses a new generation: stop new
 submissions, drain the old generation with its consumers, stop them, then unbind
 or delete the empty queues before the new generation publishes. Export the broker
-definitions before an upgrade; the backup archive does not contain the broker.
+definitions before an upgrade; the archive does not contain the broker, and HA-013 adds `tools/queue-rebuild.sh` for an empty broker.
 
 Every long-running role sets `stop_grace_period: 40s`, and the image declares
 `STOPSIGNAL SIGTERM`. A rolling restart flips `/ready` to `503` at once; the

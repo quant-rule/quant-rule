@@ -1,6 +1,7 @@
 ok	minio	minio	conf	4 node config(s); explicit volumes, browser off, server URL, EC parity, root _FILE references, region
 ok	minio	minio	no-secret	no root or app secret value and no console port in any node config
 ok	minio	minio	overlay-only	no host underlay address in any node config
+ok	minio	archive-reader	read-only	qr_archive_reader policy allows list/get on the bucket and no write, delete, admin, or wildcard action; the tool mirrors one way and never deletes the source
 ok	minio	minio	quorum	4 nodes / 4 drives; EC:2; one node loss leaves 3 drives and the write quorum 3
 ok	minio	minio	unit	4 node unit(s); unique key/hostname/alias, certs dir, config/PKI/root and drive mounts, wrapper command, no console or published port
 ok	minio	haproxy	frontend	2 node config(s); TCP passthrough on 9000 only

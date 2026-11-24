@@ -111,7 +111,7 @@ a fold over time. Claiming otherwise would be false.
 | `gateway` down | Client shows disconnected; queued and running work is unaffected |
 | `data` down | HA's other replica serves idempotent uploads; a single-instance profile fails a new run fast; existing runs continue |
 | `model` down | The run fails at the model stage; no artifact is finalized |
-| `backtest` down mid-run | SIGTERM drains up to 25 s; an aborted run keeps its lease and is redelivered; recomputation is idempotent |
+| `backtest` down mid-run | SIGTERM drains up to 25 s; an aborted run or stage keeps its lease and is redelivered after expiry; recomputation is idempotent |
 | `evidence` down after compute | Artifacts exist but the run stays `running`; finalization retries |
 | `strategy` down | New signals fail fast; existing signals and runs are unaffected |
 | object store down | The run fails; no partial bundle becomes visible |
@@ -141,12 +141,12 @@ in-process.
 ## 8. Stage diagnostics
 
 `evidence` owns the `stage` schema. A stage submission is validated and
-content-addressed by `evidence`; the `backtest` worker claims it, dispatches to
-the model, strategy, or portfolio executor, publishes the content-addressed
-artifact, and records `stage.computed`. The gateway proxies `/stages/*`; the
+content-addressed by `evidence`; the `backtest` worker claims it under a lease,
+renews while it executes, dispatches to the model, strategy, or portfolio
+executor, publishes the content-addressed artifact under the current term, and
+records `stage.computed`. The gateway proxies `/stages/*`; the
 model service serves model-stage event reads. A stage artifact is diagnostic:
-`evidence: false`, no canonical run digest, no baseline, and TTL expiry. The
-coupled `run submit` remains the only evidence path.
+`evidence: false`, no canonical run digest, no baseline, TTL expiry; coupled `run submit` remains the only evidence path.
 
 ## 9. The research plane
 

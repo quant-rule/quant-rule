@@ -11,7 +11,7 @@ use std::collections::BTreeSet;
 use std::net::IpAddr;
 
 use crate::descriptor::v3::{
-    CONTRACT, Database, Descriptor, ImagePin, Observability, Profile, Service,
+    BackupCipher, CONTRACT, Database, Descriptor, ImagePin, Observability, Profile, Service,
 };
 use crate::error::Error;
 
@@ -88,10 +88,18 @@ pub const DATABASE_FACTS: [(&str, &str, &str, &str); 4] = [
 /// an old example is never silently accepted. The list is a denylist, not an
 /// allowlist: it does not prove a new digest exists, only that a known example
 /// or blocker cannot ship.
-pub const FIXTURE_IMAGE_DIGESTS: [(&str, &str); 17] = [
+pub const FIXTURE_IMAGE_DIGESTS: [(&str, &str); 19] = [
     (
         "sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe",
         "labelled application fixture",
+    ),
+    (
+        crate::descriptor::v3::PGBACKREST_FIXTURE_DIGEST,
+        "derived Patroni pgBackRest blocker; deploy/v3/images/patroni/build.sh prints the real digest",
+    ),
+    (
+        crate::descriptor::v3::PATRONI_BASE_DIGEST,
+        "Patroni base image without pgBackRest; use the derived image",
     ),
     (
         "sha256:8330e8d28853641532609f63676dc2eec8d19e2bc7fadd5505a1d0c8c254d042",
@@ -179,7 +187,7 @@ pub fn validate(descriptor: &Descriptor) -> Result<(), Error> {
     validate_services(descriptor)?;
     validate_stateful(descriptor)?;
     validate_observability(descriptor)?;
-    validate_backup(descriptor)?;
+    super::backup::validate(descriptor)?;
     placement::validate(descriptor)?;
     Ok(())
 }
@@ -207,6 +215,13 @@ pub fn validate_release(descriptor: &Descriptor) -> Result<(), Error> {
                 format!("is the {reason}; pin a reviewed registry digest in images.{name}.digest"),
             ));
         }
+    }
+    if descriptor.backup.cipher == BackupCipher::None {
+        return Err(rule(
+            "deploy.backup.cipher",
+            "backup.cipher",
+            "must be aes-256-cbc in release mode; an unencrypted repository is refused",
+        ));
     }
     Ok(())
 }
@@ -881,31 +896,6 @@ fn validate_observability(descriptor: &Descriptor) -> Result<(), Error> {
                 "must differ from observability.prometheus.host; {} hosts both Prometheus and Alertmanager",
                 prometheus.host
             ),
-        ));
-    }
-    Ok(())
-}
-
-fn validate_backup(descriptor: &Descriptor) -> Result<(), Error> {
-    if !descriptor.backup.pitr {
-        return Err(rule(
-            "deploy.backup.pitr",
-            "backup.pitr",
-            "must be true; the HA contract requires PITR",
-        ));
-    }
-    if descriptor.backup.retention_days == 0 || descriptor.backup.retention_days > 3650 {
-        return Err(rule(
-            "deploy.backup.retention_days",
-            "backup.retention_days",
-            "must be between 1 and 3650 days",
-        ));
-    }
-    if descriptor.backup.object_replication {
-        return Err(rule(
-            "deploy.backup.object_replication",
-            "backup.object_replication",
-            "must be false in v1.5.10; PLAT-005 owns local erasure and versioning, and HA-013 owns off-host/archive copies and any second-site replication",
         ));
     }
     Ok(())

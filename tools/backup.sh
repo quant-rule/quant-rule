@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Back up the durable state of the Compose stack into one timestamped archive.
 #
-# The archive holds a custom-format Postgres dump, an object mirror of the
+# The archive holds one custom-format Postgres dump per logical database
+# (qr_gateway, qr_catalog, qr_evidence, qr_simulation), an object mirror of the
 # bucket, and a manifest that records the SHA-256 of every payload file. A
 # detached `.sha256` sidecar covers the archive itself. `tools/restore.sh`
-# verifies both before it writes anything.
+# verifies both and refuses a partial four-database set before it writes
+# anything.
 #
 # The application services are stopped for the duration, so the dump and the
 # mirror describe one instant rather than two races. Postgres, the object store,
@@ -20,7 +22,6 @@
 #   COMPOSE_PROJECT_NAME  the Compose project to back up (default: quantrule)
 #   QR_OBJECT_BUCKET      the bucket to mirror (default: quantrule)
 #   QR_POSTGRES_USER      the database role (default: quantrule)
-#   QR_POSTGRES_DB        the database name (default: quantrule)
 set -euo pipefail
 umask 077
 
@@ -29,7 +30,7 @@ script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 . "$script_dir/backup_lib.sh"
 
 usage() {
-  sed -n '2,23p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,24p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
 output_dir=${QR_BACKUP_DIR:-${QUANTRULE_DATA_ROOT:-$HOME/quant-rule-data}/backups}
@@ -67,9 +68,9 @@ sidecar="$archive.sha256"
 
 stage=$(mktemp -d "${TMPDIR:-/tmp}/quantrule-backup.XXXXXX")
 payload="$stage/$name"
-postgres_file="$payload/$BACKUP_POSTGRES_FILE"
+databases_dir="$payload/$BACKUP_DATABASES_DIR"
 objects_dir="$payload/$BACKUP_OBJECTS_DIR"
-mkdir -p "$(dirname -- "$postgres_file")" "$objects_dir"
+mkdir -p "$databases_dir" "$objects_dir"
 
 restart_services=''
 cleanup() {
@@ -88,14 +89,16 @@ trap cleanup EXIT
 restart_services=$(backup_quiesce)
 
 postgres_user=${QR_POSTGRES_USER:-quantrule}
-postgres_db=${QR_POSTGRES_DB:-quantrule}
-backup_log 'dumping postgres'
-if ! backup_compose exec -T postgres \
-  pg_dump -U "$postgres_user" -d "$postgres_db" \
-  --format=custom --no-owner --no-privileges > "$postgres_file"; then
-  backup_die 'pg_dump failed'
-fi
-[ -s "$postgres_file" ] || backup_die 'pg_dump produced no bytes'
+backup_log 'dumping the four logical databases'
+for database in $BACKUP_DATABASES; do
+  dump="$databases_dir/$database.dump"
+  if ! backup_compose exec -T postgres \
+    pg_dump -U "$postgres_user" -d "$database" \
+    --format=custom --no-owner --no-privileges > "$dump"; then
+    backup_die "pg_dump failed for $database"
+  fi
+  [ -s "$dump" ] || backup_die "pg_dump produced no bytes for $database"
+done
 
 bucket=${QR_OBJECT_BUCKET:-quantrule}
 backup_log "mirroring bucket $bucket"
@@ -115,11 +118,16 @@ object_bytes=0
   printf '# project=%s\n' "${COMPOSE_PROJECT_NAME:-quantrule}"
   printf '# archive=%s\n' "$name.tar.gz"
   printf '# bucket=%s\n' "$bucket"
-  printf '# fields: kind, archive-path, bytes, sha256, object-key\n'
-  printf 'postgres\t%s\t%s\t%s\n' \
-    "$BACKUP_POSTGRES_FILE" \
-    "$(backup_file_bytes "$postgres_file")" \
-    "$(backup_sha256 "$postgres_file")"
+  printf '# databases=%s\n' "$BACKUP_DATABASES"
+  printf '# fields: kind|archive-path|bytes|sha256|database|object-key\n'
+  for database in $BACKUP_DATABASES; do
+    dump="$databases_dir/$database.dump"
+    printf 'database|%s/%s.dump|%s|%s|%s|\n' \
+      "$BACKUP_DATABASES_DIR" "$database" \
+      "$(backup_file_bytes "$dump")" \
+      "$(backup_sha256 "$dump")" \
+      "$database"
+  done
   while IFS= read -r file; do
     relative=${file#"$objects_dir"/}
     backup_safe_relative "$relative" ||
@@ -127,7 +135,7 @@ object_bytes=0
     bytes=$(backup_file_bytes "$file")
     object_count=$((object_count + 1))
     object_bytes=$((object_bytes + bytes))
-    printf 'object\t%s/%s\t%s\t%s\t%s\n' \
+    printf 'object|%s/%s|%s|%s||%s\n' \
       "$BACKUP_OBJECTS_DIR" "$relative" "$bytes" "$(backup_sha256 "$file")" "$relative"
   done < <(find "$objects_dir" -type f | LC_ALL=C sort)
 } > "$manifest"
@@ -141,6 +149,6 @@ backup_sha256_line "$archive" "$name.tar.gz" > "$sidecar"
 
 printf 'archive: %s\n' "$archive"
 printf 'sha256: %s\n' "$(backup_sha256 "$archive")"
-printf 'postgres: %s bytes\n' "$(backup_file_bytes "$postgres_file")"
+printf 'databases: %s dumps\n' "$(printf '%s' "$BACKUP_DATABASES" | wc -w | awk '{print $1}')"
 printf 'objects: %s files, %s bytes\n' "$object_count" "$object_bytes"
 printf 'sidecar: %s\n' "$sidecar"

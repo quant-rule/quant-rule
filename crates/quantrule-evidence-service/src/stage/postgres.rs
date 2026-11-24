@@ -4,7 +4,8 @@
 //! no query that names a `stage.` relation, so a stage id cannot resolve to a
 //! run even if a client tries. A succeeded row, its artifact rows, and the
 //! artifact id are written in one transaction, so a killed worker leaves no
-//! visible artifact.
+//! visible artifact. A claim is lease-fenced and a stage submission commits its
+//! request intent in `stage.outbox`, so a rebuilt queue replays the row.
 
 use quantrule_api::{
     ArtifactRef, Digest, ProfileId, StageArtifact, StageInput, StageKind, StageRunSummary,
@@ -15,14 +16,14 @@ use sqlx::PgPool;
 
 use super::store::{
     MAX_ATTEMPTS, NewStageRun, StageCancelOutcome, StageClaimOutcome, StageCreateOutcome,
-    StageDeletion, StageExpiry, StageRecord, StageStore, StageStoreError, validate_artifact,
-    validate_new_stage,
+    StageDeletion, StageExpiry, StageHeartbeatOutcome, StageRecord, StageStore, StageStoreError,
+    validate_artifact, validate_new_stage,
 };
 
 /// A stage store backed by Postgres.
 #[derive(Debug, Clone)]
 pub struct PgStageStore {
-    pool: PgPool,
+    pub(crate) pool: PgPool,
 }
 
 impl PgStageStore {
@@ -49,6 +50,7 @@ type StageRow = (
     String,
     Option<String>,
     i32,
+    i64,
 );
 
 fn digest(value: &str, what: &str) -> Result<Digest, StageStoreError> {
@@ -150,6 +152,8 @@ fn record(row: StageRow, files: Vec<ArtifactRef>) -> Result<StageRecord, StageSt
         error: row.13,
         attempts: u32::try_from(row.14)
             .map_err(|_| StageStoreError("a stored stage attempt count is negative".to_owned()))?,
+        lease_term: u64::try_from(row.15)
+            .map_err(|_| StageStoreError("a stored stage lease term is negative".to_owned()))?,
     };
     if !record.has_derived_id() {
         return Err(StageStoreError(
@@ -172,7 +176,7 @@ async fn load_stage(
                         r.model_version, r.image_digest, r.artifact_id,
                         to_char(r.submitted_at AT TIME ZONE 'UTC',
                                 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'),
-                        r.error, r.attempts
+                        r.error, r.attempts, r.lease_term
                    FROM stage.runs r
                    JOIN stage.submissions s ON s.stage_run_id = r.stage_run_id
                   WHERE s.profile_id = $1 AND r.stage_run_id = $2",
@@ -189,7 +193,7 @@ async fn load_stage(
                         r.model_version, r.image_digest, r.artifact_id,
                         to_char(r.submitted_at AT TIME ZONE 'UTC',
                                 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'),
-                        r.error, r.attempts
+                        r.error, r.attempts, r.lease_term
                    FROM stage.runs r
                   WHERE r.stage_run_id = $1",
             )
@@ -277,6 +281,38 @@ impl StageStore for PgStageStore {
             .bind(profile.as_str())
             .bind(&stage_run_id)
             .bind(&run.submitted_at)
+            .execute(&mut *transaction)
+            .await
+            .map_err(|error| StageStoreError(error.to_string()))?;
+            // The request intent commits with the stage row. A repeated
+            // submission re-arms an unfinished stage so a lost publish is
+            // recovered without a second execution; a terminal stage is never
+            // re-armed.
+            sqlx::query(
+                "INSERT INTO stage.outbox (stage_run_id, routing_key)
+                 SELECT $1, 'stage.requested'
+                  WHERE EXISTS (
+                      SELECT 1 FROM stage.runs
+                       WHERE stage_run_id = $1
+                         AND status IN ('queued', 'running')
+                  )
+                 ON CONFLICT (stage_run_id, routing_key) DO NOTHING",
+            )
+            .bind(&stage_run_id)
+            .execute(&mut *transaction)
+            .await
+            .map_err(|error| StageStoreError(error.to_string()))?;
+            sqlx::query(
+                "UPDATE stage.outbox SET published_at = NULL, last_error = NULL
+                  WHERE stage_run_id = $1 AND routing_key = 'stage.requested'
+                    AND published_at IS NOT NULL
+                    AND EXISTS (
+                        SELECT 1 FROM stage.runs
+                         WHERE stage_run_id = $1
+                           AND status IN ('queued', 'running')
+                    )",
+            )
+            .bind(&stage_run_id)
             .execute(&mut *transaction)
             .await
             .map_err(|error| StageStoreError(error.to_string()))?;
@@ -406,55 +442,101 @@ impl StageStore for PgStageStore {
     fn claim(
         &self,
         stage_run_id: String,
-        redelivered: bool,
+        holder: String,
+        continuation: Option<u64>,
     ) -> BoxFuture<Result<StageClaimOutcome, StageStoreError>> {
         let pool = self.pool.clone();
         Box::pin(async move {
-            let started = sqlx::query(
+            let continuation = continuation
+                .map(i64::try_from)
+                .transpose()
+                .map_err(|_| StageStoreError("a stage claim term does not fit".to_owned()))?;
+            // One conditional statement is the claim. The lease is the claim
+            // right: a queued stage, an absent/expired lease, or the same
+            // holder's own live continuation. A live lease held by another
+            // attempt matches no branch and is never stolen.
+            let claimed = sqlx::query(
                 "UPDATE stage.runs
-                    SET status = 'running', started_at = now(), attempts = attempts + 1
-                  WHERE stage_run_id = $1 AND status = 'queued'",
+                    SET status = 'running', started_at = now(), attempts = attempts + 1,
+                        lease_holder = $2, lease_term = lease_term + 1,
+                        lease_expires_at = now() + make_interval(secs => $3)
+                  WHERE stage_run_id = $1
+                    AND attempts < $4
+                    AND (
+                        status = 'queued'
+                        OR (status = 'running' AND artifact_id IS NULL
+                            AND (lease_expires_at IS NULL
+                                 OR lease_expires_at < now()
+                                 OR (lease_holder = $2 AND lease_term = $5)))
+                    )",
             )
             .bind(&stage_run_id)
+            .bind(&holder)
+            .bind(quantrule_service_api::STAGE_LEASE_TTL_SECONDS as f64)
+            .bind(i64::from(MAX_ATTEMPTS))
+            .bind(continuation)
             .execute(&pool)
             .await
             .map_err(|error| StageStoreError(error.to_string()))?;
             let Some(record) = load_stage(&pool, None, &stage_run_id).await? else {
                 return Ok(StageClaimOutcome::Missing);
             };
-            if started.rows_affected() == 1 {
+            if claimed.rows_affected() == 1 {
                 return Ok(StageClaimOutcome::Claimed(record));
             }
             if record.state != StageState::Running {
                 return Ok(StageClaimOutcome::Terminal(record));
             }
-            if !redelivered || record.artifact.is_some() {
-                return Ok(StageClaimOutcome::Running(record));
-            }
-            if record.attempts >= MAX_ATTEMPTS {
-                return Ok(StageClaimOutcome::Exhausted(record));
-            }
-            // The conditional update is what makes two redeliveries race
-            // safely: only one increments, the other reloads and skips.
-            let reclaimed = sqlx::query(
-                "UPDATE stage.runs SET attempts = attempts + 1, started_at = now()
-                  WHERE stage_run_id = $1 AND status = 'running' AND artifact_id IS NULL
-                    AND attempts < $2",
+            let (live, spent): (bool, bool) = sqlx::query_as(
+                "SELECT lease_expires_at IS NOT NULL AND lease_expires_at >= now(),
+                        attempts >= $2
+                   FROM stage.runs WHERE stage_run_id = $1",
             )
             .bind(&stage_run_id)
             .bind(i64::from(MAX_ATTEMPTS))
+            .fetch_one(&pool)
+            .await
+            .map_err(|error| StageStoreError(error.to_string()))?;
+            if live || !spent {
+                Ok(StageClaimOutcome::Running(record))
+            } else {
+                Ok(StageClaimOutcome::Exhausted(record))
+            }
+        })
+    }
+
+    fn renew(
+        &self,
+        stage_run_id: String,
+        holder: String,
+        term: u64,
+    ) -> BoxFuture<Result<StageHeartbeatOutcome, StageStoreError>> {
+        let pool = self.pool.clone();
+        Box::pin(async move {
+            let term = i64::try_from(term)
+                .map_err(|_| StageStoreError("a stage lease term does not fit".to_owned()))?;
+            let renewed = sqlx::query(
+                "UPDATE stage.runs
+                    SET lease_expires_at = now() + make_interval(secs => $4)
+                  WHERE stage_run_id = $1 AND status = 'running'
+                    AND lease_holder = $2 AND lease_term = $3
+                    AND lease_expires_at IS NOT NULL
+                    AND lease_expires_at >= now()",
+            )
+            .bind(&stage_run_id)
+            .bind(&holder)
+            .bind(term)
+            .bind(quantrule_service_api::STAGE_LEASE_TTL_SECONDS as f64)
             .execute(&pool)
             .await
             .map_err(|error| StageStoreError(error.to_string()))?;
             let Some(record) = load_stage(&pool, None, &stage_run_id).await? else {
-                return Ok(StageClaimOutcome::Missing);
+                return Ok(StageHeartbeatOutcome::Missing);
             };
-            if reclaimed.rows_affected() == 1 {
-                Ok(StageClaimOutcome::Claimed(record))
-            } else if record.state == StageState::Running {
-                Ok(StageClaimOutcome::Running(record))
+            if renewed.rows_affected() == 1 {
+                Ok(StageHeartbeatOutcome::Renewed(Box::new(record)))
             } else {
-                Ok(StageClaimOutcome::Terminal(record))
+                Ok(StageHeartbeatOutcome::Stale)
             }
         })
     }
@@ -462,22 +544,29 @@ impl StageStore for PgStageStore {
     fn complete(
         &self,
         stage_run_id: String,
+        term: u64,
         artifact: StageArtifact,
     ) -> BoxFuture<Result<StageRecord, StageStoreError>> {
         let pool = self.pool.clone();
         Box::pin(async move {
             validate_artifact(&artifact)?;
+            let term = i64::try_from(term)
+                .map_err(|_| StageStoreError("a stage lease term does not fit".to_owned()))?;
             let mut transaction = pool
                 .begin()
                 .await
                 .map_err(|error| StageStoreError(error.to_string()))?;
+            // The term is the fence: a stale worker cannot write the artifact
+            // set of a later attempt.
             let updated = sqlx::query(
                 "UPDATE stage.runs
-                    SET status = 'succeeded', artifact_id = $2, finished_at = now()
-                  WHERE stage_run_id = $1 AND status = 'running'",
+                    SET status = 'succeeded', artifact_id = $2, finished_at = now(),
+                        lease_holder = NULL, lease_expires_at = NULL
+                  WHERE stage_run_id = $1 AND status = 'running' AND lease_term = $3",
             )
             .bind(&stage_run_id)
             .bind(artifact.artifact_id.to_string())
+            .bind(term)
             .execute(&mut *transaction)
             .await
             .map_err(|error| StageStoreError(error.to_string()))?;
@@ -491,6 +580,11 @@ impl StageStore for PgStageStore {
                     .ok_or_else(|| StageStoreError(format!("stage {stage_run_id} is unknown")));
             }
             insert_artifacts(&mut transaction, &stage_run_id, &artifact).await?;
+            sqlx::query("DELETE FROM stage.outbox WHERE stage_run_id = $1")
+                .bind(&stage_run_id)
+                .execute(&mut *transaction)
+                .await
+                .map_err(|error| StageStoreError(error.to_string()))?;
             transaction
                 .commit()
                 .await
@@ -504,24 +598,43 @@ impl StageStore for PgStageStore {
     fn fail(
         &self,
         stage_run_id: String,
+        term: u64,
         error: String,
     ) -> BoxFuture<Result<StageRecord, StageStoreError>> {
         let pool = self.pool.clone();
         Box::pin(async move {
-            sqlx::query(
+            let term = i64::try_from(term)
+                .map_err(|_| StageStoreError("a stage lease term does not fit".to_owned()))?;
+            let mut transaction = pool
+                .begin()
+                .await
+                .map_err(|error| StageStoreError(error.to_string()))?;
+            let updated = sqlx::query(
                 "UPDATE stage.runs
-                    SET status = 'failed', error = $2, finished_at = now()
-                  WHERE stage_run_id = $1 AND status = 'running'",
+                    SET status = 'failed', error = $2, finished_at = now(),
+                        lease_holder = NULL, lease_expires_at = NULL
+                  WHERE stage_run_id = $1 AND status = 'running' AND lease_term = $3",
             )
             .bind(&stage_run_id)
             .bind(&error)
-            .execute(&pool)
+            .bind(term)
+            .execute(&mut *transaction)
             .await
             .map_err(|error| StageStoreError(error.to_string()))?;
-            let record = load_stage(&pool, None, &stage_run_id)
+            if updated.rows_affected() == 1 {
+                sqlx::query("DELETE FROM stage.outbox WHERE stage_run_id = $1")
+                    .bind(&stage_run_id)
+                    .execute(&mut *transaction)
+                    .await
+                    .map_err(|error| StageStoreError(error.to_string()))?;
+            }
+            transaction
+                .commit()
+                .await
+                .map_err(|error| StageStoreError(error.to_string()))?;
+            load_stage(&pool, None, &stage_run_id)
                 .await?
-                .ok_or_else(|| StageStoreError(format!("stage {stage_run_id} is unknown")))?;
-            Ok(record)
+                .ok_or_else(|| StageStoreError(format!("stage {stage_run_id} is unknown")))
         })
     }
 
@@ -539,15 +652,31 @@ impl StageStore for PgStageStore {
             if !record.state.is_cancellable() {
                 return Ok(StageCancelOutcome::Conflict(record));
             }
+            let mut transaction = pool
+                .begin()
+                .await
+                .map_err(|error| StageStoreError(error.to_string()))?;
             let updated = sqlx::query(
                 "UPDATE stage.runs
-                    SET status = 'cancelled', finished_at = now()
+                    SET status = 'cancelled', finished_at = now(),
+                        lease_holder = NULL, lease_expires_at = NULL
                   WHERE stage_run_id = $1 AND status IN ('queued', 'running')",
             )
             .bind(&stage_run_id)
-            .execute(&pool)
+            .execute(&mut *transaction)
             .await
             .map_err(|error| StageStoreError(error.to_string()))?;
+            if updated.rows_affected() == 1 {
+                sqlx::query("DELETE FROM stage.outbox WHERE stage_run_id = $1")
+                    .bind(&stage_run_id)
+                    .execute(&mut *transaction)
+                    .await
+                    .map_err(|error| StageStoreError(error.to_string()))?;
+            }
+            transaction
+                .commit()
+                .await
+                .map_err(|error| StageStoreError(error.to_string()))?;
             let record = load_stage(&pool, Some(profile.as_str()), &stage_run_id)
                 .await?
                 .ok_or_else(|| {

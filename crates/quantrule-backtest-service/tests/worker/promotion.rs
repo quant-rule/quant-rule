@@ -59,14 +59,20 @@ async fn publish_model_stage_for(
         .submit(&profile(), run)
         .await
         .expect("submit the model stage");
-    let StageClaimOutcome::Claimed(_) = fixture
+    let StageClaimOutcome::Claimed(claimed) = fixture
         .stages
-        .claim_stage(record.stage_run_id.to_string(), false)
+        .claim_stage(
+            record.stage_run_id.to_string(),
+            "promotion-test".to_owned(),
+            None,
+            false,
+        )
         .await
         .expect("claim the model stage")
     else {
         panic!("the model stage was not claimed");
     };
+    let lease_term = claimed.lease_term;
     for file in &manifest.artifacts {
         let bytes = fixture
             .objects
@@ -102,7 +108,7 @@ async fn publish_model_stage_for(
         .expect("the stage manifest");
     fixture
         .stages
-        .stage_computed(stage_run_id.to_string(), artifact.clone())
+        .stage_computed(stage_run_id.to_string(), lease_term, artifact.clone())
         .await
         .expect("complete the model stage");
     artifact.artifact_id

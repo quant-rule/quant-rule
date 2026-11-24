@@ -346,8 +346,8 @@ groups:
         alert: "BackupAgeHigh"
         annotations:
           runbook: "https://github.com/quant-rule/quant-rule/blob/main/docs/manual/16-observability.md"
-          summary: "the last successful backup is more than eight days old"
-        expr: "time() - quantrule_backup_last_success_timestamp_seconds > 8 * 24 * 3600"
+          summary: "the last successful backup is more than eight days old, or the backup-age textfile is missing"
+        expr: "absent(quantrule_backup_last_success_timestamp_seconds) or time() - quantrule_backup_last_success_timestamp_seconds > 8 * 24 * 3600"
         for: "1h"
         labels:
           failure_row: "F16"

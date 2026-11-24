@@ -27,3 +27,4 @@ record keeps its path and gains a superseded status.
 | HA deployment profile, four databases and reliability contract | Accepted 2026-11-22 | `docs/adr/2026-11-22/1082-ha-deployment-profile.md` |
 | Image distribution, signing, and supply-chain evidence | Accepted 2026-11-24 | `docs/adr/2026-11-24/1120-image-distribution.md` |
 | Reference topologies, four rack domains, and the managed-stateful boundary | Accepted 2026-11-24 | `docs/adr/2026-11-24/1121-reference-topologies.md` |
+| pgBackRest, the derived Patroni image, and the Compose archive | Accepted 2026-11-24 | `docs/adr/2026-11-24/1111-backup-restore.md` |

@@ -56,6 +56,7 @@ pub async fn record_computed(
     stages: &dyn StageStore,
     objects: &dyn ObjectStore,
     stage_run_id: &str,
+    lease_term: u64,
     artifact: StageArtifact,
 ) -> Result<StageRecord, StageVerifyError> {
     let record = stages
@@ -63,7 +64,7 @@ pub async fn record_computed(
         .await
         .map_err(store_error)?
         .ok_or_else(|| StageVerifyError::Missing(format!("stage {stage_run_id} is unknown")))?;
-    if record.state != StageState::Running {
+    if record.state != StageState::Running || record.lease_term != lease_term {
         return Ok(record);
     }
     let manifest = read_manifest(objects, &record).await?;
@@ -81,7 +82,7 @@ pub async fn record_computed(
         }
     }
     stages
-        .complete(stage_run_id.to_owned(), artifact)
+        .complete(stage_run_id.to_owned(), lease_term, artifact)
         .await
         .map_err(store_error)
 }
@@ -196,7 +197,11 @@ mod tests {
         let run = run();
         let id = run.stage_run_id.to_string();
         stages.create(profile(), run).await.expect("create");
-        let record = match stages.claim(id, false).await.expect("claim") {
+        let record = match stages
+            .claim(id, "verify-worker".to_owned(), None)
+            .await
+            .expect("claim")
+        {
             quantrule_service_api::StageClaimOutcome::Claimed(record) => record,
             other => panic!("the stage was not claimed: {other:?}"),
         };
@@ -232,6 +237,7 @@ mod tests {
             &stages,
             &objects,
             &record.stage_run_id.to_string(),
+            record.lease_term,
             artifact,
         )
         .await
@@ -248,6 +254,7 @@ mod tests {
             &stages,
             &objects,
             &record.stage_run_id.to_string(),
+            record.lease_term,
             artifact,
         )
         .await
@@ -273,6 +280,7 @@ mod tests {
             &stages,
             &objects,
             &record.stage_run_id.to_string(),
+            record.lease_term,
             artifact,
         )
         .await
@@ -291,6 +299,7 @@ mod tests {
             &stages,
             &objects,
             &record.stage_run_id.to_string(),
+            record.lease_term,
             artifact,
         )
         .await

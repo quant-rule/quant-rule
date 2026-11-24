@@ -256,11 +256,7 @@ changed only with a reviewed release-tool change.
 
 ## 11. Infrastructure pins
 
-Fourteen infrastructure images were resolved from registry metadata on
-2026-11-24 with `skopeo inspect --raw` and `skopeo inspect --format '{{.Digest}}'`.
-No layer was pulled. The descriptor pins the multi-arch index digest; the
-linux/amd64 manifest digest is recorded so a single-platform audit is possible.
-The tag is metadata for review; the deployment always uses `reference@digest`.
+Thirteen deployable infrastructure images and the Patroni base were resolved from registry metadata on 2026-11-24 with `skopeo inspect --raw` and `--format '{{.Digest}}'`; no layer was pulled. The descriptor pins the multi-arch index digest, and the linux/amd64 manifest digest is recorded for a single-platform audit. The deployment always uses `reference@digest`; the derived `ghcr.io/quant-rule/patroni-pgbackrest` image is built from the base row and remains a labelled blocker until pushed ([backup contract](backup-restore.md)).
 
 | Key | Reference | Tag | Index digest |
 |---|---|---|---|
@@ -303,8 +299,9 @@ The remaining blockers are exact, not guessed:
 | `image.digest` | `ghcr.io/quant-rule/quantrule-platform` | `sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe` | Labelled application fixture |
 | `images.minio.digest` | `minio/minio` | `sha256:bdf0781acceb93983c15eec9e56bfbd59dcadc98ea57467022d61aeee074a2cc` | Anonymous registry metadata is denied here |
 | `images.minio_client.digest` | `minio/mc` | `sha256:5c5b1f8f2a4e3d6c9b7a1e0f8d2c4b6a9e7f1d3c5b8a0e2f4d6c8b1a3e5f7d9c` | Anonymous registry metadata is denied here |
+| `images.patroni.digest` | `ghcr.io/quant-rule/patroni-pgbackrest` | `sha256:ffbf6f5298ec083505b31ebe962c70c32d791050d21c328a401f31c1cbe927a5` | Derived image not built/pushed; the base digest is also refused |
 
-`qr-deploy validate --release` rejects every one of these three and every retired
+`qr-deploy validate --release` rejects every one of these four and every retired
 infrastructure fixture at the exact field path. The check is a denylist; it does
 not prove a fabricated digest exists. The registry is not queried at deploy time.
 
@@ -324,6 +321,7 @@ allowlist exception.
 
 Residual risks: GHCR availability and retention are outside the operator's
 control; a compromised signing key can sign a malicious digest; a vulnerability
-disclosed after the release is not covered; 14 infrastructure pins are resolved
-but `minio`, `minio_client`, and the app image remain exact blockers; the live
-push, signature, SBOM, scan, and lab are `Unverified` here; `Real HA` is HA-014.
+disclosed after the release is not covered; 13 deployable infrastructure pins and
+the Patroni base are resolved, but the derived Patroni image, `minio`,
+`minio_client`, and the app image remain exact blockers; the live push,
+signature, SBOM, scan, backup, and lab are `Unverified` here; `Real HA` is HA-014.

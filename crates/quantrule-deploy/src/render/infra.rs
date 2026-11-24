@@ -34,13 +34,22 @@ use super::{create_dir, evidence_tier, pinned, safe_component, write_public};
 
 /// The Patroni supervisor command. The four password files are read before exec
 /// and passed to Patroni through its documented `PATRONI_*` environment; no
-/// password enters the rendered YAML.
+/// password enters the rendered YAML. The pgBackRest passphrase and optional S3
+/// credentials are exported only in this process tree, so `archive-push` and
+/// `archive-get` inherit them without a rendered value or an argument.
 const PATRONI_COMMAND: &str = "set -eu\n\
 umask 077\n\
 export PATRONI_SUPERUSER_PASSWORD=\"$$(cat /run/secrets/postgres_superuser_password)\"\n\
 export PATRONI_REPLICATION_PASSWORD=\"$$(cat /run/secrets/patroni_replication_password)\"\n\
 export PATRONI_REWIND_PASSWORD=\"$$(cat /run/secrets/patroni_rewind_password)\"\n\
 export PATRONI_RESTAPI_PASSWORD=\"$$(cat /run/secrets/patroni_rest_password)\"\n\
+if [ -f /run/secrets/pgbackrest_cipher_pass ]; then\n\
+  export PGBACKREST_REPO1_CIPHER_PASS=\"$$(cat /run/secrets/pgbackrest_cipher_pass)\"\n\
+fi\n\
+if [ -f /run/secrets/pgbackrest_s3_access_key ]; then\n\
+  export PGBACKREST_REPO1_S3_KEY=\"$$(cat /run/secrets/pgbackrest_s3_access_key)\"\n\
+  export PGBACKREST_REPO1_S3_KEY_SECRET=\"$$(cat /run/secrets/pgbackrest_s3_secret_key)\"\n\
+fi\n\
 exec patroni /etc/patroni/patroni.yml";
 
 /// The HAProxy command. It expands the REST basic-auth header into a runtime
@@ -206,13 +215,13 @@ fn host_units(descriptor: &Descriptor) -> BTreeMap<String, Vec<Unit>> {
                 false,
             ),
             volume(
-                "/srv/quantrule/patroni/wal-archive",
-                "/srv/quantrule/wal-archive",
-                false,
-            ),
-            volume(
                 "/etc/quantrule/patroni/patroni.yml",
                 PATRONI_CONFIG_TARGET,
+                true,
+            ),
+            volume(
+                "/etc/pgbackrest/pgbackrest.conf",
+                super::backup::CONFIG_TARGET,
                 true,
             ),
             volume(
@@ -227,12 +236,48 @@ fn host_units(descriptor: &Descriptor) -> BTreeMap<String, Vec<Unit>> {
             ),
             volume("/etc/quantrule/pki/etcd", "/etc/quantrule/pki/etcd", true),
         ];
+        if let Some(path) = super::backup::posix_path(descriptor) {
+            // The posix path must be the same shared mount on every Patroni
+            // host; PostgreSQL's archive-push writes it and every node needs it.
+            volumes.push(volume(path, path, false));
+        }
         for secret in STATEFUL_SECRETS {
             volumes.push(volume(
                 format!("/etc/quantrule/secrets/{secret}"),
                 format!("/run/secrets/{secret}"),
                 true,
             ));
+        }
+        if descriptor
+            .secrets
+            .files
+            .contains_key(crate::validate::secrets::BACKUP_CIPHER_SECRET)
+        {
+            volumes.push(volume(
+                format!(
+                    "/etc/quantrule/secrets/{}",
+                    crate::validate::secrets::BACKUP_CIPHER_SECRET
+                ),
+                format!(
+                    "/run/secrets/{}",
+                    crate::validate::secrets::BACKUP_CIPHER_SECRET
+                ),
+                true,
+            ));
+        }
+        if descriptor.backup.repo.kind == crate::descriptor::v3::BackupRepoKind::S3 {
+            for secret in crate::validate::secrets::BACKUP_S3_SECRETS {
+                volumes.push(volume(
+                    format!("/etc/quantrule/secrets/{secret}"),
+                    format!("/run/secrets/{secret}"),
+                    true,
+                ));
+            }
+            if let Some(tls_ca) = descriptor.backup.repo.tls_ca.as_deref()
+                && tls_ca != "/etc/quantrule/pki/ca.crt"
+            {
+                volumes.push(volume(tls_ca, tls_ca, true));
+            }
         }
         let mut patroni = unit(
             descriptor,
@@ -739,7 +784,7 @@ mod tests {
         let patroni = host_yaml(&descriptor, "infra-1", &units["infra-1"]);
         assert!(patroni.contains("\n  patroni:\n"), "{patroni}");
         assert!(
-            patroni.contains("batonogov/patroni-docker@sha256:"),
+            patroni.contains("ghcr.io/quant-rule/patroni-pgbackrest@sha256:"),
             "{patroni}"
         );
         assert!(!patroni.contains("postgres@sha256:"), "{patroni}");

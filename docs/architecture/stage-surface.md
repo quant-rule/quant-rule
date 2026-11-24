@@ -1,7 +1,7 @@
 # Stage, Research, and Operations Surface
 
 - Date: 2026-11-17 (UTC)
-- Status: Current; released as v1.3.0. The stage contract and schema are merged (#850), the worker and gateway landed in #851, the model stage and Workbench Data/Model tabs landed in #852, the strategy stage and Workbench Strategy tab landed in #853, the portfolio stage and Workbench Portfolio tab landed in #854, backtest promotion landed in #855, the research ledger and manifest v3 landed in #856, the research commands and Research screen landed in #857, the operations surface and end-to-end verification landed in #858, and the user manual landed in #859
+- Status: Current; released as v1.3.0. A stage lease/outbox was added in HA-013 phase 2. The stage contract and schema are merged (#850), the worker and gateway landed in #851, the model stage and Workbench Data/Model tabs landed in #852, the strategy stage and Workbench Strategy tab landed in #853, the portfolio stage and Workbench Portfolio tab landed in #854, backtest promotion landed in #855, the research ledger and manifest v3 landed in #856, the research commands and Research screen landed in #857, the operations surface and end-to-end verification landed in #858, and the user manual landed in #859
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 - Decision: [ADR-2026-11-16-01](../adr/2026-11-16/01-stage-execution-and-evidence-boundary.md)
@@ -119,7 +119,7 @@ capability that only one client can reach is a parity gap.
 | Service | Stage responsibility |
 |---|---|
 | `evidence` | Owns the `stage` schema: `stage.runs`, `stage.submissions`, `stage.artifacts`; stage lifecycle, profile scoping, expiry; reports retention and the last cleanup on `/operations` |
-| `backtest` | Stage worker: claims a stage, dispatches to the model, strategy, or portfolio executor, publishes the artifact, publishes `stage.computed` |
+| `backtest` | Stage worker: claims a stage under a lease, renews it while it executes, dispatches to the model, strategy, or portfolio executor, publishes the artifact under the current term, publishes `stage.computed` |
 | `model` | Computes the model bundle that a model stage publishes; serves model-stage event reads |
 | `data` | Supplies the dataset and config bundle; never executes a stage |
 | `gateway` | Proxies `/stages/*`, `/research/*`, and `/operations`; validates the profile and token; holds no stage state |

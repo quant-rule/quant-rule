@@ -18,6 +18,7 @@ async fn a_stage_succeeds_and_is_idempotent() {
     let fixture = Fixture::new(b"success").await;
     let outcome = process_stage(
         fixture.stage_run_id.clone(),
+        None,
         false,
         &fixture.services,
         &dispatch(Arc::new(Success(output().files))),
@@ -83,6 +84,7 @@ async fn a_stage_succeeds_and_is_idempotent() {
     // the notification to close a lost publish.
     let outcome = process_stage(
         fixture.stage_run_id.clone(),
+        None,
         true,
         &fixture.services,
         &dispatch(Arc::new(Failure("must not run"))),
@@ -105,6 +107,7 @@ async fn an_executor_failure_records_the_error_and_publishes_the_failure() {
     let fixture = Fixture::new(b"failure").await;
     let outcome = process_stage(
         fixture.stage_run_id.clone(),
+        None,
         false,
         &fixture.services,
         &dispatch(Arc::new(Failure("the model refused the input"))),
@@ -151,6 +154,7 @@ async fn a_stage_cancelled_before_the_claim_is_not_executed() {
         .expect("cancel");
     let outcome = process_stage(
         fixture.stage_run_id.clone(),
+        None,
         false,
         &fixture.services,
         &dispatch(Arc::new(Success(output().files))),
@@ -184,6 +188,7 @@ async fn a_cancel_before_the_first_cas_write_leaves_no_manifest() {
     };
     let outcome = process_stage(
         fixture.stage_run_id.clone(),
+        None,
         false,
         &fixture.services,
         &dispatch(Arc::new(executor)),
@@ -223,6 +228,7 @@ async fn a_killed_worker_leaves_no_visible_artifact_and_may_retry() {
     let services = services_with_manifest_failure(&fixture);
     let outcome = process_stage(
         fixture.stage_run_id.clone(),
+        None,
         false,
         &services,
         &dispatch(Arc::new(Success(output().files))),
@@ -253,6 +259,7 @@ async fn a_kind_without_an_executor_fails_instead_of_succeeding() {
     let fixture = Fixture::new(b"no-executor").await;
     let outcome = process_stage(
         fixture.stage_run_id.clone(),
+        None,
         false,
         &fixture.services,
         &quantrule_backtest_service::stage::StageDispatch::new(),

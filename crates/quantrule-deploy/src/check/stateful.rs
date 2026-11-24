@@ -80,8 +80,10 @@ fn expected_files(descriptor: &Descriptor) -> Vec<String> {
     let mut files = Vec::new();
     for host in &descriptor.stateful.postgres.nodes {
         files.push(format!("patroni-{host}.yml"));
+        files.push(format!("pgbackrest-{host}.conf"));
         files.push(format!("infra/{host}.yaml"));
     }
+    files.push("pgbackrest-backup.sh".to_owned());
     for host in &descriptor.stateful.etcd.nodes {
         files.push(format!("etcd-{host}.conf.yml"));
         files.push(format!("infra/{host}.yaml"));
@@ -244,12 +246,15 @@ fn manifest_rows(descriptor: &Descriptor, out: Option<&Path>) -> Vec<CheckRow> {
         let source = entry["source"].as_str().unwrap_or_default();
         let scope = entry["scope"].as_str().unwrap_or_default();
         let mode = entry["mode"].as_str().unwrap_or_default();
-        let expected =
-            if source.ends_with(".key") || (scope != "pki" && source != "minio-policy.json") {
-                "600"
-            } else {
-                "644"
-            };
+        let expected = if scope == "script" {
+            "700"
+        } else if source.starts_with("pgbackrest-") {
+            "644"
+        } else if source.ends_with(".key") || (scope != "pki" && !source.ends_with("policy.json")) {
+            "600"
+        } else {
+            "644"
+        };
         if mode != expected {
             mode_issues.push(format!("{source} is mode {mode}; expected {expected}"));
         }
@@ -259,7 +264,7 @@ fn manifest_rows(descriptor: &Descriptor, out: Option<&Path>) -> Vec<CheckRow> {
             "stateful",
             "manifest",
             "modes",
-            "configs and secrets 600; public CA, certificates, and the bucket policy 644",
+            "configs and secrets 600; the secret-free pgBackRest config 644; the backup script 700; public CA, certificates, and the bucket policy 644",
         ));
     } else {
         rows.push(CheckRow::failed(
@@ -298,7 +303,9 @@ fn expected_sources(descriptor: &Descriptor) -> Vec<String> {
     let mut sources = Vec::new();
     for host in &descriptor.stateful.postgres.nodes {
         sources.push(format!("patroni-{host}.yml"));
+        sources.push(format!("pgbackrest-{host}.conf"));
     }
+    sources.push("pgbackrest-backup.sh".to_owned());
     for host in &descriptor.stateful.etcd.nodes {
         sources.push(format!("etcd-{host}.conf.yml"));
     }
@@ -313,11 +320,33 @@ fn expected_sources(descriptor: &Descriptor) -> Vec<String> {
         sources.push(format!("minio-{host}.conf"));
     }
     sources.push("minio-policy.json".to_owned());
+    sources.push("minio-archive-policy.json".to_owned());
+    if descriptor
+        .secrets
+        .files
+        .contains_key(crate::validate::secrets::OBJECT_ARCHIVE_READER_SECRET)
+    {
+        sources.push(format!(
+            "secrets/{}",
+            crate::validate::secrets::OBJECT_ARCHIVE_READER_SECRET
+        ));
+    }
     for secret in stateful::STATEFUL_SECRETS {
         sources.push(format!("secrets/{secret}"));
     }
     for secret in stateful::MINIO_SECRETS {
         sources.push(format!("secrets/{secret}"));
+    }
+    for name in [
+        crate::validate::secrets::BACKUP_CIPHER_SECRET,
+        crate::validate::secrets::BACKUP_S3_SECRETS[0],
+        crate::validate::secrets::BACKUP_S3_SECRETS[1],
+    ] {
+        if name == crate::validate::secrets::BACKUP_CIPHER_SECRET
+            || descriptor.backup.repo.kind == crate::descriptor::v3::BackupRepoKind::S3
+        {
+            sources.push(format!("secrets/{name}"));
+        }
     }
     for name in ["object_store_access_key", "object_store_secret_key"] {
         sources.push(format!("secrets/{name}"));

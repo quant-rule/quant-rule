@@ -169,6 +169,12 @@
           "name": "leader-lease",
           "file": "crates/quantrule-evidence-service/migrations/0021_leader_lease.sql",
           "checksum": "8baef2fa046b7701"
+        },
+        {
+          "version": 22,
+          "name": "stage-lease-outbox",
+          "file": "crates/quantrule-evidence-service/migrations/0022_stage_lease_outbox.sql",
+          "checksum": "f5afa86faf4f7c47"
         }
       ]
     },

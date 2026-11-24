@@ -8,8 +8,8 @@
   the PLAT-005 MinIO tier (erasure, TLS, HAProxy front door, bucket,
   versioning, least-privilege account, object bootstrap, check rows, node-loss
   lab), the PLAT-006 observability tier (16 pins, scrape, 38 rules over 17
-  rows, Loki/promtail, four dashboards, operator tool, static check, lab), and
-  the PLAT-007 registry/signing/SBOM/CVE phases 1–2 (running task images and the all-service runtime digest probe)
+  rows, Loki/promtail, four dashboards, operator tool, static check, lab), the
+  PLAT-007 registry/signing/SBOM/CVE phases 1–2, and HA-013 phase 1a pgBackRest/Compose archive/backup age, phase 2 stage lease/outbox and queue rebuild, and phase 3 object archive/DR/lab integration (running task images and the all-service runtime digest probe)
 - Claim type: Behaviour Claim
 - Issue: [#1110](https://github.com/quant-rule/quant-rule/issues/1110)
 - Related: [ADR-HA](../../adr/2026-11-22/1082-ha-deployment-profile.md),
@@ -21,7 +21,7 @@
   [RabbitMQ cluster](../2026-11-23/rabbitmq-cluster.md),
   [MinIO cluster](../2026-11-23/minio-cluster.md),
   [secret files](../2026-11-23/secret-files.md),
-  [internal TLS](../2026-11-23/internal-tls.md),
+  [internal TLS](../2026-11-23/internal-tls.md), [backup and restore](../2026-11-24/backup-restore.md),
   [HA deployment chapter](../../manual/15-ha-deployment.md)
 
 `quantrule.deploy/v3` is the single descriptor for the HA profile. It places
@@ -30,9 +30,9 @@ infrastructure unit by digest, names secret files, and rejects unsafe placement.
 v2 remains readable for the older multi-host profile. The checked-in sample is
 [`deploy/v3/deploy.example.json`](../../../deploy/v3/deploy.example.json); the
 fixture secret directory is
-[`deploy/v3/secrets/`](../../../deploy/v3/secrets/README.md). The app digest is a
-labelled fixture that `--release` rejects; 14 infra pins are resolved from registry
-metadata and `minio`/`minio_client` remain blockers ([reference contract](../2026-11-24/reference-topologies.md)).
+[`deploy/v3/secrets/`](../../../deploy/v3/secrets/README.md). The app, `minio`,
+`minio_client`, and derived Patroni image are labelled blockers that `--release`
+rejects; 13 deployable infra pins are resolved from registry metadata ([reference contract](../2026-11-24/reference-topologies.md)).
 
 The document is JSON and every struct denies unknown fields. A v3-only field in a
 v2 document, or a v2-only field in a v3 document, is a parse error rather than a silent upgrade.
@@ -101,14 +101,15 @@ other blocks; the sample lists every pin.
     "minio": { "nodes": ["infra-1", "infra-2", "infra-3", "infra-4"], "drives": [1, 1, 1, 1], "parity": "EC:2" }
   },
   "observability": { "prometheus": { "host": "infra-1" }, "grafana": { "host": "infra-1" }, "loki": { "host": "infra-2" }, "alertmanager": { "host": "infra-2" } },
-  "backup": { "pitr": true, "retention_days": 30, "object_replication": false },
+  "backup": { "pitr": true, "retention_days": 30, "object_replication": false, "repo": { "kind": "s3", "endpoint": "s3.example.internal:443", "bucket": "quantrule-backup", "path": "/quantrule", "tls_ca": "/etc/quantrule/pki/ca.crt" }, "cipher": "aes-256-cbc", "schedule": { "full_at": "02:00", "diff_at": "14:00" }, "host": "edge-1", "object_archive": { "enabled": false } },
   "secrets": {
     "files": {
       "gateway_token": "/etc/quantrule/secrets/gateway_token",
       "gateway_database_url": "/etc/quantrule/secrets/gateway_database_url",
       "postgres_superuser_password": "/etc/quantrule/secrets/postgres_superuser_password",
       "patroni_rest_password": "/etc/quantrule/secrets/patroni_rest_password",
-      "rabbitmq_erlang_cookie": "/etc/quantrule/secrets/rabbitmq_erlang_cookie"
+      "rabbitmq_erlang_cookie": "/etc/quantrule/secrets/rabbitmq_erlang_cookie",
+      "pgbackrest_cipher_pass": "/etc/quantrule/secrets/pgbackrest_cipher_pass", "pgbackrest_s3_access_key": "/etc/quantrule/secrets/pgbackrest_s3_access_key", "pgbackrest_s3_secret_key": "/etc/quantrule/secrets/pgbackrest_s3_secret_key"
     }
   }
 }
@@ -141,7 +142,7 @@ The sample has eleven hosts: two edge (ingress, gateway, keepalived), two core (
 | `services` | Exactly `gateway`, `data`, `model`, `strategy`, `backtest`, `evidence`, `simulation`; `replicas`, `hosts`, `port`; no published port. |
 | `stateful` | PostgreSQL, etcd, HAProxy, RabbitMQ, and MinIO nodes; `postgres.watchdog` is `off`, `automatic`, or `required` (default `off`); `synchronous_standby` must be exactly one; RabbitMQ is odd and >=3 with `disk_free_limit_mib` (default 5120) and `memory_high_watermark_percent` (default 60); MinIO parity is `auto` or `EC:<n>` and must keep the write quorum after one node loss; no `reschedule` field. |
 | `observability` | `prometheus`, `grafana`, `loki`, `alertmanager`, each on a declared host; Prometheus and Alertmanager must be distinct; all four may not share one host. |
-| `backup` | `pitr` true (configured, not verified); retention 1–3650 days; `object_replication` must be false in v1.5.10 because HA-013 owns off-host/archive and any second-site copy. |
+| `backup` | `pitr` true (configured, not verified); retention 1–3650 days; `object_replication` false; optional `repo` (`s3`/`posix`, default posix `/srv/quantrule/backup/pgbackrest`), `cipher` (`aes-256-cbc`; `none` refused by `--release`), `schedule` (UTC `02:00`/`14:00`), `host` (default `swarm.managers[0]`), and `object_archive` (one-way tool; target differs from `quantrule`; requires `object_archive_reader_secret_key`). The [backup contract](../2026-11-24/backup-restore.md) is authoritative. |
 | `secrets.files` | Non-empty raw name-to-absolute-path map; no inline value. The five stateful secrets, the two MinIO root secrets, and `object_store_access_key`/`object_store_secret_key` are required; the stateful values are URL-safe. |
 
 ## 4. Validation
@@ -167,20 +168,23 @@ files and credential quality.
 | Stateful members use distinct hosts and, in `swarm-ha`, distinct domains | `deploy.stateful.anti_affinity` |
 | Postgres `sslmode=verify-full`; queue `amqps`/5671 and the shared `rabbitmq` host; object store `https` | `deploy.endpoint.*` |
 | CA and secret paths are absolute; no userinfo | `deploy.endpoint.host`, `deploy.file.absolute` |
-| App and every infra unit carry a `sha256:` digest; a mutable tag is refused. The sample/lab app digest is a labelled fixture that `--release` rejects; 14 infra pins are resolved and every remaining fixture or reverted pin is rejected at its field | `deploy.image.*`, `deploy.images.*` |
+| App and every infra unit carry a `sha256:` digest; a mutable tag is refused. The app, `minio`, `minio_client`, and derived Patroni digests are labelled fixtures that `--release` rejects; 13 deployable infra pins and the Patroni base are resolved, and every remaining fixture or reverted pin is rejected at its field | `deploy.image.*`, `deploy.images.*` |
 | `secrets.files` is non-empty and names every required secret | `deploy.secrets.*` |
 | The five stateful secrets are present, distinct, strong, and URL-safe; the cookie is 32+ characters and the two MinIO root secrets are strong and distinct | `deploy.secrets.missing`, `deploy.secret.url_safe`, `deploy.secret.default_credential`, `deploy.secret.duplicate_credential`, `deploy.secret.weak_cookie` |
 | `object_store_access_key` is the dedicated `qr_app` user; the secret is strong and distinct | `deploy.secret.object_store_user`, `deploy.secret.default_credential` |
 | `queue_url` names `qr_queue`, the shared `rabbitmq` host, the default `%2f` vhost, and port 5671 | `deploy.secret.queue_user`, `.queue_host`, `.queue_vhost`, `.queue_port` |
 | `--files`: regular, non-symlink, mode 600, <=8 KiB | `deploy.file.*`, `deploy.secret.mode` |
 | `--files`: no default or duplicate role credentials | `deploy.secret.default_credential`, `deploy.secret.duplicate_credential` |
-| Backup PITR, retention, the HA-013 replication boundary; four observability units on distinct alerting hosts | `deploy.backup.*`, `deploy.host.undeclared`, `deploy.observability.placement` |
+| Backup PITR, retention, repo kind/endpoint/bucket/path/TLS, cipher, UTC schedule, declared host, archive target, and the HA-013 replication boundary; four observability units on distinct alerting hosts | `deploy.backup.*`, `deploy.host.undeclared`, `deploy.observability.placement` |
 | Unknown field, or a v2-only field in v3 | JSON parse error naming the field |
 
 The required names are `queue_url`, `object_store_access_key`,
 `object_store_secret_key`, `minio_root_user`, `minio_root_password`, the eight
 `<service>_database_url`/`<service>_owner_database_url` files, the gateway token,
-and the five stateful secrets. The URLs carry `sslmode=verify-full`; every role
+and the five stateful secrets. An S3 backup repository also requires
+`pgbackrest_cipher_pass` and the `pgbackrest_s3_*` pair; the passphrase is
+optional in the structure for an existing posix descriptor but the check fails
+until the file exists. The URLs carry `sslmode=verify-full`; every role
 has its own password. The stateful values are `stateful` scope, the MinIO root
 pair is `minio` scope and never an app Swarm secret, and the Erlang cookie goes
 only to brokers while the MinIO root files go only to MinIO hosts.
@@ -198,7 +202,7 @@ usage errors.
 | Target | Writes |
 |---|---|
 | `swarm` | `stack.yaml`, `quantrule_traefik.yml`, `traefik-dynamic.yml`, `bootstrap.sh`, `jobs/cluster-bootstrap.sh`, `jobs/db-bootstrap.sh`, `jobs/migrate.sh`, `secrets/`, `pki/`, `render.json` |
-| `infra` | `infra/<host>.yaml`, `keepalived-<host>.conf`, `patroni-<host>.yml`, `etcd-<host>.conf.yml`, `haproxy-<host>.cfg`, `rabbitmq-<host>.conf`, `rabbitmq-enabled_plugins`, `minio-<host>.conf`, `minio-policy.json`, `prometheus.yml`, `alert-rules.yml`, `alertmanager.yml`, `loki.yml`, `blackbox.yml`, `promtail-<host>.yml`, `grafana/`, `observability-manifest.json`, `stateful-manifest.json`, `secrets/`, `pki/`, `render.json` |
+| `infra` | `infra/<host>.yaml`, `keepalived-<host>.conf`, `patroni-<host>.yml`, `pgbackrest-<host>.conf`, `pgbackrest-backup.sh`, `etcd-<host>.conf.yml`, `haproxy-<host>.cfg`, `rabbitmq-<host>.conf`, `rabbitmq-enabled_plugins`, `minio-<host>.conf`, `minio-policy.json`, `minio-archive-policy.json`, `prometheus.yml`, `alert-rules.yml`, `alertmanager.yml`, `loki.yml`, `blackbox.yml`, `promtail-<host>.yml`, `grafana/`, `observability-manifest.json`, `stateful-manifest.json`, `secrets/`, `pki/`, `render.json` |
 | `all` | Both sets |
 
 `secrets/` is the one copy of the source values: one mode-600 file per name and a
@@ -280,12 +284,10 @@ cluster, alarms, queue default, Prometheus/JSON logs, HAProxy `rabbitmq`/5671,
 the broker unit, the manifest host selector/modes, and the RabbitMQ leaf SANs;
 they stay Docker-free. The MinIO rows check the exact config/parity/quorum, the
 unique unit and alias, the HAProxy 9000 frontend/backend, the manifest
-hosts/modes, the app URL/`_FILE`/`qr_app` path, and the MinIO leaf SANs. The
+hosts/modes, the app URL/`_FILE`/`qr_app` path, the read-only
+`qr_archive_reader` policy, and the MinIO leaf SANs. The
 observability rows check placement, units, jobs/auth, 38 rules/HA matrix,
-receiver, Loki/promtail, Grafana, manifest, logging, and internal metrics. `--out`
-or `QR_DEPLOY_OUT` reads the rendered tree; without it the configs render in
-memory and certificates come from the descriptor CA. A missing `openssl` is a
-failed `limited` row.
+receiver, Loki/promtail, Grafana, manifest, logging, and internal metrics; the 13 backup rows check the stanza, archive commands, repository, host, off-host boundary, object archive, derived image, secret absence, script, schedule, and unit. `--out` or `QR_DEPLOY_OUT` reads the rendered tree; without it the configs render in memory and certificates come from the descriptor CA. A missing `openssl` is a failed `limited` row.
 
 `--remote docker` and `--overlay` are read-only opt-ins; the default check is
 Docker-free, no row prints a secret or inspect body, and a missing object or
@@ -313,9 +315,8 @@ descriptor and image with forward-only migrations.
 `lab-single-host` proves simulated node failure only. The `ha` tier loses one
 worker, one manager, the VIP, the Patroni primary, one HAProxy, and one MinIO
 node; it records RTO, RPO 0, the rejoin, the object write quorum, and value-free
-`Simulated HA` evidence. Skip flags leave that row `Unverified`; the all-service
-digest is `Measured` only when all seven match, the end-to-end only after
-`tools/verify.sh`. `swarm-ha`/`single-az` stay unverified until HA-014; no output says `Real HA`.
+`Simulated HA` evidence. `--dr` adds the in-place restore/digest drill and
+`--skip-dr` leaves it `Unverified`; the all-service digest is `Measured` only when all seven match, the end-to-end only after `tools/verify.sh`. `swarm-ha`/`single-az` stay unverified until HA-014; no output says `Real HA`.
 ## 9. Non-goals
 
 No Kubernetes, autoscaling, accounts, tenancy, live trading, desktop packaging,
@@ -325,6 +326,5 @@ certificates, headers, and body limits are in the
 [PLAT-003](../2026-11-23/patroni-cluster.md); RabbitMQ is
 [PLAT-004](../2026-11-23/rabbitmq-cluster.md); MinIO is
 [PLAT-005](../2026-11-23/minio-cluster.md); observability is [PLAT-006](../2026-11-23/observability.md);
-[PLAT-007](../2026-11-24/registry.md) owns registry/signing/SBOM/CVE; HA-013 owns
-pgBackRest/off-host copy and any second-site replication; failure evidence is HA-014.
+[PLAT-007](../2026-11-24/registry.md) owns registry/signing/SBOM/CVE; HA-013 phase 1a owns pgBackRest, the derived Patroni image, and the four-database Compose archive; phase 3 owns the object archive/drill, and failure evidence is HA-014.
 TLS/CA is [internal TLS](../2026-11-23/internal-tls.md); secrets and rotation are [file-backed secrets](../2026-11-23/secret-files.md).

@@ -4,10 +4,10 @@
 //! It applies only the `runs`/`research` migrations, serves the public run,
 //! hypothesis, research, and operations surface plus the internal lifecycle,
 //! and consumes `run.computed` only while it holds the database leader lease.
-//! It also publishes the run-notification outbox and retries the
-//! dataset-reference sweeps, so a crash after a commit cannot lose a run or
-//! leave a reference that blocks a dataset. Artifact bytes live in S3 and the
-//! control-plane queue is RabbitMQ.
+//! It also publishes the run- and stage-notification outboxes and retries the
+//! dataset-reference sweeps, so a crash after a commit cannot lose a run or a
+//! stage and cannot leave a reference that blocks a dataset. Artifact bytes
+//! live in S3 and the control-plane queue is RabbitMQ.
 
 #![forbid(unsafe_code)]
 
@@ -40,7 +40,7 @@ use quantrule_evidence_service::postgres_leader::PgLeaderLease;
 use quantrule_evidence_service::releases::ReferenceReleaseLog;
 use quantrule_evidence_service::research::{HypothesisStore, ImprovementStore};
 use quantrule_evidence_service::runs::RunStore;
-use quantrule_evidence_service::stage::{PgStageStore, StageStore, retention};
+use quantrule_evidence_service::stage::{PgStageStore, StageOutbox, StageStore, retention};
 use quantrule_evidence_service::{EvidenceState, router};
 
 /// The run store a route handler reads.
@@ -107,9 +107,15 @@ async fn main() -> Result<(), RuntimeError> {
     let releases: Option<Arc<dyn ReferenceReleaseLog>> = run_store
         .as_ref()
         .map(|store| Arc::clone(store) as Arc<dyn ReferenceReleaseLog>);
-    let stages: Option<StageHandle> = pool
+    let stage_store: Option<Arc<PgStageStore>> = pool
         .as_ref()
-        .map(|pool| Arc::new(PgStageStore::new(pool.clone())) as Arc<dyn StageStore>);
+        .map(|pool| Arc::new(PgStageStore::new(pool.clone())));
+    let stages: Option<StageHandle> = stage_store
+        .as_ref()
+        .map(|store| Arc::clone(store) as Arc<dyn StageStore>);
+    let stage_outbox: Option<Arc<dyn StageOutbox>> = stage_store
+        .as_ref()
+        .map(|store| Arc::clone(store) as Arc<dyn StageOutbox>);
     let hypotheses: Option<HypothesisHandle> = pool
         .as_ref()
         .map(|pool| Arc::new(PgHypothesisStore::new(pool.clone())) as Arc<dyn HypothesisStore>);
@@ -155,6 +161,7 @@ async fn main() -> Result<(), RuntimeError> {
             outbox,
             releases,
             stages: stages.as_ref().map(Arc::clone),
+            stage_outbox,
             hypotheses,
             improvements,
             lineage,
@@ -180,6 +187,22 @@ async fn main() -> Result<(), RuntimeError> {
             outbox,
             queue,
             quantrule_evidence_service::outbox::PUBLISH_INTERVAL,
+            shutdown.clone(),
+            Some(metrics.clone()),
+        ));
+    }
+
+    // The stage publisher mirrors the run publisher: its first pass re-arms
+    // every queued stage and every expired running stage, so a rebuilt or
+    // emptied queue recovers the exact unfinished set.
+    if let (Some(outbox), Some(queue)) = (
+        state.stage_outbox.as_ref().map(Arc::clone),
+        state.queue.as_ref().map(Arc::clone),
+    ) {
+        background.push(quantrule_evidence_service::stage::outbox::spawn_publisher(
+            outbox,
+            queue,
+            quantrule_evidence_service::stage::outbox::PUBLISH_INTERVAL,
             shutdown.clone(),
             Some(metrics.clone()),
         ));
@@ -266,11 +289,21 @@ async fn main() -> Result<(), RuntimeError> {
         leadership.as_ref().cloned(),
     ) {
         background.push(quantrule_evidence_service::outbox::spawn_leader_reconcile(
-            receiver,
+            receiver.clone(),
             outbox,
-            publish,
+            Arc::clone(&publish),
             shutdown.clone(),
         ));
+        if let Some(stage_outbox) = state.stage_outbox.as_ref().map(Arc::clone) {
+            background.push(
+                quantrule_evidence_service::stage::outbox::spawn_leader_reconcile(
+                    receiver,
+                    stage_outbox,
+                    publish,
+                    shutdown.clone(),
+                ),
+            );
+        }
     }
 
     // The leader and queue gauges are observations, never finalisation inputs.

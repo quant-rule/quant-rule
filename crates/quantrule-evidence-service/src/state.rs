@@ -19,7 +19,7 @@ use crate::outbox::RunOutbox;
 use crate::releases::ReferenceReleaseLog;
 use crate::research::{HypothesisStore, ImprovementStore};
 use crate::runs::RunStore;
-use crate::stage::StageStore;
+use crate::stage::{StageOutbox, StageStore};
 
 /// The backing services the evidence routes call.
 #[derive(Default)]
@@ -32,6 +32,8 @@ pub struct EvidenceServices {
     pub releases: Option<Arc<dyn ReferenceReleaseLog>>,
     /// Where diagnostic stage runs are recorded.
     pub stages: Option<Arc<dyn StageStore>>,
+    /// Where stage request notifications are recorded and retried.
+    pub stage_outbox: Option<Arc<dyn StageOutbox>>,
     /// Where sealed hypotheses live.
     pub hypotheses: Option<Arc<dyn HypothesisStore>>,
     /// Where improvement runs, baselines, and invalidations live.
@@ -63,6 +65,9 @@ pub struct EvidenceState {
     /// Where diagnostic stage runs are recorded; absent when no database is
     /// configured.
     pub stages: Option<Arc<dyn StageStore>>,
+    /// Where stage request notifications are recorded; absent when no database
+    /// is configured.
+    pub stage_outbox: Option<Arc<dyn StageOutbox>>,
     /// Where sealed hypotheses live; absent when no database is configured.
     pub hypotheses: Option<Arc<dyn HypothesisStore>>,
     /// Where improvement runs, baselines, and invalidations live; absent when
@@ -104,6 +109,7 @@ impl std::fmt::Debug for EvidenceState {
             .field("outbox", &self.outbox.is_some())
             .field("releases", &self.releases.is_some())
             .field("stages", &self.stages.is_some())
+            .field("stage_outbox", &self.stage_outbox.is_some())
             .field("hypotheses", &self.hypotheses.is_some())
             .field("improvements", &self.improvements.is_some())
             .field("lineage", &self.lineage.is_some())
@@ -130,6 +136,7 @@ impl EvidenceState {
             outbox: services.outbox,
             releases: services.releases,
             stages: services.stages,
+            stage_outbox: services.stage_outbox,
             hypotheses: services.hypotheses,
             improvements: services.improvements,
             lineage: services.lineage,

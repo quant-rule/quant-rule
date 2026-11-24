@@ -1,7 +1,7 @@
 # File-Backed Secrets
 
 - Date: 2026-11-23 (UTC)
-- Status: Current for the local Compose stack, the v2 multi-host profile, and v3 render/check
+- Status: Current for the local Compose stack, the v2 multi-host profile, v3 render/check, and the HA-013 phase 1a pgBackRest passphrase/S3 files
 - Issue: [#1107](https://github.com/quant-rule/quant-rule/issues/1107)
 - Claim type: Behaviour Claim
 - Related: [HA architecture](../../architecture/ha.md), [security](../../architecture/security.md), [four databases](../2026-11-22/four-databases.md)
@@ -106,6 +106,11 @@ to the migration jobs. The five stateful secrets (four Patroni passwords and
 scrape; it stays a `stateful` secret and never enters an app container.
 `object_store_access_key` is exactly `qr_app`; that pair stays an app Swarm
 secret and is copied to the MinIO hosts only for the one-shot object bootstrap.
+The pgBackRest `pgbackrest_cipher_pass` and, for an S3 repository,
+`pgbackrest_s3_access_key`/`pgbackrest_s3_secret_key` are `backup` scope: they
+are copied to every Patroni host and the backup host, read into the Patroni
+process or `docker exec` stdin, and never written into `pgbackrest.conf`, an
+argument, a log, or the check report ([backup contract](../2026-11-24/backup-restore.md)).
 `QR_INTERNAL_ONLY=1` and the entrypoint's private-address resolution are
 unchanged; a task with no resolvable private address fails closed. The queue
 definitions export is credential-free (`users`/`permissions` stripped) and mode

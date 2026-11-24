@@ -4,8 +4,9 @@
 # The script creates only the external objects the deployment owns. The two
 # Traefik configs are PLAT-002; Patroni, etcd, and HAProxy files are PLAT-003;
 # RabbitMQ is PLAT-004; MinIO is PLAT-005; observability is PLAT-006. The five
-# stateful secrets and the two MinIO root secrets are copied to the hosts by
-# tools/stateful.sh, never created as app Swarm secrets. No secret value is read,
+# stateful secrets, the two MinIO root secrets, and the pgBackRest passphrase
+# and S3 credentials are copied to the hosts by tools/stateful.sh, never created
+# as app Swarm secrets. No secret value is read,
 # printed, or passed as an argument. A changed rendered file is refused: rotation
 # is a new object name plus a rolling service update, never an in-place overwrite.
 set -eu

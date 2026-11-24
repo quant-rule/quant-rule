@@ -10,6 +10,7 @@
 
 pub mod v2;
 
+pub(crate) mod backup;
 mod bootstrap;
 pub(crate) mod infra;
 pub(crate) mod ingress;
@@ -302,6 +303,7 @@ fn prepare_output(out: &Path) -> Result<(), Error> {
         "traefik-dynamic.yml",
         "stateful-manifest.json",
         "minio-policy.json",
+        "minio-archive-policy.json",
         "prometheus.yml",
         "alert-rules.yml",
         "alertmanager.yml",
@@ -337,6 +339,8 @@ fn remove_stale_stateful(out: &Path) -> Result<(), Error> {
             .iter()
             .any(|prefix| name.starts_with(prefix))
             && (name.ends_with(".yml") || name.ends_with(".cfg")))
+            || (name.starts_with("pgbackrest-") && name.ends_with(".conf"))
+            || name == "pgbackrest-backup.sh"
             || (name.starts_with("rabbitmq-") && name.ends_with(".conf"))
             || name == "rabbitmq-enabled_plugins"
             || (name.starts_with("minio-") && name.ends_with(".conf"))

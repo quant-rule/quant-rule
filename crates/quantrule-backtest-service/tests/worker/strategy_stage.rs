@@ -43,7 +43,12 @@ async fn upstream_stage(fixture: &Fixture) -> (MemoryStageClient, StageRecord) {
     let stage_run_id = run.stage_run_id.clone();
     let record = evidence.submit(&profile(), run).await.expect("submit");
     let record = match evidence
-        .claim_stage(record.stage_run_id.to_string(), false)
+        .claim_stage(
+            record.stage_run_id.to_string(),
+            "strategy-test".to_owned(),
+            None,
+            false,
+        )
         .await
         .expect("claim")
     {
@@ -90,7 +95,7 @@ async fn upstream_stage(fixture: &Fixture) -> (MemoryStageClient, StageRecord) {
         .await
         .expect("the stage manifest");
     let record = evidence
-        .stage_computed(stage_run_id.to_string(), artifact)
+        .stage_computed(stage_run_id.to_string(), record.lease_term, artifact)
         .await
         .expect("complete");
     (evidence, record)

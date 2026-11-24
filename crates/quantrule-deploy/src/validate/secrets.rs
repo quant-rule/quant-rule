@@ -38,6 +38,20 @@ pub const STATEFUL_SECRETS: [&str; 5] = [
 /// and never mounted into an application container.
 pub const MINIO_SECRETS: [&str; 2] = ["minio_root_user", "minio_root_password"];
 
+/// The pgBackRest passphrase. It is read from a mode-600 file and never enters
+/// the rendered configuration, a command line, or a log.
+pub const BACKUP_CIPHER_SECRET: &str = "pgbackrest_cipher_pass";
+
+/// The S3 credentials of an operator-provided off-host repository.
+pub const BACKUP_S3_SECRETS: [&str; 2] = ["pgbackrest_s3_access_key", "pgbackrest_s3_secret_key"];
+
+/// The read-only object-store secret the archive uses as its source identity.
+///
+/// The access key is the fixed [`crate::render::minio::ARCHIVE_READER_USER`]; only
+/// the secret is a descriptor file. It is required when the object archive is
+/// enabled and is copied only to the MinIO hosts.
+pub const OBJECT_ARCHIVE_READER_SECRET: &str = "object_archive_reader_secret_key";
+
 /// The queue user the application URL must name.
 pub const QUEUE_USER: &str = "qr_queue";
 
@@ -51,10 +65,12 @@ pub const QUEUE_VHOST: &str = "%2f";
 /// for the database and broker tier, `app` otherwise.
 #[must_use]
 pub fn scope(name: &str) -> &'static str {
-    if MINIO_SECRETS.contains(&name) {
+    if MINIO_SECRETS.contains(&name) || name == OBJECT_ARCHIVE_READER_SECRET {
         "minio"
     } else if STATEFUL_SECRETS.contains(&name) {
         "stateful"
+    } else if name == BACKUP_CIPHER_SECRET || BACKUP_S3_SECRETS.contains(&name) {
+        "backup"
     } else {
         "app"
     }
@@ -125,6 +141,18 @@ fn required_names(descriptor: &Descriptor) -> BTreeSet<String> {
     }
     for name in MINIO_SECRETS {
         names.insert(name.to_owned());
+    }
+    // The passphrase is optional in the structure so an existing v3 descriptor
+    // keeps parsing and rendering. An S3 repository requires it, and the check
+    // fails closed when a deployment has not installed the file.
+    if descriptor.backup.repo.kind == crate::descriptor::v3::BackupRepoKind::S3 {
+        names.insert(BACKUP_CIPHER_SECRET.to_owned());
+        for name in BACKUP_S3_SECRETS {
+            names.insert(name.to_owned());
+        }
+    }
+    if descriptor.backup.object_archive.enabled {
+        names.insert(OBJECT_ARCHIVE_READER_SECRET.to_owned());
     }
     names.insert(descriptor.auth.gateway_token_secret.clone());
     names
@@ -371,6 +399,68 @@ pub fn validate_values(
     })?;
     check_password(root_password_field, root_password)?;
     check_duplicate(&mut credentials, root_password, root_password_field)?;
+
+    let cipher_field = format!("secrets.files.{BACKUP_CIPHER_SECRET}");
+    match values.get(BACKUP_CIPHER_SECRET) {
+        Some(cipher) => {
+            check_password(&cipher_field, cipher)?;
+            check_duplicate(&mut credentials, cipher, &cipher_field)?;
+        }
+        None if descriptor.backup.repo.kind == crate::descriptor::v3::BackupRepoKind::S3 => {
+            return Err(rule(
+                "deploy.secrets.missing",
+                &cipher_field,
+                format!("{BACKUP_CIPHER_SECRET} is required for an S3 pgBackRest repository"),
+            ));
+        }
+        None => {}
+    }
+
+    if descriptor.backup.repo.kind == crate::descriptor::v3::BackupRepoKind::S3 {
+        let access_field = format!("secrets.files.{}", BACKUP_S3_SECRETS[0]);
+        let access = values.get(BACKUP_S3_SECRETS[0]).ok_or_else(|| {
+            rule(
+                "deploy.secrets.missing",
+                &access_field,
+                format!(
+                    "{} is required for an S3 pgBackRest repository",
+                    BACKUP_S3_SECRETS[0]
+                ),
+            )
+        })?;
+        check_access_key(&access_field, access)?;
+        let secret_field = format!("secrets.files.{}", BACKUP_S3_SECRETS[1]);
+        let secret = values.get(BACKUP_S3_SECRETS[1]).ok_or_else(|| {
+            rule(
+                "deploy.secrets.missing",
+                &secret_field,
+                format!(
+                    "{} is required for an S3 pgBackRest repository",
+                    BACKUP_S3_SECRETS[1]
+                ),
+            )
+        })?;
+        check_password(&secret_field, secret)?;
+        check_duplicate(&mut credentials, secret, &secret_field)?;
+    }
+
+    let archive_field = format!("secrets.files.{OBJECT_ARCHIVE_READER_SECRET}");
+    match values.get(OBJECT_ARCHIVE_READER_SECRET) {
+        Some(secret) => {
+            check_password(&archive_field, secret)?;
+            check_duplicate(&mut credentials, secret, &archive_field)?;
+        }
+        None if descriptor.backup.object_archive.enabled => {
+            return Err(rule(
+                "deploy.secrets.missing",
+                &archive_field,
+                format!(
+                    "{OBJECT_ARCHIVE_READER_SECRET} is required when the object archive is enabled"
+                ),
+            ));
+        }
+        None => {}
+    }
     Ok(())
 }
 

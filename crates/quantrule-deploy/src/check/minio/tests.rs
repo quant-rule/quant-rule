@@ -178,6 +178,15 @@ fn the_minio_rows_match_their_golden_fixture() {
 }
 
 #[test]
+#[ignore = "rewrites the checked-in MinIO check fixture"]
+fn regenerate_the_minio_check_fixture() {
+    let rows = rows(&descriptor(), None, &FakeCertificates::valid());
+    let actual: String = rows.iter().map(row_text).collect();
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/check-v3/minio.txt");
+    std::fs::write(path, actual).expect("write the MinIO fixture");
+}
+
+#[test]
 fn a_mutated_conf_is_a_failed_row() {
     let descriptor = descriptor();
     let directory = stage_tree(&descriptor);

@@ -9,7 +9,7 @@
   PLAT-005 owns MinIO erasure/TLS/front door, bucket/versioning/`qr_app`,
   object bootstrap, check rows, and node-loss lab. PLAT-006 owns observability;
   PLAT-007 owns registry distribution, Sigstore bundle/signed image, SBOM/CVE
-  evidence, running-task image checks, and the all-service digest probe; PLAT-008 owns the reference descriptors and the lab harness; HA-013/014 own backup and real HA.
+  evidence, running-task image checks, and the all-service digest probe; PLAT-008 owns the reference descriptors and the lab harness; HA-013 phase 1a owns pgBackRest, the derived Patroni image, the Compose four-database archive, and the backup-age signal; phase 1b owns the live smoke, phase 2 adds the stage lease/outbox and `tools/queue-rebuild.sh`, and phase 3 adds the one-way object archive, the `deploy/v3/dr.sh` drill, and the lab `--dr` hook; HA-014 owns real HA.
 
 ## Goal
 Render the seven-service Swarm stack and the pinned per-host stateful units,
@@ -25,7 +25,7 @@ before the stack, and check the one HTTPS ingress without overclaiming.
 | Hosts | Eleven Linux hosts or VMs on one overlay: two edge, two core, three compute, four infra; the reference descriptors use the same names (`three-az.json` spreads four racks over three AZs, `single-az.json` keeps four racks in one AZ); the lab uses three VMs |
 | Managers | Three odd declared hosts (`swarm.managers`), preferably dedicated; the lab uses its three VMs |
 | Docker | Swarm mode initialized; the declared manager hosts hold the manager role |
-| Image | `ghcr.io/quant-rule/quantrule-platform` pulled by digest, signed with the offline cosign key, and verified as a Sigstore bundle plus `cosign save` signed image before deploy (`jq` and `cosign` are required); 14 infrastructure images are resolved and pinned by `sha256:` digest, while `minio`, `minio_client`, and the app image remain blockers ([reference contract](../config/2026-11-24/reference-topologies.md)) |
+| Image | `ghcr.io/quant-rule/quantrule-platform` pulled by digest, signed with the offline cosign key, and verified as a Sigstore bundle plus `cosign save` signed image before deploy (`jq` and `cosign` are required); 13 deployable infrastructure images are resolved and pinned by `sha256:` digest, while `minio`, `minio_client`, the app, and the derived Patroni pgBackRest image remain blockers ([reference contract](../config/2026-11-24/reference-topologies.md)) |
 | Secrets | A mode-700 directory with one mode-600 file per name, including the five stateful secrets and the two MinIO root secrets; the fixture values are fake |
 | PKI | `endpoints.*.tls_ca` plus `postgres/server.*`, `etcd/{server,peer,client}.*`, `rabbitmq/server.*`, and `minio/{public.crt,private.key,CAs/ca.crt}` under the CA's parent; SANs `postgres`+every `patroni-<host>`, every `etcd-<host>`, `rabbitmq`+every `rabbitmq-<host>`, `minio`+every `minio-<host>`; keys mode 600 |
 | Ingress | One DNS `A` record TTL 60 -> `ingress.vip`; keepalived on the edge pair; cert mode; the private CA in the client trust store |
@@ -45,7 +45,7 @@ preconditions. Cert mode is current; `acme` is refused.
 | 1 | operator | `tools/stateful.sh --plan` | Docker-free sequence |
 | 2 | operator | `tools/swarm.sh validate` | `ok: v3 … (files checked)` |
 | 3 | manager | `tools/stateful.sh network` | Render; encrypted attachable overlay exists |
-| 4 | operator | `tools/stateful.sh copy` | Manifest, configs, PKI, secrets, drive dirs, and host Compose files on the right hosts |
+| 4 | operator | `tools/stateful.sh copy` | Manifest, Patroni/pgBackRest configs, the backup script, PKI, secrets, drive dirs, and host Compose files on the right hosts |
 | 5 | operator | `tools/stateful.sh start` | MinIO, etcd, Patroni, HAProxy, the seed broker, then the other two |
 | 6 | operator | `tools/stateful.sh wait` | MinIO nodes/drives/no healing, etcd health, Patroni leader + sync standby, brokers/no alarms, primary psql |
 | 7 | operator | `tools/stateful.sh queue-bootstrap`; `tools/queue-definitions.sh export` | `qr_queue`, default vhost, permissions; stripped definitions mode 600 |
@@ -57,11 +57,11 @@ preconditions. Cert mode is current; `acme` is refused.
 | 13 | operator | `tools/swarm.sh upgrade` / `rollback` | Snapshot; new render deployed; old stack recoverable |
 | 14 | client | Open `https://quantrule.dev`; enter the gateway token | Certificate valid; client loads; `/ready` healthy |
 | 15 | operator | Rotate the token with the sequence below | New secret name; rolling replacement; old secret removed |
-| 16 | lab | `deploy/v3/lab.sh --plan`, then `deploy/v3/lab.sh --confirm` (`--skip-database`/`--skip-queue`/`--skip-object`) | Deploy; all-service digest; worker/manager, ingress, database, queue, MinIO loss; RTO; probe hash; restore; digest; evidence |
+| 16 | lab | `deploy/v3/lab.sh --plan`, then `deploy/v3/lab.sh --confirm` (`--skip-database`/`--skip-queue`/`--skip-queue-rebuild`/`--skip-object`/`--dr`/`--skip-dr`) | Deploy; all-service digest; worker/manager, ingress, database, queue, MinIO loss; RTO; probe hash; restore; digest; evidence; the optional in-place DR drill and the empty-broker rebuild is a plan |
 
 `tools/stateful.sh network` runs `bootstrap.sh --network-only`, which creates and validates the overlay and exits before secrets, configs, labels, jobs, or stack.
 `copy` sends each manifest file over SSH standard input, never as an argument, and honors `hosts`: broker material only to brokers, MinIO root/config/PKI only
-to MinIO hosts. `start` runs MinIO, etcd, Patroni, HAProxy, then the seed broker
+to MinIO hosts, and pgBackRest configs/secrets to every Patroni host plus the backup host. It also copies `pgbackrest-backup.sh`; install the host timer separately. `start` runs MinIO, etcd, Patroni, HAProxy, then the seed broker
 and the other two.
 
 `wait` writes a mode-600 `mc` config and runs `mc` with the MinIO CA; it requires every `minio-<host>:9000` in `mc admin info`, zero offline/healing, the expected
@@ -142,21 +142,21 @@ or `--url` flag. The browser suite is `apps/web/playwright.remote.config.ts`
 (`QR_REMOTE_BROWSER=1`, `QR_REMOTE_URL`). Evidence is value-free JSON under
 `QR_LAB_EVIDENCE`; three VMs on one computer are `Simulated HA`, not host/AZ
 loss; `swarm-ha`/`single-az` stay `HA profile (unverified)` until HA-014.
-HA-013 owns archive/off-host copy, restore drills, second-site replication, and object-lock scope; none is in v1.5.10.
+HA-013 phase 1a configures pgBackRest, the derived Patroni image, the Compose four-database archive, and the backup-age signal; phase 2 adds the stage lease/outbox and `tools/queue-rebuild.sh`; phase 3 adds the one-way `tools/object-archive.sh` and `deploy/v3/dr.sh`, and `--dr` runs the in-place lab drill after the failure phase while `--skip-dr` leaves it `Unverified`. The live drill and empty-broker drill are `Unverified`; object lock is not in v1.5.10.
 ## What you see
 
 | Field | Meaning |
 |---|---|
 | `render.json` | Contract, profile, evidence tier, target, stack name, descriptor hash, pinned image, sorted file list; no timestamp |
 | `stack.yaml` | Seven services plus one ingress; no internal published port; external secrets/configs; stop-first when no spare slot, `/health` checks, 180 s monitor |
-| `infra/<host>.yaml` | Pinned stateful and observability units; node_exporter/promtail on every host; host-local volumes; no ports; pinned commands/env; watchdog device only for `required` |
+| `infra/<host>.yaml` | Pinned stateful and observability units; node_exporter/promtail on every host; host-local volumes; no ports; pinned commands/env; Patroni mounts `pgbackrest.conf` and the backup files; watchdog device only for `required` |
 | `prometheus.yml` / `alert-rules.yml` / `alertmanager.yml` | 14 scrape jobs; 38 rules over F01..F17; one `quantrule-null` receiver |
 | `loki.yml` / `promtail-<host>.yml` / `grafana/` | 30-day logs; Docker JSON label whitelist; four read-only dashboards with fixed UIDs |
 | `rabbitmq-<host>.conf` / `rabbitmq-enabled_plugins` | TLS-only 5671, three-node discovery, `pause_minority`, quorum default, alarms, Prometheus 15692; no plaintext/management port |
 | `minio-<host>.conf` / `minio-policy.json` | Explicit `MINIO_VOLUMES`, `EC:N`, browser off, root `_FILE` references; bucket-scoped `qr_app` policy |
 | `stateful-manifest.json` | Sources, absolute targets, modes, owners, scopes, and `hosts`; never a value or fingerprint |
 | `check` profile/evidence/image | `Simulated HA` for the lab; `HA profile (unverified)` or `Single-zone HA (unverified)` otherwise |
-| `check` secret/stateful rows | `checked` local files; Patroni/etcd/HAProxy sync, TLS, aliases, manifest, and certificate SANs |
+| `check` secret/stateful/backup rows | `checked` local files; Patroni/etcd/HAProxy sync, TLS, aliases, manifest, and certificate SANs; the stanza, archive commands, repository, backup host, derived image, secret absence, and script |
 | `check` ingress rows | Static/dynamic/keepalived, certificate files and SAN/expiry, `/health` `/ready` `/version`, HSTS/nosniff/no-referrer/no-`Server`, port-80 closure, mounts |
 | `check --remote/--overlay` rows | Swarm state/managers, node labels/roles, overlay encryption, service replicas, spec and running task images, 443-only ports, task errors, ingress mounts, limited DNS/route and VIP/firewall; `--runtime` adds the seven service digests |
 | `check` queue/MinIO rows | Broker TLS/cluster/alarms/HAProxy 5671/unit/manifest/SAN; MinIO config/quorum, unit/alias, HAProxy 9000, manifest, app, leaf SAN/expiry; Docker-free |
@@ -177,7 +177,7 @@ proves all seven service digests. The fast tier is static/golden/fake-probe; the
 | `deploy.profile.failure_domains` | `swarm-ha` with fewer than three domains | Add a failure domain or choose `single-az` |
 | `deploy.stateful.postgres.synchronous_standby` | A value other than one | Keep one synchronous standby; writes fail closed without one |
 | `deploy.stateful.minio.parity` | Parity does not keep the write quorum or exceeds the data blocks | Use `auto` or `EC:N` with `N > max drives per node` and `2N <= total` |
-| `deploy.backup.object_replication` | A true second-site claim without a site | Set false; HA-013 owns off-host/archive and replication |
+| `deploy.backup.*` | A true second-site claim or `cipher: none` | Set `object_replication: false` and `aes-256-cbc`; phase 3's archive is one-way and its live drill is `Unverified` |
 | `deploy.secrets.missing` / `deploy.secret.url_safe` | A stateful or MinIO root secret is missing or not URL-safe | Install all seven mode-600 files; no spaces, `@`, `:`, or `/` |
 | `deploy.secret.weak_cookie` / `deploy.secret.default_cookie` | The Erlang cookie is short or a template | Use 32+ URL-safe characters, distinct from every password |
 | `deploy.secret.object_store_user` | The S3 access key is not `qr_app` | Write `qr_app`; the bucket policy is scoped to that user |
@@ -193,7 +193,7 @@ proves all seven service digests. The fast tier is static/golden/fake-probe; the
 | `stateful: cannot copy …` | SSH or sudo failed, or the rendered file is missing | Fix the SSH/sudo path; render again; never put a secret on the command line |
 ## Related
 
-- [Deployment v3 contract](../config/2026-11-22/deploy-v3.md), [ingress](../config/2026-11-23/ingress.md), [Patroni cluster](../config/2026-11-23/patroni-cluster.md), [RabbitMQ cluster](../config/2026-11-23/rabbitmq-cluster.md), [MinIO cluster](../config/2026-11-23/minio-cluster.md)
+- [Deployment v3 contract](../config/2026-11-22/deploy-v3.md), [ingress](../config/2026-11-23/ingress.md), [Patroni cluster](../config/2026-11-23/patroni-cluster.md), [RabbitMQ cluster](../config/2026-11-23/rabbitmq-cluster.md), [MinIO cluster](../config/2026-11-23/minio-cluster.md), [backup and restore](../config/2026-11-24/backup-restore.md)
 - [Swarm control plane](../config/2026-11-23/swarm-control.md)
 - [HA architecture](../architecture/ha.md) and [observability](../config/2026-11-23/observability.md)
 - [File-backed secrets](../config/2026-11-23/secret-files.md) and [internal TLS](../config/2026-11-23/internal-tls.md)

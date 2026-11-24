@@ -68,8 +68,27 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "qr-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "d",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 8 }] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 4 },
+      "id": 8,
+      "options": { "legend": { "calcs": ["lastNotNull"], "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "single", "sort": "none" } },
+      "targets": [
+        { "expr": "(time() - max(quantrule_backup_last_success_timestamp_seconds)) / 86400", "legendFormat": "backup age", "refId": "A" },
+        { "expr": "(time() - max(quantrule_verify_last_success_timestamp_seconds)) / 86400", "legendFormat": "verify age", "refId": "B" }
+      ],
+      "title": "Backup & DR age (days)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "qr-prometheus" },
       "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
-      "gridPos": { "h": 26, "w": 24, "x": 0, "y": 4 },
+      "gridPos": { "h": 26, "w": 24, "x": 0, "y": 10 },
       "id": 7,
       "options": { "showHeader": true, "sortBy": [{ "desc": false, "displayName": "failure_row" }] },
       "targets": [

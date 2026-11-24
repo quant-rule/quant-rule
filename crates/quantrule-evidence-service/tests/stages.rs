@@ -447,6 +447,8 @@ async fn the_internal_lifecycle_records_a_verified_artifact() {
                     serde_json::json!({
                         "stage_run_id": id,
                         "redelivered": false,
+                        "holder": "stage-route-test",
+                        "continuation": null,
                     })
                     .to_string(),
                 ))
@@ -456,10 +458,10 @@ async fn the_internal_lifecycle_records_a_verified_artifact() {
         .expect("response");
     assert_eq!(response.status(), StatusCode::OK);
     let claim: quantrule_service_api::StageClaimOutcome = json(response).await;
-    assert!(matches!(
-        claim,
-        quantrule_service_api::StageClaimOutcome::Claimed(_)
-    ));
+    let quantrule_service_api::StageClaimOutcome::Claimed(claim) = claim else {
+        panic!("the stage was not claimed");
+    };
+    let lease_term = claim.lease_term;
 
     let response = router(Arc::clone(&harness.state))
         .oneshot(
@@ -507,6 +509,7 @@ async fn the_internal_lifecycle_records_a_verified_artifact() {
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_string(&StageComputed {
+                        lease_term,
                         stage_run_id: detail.stage_run_id.clone(),
                         artifact: artifact.clone(),
                     })
@@ -694,11 +697,14 @@ async fn the_internal_failure_route_records_the_failure() {
     .await;
     let created: StageSubmitResponse = json(response).await;
     let id = created.stage_run_id.to_string();
-    harness
+    let quantrule_service_api::StageClaimOutcome::Claimed(claimed) = harness
         .stages
-        .claim(id.clone(), false)
+        .claim(id.clone(), "stage-route-test".to_owned(), None)
         .await
-        .expect("claim");
+        .expect("claim")
+    else {
+        panic!("the stage was not claimed");
+    };
     let response = router(Arc::clone(&harness.state))
         .oneshot(
             Request::post(format!("/internal/v1/stages/{id}/failed"))
@@ -706,6 +712,7 @@ async fn the_internal_failure_route_records_the_failure() {
                 .body(Body::from(
                     serde_json::to_string(&quantrule_service_api::StageFailed {
                         stage_run_id: created.stage_run_id.clone(),
+                        lease_term: claimed.lease_term,
                         error: "the model failed".to_owned(),
                     })
                     .expect("body"),
