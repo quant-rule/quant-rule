@@ -14,7 +14,8 @@ use std::sync::{Arc, Mutex};
 
 use quantrule_api::{Digest, ProfileId, StageArtifact, StageKind, StageRunId, StageState};
 use quantrule_service_api::{
-    NewStageRun, StageClaim, StageClaimOutcome, StageComputed, StageFailed, StageRecord,
+    NewStageRun, StageClaim, StageClaimOutcome, StageComputed, StageFailed, StageHeartbeat,
+    StageHeartbeatOutcome, StageRecord,
 };
 
 use crate::adapters::BoxFuture;
@@ -26,8 +27,18 @@ pub trait StageClient: Send + Sync {
     fn claim_stage(
         &self,
         stage_run_id: String,
+        holder: String,
+        continuation: Option<u64>,
         redelivered: bool,
     ) -> BoxFuture<Result<StageClaimOutcome, ClientError>>;
+
+    /// Renew the current stage lease.
+    fn heartbeat_stage(
+        &self,
+        stage_run_id: String,
+        holder: String,
+        term: u64,
+    ) -> BoxFuture<Result<StageHeartbeatOutcome, ClientError>>;
 
     /// Read a stage without a profile, for the worker's cancellation check.
     fn get_stage(
@@ -47,6 +58,7 @@ pub trait StageClient: Send + Sync {
     fn stage_computed(
         &self,
         stage_run_id: String,
+        lease_term: u64,
         artifact: StageArtifact,
     ) -> BoxFuture<Result<StageRecord, ClientError>>;
 
@@ -54,6 +66,7 @@ pub trait StageClient: Send + Sync {
     fn stage_failed(
         &self,
         stage_run_id: String,
+        lease_term: u64,
         error: String,
     ) -> BoxFuture<Result<StageRecord, ClientError>>;
 }
@@ -71,6 +84,8 @@ impl StageClient for HttpServiceClient {
     fn claim_stage(
         &self,
         stage_run_id: String,
+        holder: String,
+        continuation: Option<u64>,
         redelivered: bool,
     ) -> BoxFuture<Result<StageClaimOutcome, ClientError>> {
         let client = self.clone();
@@ -78,11 +93,36 @@ impl StageClient for HttpServiceClient {
             let request = StageClaim {
                 stage_run_id: stage_id(&stage_run_id)?,
                 redelivered,
+                holder,
+                continuation,
             };
             client
                 .post_json(
                     Service::Evidence,
                     format!("/internal/v1/stages/{stage_run_id}/claim"),
+                    &request,
+                )
+                .await
+        })
+    }
+
+    fn heartbeat_stage(
+        &self,
+        stage_run_id: String,
+        holder: String,
+        term: u64,
+    ) -> BoxFuture<Result<StageHeartbeatOutcome, ClientError>> {
+        let client = self.clone();
+        Box::pin(async move {
+            let request = StageHeartbeat {
+                stage_run_id: stage_id(&stage_run_id)?,
+                holder,
+                term,
+            };
+            client
+                .post_json(
+                    Service::Evidence,
+                    format!("/internal/v1/stages/{stage_run_id}/heartbeat"),
                     &request,
                 )
                 .await
@@ -130,12 +170,14 @@ impl StageClient for HttpServiceClient {
     fn stage_computed(
         &self,
         stage_run_id: String,
+        lease_term: u64,
         artifact: StageArtifact,
     ) -> BoxFuture<Result<StageRecord, ClientError>> {
         let client = self.clone();
         Box::pin(async move {
             let computed = StageComputed {
                 stage_run_id: stage_id(&stage_run_id)?,
+                lease_term,
                 artifact,
             };
             client
@@ -151,12 +193,14 @@ impl StageClient for HttpServiceClient {
     fn stage_failed(
         &self,
         stage_run_id: String,
+        lease_term: u64,
         error: String,
     ) -> BoxFuture<Result<StageRecord, ClientError>> {
         let client = self.clone();
         Box::pin(async move {
             let failed = StageFailed {
                 stage_run_id: stage_id(&stage_run_id)?,
+                lease_term,
                 error,
             };
             client
@@ -170,7 +214,11 @@ impl StageClient for HttpServiceClient {
     }
 }
 
-type StageStateMap = (BTreeMap<String, StageRecord>, BTreeSet<(String, String)>);
+type StageStateMap = (
+    BTreeMap<String, StageRecord>,
+    BTreeSet<(String, String)>,
+    BTreeMap<String, (String, u64)>,
+);
 
 /// An in-memory stage lifecycle for worker tests.
 ///
@@ -234,6 +282,7 @@ impl MemoryStageClient {
                 return Ok(false);
             }
             record.state = StageState::Cancelled;
+            state.2.remove(&stage_run_id);
             Ok(true)
         })
     }
@@ -252,30 +301,91 @@ impl StageClient for MemoryStageClient {
     fn claim_stage(
         &self,
         stage_run_id: String,
-        redelivered: bool,
+        holder: String,
+        continuation: Option<u64>,
+        _redelivered: bool,
     ) -> BoxFuture<Result<StageClaimOutcome, ClientError>> {
         let inner = Arc::clone(&self.inner);
         Box::pin(async move {
             let mut state = lock(&inner)?;
-            let Some(record) = state.0.get_mut(&stage_run_id) else {
+            let Some(record) = state.0.get(&stage_run_id) else {
                 return Ok(StageClaimOutcome::Missing);
             };
             if record.state == StageState::Queued {
+                let record =
+                    state
+                        .0
+                        .get_mut(&stage_run_id)
+                        .ok_or_else(|| ClientError::InvalidResponse {
+                            service: Service::Evidence,
+                            message: "the stage vanished".to_owned(),
+                        })?;
                 record.state = StageState::Running;
                 record.attempts = 1;
-                return Ok(StageClaimOutcome::Claimed(record.clone()));
+                record.lease_term = record.lease_term.saturating_add(1);
+                let term = record.lease_term;
+                let record = record.clone();
+                state.2.insert(stage_run_id, (holder, term));
+                return Ok(StageClaimOutcome::Claimed(record));
             }
             if record.state != StageState::Running {
                 return Ok(StageClaimOutcome::Terminal(record.clone()));
             }
-            if !redelivered {
+            let own_continuation = continuation.is_some_and(|term| {
+                state
+                    .2
+                    .get(&stage_run_id)
+                    .is_some_and(|(current, current_term)| {
+                        *current_term == term && current == &holder
+                    })
+            });
+            if !own_continuation {
                 return Ok(StageClaimOutcome::Running(record.clone()));
             }
             if record.attempts >= quantrule_service_api::MAX_ATTEMPTS {
                 return Ok(StageClaimOutcome::Exhausted(record.clone()));
             }
-            record.attempts += 1;
-            Ok(StageClaimOutcome::Claimed(record.clone()))
+            let record =
+                state
+                    .0
+                    .get_mut(&stage_run_id)
+                    .ok_or_else(|| ClientError::InvalidResponse {
+                        service: Service::Evidence,
+                        message: "the stage vanished".to_owned(),
+                    })?;
+            record.attempts = record.attempts.saturating_add(1);
+            record.lease_term = record.lease_term.saturating_add(1);
+            let term = record.lease_term;
+            let record = record.clone();
+            state.2.insert(stage_run_id, (holder, term));
+            Ok(StageClaimOutcome::Claimed(record))
+        })
+    }
+
+    fn heartbeat_stage(
+        &self,
+        stage_run_id: String,
+        holder: String,
+        term: u64,
+    ) -> BoxFuture<Result<StageHeartbeatOutcome, ClientError>> {
+        let inner = Arc::clone(&self.inner);
+        Box::pin(async move {
+            let state = lock(&inner)?;
+            let Some(record) = state.0.get(&stage_run_id) else {
+                return Ok(StageHeartbeatOutcome::Missing);
+            };
+            let live = record.state == StageState::Running
+                && state
+                    .2
+                    .get(&stage_run_id)
+                    .is_some_and(|(current, current_term)| {
+                        current == &holder && *current_term == term
+                    });
+            if live {
+                Ok(StageHeartbeatOutcome::Renewed(Box::new(record.clone())))
+            } else {
+                Ok(StageHeartbeatOutcome::Stale)
+            }
         })
     }
 
@@ -317,6 +427,7 @@ impl StageClient for MemoryStageClient {
     fn stage_computed(
         &self,
         stage_run_id: String,
+        lease_term: u64,
         artifact: StageArtifact,
     ) -> BoxFuture<Result<StageRecord, ClientError>> {
         let inner = Arc::clone(&self.inner);
@@ -328,42 +439,75 @@ impl StageClient for MemoryStageClient {
                 });
             }
             let mut state = lock(&inner)?;
-            let Some(record) = state.0.get_mut(&stage_run_id) else {
+            let Some(current) = state.0.get(&stage_run_id) else {
                 return Err(ClientError::Status {
                     service: Service::Evidence,
                     status: 404,
                     message: format!("stage {stage_run_id} is unknown"),
                 });
             };
-            if record.state == StageState::Running {
+            if current.state == StageState::Running && current.lease_term == lease_term {
+                let record =
+                    state
+                        .0
+                        .get_mut(&stage_run_id)
+                        .ok_or_else(|| ClientError::InvalidResponse {
+                            service: Service::Evidence,
+                            message: "the stage vanished".to_owned(),
+                        })?;
                 record.state = StageState::Succeeded;
                 record.artifact = Some(artifact);
                 record.error = None;
+                state.2.remove(&stage_run_id);
             }
-            Ok(record.clone())
+            state
+                .0
+                .get(&stage_run_id)
+                .cloned()
+                .ok_or_else(|| ClientError::InvalidResponse {
+                    service: Service::Evidence,
+                    message: "the stage vanished".to_owned(),
+                })
         })
     }
 
     fn stage_failed(
         &self,
         stage_run_id: String,
+        lease_term: u64,
         error: String,
     ) -> BoxFuture<Result<StageRecord, ClientError>> {
         let inner = Arc::clone(&self.inner);
         Box::pin(async move {
             let mut state = lock(&inner)?;
-            let Some(record) = state.0.get_mut(&stage_run_id) else {
+            let Some(current) = state.0.get(&stage_run_id) else {
                 return Err(ClientError::Status {
                     service: Service::Evidence,
                     status: 404,
                     message: format!("stage {stage_run_id} is unknown"),
                 });
             };
-            if record.state == StageState::Running {
+            if current.state == StageState::Running && current.lease_term == lease_term {
+                let record =
+                    state
+                        .0
+                        .get_mut(&stage_run_id)
+                        .ok_or_else(|| ClientError::InvalidResponse {
+                            service: Service::Evidence,
+                            message: "the stage vanished".to_owned(),
+                        })?;
                 record.state = StageState::Failed;
                 record.error = Some(error);
+                state.2.remove(&stage_run_id);
             }
-            Ok(record.clone())
+            state
+                .0
+                .get(&stage_run_id)
+                .cloned()
+                .ok_or_else(|| ClientError::InvalidResponse {
+                    service: Service::Evidence,
+                    message: "the stage vanished".to_owned(),
+                })
         })
     }
 }
@@ -410,20 +554,25 @@ mod tests {
         let id = run.stage_run_id.to_string();
         let record = client.submit(&profile(), run).await.expect("submit");
         assert_eq!(record.state, StageState::Queued);
-        let StageClaimOutcome::Claimed(record) =
-            client.claim_stage(id.clone(), false).await.expect("claim")
+        let StageClaimOutcome::Claimed(record) = client
+            .claim_stage(id.clone(), "worker".to_owned(), None, false)
+            .await
+            .expect("claim")
         else {
             panic!("the queued stage was not claimed");
         };
         assert_eq!(record.state, StageState::Running);
         let record = client
-            .stage_computed(id.clone(), artifact())
+            .stage_computed(id.clone(), record.lease_term, artifact())
             .await
             .expect("computed");
         assert_eq!(record.state, StageState::Succeeded);
         assert_eq!(record.artifact, Some(artifact()));
         assert!(matches!(
-            client.claim_stage(id, false).await.expect("terminal"),
+            client
+                .claim_stage(id, "worker".to_owned(), None, false)
+                .await
+                .expect("terminal"),
             StageClaimOutcome::Terminal(_)
         ));
     }

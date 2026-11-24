@@ -3,7 +3,7 @@
 - Status: Current
 - Audience: operator running the v3 Prometheus/Alertmanager/Loki/Grafana tier
 - Boundary: PLAT-006 owns the scrape, rules, dashboards, log pipeline, and
-  `tools/observability.sh`. HA-013 owns backup/archive, HA-014 owns real HA
+  `tools/observability.sh`. HA-013 phase 1a owns the backup-age textfile, phase 3 owns the object archive; HA-014 owns real HA
   evidence, and a live three-VM lab is `Unverified` until it runs.
 
 ## Goal
@@ -24,7 +24,7 @@ prove the observability tier is up without publishing a single extra port.
 | Images | `prometheus`, `alertmanager`, `loki`, `grafana`, `blackbox_exporter`, `node_exporter`, `promtail` pinned by digest |
 | Client | Browser or shell reaches `https://quantrule.dev`; Grafana stays overlay-only |
 
-Fourteen image pins are real registry digests; `minio`, `minio_client`, and the
+Thirteen deployable image pins and the Patroni base are real registry digests; the derived Patroni image, `minio`, `minio_client`, and the
 application image remain fixtures. The PKI in the repository is a fixture. Do
 not deploy the fixture material.
 
@@ -64,7 +64,7 @@ node_exporter already mounts; no container gets a Docker socket for it.
 | `PatroniReplicaLagHigh` / `PatroniSyncStandbyMissing` | F09/F10 | Check the replica WAL stream; with no sync standby writes block rather than degrade. |
 | `EtcdNodeDown` / `EtcdQuorumAtRisk` | F11 | One node loss leaves quorum; below two stops failover. Restore a member before changing the cluster. |
 | `MinioDriveOffline` / `MinioClusterUnhealthy` | F14 | Erasure continues after one drive/node loss; check `mc admin info` and heal before the second loss. |
-| `BackupAgeHigh` / `VerifyAgeHigh` | F16 | The timestamps are dormant without the tools; run the backup/verify and stamp the textfile deliberately. |
+| `BackupAgeHigh` / `VerifyAgeHigh` | F16 | `BackupAgeHigh` fires when the backup textfile is absent or older than eight days; the backup host writes it only after a real full/diff. `VerifyAgeHigh` stays dormant until `tools/verify.sh` stamps it. The Compose path has no node_exporter and is not the production signal. |
 
 ## What you see
 

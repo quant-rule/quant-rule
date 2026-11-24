@@ -4,7 +4,7 @@ bootstrap:
     maximum_lag_on_failover: 1048576
     postgresql:
       parameters:
-        archive_command: "test ! -f /srv/quantrule/wal-archive/%f && cp %p /srv/quantrule/wal-archive/%f"
+        archive_command: "pgbackrest --stanza=quantrule archive-push %p"
         archive_mode: "on"
         archive_timeout: 60
         hot_standby: "on"
@@ -57,11 +57,11 @@ postgresql:
   data_dir: "/var/lib/postgresql/data"
   listen: "0.0.0.0:5432"
   parameters:
-    archive_command: "test ! -f /srv/quantrule/wal-archive/%f && cp %p /srv/quantrule/wal-archive/%f"
+    archive_command: "pgbackrest --stanza=quantrule archive-push %p"
     archive_mode: "on"
     archive_timeout: 60
     hot_standby: "on"
-    restore_command: "cp /srv/quantrule/wal-archive/%f %p"
+    restore_command: "pgbackrest --stanza=quantrule archive-get %f \"%p\""
     ssl: "on"
     ssl_ca_file: "/etc/quantrule/pki/ca.crt"
     ssl_cert_file: "/etc/quantrule/pki/postgres/server.crt"
@@ -82,7 +82,7 @@ postgresql:
       "hostssl all all ::/0 scram-sha-256"
   pgpass: "/tmp/pgpass"
   recovery_conf:
-    restore_command: "cp /srv/quantrule/wal-archive/%f %p"
+    restore_command: "pgbackrest --stanza=quantrule archive-get %f \"%p\""
 restapi:
   authentication:
     username: "patroni"

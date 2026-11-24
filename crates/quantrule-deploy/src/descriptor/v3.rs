@@ -14,6 +14,24 @@ use serde::{Deserialize, Serialize};
 /// The descriptor contract version.
 pub const CONTRACT: &str = "quantrule.deploy/v3";
 
+/// The derived Patroni image that adds pgBackRest to the pinned base.
+pub const PGBACKREST_IMAGE_REFERENCE: &str = "ghcr.io/quant-rule/patroni-pgbackrest";
+
+/// The labelled fixture digest for the derived image, until the operator builds
+/// and pushes it. Release mode refuses it.
+pub const PGBACKREST_FIXTURE_DIGEST: &str =
+    "sha256:ffbf6f5298ec083505b31ebe962c70c32d791050d21c328a401f31c1cbe927a5";
+
+/// The pinned `batonogov/patroni-docker` base the derived image builds from.
+pub const PATRONI_BASE_DIGEST: &str =
+    "sha256:0de7dc8bc5919c76721bee1475ed30155b1848c0a6bac7298605bf39eef1a7eb";
+
+/// The application object bucket; an object archive must not target it.
+pub const APP_OBJECT_BUCKET: &str = "quantrule";
+
+/// The default dedicated posix repository path on the backup host.
+pub const DEFAULT_BACKUP_PATH: &str = "/srv/quantrule/backup/pgbackrest";
+
 /// The supported HA profiles.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -347,6 +365,132 @@ pub struct Observability {
     pub alertmanager: ObservabilityUnit,
 }
 
+/// Where the pgBackRest repository lives.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum BackupRepoKind {
+    /// An operator-provided off-host S3-compatible endpoint.
+    S3,
+    /// A dedicated encrypted path on the backup host.
+    #[default]
+    Posix,
+}
+
+impl BackupRepoKind {
+    /// The descriptor spelling.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::S3 => "s3",
+            Self::Posix => "posix",
+        }
+    }
+}
+
+/// How pgBackRest encrypts the repository.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum BackupCipher {
+    /// AES-256-CBC with the passphrase file.
+    #[default]
+    #[serde(rename = "aes-256-cbc")]
+    Aes256Cbc,
+    /// No repository encryption; refused by release mode.
+    None,
+}
+
+impl BackupCipher {
+    /// The descriptor spelling and the pgBackRest `repo1-cipher-type` value.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Aes256Cbc => "aes-256-cbc",
+            Self::None => "none",
+        }
+    }
+}
+
+/// The pgBackRest repository selection.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct BackupRepo {
+    /// The repository kind.
+    #[serde(default)]
+    pub kind: BackupRepoKind,
+    /// The S3 host and port, without a scheme or userinfo.
+    #[serde(default)]
+    pub endpoint: Option<String>,
+    /// The S3 bucket.
+    #[serde(default)]
+    pub bucket: Option<String>,
+    /// The pgBackRest repository path. The posix default is applied by the
+    /// renderer and checker, so an S3 repository without a prefix is not given
+    /// the posix path.
+    #[serde(default)]
+    pub path: Option<String>,
+    /// The absolute CA bundle path used to verify the S3 endpoint.
+    #[serde(default)]
+    pub tls_ca: Option<String>,
+}
+
+impl Default for BackupRepo {
+    fn default() -> Self {
+        Self {
+            kind: BackupRepoKind::Posix,
+            endpoint: None,
+            bucket: None,
+            path: None,
+            tls_ca: None,
+        }
+    }
+}
+
+/// The UTC backup schedule. The operator installs the timer; no scheduler runs
+/// inside a container.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct BackupSchedule {
+    /// The full-backup time, `HH:MM` UTC.
+    #[serde(default = "default_full_at")]
+    pub full_at: String,
+    /// The differential-backup time, `HH:MM` UTC.
+    #[serde(default = "default_diff_at")]
+    pub diff_at: String,
+}
+
+impl Default for BackupSchedule {
+    fn default() -> Self {
+        Self {
+            full_at: default_full_at(),
+            diff_at: default_diff_at(),
+        }
+    }
+}
+
+fn default_full_at() -> String {
+    "02:00".to_owned()
+}
+
+fn default_diff_at() -> String {
+    "14:00".to_owned()
+}
+
+/// The object-archive contract. Phase 1a renders and checks it; the archive tool
+/// and restore drill are phase 3.
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ObjectArchive {
+    /// Whether the phase-3 archive is part of the deployment.
+    #[serde(default)]
+    pub enabled: bool,
+    /// The archive target; it must differ from the application bucket.
+    #[serde(default)]
+    pub target: Option<String>,
+    /// The archive retention window in days.
+    #[serde(default)]
+    pub retention_days: Option<u64>,
+}
+
 /// The backup contract.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -361,6 +505,31 @@ pub struct Backup {
     /// owns off-host/archive copies, restore drills, and any second-site
     /// replication. A true value would be a replication claim without a site.
     pub object_replication: bool,
+    /// The pgBackRest repository.
+    #[serde(default)]
+    pub repo: BackupRepo,
+    /// The repository cipher.
+    #[serde(default)]
+    pub cipher: BackupCipher,
+    /// The UTC schedule the operator's timer follows.
+    #[serde(default)]
+    pub schedule: BackupSchedule,
+    /// The host that runs the backup script; defaults to `swarm.managers[0]`.
+    #[serde(default)]
+    pub host: Option<String>,
+    /// The phase-3 object archive contract.
+    #[serde(default)]
+    pub object_archive: ObjectArchive,
+}
+
+impl Backup {
+    /// The backup host: the explicit field or the first Swarm manager.
+    #[must_use]
+    pub fn host<'a>(&'a self, descriptor: &'a Descriptor) -> Option<&'a str> {
+        self.host
+            .as_deref()
+            .or_else(|| descriptor.swarm.managers.first().map(String::as_str))
+    }
 }
 
 /// The secret files the deployment consumes.

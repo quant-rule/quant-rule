@@ -49,7 +49,7 @@ there is no plaintext fallback ([TLS contract](../config/2026-11-23/internal-tls
 | 5 | `quantrule verify <run_id>` | **Operations** → run id → Verify digest | The recorded canonical digest |
 | 6 | Read `GET /operations` through the gateway | **Operations** → retention | Days, store presence, last cleanup, counts, error |
 | 7 | `make remote` | Connection → enter the printed token | Only `:8080` published; token required |
-| 8 | `make backup` | — | One timestamped archive and a SHA-256 sidecar |
+| 8 | `make backup` | — | One timestamped archive with four database dumps and a SHA-256 sidecar |
 | 9 | `make restore FILE=<archive>` | — | A clean stack restored from the verified archive |
 `make remote` creates missing files under `secrets/`, refuses a documented
 default password, and checks the 401/401/200 token matrix. The browser keeps the
@@ -215,56 +215,54 @@ docker compose exec -T postgres psql -U qr_evidence_app -d qr_evidence \
 docker compose logs evidence | grep 'evidence replica is the leader'
 ```
 
-A leader kill lets the standby acquire a higher term after expiry; the outbox
-re-arms the unfinished run, so a message is never lost. A stale leader's
-finalisation is refused and the run record does not change.
+A leader kill lets the standby acquire a higher term after expiry; the run and
+stage outboxes re-arm unfinished rows, so a message is never lost. A stale
+leader's finalisation is refused and the run record does not change.
 
 ### Definitions backup and restore
 
 PLAT-004 exports the topology from a broker, strips `users`, `permissions`, and
 `topic_permissions`, verifies the four HA-005 queues, quorum, delivery limit 3,
 the DLX/DLQ, bindings, and no `runs.*`/`stages.*` policy, and stores it mode 600
-on every broker. HA-013 owns archive/off-host copy and the empty-broker drill.
+on every broker. HA-013 phase 2 adds `tools/queue-rebuild.sh` and the stage
+lease/outbox; the empty-broker drill is a plan and the queue is not archived.
 
 ```bash
 tools/queue-definitions.sh export
 tools/queue-definitions.sh verify /srv/quantrule/rabbitmq/definitions/<UTC>.json
 tools/queue-definitions.sh verify --live
 tools/queue-definitions.sh prune --now <UTC> --days 30
+tools/queue-rebuild.sh --plan; tools/queue-rebuild.sh --confirm   # empty broker/cluster only
 ```
 
 `import <file>` accepts an empty broker/cluster only; a live `.g*` generation
 needs `--force`, and the tool never purges a queue or deletes a user or vhost.
 Definitions restore topology, not messages; an acknowledged message survives one
-broker loss, and a lost queue is rebuilt from run rows. The app user is recreated
-from `queue_url` by `tools/stateful.sh queue-bootstrap`. The v1/v2 Compose broker
-still uses `rabbitmqctl export_definitions`; keep that legacy file mode 600 and
-out of Git because it contains users and password hashes.
+broker loss, and a lost queue is rebuilt from run and stage rows. The app user is
+recreated from `queue_url` by `tools/stateful.sh queue-bootstrap`. The v1/v2
+Compose broker still uses `rabbitmqctl export_definitions`; keep that file mode
+600 and out of Git because it contains users and password hashes.
 
 ## Backup and restore
 
 | Command | Effect |
 |---|---|
-| `make backup` | Stops application services, dumps Postgres, mirrors objects, writes the archive and sidecar, restarts services |
-| `make restore FILE=<archive>` | Verifies the sidecar and every payload, then restores into a clean stack |
+| `make backup` | Stops application services, dumps the four databases (one dump each), mirrors objects, writes the archive and sidecar, restarts services |
+| `make restore FILE=<archive>` | Verifies the sidecar, four-database set, and every payload, then restores into a clean stack |
+| `tools/restore.sh <archive> --check` | Verifies the archive and four-database set without Docker or a write |
 | `tools/restore.sh <archive> --force --yes` | Explicitly replaces a non-empty stack |
 
-The queue is not archived; an acknowledged message survives one broker loss and
-a lost queue is rebuilt from run rows. Restore writes objects before rows, so an
-interrupted copy leaves unreferenced blobs, not a present but unverifiable run.
+The queue is not archived; a lost queue is rebuilt from run and stage rows. Restore writes objects before rows, so an interrupted copy leaves unreferenced blobs, not a present but unverifiable run.
 
-## v3 object store
+## v3 object store and DR
 
-PLAT-005 runs `tools/stateful.sh object-bootstrap` after `wait`: it creates the
-`quantrule` bucket, enables versioning, creates `qr_app`, attaches the policy,
-and the check adds config/quorum, unit/alias, HAProxy 9000, manifest, app, and
-leaf SAN rows. The two root files are `minio` scope. One node loss keeps the
-write quorum; the lab re-reads the probe hash through `minio:9000`, heals to
-zero, and records `Simulated HA`; the all-service image digest is `Measured` only when all seven services match, and the end-to-end digest only after `verify.sh`.
-HA-013 owns off-host/archive and restore; object lock is not in v1.5.10.
-
-`tools/backup.sh` and `tools/restore.sh` still dump one database, so a backup is
-incomplete until all four are covered ([four databases](../config/2026-11-22/four-databases.md)).
+`tools/stateful.sh object-bootstrap` creates `quantrule`, enables versioning,
+creates `qr_app` and (when declared) the read-only `qr_archive_reader`, attaches
+the policies, and probes. One node loss keeps the write quorum; the lab re-reads the probe hash, heals to zero, and records `Simulated HA`.
+`tools/object-archive.sh --plan` is the one-way archive; `--confirm` copies to the operator target with no delete, watch, or replicate. `deploy/v3/dr.sh --plan`
+prints the scratch or in-place drill; a live drill needs `--confirm`, and
+`--in-place` needs the disposable lab and a pre-restore backup. It reruns the
+same run/config and fails on a digest mismatch; RPO/RTO are measured, not the SLO. The live drill is `Unverified`; object lock is not in v1.5.10.
 
 ## Migrations
 
@@ -316,7 +314,7 @@ digest are the reproducibility proof, not research evidence.
 | `profile.invalid` | The profile name failed validation | Use lowercase letters, digits, and hyphens |
 | `run.not_found` | The digest form names an unknown run | Re-read the run list |
 | `service.unavailable` | A service is unreachable, restarting, or draining | Read `health`; wait for `/ready`; a GET retries to its budget, a mutation is not retried |
-| `queue.unavailable` | The broker or the service queue is unavailable | Read `health`; run submissions are retried from the outbox, so do not resubmit a run |
+| `queue.unavailable` | The broker or the service queue is unavailable | Read `health`; run and stage submissions are retried from the outbox, so do not resubmit a run |
 | `pki-init` failed | `make pki` was not run or a mount is wrong | Run `make pki`, then `make down && make up` |
 | `must use sslmode=verify-full` | A database URL uses `prefer`, `require` or `verify-ca` | Fix the URL; do not weaken the mode |
 | TLS handshake/CA error | Wrong CA, SAN, or expired leaf | Run `openssl verify`; re-issue with `make pki FORCE=1` and restart |

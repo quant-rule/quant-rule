@@ -42,6 +42,7 @@ pub(crate) fn rows(
 ) -> Vec<CheckRow> {
     let mut rows = Vec::new();
     rows.extend(config_rows(descriptor, out));
+    rows.push(archive_reader_row(out));
     rows.push(layout_row(descriptor));
     rows.extend(unit_rows(descriptor, out));
     rows.extend(haproxy_rows(descriptor, out));
@@ -295,6 +296,67 @@ fn config_rows(descriptor: &Descriptor, out: Option<&Path>) -> Vec<CheckRow> {
         ));
     }
     rows
+}
+
+/// The read-only policy the object archive uses as its source identity.
+fn archive_reader_row(out: Option<&Path>) -> CheckRow {
+    let policy = match out {
+        Some(directory) => match read_text(
+            &directory.join("minio-archive-policy.json"),
+            "object-archive policy",
+        ) {
+            Ok(text) => text,
+            Err(error) => return CheckRow::failed("minio", "archive-reader", "unreadable", error),
+        },
+        None => minio::archive_reader_policy(),
+    };
+    let mut missing = Vec::new();
+    for needle in [
+        "\"s3:GetBucketLocation\"",
+        "\"s3:ListBucket\"",
+        "\"s3:GetObject\"",
+        "\"arn:aws:s3:::quantrule\"",
+        "\"arn:aws:s3:::quantrule/*\"",
+    ] {
+        if !policy.contains(needle) {
+            missing.push(format!("the policy lacks {needle}"));
+        }
+    }
+    let mut forbidden = Vec::new();
+    for needle in [
+        "s3:PutObject",
+        "s3:DeleteObject",
+        "s3:AbortMultipartUpload",
+        "s3:ListMultipartUploadParts",
+        "s3:CreateBucket",
+        "s3:DeleteBucket",
+        "s3:PutBucketPolicy",
+        "s3:*",
+        "admin:",
+        "arn:aws:s3:::*",
+    ] {
+        if policy.contains(needle) {
+            forbidden.push(format!("the policy grants {needle}"));
+        }
+    }
+    if missing.is_empty() && forbidden.is_empty() {
+        CheckRow::ok(
+            "minio",
+            "archive-reader",
+            "read-only",
+            format!(
+                "{} policy allows list/get on the bucket and no write, delete, admin, or wildcard action; the tool mirrors one way and never deletes the source",
+                minio::ARCHIVE_READER_USER
+            ),
+        )
+    } else {
+        CheckRow::failed(
+            "minio",
+            "archive-reader",
+            "policy",
+            [missing, forbidden].concat().join("; "),
+        )
+    }
 }
 
 fn layout_row(descriptor: &Descriptor) -> CheckRow {
@@ -581,6 +643,7 @@ fn manifest_rows(descriptor: &Descriptor, out: Option<&Path>) -> Vec<CheckRow> {
     }
     for (source, mode) in [
         ("minio-policy.json", "644"),
+        ("minio-archive-policy.json", "644"),
         ("secrets/minio_root_user", "600"),
         ("secrets/minio_root_password", "600"),
         ("secrets/object_store_access_key", "600"),

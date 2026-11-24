@@ -259,7 +259,22 @@ fn grafana_provisioning_is_read_only_with_fixed_uids() {
         assert!(text.contains("qr-prometheus"), "{name}");
     }
     let ha: Value = serde_json::from_str(HA_MATRIX_DASHBOARD).expect("ha matrix");
-    let targets = ha["panels"][6]["targets"].as_array().expect("targets");
+    let backup = ha["panels"][6]["targets"]
+        .as_array()
+        .expect("backup targets");
+    assert_eq!(backup.len(), 2, "{ha}");
+    for expected in [
+        "quantrule_backup_last_success_timestamp_seconds",
+        "quantrule_verify_last_success_timestamp_seconds",
+    ] {
+        assert!(
+            backup.iter().any(|target| target["expr"]
+                .as_str()
+                .is_some_and(|expr| expr.contains(expected))),
+            "{expected}: {ha}"
+        );
+    }
+    let targets = ha["panels"][7]["targets"].as_array().expect("targets");
     assert_eq!(targets.len(), 17, "{ha}");
     for row in failure_rows() {
         assert!(

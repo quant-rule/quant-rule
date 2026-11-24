@@ -25,7 +25,9 @@
 #                   Run this after `wait` and before `swarm.sh bootstrap`.
 #   object-bootstrap Create the quantrule bucket, enable versioning, create the
 #                   qr_app user, attach the least-privilege policy, and run a
-#                   put/get/delete probe. Run after `wait`, before `swarm.sh bootstrap`.
+#                   put/get/delete probe. When object_archive_reader_secret_key
+#                   is declared, also create the read-only qr_archive_reader.
+#                   Run after `wait`, before `swarm.sh bootstrap`.
 #   status          Show compose ps, MinIO admin info, Patroni list, etcd health,
 #                   and RabbitMQ cluster/alarm state on every stateful host.
 #
@@ -103,7 +105,7 @@ stateful: 2 copy: stateful-manifest.json + infra/<host>.yaml + per-host configs/
 stateful: 3 start: MinIO nodes -> etcd -> Patroni -> HAProxy -> seed the first RabbitMQ broker -> start the other two
 stateful: 4 wait: MinIO mc admin info (all nodes/drives, 0 offline, 0 healing); etcdctl endpoint health; patronictl list (Leader + Sync); RabbitMQ cluster_status (3 running, no alarms); psql -h postgres (primary)
 stateful: 5 queue-bootstrap: create the app user/vhost/permissions from queue_url (password on stdin, before swarm bootstrap)
-stateful: 6 object-bootstrap: pinned mc; create quantrule, enable versioning, create qr_app, attach quantrule-app, put/get/delete probe
+stateful: 6 object-bootstrap: pinned mc; create quantrule, enable versioning, create qr_app + quantrule-app and the read-only qr_archive_reader + quantrule-archive-reader when declared, put/get/delete probe
 stateful: 7 status: compose ps, MinIO admin info/healing, Patroni list, etcd health, RabbitMQ cluster/alarms
 stateful: no stack, volume, secret, config, node, service, or bucket object outside the bootstrap probe is removed
 PLAN
@@ -134,6 +136,21 @@ descriptor_list() {
 all_hosts() {
   jq -r '[.stateful.postgres.nodes[], .stateful.etcd.nodes[], .stateful.haproxy.nodes[], .stateful.rabbitmq.nodes[], .stateful.minio.nodes[]] | unique[]' \
     "$descriptor"
+}
+
+backup_host() {
+  jq -r '.backup.host // .swarm.managers[0]' "$descriptor"
+}
+
+backup_repo_path() {
+  jq -r '(.backup.repo.kind // "") as $kind | if $kind == "posix" then (.backup.repo.path // "/srv/quantrule/backup/pgbackrest") else empty end' "$descriptor"
+}
+
+manifest_hosts() {
+  {
+    all_hosts
+    backup_host
+  } | sort -u
 }
 
 rabbitmq_hosts() {
@@ -206,7 +223,7 @@ copy_one() {
 copy() {
   render
   [ -f "$out/stateful-manifest.json" ] || die "missing $out/stateful-manifest.json"
-  for host in $(all_hosts); do
+  for host in $(manifest_hosts); do
     [ -f "$out/infra/$host.yaml" ] || die "missing $out/infra/$host.yaml"
     copy_one "$host" "$out/stateful-manifest.json" "/etc/quantrule/stateful-manifest.json" 644
     copy_one "$host" "$out/infra/$host.yaml" "/etc/quantrule/infra/$host.yaml" 644
@@ -220,9 +237,14 @@ copy() {
         | [.source, .target, .mode] | @tsv
       ' "$out/stateful-manifest.json"
     )
-    directories="/srv/quantrule/patroni/data /srv/quantrule/patroni/wal-archive /srv/quantrule/etcd/data"
-    owned="/srv/quantrule/patroni /srv/quantrule/patroni/data /srv/quantrule/patroni/wal-archive /srv/quantrule/etcd /srv/quantrule/etcd/data"
+    directories="/srv/quantrule/patroni/data /srv/quantrule/etcd/data /srv/quantrule/backup /srv/quantrule/node_exporter/textfile"
+    owned="/srv/quantrule/patroni /srv/quantrule/patroni/data /srv/quantrule/etcd /srv/quantrule/etcd/data /srv/quantrule/backup"
     private_dirs=""
+    repo_path=$(backup_repo_path)
+    if [ -n "$repo_path" ]; then
+      directories="$directories $repo_path"
+      private_dirs="$repo_path"
+    fi
     if is_rabbitmq_host "$host"; then
       directories="$directories /srv/quantrule/rabbitmq/data /srv/quantrule/rabbitmq/definitions /srv/quantrule/rabbitmq/conf.d"
       owned="$owned /srv/quantrule/rabbitmq /srv/quantrule/rabbitmq/data /srv/quantrule/rabbitmq/definitions /srv/quantrule/rabbitmq/conf.d"
@@ -365,9 +387,13 @@ primary_psql() {
 minio_mc_dir=/etc/quantrule/minio/mc
 minio_mc_app_dir=/etc/quantrule/minio/mc-app
 minio_policy_file=/etc/quantrule/minio/quantrule-app-policy.json
+minio_archive_policy_file=/etc/quantrule/minio/quantrule-archive-reader-policy.json
+minio_archive_reader_secret=/etc/quantrule/secrets/object_archive_reader_secret_key
 minio_bucket=quantrule
 minio_app_user=qr_app
 minio_app_policy=quantrule-app
+minio_archive_user=qr_archive_reader
+minio_archive_policy=quantrule-archive-reader
 
 minio_container() {
   printf 'quantrule-minio-%s' "$1"
@@ -583,6 +609,29 @@ printf "stateful: object bootstrap verified: bucket, versioning, %s, %s\n" __USE
     die "the $minio_app_user probe failed; the existing user may have a different secret. Rotate the object_store_secret_key file, update the app secret, and rerun object-bootstrap"
   printf 'stateful: object bootstrap complete: bucket %s, versioning enabled, %s with %s, put/get/delete verified\n' \
     "$minio_bucket" "$minio_app_user" "$minio_app_policy"
+  if [ -f "$minio_archive_reader_secret" ]; then
+    printf 'stateful: creating the read-only archive reader %s\n' "$minio_archive_user"
+    archive_script='
+set -eu
+secret=$(cat /secrets/archive_secret)
+mc --config-dir /mc admin policy detach local __POLICY__ --user __USER__ >/dev/null 2>&1 || true
+mc --config-dir /mc admin policy remove local __POLICY__ >/dev/null 2>&1 || true
+mc --config-dir /mc admin policy create local __POLICY__ /policy.json >/dev/null
+mc --config-dir /mc admin policy attach local __POLICY__ --user __USER__ >/dev/null
+if ! printf "%s\n%s\n" __USER__ "$secret" | mc --config-dir /mc admin user add local >/dev/null 2>&1; then
+  printf "stateful: %s exists; the archive tool verifies its access\n" __USER__ >&2
+fi
+'
+    archive_script=${archive_script//__POLICY__/$minio_archive_policy}
+    archive_script=${archive_script//__USER__/$minio_archive_user}
+    minio_mc_shell "$host" "$minio_mc_dir" \
+      "-v $minio_archive_reader_secret:/secrets/archive_secret:ro -v $minio_archive_policy_file:/policy.json:ro" \
+      "$archive_script" || die "cannot create the $minio_archive_user user or attach the $minio_archive_policy policy"
+    printf 'stateful: archive reader %s ready with %s; list/get only, no write or delete\n' \
+      "$minio_archive_user" "$minio_archive_policy"
+  else
+    printf 'stateful: archive reader not provisioned; declare object_archive_reader_secret_key to enable %s\n' "$minio_archive_user"
+  fi
 }
 
 status() {

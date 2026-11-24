@@ -16,7 +16,7 @@ use quantrule_runtime::adapters::memory::MemoryObjects;
 use quantrule_runtime::adapters::{Backend, BoxFuture, ObjectStore, Queue, QueueError};
 use quantrule_runtime::client::MemoryDataClient;
 use quantrule_runtime::{Config, HealthRegistry};
-use quantrule_service_api::{ConfigBundle, DatasetObject, StageManifest};
+use quantrule_service_api::{ConfigBundle, DatasetObject, StageClaimOutcome, StageManifest};
 use tower::ServiceExt;
 
 type Messages = Arc<Mutex<Vec<(String, Vec<u8>)>>>;
@@ -122,6 +122,7 @@ pub(crate) fn harness() -> Harness {
             data: Some(Arc::new(data)),
             runs: Some(Arc::new(MemoryRuns::default())),
             stages: Some(Arc::new(stages.clone())),
+            stage_outbox: Some(Arc::new(stages.clone())),
             queue: Some(Arc::new(queue.clone())),
             objects: Some(Arc::new(objects.clone())),
             ..EvidenceServices::default()
@@ -184,11 +185,15 @@ pub(crate) async fn completed_stage_with(
     let response = submit(Arc::clone(&harness.state), "default", "model", &body).await;
     let created: StageSubmitResponse = json(response).await;
     let id = created.stage_run_id.to_string();
-    harness
+    let claimed = harness
         .stages
-        .claim(id.clone(), false)
+        .claim(id.clone(), "stage-support".to_owned(), None)
         .await
         .expect("claim");
+    let StageClaimOutcome::Claimed(claimed) = claimed else {
+        panic!("the stage was not claimed");
+    };
+    let term = claimed.lease_term;
     let artifact = StageArtifact::from_files(
         files
             .iter()
@@ -215,7 +220,7 @@ pub(crate) async fn completed_stage_with(
     }
     harness
         .stages
-        .complete(id.clone(), artifact.clone())
+        .complete(id.clone(), term, artifact.clone())
         .await
         .expect("complete");
     (id, artifact)
@@ -239,11 +244,15 @@ pub(crate) async fn completed_strategy_stage(
     assert_eq!(response.status(), StatusCode::ACCEPTED);
     let created: StageSubmitResponse = json(response).await;
     let id = created.stage_run_id.to_string();
-    harness
+    let claimed = harness
         .stages
-        .claim(id.clone(), false)
+        .claim(id.clone(), "stage-support".to_owned(), None)
         .await
         .expect("claim");
+    let StageClaimOutcome::Claimed(claimed) = claimed else {
+        panic!("the stage was not claimed");
+    };
+    let term = claimed.lease_term;
     let artifact = StageArtifact::from_files(vec![
         ArtifactRef {
             name: "decisions.ndjson".to_owned(),
@@ -264,7 +273,7 @@ pub(crate) async fn completed_strategy_stage(
     .expect("the strategy artifact");
     harness
         .stages
-        .complete(id.clone(), artifact.clone())
+        .complete(id.clone(), term, artifact.clone())
         .await
         .expect("complete");
     (id, artifact)

@@ -18,8 +18,11 @@ use crate::error::Error;
 use crate::validate::v3::LoadedFiles;
 
 use super::yaml::Yaml;
-use super::{create_dir, safe_component, stack_name, write_private, write_public};
+use super::{create_dir, safe_component, stack_name, write_private, write_public, write_script};
 
+use crate::validate::secrets::{
+    BACKUP_CIPHER_SECRET, BACKUP_S3_SECRETS, OBJECT_ARCHIVE_READER_SECRET,
+};
 pub(crate) use crate::validate::secrets::{MINIO_SECRETS, STATEFUL_SECRETS};
 
 /// The HAProxy health-check placeholder the unit command replaces from the file.
@@ -39,7 +42,15 @@ pub fn render(
         let path = out.join(format!("patroni-{host}.yml"));
         write_private(&path, patroni_yaml(descriptor, host)?.as_bytes())?;
         written.push(path);
+        let path = out.join(super::backup::config_source(host));
+        // The repository config carries no credential, and PostgreSQL's
+        // archive-push runs as the postgres OS user; it must be readable there.
+        write_public(&path, super::backup::config(descriptor, host)?.as_bytes())?;
+        written.push(path);
     }
+    let backup_script = out.join(super::backup::SCRIPT_SOURCE);
+    write_script(&backup_script, &super::backup::script(descriptor)?)?;
+    written.push(backup_script);
     for host in &descriptor.stateful.etcd.nodes {
         safe_component(host, "stateful.etcd.nodes")?;
         let path = out.join(format!("etcd-{host}.conf.yml"));
@@ -455,6 +466,36 @@ pub fn stateful_manifest(descriptor: &Descriptor) -> Result<String, Error> {
             "patroni",
             vec![host.clone()],
         ));
+        entries.push(entry(
+            super::backup::config_source(host),
+            super::backup::CONFIG_TARGET,
+            "644",
+            "config",
+            vec![host.clone()],
+        ));
+    }
+    let backup_host = super::backup::script_host(descriptor)?;
+    let mut backup_hosts = postgres.clone();
+    if !backup_hosts.iter().any(|host| host == backup_host) {
+        backup_hosts.push(backup_host.to_owned());
+    }
+    entries.push(entry(
+        super::backup::SCRIPT_SOURCE,
+        super::backup::SCRIPT_TARGET,
+        "700",
+        "script",
+        vec![backup_host.to_owned()],
+    ));
+    for name in std::iter::once(BACKUP_CIPHER_SECRET).chain(BACKUP_S3_SECRETS.iter().copied()) {
+        if descriptor.secrets.files.contains_key(name) {
+            entries.push(entry(
+                format!("secrets/{name}"),
+                format!("/etc/quantrule/secrets/{name}"),
+                "600",
+                "secret",
+                backup_hosts.clone(),
+            ));
+        }
     }
     for host in etcd {
         entries.push(entry(
@@ -506,6 +547,13 @@ pub fn stateful_manifest(descriptor: &Descriptor) -> Result<String, Error> {
         "config",
         object_store.clone(),
     ));
+    entries.push(entry(
+        "minio-archive-policy.json",
+        super::minio::MINIO_ARCHIVE_POLICY_HOST,
+        "644",
+        "config",
+        object_store.clone(),
+    ));
     for name in STATEFUL_SECRETS {
         let (target, hosts) = match name {
             "rabbitmq_erlang_cookie" => (
@@ -529,6 +577,19 @@ pub fn stateful_manifest(descriptor: &Descriptor) -> Result<String, Error> {
         entries.push(entry(
             format!("secrets/{name}"),
             format!("/etc/quantrule/secrets/{name}"),
+            "600",
+            "secret",
+            object_store.clone(),
+        ));
+    }
+    if descriptor
+        .secrets
+        .files
+        .contains_key(OBJECT_ARCHIVE_READER_SECRET)
+    {
+        entries.push(entry(
+            format!("secrets/{OBJECT_ARCHIVE_READER_SECRET}"),
+            format!("/etc/quantrule/secrets/{OBJECT_ARCHIVE_READER_SECRET}"),
             "600",
             "secret",
             object_store.clone(),
@@ -694,11 +755,11 @@ fn host_by_name<'a>(
 }
 
 fn archive_command() -> &'static str {
-    "test ! -f /srv/quantrule/wal-archive/%f && cp %p /srv/quantrule/wal-archive/%f"
+    "pgbackrest --stanza=quantrule archive-push %p"
 }
 
 fn restore_command() -> &'static str {
-    "cp /srv/quantrule/wal-archive/%f %p"
+    "pgbackrest --stanza=quantrule archive-get %f \"%p\""
 }
 
 #[derive(Serialize)]

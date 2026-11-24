@@ -86,9 +86,7 @@ pub fn stack_yaml(descriptor: &Descriptor) -> Result<String, Error> {
     let mut secrets = BTreeMap::new();
     for name in descriptor.secrets.files.keys() {
         safe_component(name, &format!("secrets.files.{name}"))?;
-        if crate::validate::secrets::STATEFUL_SECRETS.contains(&name.as_str())
-            || crate::validate::secrets::MINIO_SECRETS.contains(&name.as_str())
-        {
+        if crate::validate::secrets::scope(name) != "app" {
             continue;
         }
         secrets.insert(name.clone(), external(name));

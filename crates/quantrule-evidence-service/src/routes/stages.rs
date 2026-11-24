@@ -22,7 +22,7 @@ use quantrule_api::{
     StageRunSummary, StageState, StageSubmitResponse,
 };
 use quantrule_runtime::clock;
-use quantrule_runtime::queue::{ROUTING_STAGE_CANCELLED, ROUTING_STAGE_REQUESTED};
+use quantrule_runtime::queue::ROUTING_STAGE_CANCELLED;
 use quantrule_service_api::{NewStageRun, StageManifest};
 use serde::Deserialize;
 
@@ -342,20 +342,26 @@ pub(crate) async fn submit_stage(
         .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
     let record = outcome.record().clone();
 
-    // Publish for a duplicate too: a retry after a lost publish must be able to
-    // recover, and the worker treats a repeated message as a lookup. The payload
-    // carries the stage run id only.
+    // The stage row and its request intent committed together. A publish
+    // failure leaves the intent pending for the reconciler, so a repeated
+    // submission still finds the same stage record and never executes twice.
+    let outbox = state
+        .stage_outbox
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no stage outbox is configured"))?;
     let queue = state
         .queue
         .as_ref()
         .ok_or_else(|| failure(ErrorCode::QueueUnavailable, "no stage queue is configured"))?;
-    let message = serde_json::json!({ "stage_run_id": record.stage_run_id.to_string() });
-    let payload = serde_json::to_vec(&message)
-        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
-    queue
-        .publish(ROUTING_STAGE_REQUESTED, payload)
-        .await
-        .map_err(|error| failure(ErrorCode::QueueUnavailable, error.to_string()))?;
+    if let Err(error) = crate::stage::outbox::drain(
+        outbox.as_ref(),
+        queue.as_ref(),
+        crate::stage::outbox::DRAIN_LIMIT,
+    )
+    .await
+    {
+        tracing::warn!(stage_run_id = %record.stage_run_id, %error, "the stage notification will be retried");
+    }
 
     let response = StageSubmitResponse {
         stage_run_id: record.stage_run_id,

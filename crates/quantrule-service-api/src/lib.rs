@@ -32,9 +32,9 @@ pub use run::{
 };
 pub use signal::{SIGNAL_REQUEST_SCHEMA, SIGNAL_RESPONSE_SCHEMA, SignalRequest, SignalResponse};
 pub use stage::{
-    NewStageRun, STAGE_MANIFEST_SCHEMA, StageCancelOutcome, StageClaim, StageClaimOutcome,
-    StageComputed, StageFailed, StageManifest, StageManifestError, StageRecord,
-    derive_stage_run_id,
+    NewStageRun, STAGE_LEASE_RENEW_SECONDS, STAGE_LEASE_TTL_SECONDS, STAGE_MANIFEST_SCHEMA,
+    StageCancelOutcome, StageClaim, StageClaimOutcome, StageComputed, StageFailed, StageHeartbeat,
+    StageHeartbeatOutcome, StageManifest, StageManifestError, StageRecord, derive_stage_run_id,
 };
 pub use storage::{ConfigBundle, DatasetObject, MODEL_BUNDLE_SCHEMA, ModelBundleManifest};
 

@@ -2,10 +2,11 @@
 # Round-trip test for tools/backup.sh and tools/restore.sh.
 #
 # Opt-in and destructive to its own Compose project only. It starts the default
-# six-container stack under a separate project name, creates a dataset, a
-# catalogued config, a sealed hypothesis, and a run with artifacts; backs up;
-# checks four refusals; wipes the project's volumes; restores; and compares
-# every application row, every object, and every run artifact byte-for-byte.
+# stack under a separate project name, creates a dataset, a catalogued config,
+# a sealed hypothesis, a run with artifacts, and one simulation row; backs up
+# the four logical databases and the objects; checks the refusals; wipes the
+# project's volumes; restores; and compares every application row, every object,
+# and every run artifact byte-for-byte.
 #
 # The run row is seeded directly because the current gateway cannot submit or
 # read a run: the Postgres dataset row decodes `quality` and `created_at` in the
@@ -14,8 +15,10 @@
 # same rows and objects the worker would publish; this test exercises the
 # backup and restore path, not the run path.
 #
-# Usage: tools/test_backup.sh [--keep]
+# Usage: tools/test_backup.sh [--keep] [--plan]
 #   --keep   leave the test stack and its work directory for inspection
+#   --plan   print the planned four-database steps without Docker, a build, or
+#            a port check
 #
 # Requires: Linux host tools (GNU date, sha256sum), Docker with Compose,
 # cargo, curl, and tar. Refuses when port 8080 is already served by another
@@ -35,16 +38,34 @@ esac
 export COMPOSE_PROJECT_NAME=$project
 
 keep=0
+plan=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --keep) keep=1; shift ;;
+    --plan) plan=1; shift ;;
     -h | --help)
-      sed -n '2,22p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+      sed -n '2,25p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
       exit 0
       ;;
     *) backup_die "unknown argument: $1" ;;
   esac
 done
+
+if [ "$plan" -eq 1 ]; then
+  cat <<PLAN
+backup test: plan (no Docker, build, network, or secret file is read)
+backup test: project ${QR_TEST_PROJECT:-quantrule-backup-test}
+backup test: 1 start the isolated Compose stack and wait for /health
+backup test: 2 seed qr_gateway, qr_catalog, qr_evidence, and qr_simulation rows and objects
+backup test: 3 snapshot every table digest and every object hash
+backup test: 4 run tools/backup.sh and verify the four dumps and the sidecar
+backup test: 5 refuse a non-interactive restore, a changed payload, a missing dump, and a non-clean target
+backup test: 6 wipe the project, run tools/restore.sh --yes, start the stack, and compare rows, objects, and the run digest
+backup test: 7 databases: $BACKUP_DATABASES
+backup test: the queue is not archived; acknowledged messages stay in the quorum queues
+PLAN
+  exit 0
+fi
 
 api=http://127.0.0.1:8080
 work=$(mktemp -d "${TMPDIR:-/tmp}/quantrule-backup-test.XXXXXX")
@@ -164,11 +185,14 @@ cat > "$work/seed/objects/runs/$run_id/manifest.json" <<JSON
 JSON
 
 postgres_user=${QR_POSTGRES_USER:-quantrule}
-postgres_db=${QR_POSTGRES_DB:-quantrule}
-config_hash=$(backup_compose exec -T postgres psql -qAt -U "$postgres_user" -d "$postgres_db" \
+evidence_db=qr_evidence
+gateway_db=qr_gateway
+catalog_db=qr_catalog
+simulation_db=qr_simulation
+config_hash=$(backup_compose exec -T postgres psql -qAt -U "$postgres_user" -d "$catalog_db" \
   -c "SELECT config_hash FROM catalog.configs WHERE profile_id = 'default' AND config_id = '$config_id'")
 [ -n "$config_hash" ] || fail 'the catalogued config has no hash'
-backup_compose exec -T postgres psql -q -v ON_ERROR_STOP=1 -U "$postgres_user" -d "$postgres_db" <<SQL
+backup_compose exec -T postgres psql -q -v ON_ERROR_STOP=1 -U "$postgres_user" -d "$evidence_db" <<SQL
 INSERT INTO runs.runs
   (run_id, config_id, data_version, owner, status, submitted_at, started_at, finished_at,
    digest, config_hash, model_version, image_digest)
@@ -199,7 +223,7 @@ stage_artifact_hex=$(backup_sha256 "$stage_artifact_body")
 stage_artifact_bytes=$(backup_file_bytes "$stage_artifact_body")
 mkdir -p "$work/seed/objects/stages/blobs"
 cp "$stage_artifact_body" "$work/seed/objects/stages/blobs/$stage_artifact_hex"
-backup_compose exec -T postgres psql -q -v ON_ERROR_STOP=1 -U "$postgres_user" -d "$postgres_db" <<SQL
+backup_compose exec -T postgres psql -q -v ON_ERROR_STOP=1 -U "$postgres_user" -d "$evidence_db" <<SQL
 INSERT INTO stage.runs
   (stage_run_id, kind, status, owner, config_id, input_kind, input_digest,
    data_version, config_hash, model_version, image_digest, artifact_id, submitted_at)
@@ -213,29 +237,57 @@ VALUES ('default', '$stage_run_id', '2026-11-14T00:00:00Z');
 INSERT INTO stage.artifacts (stage_run_id, name, bytes, sha256)
 VALUES ('$stage_run_id', 'model.json', $stage_artifact_bytes, '$stage_artifact_hex');
 SQL
+# One simulation row and one mark prove the research-plane database is in the
+# archive even though no archive tool runs against it.
+backup_compose exec -T postgres psql -q -v ON_ERROR_STOP=1 -U "$postgres_user" -d "$simulation_db" <<SQL
+INSERT INTO simulation.runs
+  (sim_id, profile_id, premise, bundle, inputs, inputs_digest, seed, criteria,
+   window_spec, oracle_spec, check_config, status, created_at)
+VALUES
+  ('sim-backup-round-trip', 'default', 'backup round trip preserves the mark',
+   'refs/bundles/backup-round-trip', '$data_version', '$data_version', 7,
+   'the mark survives a backup round trip',
+   '{"kind":"window","bars":1440}', '{"kind":"oracle"}', '{"kind":"check"}',
+   'reviewed', '2026-11-14T00:00:00Z');
+INSERT INTO simulation.marks
+  (mark_id, sim_id, profile_id, chart, bar, marked_time_utc, action, quality, side,
+   origin, note, created_at)
+VALUES
+  ('mark-backup-round-trip', 'sim-backup-round-trip', 'default', 1, 42,
+   '2026-11-14T00:00:00Z', 'entry', 'good', 'long', 'human',
+   'seeded durable state for the backup round trip', '2026-11-14T00:00:00Z');
+SQL
 tar -C "$work/seed/objects" -cf - . | backup_minio_run \
   'rm -rf /tmp/qr-test-seed
    mkdir -p /tmp/qr-test-seed
    tar -C /tmp/qr-test-seed -xf -
    mc mirror --overwrite --quiet /tmp/qr-test-seed "qr-backup/$QR_BACKUP_BUCKET" >/dev/null'
 
+table_digest() {
+  local database=$1 schema=$2 table=$3
+  backup_compose exec -T postgres psql -qAt -U "$postgres_user" -d "$database" -c \
+    "SET TIME ZONE 'UTC';
+     SELECT '$database.$schema.$table', count(*),
+            coalesce(md5(string_agg(t::text, E'\n' ORDER BY t::text)), '-')
+       FROM $schema.$table t"
+}
+
 table_digests() {
-  backup_compose exec -T postgres psql -qAt -U "$postgres_user" -d "$postgres_db" -c "SET TIME ZONE 'UTC';
-SELECT 'catalog.profiles', count(*), coalesce(md5(string_agg(t::text, E'\n' ORDER BY t::text)), '-') FROM catalog.profiles t
-UNION ALL SELECT 'catalog.datasets', count(*), coalesce(md5(string_agg(t::text, E'\n' ORDER BY t::text)), '-') FROM catalog.datasets t
-UNION ALL SELECT 'catalog.configs', count(*), coalesce(md5(string_agg(t::text, E'\n' ORDER BY t::text)), '-') FROM catalog.configs t
-UNION ALL SELECT 'catalog.config_bundles', count(*), coalesce(md5(string_agg(t::text, E'\n' ORDER BY t::text)), '-') FROM catalog.config_bundles t
-UNION ALL SELECT 'runs.runs', count(*), coalesce(md5(string_agg(t::text, E'\n' ORDER BY t::text)), '-') FROM runs.runs t
-UNION ALL SELECT 'runs.stages', count(*), coalesce(md5(string_agg(t::text, E'\n' ORDER BY t::text)), '-') FROM runs.stages t
-UNION ALL SELECT 'runs.artifacts', count(*), coalesce(md5(string_agg(t::text, E'\n' ORDER BY t::text)), '-') FROM runs.artifacts t
-UNION ALL SELECT 'runs.submissions', count(*), coalesce(md5(string_agg(t::text, E'\n' ORDER BY t::text)), '-') FROM runs.submissions t
-UNION ALL SELECT 'research.hypotheses', count(*), coalesce(md5(string_agg(t::text, E'\n' ORDER BY t::text)), '-') FROM research.hypotheses t
-UNION ALL SELECT 'gateway.profiles', count(*), coalesce(md5(string_agg(t::text, E'\n' ORDER BY t::text)), '-') FROM gateway.profiles t
-UNION ALL SELECT 'stage.runs', count(*), coalesce(md5(string_agg(t::text, E'\n' ORDER BY t::text)), '-') FROM stage.runs t
-UNION ALL SELECT 'stage.submissions', count(*), coalesce(md5(string_agg(t::text, E'\n' ORDER BY t::text)), '-') FROM stage.submissions t
-UNION ALL SELECT 'stage.artifacts', count(*), coalesce(md5(string_agg(t::text, E'\n' ORDER BY t::text)), '-') FROM stage.artifacts t
-UNION ALL SELECT 'public.schema_migrations', count(*), coalesce(md5(string_agg(t::text, E'\n' ORDER BY t::text)), '-') FROM public.schema_migrations t
-ORDER BY 1;"
+  table_digest "$gateway_db" gateway profiles
+  table_digest "$catalog_db" catalog profiles
+  table_digest "$catalog_db" catalog datasets
+  table_digest "$catalog_db" catalog configs
+  table_digest "$catalog_db" catalog config_bundles
+  table_digest "$evidence_db" runs runs
+  table_digest "$evidence_db" runs stages
+  table_digest "$evidence_db" runs artifacts
+  table_digest "$evidence_db" runs submissions
+  table_digest "$evidence_db" research hypotheses
+  table_digest "$evidence_db" stage runs
+  table_digest "$evidence_db" stage submissions
+  table_digest "$evidence_db" stage artifacts
+  table_digest "$simulation_db" simulation runs
+  table_digest "$simulation_db" simulation marks
 }
 
 object_hashes() {
@@ -253,7 +305,7 @@ snapshot() {
   mkdir -p "$directory"
   table_digests > "$directory/rows.txt"
   object_hashes > "$directory/objects.txt"
-  backup_compose exec -T postgres psql -qAt -U "$postgres_user" -d "$postgres_db" \
+  backup_compose exec -T postgres psql -qAt -U "$postgres_user" -d "$evidence_db" \
     -c "SELECT digest FROM runs.runs WHERE run_id = '$run_id'" > "$directory/run-digest.txt"
 }
 
@@ -261,7 +313,7 @@ snapshot() {
 # blob against its recorded hash.
 verify_run() {
   local listing="$work/artifact-rows.txt"
-  backup_compose exec -T postgres psql -qAt -U "$postgres_user" -d "$postgres_db" \
+  backup_compose exec -T postgres psql -qAt -U "$postgres_user" -d "$evidence_db" \
     -c "SELECT name || '|' || sha256 FROM runs.artifacts WHERE run_id = '$run_id' ORDER BY name" \
     > "$listing"
   [ "$(wc -l < "$listing" | tr -d ' ')" -eq 3 ] || fail 'the restored run lost an artifact row'
@@ -272,7 +324,7 @@ verify_run() {
     [ "$actual" = "$expected" ] ||
       fail "artifact $name changed: expected $expected, observed $actual"
   done < "$listing"
-  canonical=$(backup_compose exec -T postgres psql -qAt -U "$postgres_user" -d "$postgres_db" \
+  canonical=$(backup_compose exec -T postgres psql -qAt -U "$postgres_user" -d "$evidence_db" \
     -c "SELECT name || '|' || sha256 FROM runs.artifacts
         WHERE run_id = '$run_id'
           AND (name = 'results.json' OR name LIKE '%.csv' OR name LIKE '%.ndjson')
@@ -297,6 +349,9 @@ backup_dir="$work/backups"
 tools/backup.sh --out "$backup_dir" >/dev/null
 archive=$(find "$backup_dir" -maxdepth 1 -name 'quantrule-*.tar.gz' -print -quit)
 [ -n "$archive" ] || fail 'the backup wrote no archive'
+tools/restore.sh "$archive" --check > "$work/check.log"
+grep -q 'databases: 4 dumps' "$work/check.log" ||
+  fail 'the archive does not carry four database dumps'
 wait_health
 
 step 'checking that restore refuses an unsafe target and a bad archive'
@@ -310,7 +365,7 @@ corrupt="$work/corrupt"
 mkdir -p "$corrupt/unpack"
 tar -xzf "$archive" -C "$corrupt/unpack"
 archive_root=$(basename -- "$archive" .tar.gz)
-printf 'X' | dd of="$corrupt/unpack/$archive_root/postgres/quantrule.dump" \
+printf 'X' | dd of="$corrupt/unpack/$archive_root/postgres/qr_catalog.dump" \
   bs=1 seek=100 conv=notrunc status=none
 tar -C "$corrupt/unpack" -czf "$corrupt/$archive_root.tar.gz" "$archive_root"
 (cd "$corrupt" && backup_sha256_line "$archive_root.tar.gz" "$archive_root.tar.gz" > "$archive_root.tar.gz.sha256")
@@ -336,6 +391,23 @@ if tools/restore.sh "$incomplete/$archive_root.tar.gz" --yes </dev/null \
 fi
 grep -q 'incomplete' "$work/refusal-incomplete.log" ||
   fail 'the incomplete-archive refusal did not explain the missing file'
+
+partial="$work/partial"
+partial_unpack="$work/partial-unpack"
+mkdir -p "$partial_unpack" "$partial"
+tar -xzf "$archive" -C "$partial_unpack"
+rm -f "$partial_unpack/$archive_root/postgres/qr_simulation.dump"
+grep -v '^database|postgres/qr_simulation.dump|' \
+  "$partial_unpack/$archive_root/$BACKUP_MANIFEST" > "$partial_unpack/$archive_root/$BACKUP_MANIFEST.new"
+mv "$partial_unpack/$archive_root/$BACKUP_MANIFEST.new" "$partial_unpack/$archive_root/$BACKUP_MANIFEST"
+tar -C "$partial_unpack" -czf "$partial/$archive_root.tar.gz" "$archive_root"
+(cd "$partial" && backup_sha256_line "$archive_root.tar.gz" "$archive_root.tar.gz" > "$archive_root.tar.gz.sha256")
+if tools/restore.sh "$partial/$archive_root.tar.gz" --check </dev/null \
+  > "$work/refusal-partial.log" 2>&1; then
+  fail 'restore accepted a partial four-database set'
+fi
+grep -q 'partial four-database set' "$work/refusal-partial.log" ||
+  fail 'the partial-set refusal did not name the missing database'
 
 if tools/restore.sh "$archive" --yes </dev/null > "$work/refusal-nonclean.log" 2>&1; then
   fail 'restore replaced a non-empty stack without --force'
@@ -366,7 +438,7 @@ cmp -s "$work/before/objects.txt" "$work/after/objects.txt" ||
   fail 'the restored objects differ'
 verify_run
 
-fingerprint=$(backup_compose exec -T postgres psql -qAt -U "$postgres_user" -d "$postgres_db" \
+fingerprint=$(backup_compose exec -T postgres psql -qAt -U "$postgres_user" -d "$evidence_db" \
   -c 'SELECT fingerprint FROM research.hypotheses LIMIT 1')
 [ -n "$fingerprint" ] || fail 'the restored hypothesis row is missing'
 curl -fsS -H 'X-QuantRule-Profile: default' "$api/hypotheses/$fingerprint" |

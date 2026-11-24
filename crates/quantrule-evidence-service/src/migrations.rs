@@ -85,6 +85,11 @@ pub fn available() -> Vec<Migration> {
             name: "leader-lease",
             sql: include_str!("../migrations/0021_leader_lease.sql"),
         },
+        Migration {
+            version: 22,
+            name: "stage-lease-outbox",
+            sql: include_str!("../migrations/0022_stage_lease_outbox.sql"),
+        },
     ];
     migrations.sort_by_key(|migration| migration.version);
     migrations
@@ -127,7 +132,7 @@ mod tests {
         let pending = plan(&applied, &available).expect("plan");
         assert_eq!(
             pending.iter().map(|m| m.version).collect::<Vec<_>>(),
-            vec![4, 5, 8, 9, 13, 14, 15, 16, 17, 18, 19, 20, 21]
+            vec![4, 5, 8, 9, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]
         );
     }
 
@@ -150,7 +155,7 @@ mod tests {
             .collect();
         assert_eq!(
             versions,
-            vec![2, 4, 5, 8, 9, 13, 14, 15, 16, 17, 18, 19, 20, 21]
+            vec![2, 4, 5, 8, 9, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]
         );
     }
 

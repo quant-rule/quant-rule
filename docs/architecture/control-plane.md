@@ -1,6 +1,6 @@
 # Control Plane — Run Lifecycle
 
-- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); runtime drain, retries and reconnect in v1.6.0; approved 2026-11-12
+- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); runtime drain, retries, reconnect, and the HA-013 stage lease/outbox in v1.6.0; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Decision: [`ADR-2026-11-12-02`](../adr/2026-11-12/02-two-plane-control-and-data.md)
 - Claim type: Behaviour Claim
@@ -41,7 +41,7 @@ no run row.
 | `run.cancelled` | evidence | backtest | run id only; the run row is authoritative |
 | `run.failed` | backtest | none required | run id only; the run row holds the error |
 | `run.dead` | backtest | operator | run id only; the run row holds the error and attempts |
-| `stage.requested` | evidence | backtest | stage run id only; the stage row holds the inputs |
+| `stage.requested` | evidence (outbox) | backtest | stage run id only; the stage row holds the inputs |
 | `stage.computed` | backtest | none required | stage run id only; the stage row holds the artifact |
 | `stage.cancelled` | evidence | backtest | stage run id only; the stage row is authoritative |
 | `stage.failed` | backtest | none required | stage run id only; the stage row holds the error |
@@ -57,7 +57,7 @@ Rules:
   intent.
 - Consumers are idempotent: the same message twice produces the same state.
 - `run.requested` and `run.computed` are published from the evidence outbox;
-  the intent commits with the run write. See
+  `stage.requested` from the stage outbox. Each intent commits with its row. See
   [cross-database consistency](cross-database-consistency.md).
 ## 3. Topology
 
@@ -95,17 +95,17 @@ consumers cannot hold each other's delivery; the worker starts
 run consumer and declares RabbitMQ consumer priority `x-priority = -1`; the run
 consumer keeps the default `0`.
 
-The evidence outbox is the durable producer; a repeated delivery is a lookup.
+The run and stage outboxes are the durable producers; a repeated delivery is a lookup.
 Only the leader consumes `runs.evidence.g<n>` and finalises; a standby serves
 reads and acquires the lease after expiry. The finalisation write carries the
 run-attempt term and the leader term, and the lease-row lock refuses a stale
 leader. Retry budget: three attempts. The handler holds the unacked delivery for
 5 s after the first failure and 25 s after the second; the third failure marks the
 run `failed` and publishes `run.dead`. A dead-lettered run is never silently
-lost; the run row records the attempt count. A claim records a monotonic term
-and a 60 s lease, and the worker renews it every 20 s. A queued run is
-claimable; a running run only when its lease is absent or expired. A computed
-run is only republished. The quorum delivery limit is the second guard for a
+lost; the run row records the attempt count. A run or stage claim records a monotonic term
+and a 60 s lease, and the worker renews it every 20 s. A queued row is
+claimable; a running row only when its lease is absent or expired. A computed
+run is only republished; a terminal stage is never claimed. The quorum delivery limit is the second guard for a
 consumer that cannot reach that path. A consumer error reconnects in-process
 with 1–30 s backoff before the container restarts.
 
@@ -129,11 +129,11 @@ records `model_artifact_id` on the run row, and can still produce the same
 canonical digest.
 
 - The first submission returns `202`; an existing `run_id` returns `200`.
-- The run row, the submission, and the `run.requested` intent commit in one
-  transaction, so a retry after a commit finds the same run and does not create
-  a second run record.
-- A restart or a leader acquisition re-arms every unfinished run: a running run without a digest wants
-  `run.requested`, and a running run with a digest wants `run.computed`.
+- The run row and `run.requested`, and the stage row and `stage.requested`,
+  commit in one transaction, so a retry finds the same record and never creates
+  a second run or stage.
+- A restart or a leader acquisition re-arms every unfinished run and stage: a running run without a digest wants
+  `run.requested`, a running run with a digest wants `run.computed`, and an unfinished stage wants `stage.requested`.
 - The same promoted submission returns the same promoted run; a full and a
   promoted submission never collide.
 - A claim takes a new lease term; a running run is reclaimable only after its

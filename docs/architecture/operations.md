@@ -1,6 +1,6 @@
 # Operations
 
-- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); runtime drain, readiness, retries, file secrets, token rotation, the PLAT-003 stateful tier, check rows, and failover lab, the PLAT-004 queue tier, checks, definitions, and broker-loss lab, the PLAT-005 MinIO tier/object bootstrap/check rows/node-loss lab, the PLAT-006 observability tier, and the PLAT-007 registry/signing/SBOM/CVE phases 1–2 (running task images and the all-service digest probe) are in v1.6.0; approved 2026-11-12
+- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); runtime drain, readiness, retries, file secrets, token rotation, the PLAT-003 stateful tier, check rows, and failover lab, the PLAT-004 queue tier, checks, definitions, and broker-loss lab, the PLAT-005 MinIO tier/object bootstrap/check rows/node-loss lab, the PLAT-006 observability tier, the PLAT-007 registry/signing/SBOM/CVE phases 1–2 (running task images and the all-service digest probe), and HA-013 phase 1a pgBackRest/Compose four-database archive/backup age, phase 2 stage lease/outbox and queue rebuild, and phase 3 object archive/DR/lab integration are in v1.6.0; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 
@@ -67,14 +67,17 @@ generation, stop its consumers, then unbind or delete the empty queues. In v3,
 three brokers sit behind the HAProxy `rabbitmq` alias; a consumer rebuilds its
 connection from the stored URL/CA and uses `restart_policy: any`.
 `tools/queue-definitions.sh` exports stripped topology, verifies the four
-queues/bindings/no policy, and retains 30 days; HA-013 owns archive/restore.
+queues/bindings/no policy, and retains 30 days. `tools/queue-rebuild.sh --plan`
+prints the recovery; `--confirm` imports into an empty broker, recreates the
+user/vhost, and restarts evidence so the run and stage outboxes re-arm. The queue
+is not archived; inspect DLQ messages, never replay them.
 ### Evidence leader
 
 `runs.leader_lease` names the one finalizer; the leader renews every 10 s with a
 30 s database window. A standby serves reads and acquires after expiry. Inspect
 `SELECT holder, term, expires_at > now() AS live FROM runs.leader_lease;`.
 A leader kill or a clean drain expires the lease; the standby takes over,
-re-arms the outbox and logs `this evidence replica is the leader`.
+re-arms the run and stage outboxes, and logs `this evidence replica is the leader`.
 ## 3. Run lifecycle operations
 
 | Situation | Operator action |
@@ -83,14 +86,14 @@ re-arms the outbox and logs `this evidence replica is the leader`.
 | Run `running` too long | Check the stage in run detail; cancel if needed |
 | Run `failed` | Read the failed stage and error code; resubmit after fixing the input |
 | Dead-lettered run | Inspect the attempt count; the run row is the record |
-| Stuck `running` after a crash or drain | Restart the worker; the lease expires and the outbox re-arms it; never mark it failed |
+| Stuck `running` after a crash or drain | Restart the worker; the run or stage lease expires and its outbox re-arms it; never mark it failed |
 ## 4. Backup and restore
 
 One archive holds both durable stores:
 
 ```bash
 tools/backup.sh                  # optional --out DIR
-tools/restore.sh ARCHIVE --yes   # clean stack; --force replaces
+tools/restore.sh ARCHIVE --yes   # clean stack; --force replaces; --check only verifies
 ```
 
 `make backup` and `make restore FILE=…` call these scripts.
@@ -100,13 +103,13 @@ tools/restore.sh ARCHIVE --yes   # clean stack; --force replaces
 | Default archive directory | `$QR_BACKUP_DIR`, else `$QUANTRULE_DATA_ROOT/backups`, else `$HOME/quant-rule-data/backups` |
 | Archive | `quantrule-YYYY-MM-DDTHH-MM-SSZ.tar.gz` |
 | Sidecar | The same name plus `.sha256`: the SHA-256 of the archive |
-| Manifest | `manifest.json` inside the archive: schema, one line per payload file with size and SHA-256, and the object key of each mirrored object |
-| Payload | `postgres/quantrule.dump` (custom format) and `objects/<key>` |
+| Manifest | `manifest.json` inside the archive: schema, one line per payload with size and SHA-256, `kind=database` with its name, and the object key of each mirrored object |
+| Payload | One `postgres/qr_*.dump` per logical database (custom format) and `objects/<key>` |
 
 The mirror is staged in the object-store container and on the host. Application
 services stop during the dump and mirror, so both stores describe one instant;
 Postgres, MinIO and the broker stay up; acknowledged queue messages stay in the
-quorum queues, and a lost queue is rebuilt from run rows. The broker topology is
+quorum queues, and a lost queue is rebuilt from run and stage rows. The broker topology is
 exported separately with `tools/queue-definitions.sh export`; users and
 permissions are stripped before storage; a definitions file is not a message backup.
 The command pair is in the [multi-host runbook](../../deploy/multi-host/README.md) §11.
@@ -117,20 +120,16 @@ run without `--yes`. Objects are written before rows, so an interrupted restore
 leaves unreferenced blobs rather than missing bytes; after `make reset`, restore
 before `make up`.
 
-The object mirror uses the `mc` bundled in the pinned MinIO image; v3 pins
-`images.minio_client`, enables bucket versioning, and the check/lab verify the
-bucket, `qr_app`, the probe hash, and zero healing; HA-013 owns off-host/archive,
-restore drills, and any second-site replication; the archive holds sensitive data ([data-lifecycle](../workflows/data-lifecycle.md)).
+The mirror uses the `mc` bundled in the pinned MinIO image; v3 pins `images.minio_client`, enables versioning, and the check/lab verify the bucket, `qr_app`, the probe hash, and zero healing. HA-013 phase 3 adds `tools/object-archive.sh` (one-way, read-only source, no delete/watch/replicate) and `deploy/v3/dr.sh` (scratch or in-place lab restore, canonical digest, RPO/RTO); the live archive and drill are `Unverified` ([backup contract](../config/2026-11-24/backup-restore.md)).
+In v3, `render` writes `pgbackrest-<host>.conf` and `pgbackrest-backup.sh`; the backup host writes the age textfile only after a real full/diff, and `BackupAgeHigh` fires when it is absent or eight days old.
 
-The default stack starts seven services, three stores, the bootstrap and four
-migration jobs ([deployment.md](deployment.md) §2.1). Backup covers durable stores;
-the database contract is [four databases](../config/2026-11-22/four-databases.md).
-The tools dump one database, so a backup is incomplete until HA-013 lands the
-pgBackRest archive/PITR drill; never claim evidence preservation from one dump.
+The default stack starts seven services, three stores, the bootstrap, and four migration jobs ([deployment.md](deployment.md) §2.1). The database contract is [four databases](../config/2026-11-22/four-databases.md); the v3 repository, stanza, retention, and check rows are [backup and restore](../config/2026-11-24/backup-restore.md).
+The Compose tools dump all four databases; the v3 pgBackRest path is separate and
+its live backup/restore/PITR drill is `Unverified`.
 
 Round trip: `tools/test_backup.sh` is opt-in, uses an isolated project, and never
-touches the default project. It seeds a run, checks refusals, wipes, restores,
-and compares row digests and object hashes.
+touches the default project. It seeds the four databases and objects, checks the
+refusals, wipes, restores, and compares row digests and object hashes.
 
 ## 5. Upgrade
 
@@ -147,14 +146,14 @@ and compares row digests and object hashes.
 
 The full migration contract and runbook are in [migrations.md](migrations.md).
 
-The release image is pulled by digest from GHCR and verified as a Sigstore bundle plus saved signed image before deploy; `qr-deploy check` compares running task images and `--runtime` proves seven service digests; SBOM/CVE are release assets ([registry contract](../config/2026-11-24/registry.md)). Reference sizing, lab preconditions, and the three remaining image blockers are in the [reference contract](../config/2026-11-24/reference-topologies.md); `deploy/v3/lab.sh` fails closed at those blockers and runs the remote client phase from outside the Swarm.
+The release image is pulled by digest from GHCR and verified as a Sigstore bundle plus saved signed image before deploy; `qr-deploy check` compares running task images and `--runtime` proves seven service digests; SBOM/CVE are release assets ([registry contract](../config/2026-11-24/registry.md)). Reference sizing, lab preconditions, and the four remaining image blockers (app, `minio`, `minio_client`, derived Patroni) are in the [reference contract](../config/2026-11-24/reference-topologies.md); `deploy/v3/lab.sh` fails closed at those blockers and runs the remote client phase from outside the Swarm.
 
 ## 6. Incident notes
 
 | Incident | First response |
 |---|---|
 | Disk full | Stop workers, free object storage, restart |
-| Database corruption | Restore from the last backup; record the data loss window |
+| Database corruption | Restore from the pgBackRest repository and PITR target, or the last Compose archive; run `deploy/v3/dr.sh --target scratch --confirm` to prove the digest; record the data-loss window; a live drill is `Unverified` |
 | Migration job failed or stopped | Keep the old stack serving; read the job log and ledger; re-run it (it resumes) or correct forward, never edit an applied migration |
 | Object store loss | Restore from backup; any missing artifact makes its runs unverifiable |
 | Queue loss | Acknowledged messages survive one broker loss; rebuild a lost queue from `queued` rows |

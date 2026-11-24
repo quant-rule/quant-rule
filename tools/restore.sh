@@ -3,8 +3,8 @@
 #
 # The archive sidecar is checked first, then every payload file against the
 # in-archive manifest, and only then is anything written to Postgres or the
-# object store. A missing sidecar, a changed byte, a missing file, or an entry
-# outside the archive root is a refusal.
+# object store. A missing sidecar, a changed byte, a missing file, an entry
+# outside the archive root, or a partial four-database set is a refusal.
 #
 # A non-empty stack is refused unless --force is given. --force replaces the
 # four application schemas and the bucket contents; it is an explicit operator
@@ -16,16 +16,17 @@
 # looks present but cannot verify. The queue is not restored; messages are
 # rebuilt from run rows after the stack starts.
 #
-# Usage: tools/restore.sh ARCHIVE [--yes] [--force]
+# Usage: tools/restore.sh ARCHIVE [--yes] [--force] [--check]
 #   ARCHIVE   the quantrule-*.tar.gz written by tools/backup.sh
 #   --yes     do not prompt (required when stdin is not a terminal)
 #   --force   replace a non-empty database and bucket
+#   --check   verify the sidecar, manifest, four-database set, and hashes only;
+#             no Docker command runs and nothing is written
 #
 # Environment:
 #   COMPOSE_PROJECT_NAME  the Compose project to restore (default: quantrule)
 #   QR_OBJECT_BUCKET      the bucket to restore (default: quantrule)
 #   QR_POSTGRES_USER      the database role (default: quantrule)
-#   QR_POSTGRES_DB        the database name (default: quantrule)
 set -euo pipefail
 umask 077
 
@@ -34,12 +35,13 @@ script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 . "$script_dir/backup_lib.sh"
 
 usage() {
-  sed -n '2,28p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,29p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
 archive=''
 assume_yes=0
 force=0
+check_only=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --yes)
@@ -48,6 +50,10 @@ while [ $# -gt 0 ]; do
       ;;
     --force)
       force=1
+      shift
+      ;;
+    --check)
+      check_only=1
       shift
       ;;
     -h | --help)
@@ -64,15 +70,18 @@ while [ $# -gt 0 ]; do
       ;;
   esac
 done
-[ -n "$archive" ] || backup_die 'usage: tools/restore.sh ARCHIVE [--yes] [--force]'
+[ -n "$archive" ] || backup_die 'usage: tools/restore.sh ARCHIVE [--yes] [--force] [--check]'
 [ -f "$archive" ] || backup_die "the archive $archive does not exist"
 archive=$(cd -- "$(dirname -- "$archive")" && pwd)/$(basename -- "$archive")
 sidecar="$archive.sha256"
 [ -f "$sidecar" ] ||
   backup_die "the archive has no .sha256 sidecar; an archive written by tools/backup.sh always has one"
 
-backup_require_commands docker tar find sort awk wc
-backup_compose version >/dev/null
+backup_require_commands tar find sort awk wc
+if [ "$check_only" -eq 0 ]; then
+  backup_require_commands docker
+  backup_compose version >/dev/null
+fi
 
 # 1. The archive as a whole.
 read -r expected_archive_hash expected_archive_name < "$sidecar" ||
@@ -139,13 +148,14 @@ first_manifest=$(sed -n '1p' "$manifest")
 # 3. Every payload file against the manifest. Nothing has touched the stack.
 expected_list="$stage/expected-files"
 : > "$expected_list"
-postgres_entries=0
+database_entries=""
+database_count=0
 object_entries=0
 object_bytes=0
-while IFS=$'\t' read -r kind path bytes hash key; do
+while IFS='|' read -r kind path bytes hash database key; do
   case "$kind" in
     '' | '#'*) continue ;;
-    postgres | object) ;;
+    database | object) ;;
     *) backup_die "the manifest has an unknown entry kind: $kind" ;;
   esac
   backup_safe_relative "$path" ||
@@ -163,13 +173,24 @@ while IFS=$'\t' read -r kind path bytes hash key; do
     backup_die "hash mismatch for $path: expected $hash, observed $actual_hash"
   printf '%s\n' "$path" >> "$expected_list"
   case "$kind" in
-    postgres)
-      [ -z "$key" ] || backup_die "the postgres entry carries an object key"
-      [ "$path" = "$BACKUP_POSTGRES_FILE" ] ||
-        backup_die "the postgres entry is '$path', not '$BACKUP_POSTGRES_FILE'"
-      postgres_entries=$((postgres_entries + 1))
+    database)
+      [ -z "$key" ] || backup_die "the database entry '$database' carries an object key"
+      backup_safe_relative "$database" ||
+        backup_die "the manifest database '$database' is not a safe name"
+      case " $BACKUP_DATABASES " in
+        *" $database "*) ;;
+        *) backup_die "the manifest names an unknown database: $database" ;;
+      esac
+      case " $database_entries " in
+        *" $database "*) backup_die "the manifest names $database twice" ;;
+      esac
+      [ "$path" = "$BACKUP_DATABASES_DIR/$database.dump" ] ||
+        backup_die "the manifest path '$path' does not match database '$database'"
+      database_entries="$database_entries $database"
+      database_count=$((database_count + 1))
       ;;
     object)
+      [ -z "$database" ] || backup_die "the object entry '$key' carries a database"
       backup_safe_relative "$key" ||
         backup_die "the manifest object key '$key' is not a safe relative path"
       [ "$path" = "$BACKUP_OBJECTS_DIR/$key" ] ||
@@ -179,8 +200,14 @@ while IFS=$'\t' read -r kind path bytes hash key; do
       ;;
   esac
 done < "$manifest"
-[ "$postgres_entries" -eq 1 ] ||
-  backup_die "the manifest must name exactly one postgres dump, not $postgres_entries"
+for database in $BACKUP_DATABASES; do
+  case " $database_entries " in
+    *" $database "*) ;;
+    *) backup_die "the archive is incomplete: it has no $database dump; restore refuses a partial four-database set" ;;
+  esac
+done
+[ "$database_count" -eq 4 ] ||
+  backup_die "the manifest must name exactly four databases, not $database_count"
 
 # An extra file in the archive is not covered by a hash, so it is a refusal.
 actual_list="$stage/actual-files"
@@ -193,6 +220,14 @@ if ! cmp -s "$expected_list" "$actual_list"; then
   backup_log 'the archive holds files the manifest does not name:'
   comm -13 "$expected_list" "$actual_list" >&2 || true
   backup_die 'the archive does not match its manifest'
+fi
+
+if [ "$check_only" -eq 1 ]; then
+  printf 'archive: %s\n' "$archive"
+  printf 'databases: %s dumps\n' "$database_count"
+  printf 'objects: %s files, %s bytes\n' "$object_entries" "$object_bytes"
+  printf 'check: sidecar, entries, manifest, four-database set, and payload hashes verified; no stack was touched\n'
+  exit 0
 fi
 
 if [ "$assume_yes" -ne 1 ]; then
@@ -209,21 +244,22 @@ backup_compose up -d --wait postgres minio >/dev/null
 restart_services=$(backup_quiesce)
 
 postgres_user=${QR_POSTGRES_USER:-quantrule}
-postgres_db=${QR_POSTGRES_DB:-quantrule}
 bucket=${QR_OBJECT_BUCKET:-quantrule}
-# A normal stack owns six schemas: the four data-plane/evidence schemas plus
-# the gateway profile schema and the diagnostic stage schema. The restore must
-# count and drop all six, or pg_restore fails on the objects it left behind.
-tables=$(backup_compose exec -T postgres psql -U "$postgres_user" -d "$postgres_db" -tAc \
-  "SELECT count(*) FROM information_schema.tables
-   WHERE table_schema IN ('catalog', 'runs', 'research', 'simulation', 'gateway', 'stage')
-      OR (table_schema = 'public' AND table_name = 'schema_migrations')")
-tables=${tables//[[:space:]]/}
+# The four databases are separate, so a table in any of them makes the target
+# non-empty. The check is per database; pg_restore must see a clean one.
+tables=0
+for database in $BACKUP_DATABASES; do
+  count=$(backup_compose exec -T postgres psql -U "$postgres_user" -d "$database" -tAc \
+    "SELECT count(*) FROM pg_catalog.pg_tables
+     WHERE schemaname NOT IN ('pg_catalog', 'information_schema')")
+  count=${count//[[:space:]]/}
+  case "$count" in
+    '' | *[!0-9]*) backup_die "cannot count the tables in $database" ;;
+  esac
+  tables=$((tables + count))
+done
 objects=$(backup_minio_run 'mc ls --recursive "qr-backup/$QR_BACKUP_BUCKET" | wc -l')
 objects=${objects//[[:space:]]/}
-case "$tables" in
-  '' | *[!0-9]*) backup_die 'cannot count the database tables' ;;
-esac
 case "$objects" in
   '' | *[!0-9]*) backup_die 'cannot count the bucket objects' ;;
 esac
@@ -233,11 +269,17 @@ if [ "$tables" -ne 0 ] || [ "$objects" -ne 0 ]; then
     backup_die "the stack is not clean ($tables tables, $objects objects); use --force to replace it"
   fi
   backup_log "replacing $tables tables and $objects objects"
-  backup_compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "$postgres_user" -d "$postgres_db" \
-    >/dev/null <<'SQL'
-DROP SCHEMA IF EXISTS catalog, runs, research, simulation, gateway, stage CASCADE;
-DROP TABLE IF EXISTS public.schema_migrations;
-SQL
+  for database in $BACKUP_DATABASES; do
+    case "$database" in
+      qr_gateway) schemas='gateway' ;;
+      qr_catalog) schemas='catalog' ;;
+      qr_evidence) schemas='runs, research, stage' ;;
+      qr_simulation) schemas='simulation' ;;
+      *) backup_die "unknown database: $database" ;;
+    esac
+    backup_compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "$postgres_user" -d "$database" \
+      -c "DROP SCHEMA IF EXISTS $schemas CASCADE" >/dev/null
+  done
   if [ "$objects" -ne 0 ]; then
     backup_minio_run 'mc rm --recursive --force "qr-backup/$QR_BACKUP_BUCKET" >/dev/null 2>&1 || true'
   fi
@@ -253,14 +295,17 @@ if ! tar -C "$payload/$BACKUP_OBJECTS_DIR" -cf - . | backup_minio_run \
   backup_die 'the object restore failed'
 fi
 
-backup_log 'restoring postgres'
-if ! backup_compose exec -T postgres \
-  pg_restore -U "$postgres_user" -d "$postgres_db" \
-  --no-owner --no-privileges --exit-on-error < "$payload/$BACKUP_POSTGRES_FILE"; then
-  backup_die 'pg_restore failed'
-fi
+backup_log 'restoring the four databases'
+for database in $BACKUP_DATABASES; do
+  if ! backup_compose exec -T postgres \
+    pg_restore -U "$postgres_user" -d "$database" \
+    --no-owner --no-privileges --exit-on-error \
+    < "$payload/$BACKUP_DATABASES_DIR/$database.dump"; then
+    backup_die "pg_restore failed for $database"
+  fi
+done
 
 printf 'archive: %s\n' "$archive"
-printf 'postgres: restored from %s\n' "$BACKUP_POSTGRES_FILE"
+printf 'databases: %s dumps restored\n' "$database_count"
 printf 'objects: %s files, %s bytes restored\n' "$object_entries" "$object_bytes"
 printf 'start the stack with make up when it was stopped for the restore\n'

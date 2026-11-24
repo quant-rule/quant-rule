@@ -1,0 +1,13 @@
+ok	backup	pitr	configured	stanza quantrule covers all four databases; 30 day retention; the live restore/PITR drill is Unverified
+ok	backup	stanza	configured	stanza quantrule; 3 Patroni config(s) with pg1-path, pg1-port 5432, and the socket directory
+ok	backup	archive	configured	archive_mode on, archive_timeout 60, wal_level replica; archive-push and archive-get use the quantrule stanza
+ok	backup	placeholder	removed	no node-local WAL archive remains in the Patroni config or unit
+ok	backup	repository	configured	s3 repository; cipher aes-256-cbc; full retention 30 days; differential retention 7; the S3 endpoint is verified with the configured CA
+ok	backup	host	declared	edge-1; node_exporter present; backup script copied by tools/stateful.sh
+ok	backup	off-host	off-host	s3 repository is outside the object-store nodes
+ok	backup	object	no-replication	object_replication false; the phase-3 object archive is disabled and no tool is run
+ok	backup	image	labelled-fixture	derived image is a labelled blocker; --release refuses it and deploy/v3/images/patroni/build.sh prints the real digest
+ok	backup	secrets	no-values	3 pgBackRest secret file(s) checked; no value appears in a config, the script, or a unit
+ok	backup	script	rendered	full, diff, verify, info, restore; a mode-644 textfile is written atomically only after a real backup; dry-run never stamps
+ok	backup	schedule	utc	full 02:00 UTC and diff 14:00 UTC; the operator installs the host timer or cron, no scheduler runs in a container
+ok	backup	unit	configured	every Patroni unit mounts pgbackrest.conf and the mode-600 backup secrets, exports the passphrase, and has no WAL placeholder or published port

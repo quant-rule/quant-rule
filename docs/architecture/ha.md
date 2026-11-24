@@ -1,6 +1,6 @@
 # Highly Available Runtime
 
-- Status: Target for the next release; the evidence leader (HA-006), data active/active (HA-007), runtime drain/readiness/retries/file secrets/token rotation (HA-009), internal TLS for PostgreSQL/RabbitMQ/MinIO (HA-010), v3 render/check (HA-012), the PLAT-001 control plane, the PLAT-002 ingress, the PLAT-003 Patroni/etcd/HAProxy tier, the PLAT-004 RabbitMQ tier, the PLAT-005 MinIO erasure/TLS/front door/object bootstrap/check rows/node-loss lab, the PLAT-006 observability tier (including `check/observability.rs` and the lab assertions), and the PLAT-007 registry/signing/SBOM/CVE phases 1–2 (running task images and the all-service digest probe) are current; the lab is `Unverified` without a three-VM host; accepted by [ADR-HA](../adr/2026-11-22/1082-ha-deployment-profile.md)
+- Status: Target for the next release; the evidence leader (HA-006), data active/active (HA-007), runtime drain/readiness/retries/file secrets/token rotation (HA-009), internal TLS for PostgreSQL/RabbitMQ/MinIO (HA-010), v3 render/check (HA-012), the PLAT-001 control plane, the PLAT-002 ingress, the PLAT-003 Patroni/etcd/HAProxy tier, the PLAT-004 RabbitMQ tier, the PLAT-005 MinIO erasure/TLS/front door/object bootstrap/check rows/node-loss lab, the PLAT-006 observability tier (including `check/observability.rs` and the lab assertions), the PLAT-007 registry/signing/SBOM/CVE phases 1–2 (running task images and the all-service digest probe), and HA-013 phase 1a pgBackRest archive/render/check, phase 2 stage lease/outbox and queue rebuild, and phase 3 object archive/DR/lab integration are current; the live backup/restore/PITR/archive/DR drill is `Unverified`; accepted by [ADR-HA](../adr/2026-11-22/1082-ha-deployment-profile.md) and [ADR-HA-013](../adr/2026-11-24/1111-backup-restore.md)
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 
@@ -54,8 +54,7 @@ join or transaction. Model, strategy and backtest have no database.
 - One primary, two standbys, one synchronous; strict mode, count 1, commit `on`.
 - `pg_rewind`, `wal_log_hints`, replication slots, hot standby; watchdog `automatic` probes and continues without a device, `required` needs a verified one, lab `off`.
 - HAProxy two replicas, Patroni `/primary`, TCP passthrough, primary-only routing.
-- pgBackRest full/differential/WAL to MinIO is HA-013; PLAT-003 sets file-archive
-  placeholders, and `pitr: true` is configured, not verified.
+- pgBackRest owns PITR for all four databases: one `quantrule` stanza, an off-host S3 or dedicated posix repository, AES-256, and a derived Patroni image; a live backup/restore is `Unverified`. `deploy/v3/dr.sh` restores a scratch target or the disposable lab and compares the canonical digest; a mismatch fails.
 
 RPO 0 for committed rows. If no synchronous standby remains, writes block rather
 than silently degrade. The lab measures RTO and records the rejoin; a lab row
@@ -71,15 +70,17 @@ RabbitMQ:
   suffix names a new topology, and an acknowledged message survives one broker loss.
 - A consumer rebuilds its connection from the stored URL/CA; queue consumers use
   `restart_policy: any`.
-- Definitions export/verify/retention is PLAT-004; archive/restore is HA-013.
+- Definitions export/verify/retention is PLAT-004; HA-013 phase 2 adds `tools/queue-rebuild.sh` (topology import, user/vhost, evidence re-arm), and the queue is never archived.
 
 MinIO:
 
 - Four nodes × one drive EC:2 (lab 3 × 2, EC:3); one node loss keeps the write quorum.
 - TLS-only 9000 through the HAProxy `minio` alias; nodes use `minio-<host>`.
 - Versioning, a least-privilege `qr_app` policy, and root files only on MinIO hosts.
-- One node/drive loss preserves commits and hashes; HA-013 owns off-host/archive,
-  restore drills, and any second-site replication; `object_replication` is false.
+- One node/drive loss preserves commits and hashes; HA-013 phase 1a adds the
+  pgBackRest repository, phase 3 adds the one-way object archive and DR drill,
+  and `object_replication` stays false. The archive copies list/get only from
+  `qr_archive_reader`; it is not a version-history or second-site claim.
 
 ## 6. Evidence leader
 
@@ -94,7 +95,7 @@ runs.leader_lease
 - Acquisition and renewal use database time; the term increments on acquisition.
 - Finalisation locks the row, requires the live term, and records one digest; a stale leader is refused.
 - Only the leader consumes `run.computed`; both replicas serve reads.
-- A leader loss or clean drain expires the lease; the standby takes over, re-arms the outbox, and a duplicate is one digest.
+- A leader loss or clean drain expires the lease; the standby takes over, re-arms the run and stage outboxes, and a duplicate is one digest or one execution.
 
 ## 7. Cross-database consistency
 
@@ -111,9 +112,9 @@ and no cross-database joins.
 - Postgres, RabbitMQ and MinIO use TLS with a private CA; per-service credentials.
 - Internal HTTP stays plaintext on the encrypted overlay. mTLS remains deferred beyond HA-012; a compromised overlay host can impersonate a service ([TLS contract](../config/2026-11-23/internal-tls.md)).
 - Every service serves `/ready`; a drain flips it before the process stops, and `/metrics` stays internal.
-- Prometheus scrapes the seven services, ingress, Patroni, etcd, HAProxy, RabbitMQ, MinIO, node_exporter, blackbox, and itself; Prometheus and Alertmanager sit on distinct hosts, Loki/promtail keep 30 days of JSON logs, four dashboards are read-only, and every port stays overlay-only ([observability contract](../config/2026-11-23/observability.md)). The 38 rules cover F01..F17, including `GatewayReplicaDown`, `EtcdNodeDown`, `PostgresNoPrimaryBackend`, `MinioClusterUnhealthy`, and `SwarmManagerQuorumAtRisk`.
+- Prometheus scrapes the seven services, ingress, Patroni, etcd, HAProxy, RabbitMQ, MinIO, node_exporter, blackbox, and itself; Prometheus and Alertmanager sit on distinct hosts, Loki/promtail keep 30 days of JSON logs, four dashboards are read-only, and every port stays overlay-only ([observability contract](../config/2026-11-23/observability.md)). The 38 rules cover F01..F17, including `GatewayReplicaDown`, `EtcdNodeDown`, `PostgresNoPrimaryBackend`, `MinioClusterUnhealthy`, `SwarmManagerQuorumAtRisk`, and `BackupAgeHigh` with its absent clause.
 - JSON logs carry request ids as observability only; they never enter evidence.
-- The release image is pinned by digest and verified as a Sigstore bundle plus saved signed image before deploy; `qr-deploy check` compares every running task image, and `--runtime` proves all seven service digests; SBOM and CVE evidence are release assets ([registry contract](../config/2026-11-24/registry.md)). Fourteen infrastructure pins are resolved; `minio`, `minio_client`, and the app image remain blockers ([reference contract](../config/2026-11-24/reference-topologies.md)).
+- The release image is pinned by digest and verified as a Sigstore bundle plus saved signed image before deploy; `qr-deploy check` compares every running task image, and `--runtime` proves all seven service digests; SBOM and CVE evidence are release assets ([registry contract](../config/2026-11-24/registry.md)). Thirteen deployable infrastructure pins and the Patroni base are resolved; the derived Patroni pgBackRest image, `minio`, `minio_client`, and the app image remain blockers ([reference contract](../config/2026-11-24/reference-topologies.md)).
 
 ## 9. Deployment descriptor
 
@@ -129,8 +130,9 @@ is a stated single-AZ dependency), and `reference/single-az.json` keeps four rac
 in one AZ without an AZ claim ([reference contract](../config/2026-11-24/reference-topologies.md)).
 
 `qr-deploy validate`, `render`, and `check` are implemented; `render` writes the
-stack, per-host units, Patroni/etcd/HAProxy/RabbitMQ/MinIO configs, jobs,
-secret/PKI copies, the stateful manifest, and `render.json`. `bootstrap.sh`
+stack, per-host units, Patroni/etcd/HAProxy/RabbitMQ/MinIO configs,
+`pgbackrest-<host>.conf` and the backup-host script, jobs, secret/PKI copies,
+the stateful manifest, and `render.json`. `bootstrap.sh`
 labels the six `quantrule.*` keys, refuses drift, runs cluster/db/migration jobs
 before the stack, and waits for the pinned image and 443. `tools/stateful.sh`
 starts MinIO -> etcd -> Patroni -> HAProxy, seeds the first broker, starts the
@@ -147,7 +149,7 @@ Contracts: [deploy/v3](../config/2026-11-22/deploy-v3.md),
 |---|---|
 | Gateway/ingress loss | Load balancer routes to survivor; client GET retries in its budget, mutation re-run after `/ready` |
 | Data/model/strategy loss | Other replica serves; retry is idempotent |
-| Backtest worker kill | Lease expires; outbox re-arms; no partial publish |
+| Backtest worker kill | Run or stage lease expires; the matching outbox re-arms; no partial publish |
 | Rolling restart / SIGTERM | `/ready` 503; HTTP 20 s, worker 25 s; an in-flight run keeps its lease, never `failed` |
 | Consumer channel error | Reconnect 1–30 s; rebuild the connection; exhausted budget exits, and a queue consumer restarts with `any` |
 | Evidence leader kill or drain | Lease expires or is released; new leader; one finalisation |
@@ -158,13 +160,11 @@ Contracts: [deploy/v3](../config/2026-11-22/deploy-v3.md),
 | MinIO node/drive loss | Erasure continues; hashes unchanged |
 ## 11. Backup, restore and DR
 
-- PITR for all four databases to one consistent point; restore objects before rows.
-- Object versioning; off-host/archive, restore drills, and any second-site
-  replication are HA-013.
-- Queue is not archived; a lost queue is rebuilt from run and stage rows, and an
-  acknowledged message survives one broker loss in the quorum queue.
-- Restore drill every release; canonical digest must reproduce.
-- RTO target: 15 minutes node/AZ, 1 hour region; the lab measures a pause RTO, not this SLO.
+- PITR for all four databases to one consistent point: one `quantrule` stanza, an off-host repository, AES-256, and per-node `pgbackrest.conf`; restore objects before rows; the live drill is `Unverified`. Restore drill every release; the canonical digest must reproduce; no live drill is claimed here.
+- `tools/object-archive.sh` mirrors new/changed keys one way to an operator target; `deploy/v3/dr.sh` restores a scratch PGDATA/bucket or the disposable lab in place, reruns the same run/config, and fails on a digest mismatch. Object versioning is local; the one-way archive is not replication, and a second site or object lock is not installed.
+- The backup host writes the age textfile only after a real full/diff; a missing or eight-day-old stamp fires `BackupAgeHigh`.
+- Queue is not archived; a lost queue is rebuilt from run and stage rows (`tools/queue-rebuild.sh`), and an acknowledged message survives one broker loss.
+- RPO is measured, not the SLO: cluster RPO 0 is the synchronous-standby property, backup RPO is WAL lag, and object RPO is the archive interval. RTO target: 15 minutes node/AZ, 1 hour region; the lab measures restore/startup/digest, not this SLO.
 ## 12. Evidence boundary
 
 The three-VM lab proves simulated node failure, not physical host, AZ, power or disk-controller failure; `deploy/v3/lab.sh` preflights release mode, provisions stateful -> swarm -> observability -> the remote/overlay/runtime check, calls `deploy/v3/test.sh` for the failure phase, and stops at the app/`minio`/`minio_client` fixtures with `Unverified`; the remote client phase runs `QUANTRULE_API_URL`/`QUANTRULE_CA_CERT`/`QUANTRULE_TOKEN` outside the Swarm; the `ha` tier records the pause RTO, rejoin, queue broker-loss gap, and MinIO probe hash as `Simulated HA` at each tier; the observability phase is `Simulated HA` only when `SwarmManagerQuorumAtRisk` and `GatewayReplicaDown` fired and resolved, and `check/observability.rs` is the Docker-free static contract; `--skip-object` or `--skip-observability` leaves that row `Unverified`; the digest is `Measured` only after `tools/verify.sh`; `Real HA` is HA-014.

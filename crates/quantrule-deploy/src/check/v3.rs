@@ -209,6 +209,7 @@ pub fn check_with(
         options.out.as_deref(),
         &certificates,
     );
+    super::backup::append(&mut report, descriptor, options.out.as_deref());
     super::queue::append(
         &mut report,
         descriptor,

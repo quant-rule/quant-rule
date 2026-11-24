@@ -16,7 +16,8 @@ use axum::extract::{Json, Path, State};
 use axum::http::HeaderMap;
 use quantrule_api::{Digest, ErrorCode, StageKind};
 use quantrule_service_api::{
-    StageClaim, StageClaimOutcome, StageComputed, StageFailed, StageRecord,
+    StageClaim, StageClaimOutcome, StageComputed, StageFailed, StageHeartbeat,
+    StageHeartbeatOutcome, StageRecord,
 };
 
 use crate::routes::{ApiFailure, failure, request_profile};
@@ -92,8 +93,35 @@ pub(crate) async fn claim_stage(
         .stages
         .as_ref()
         .ok_or_else(|| failure(ErrorCode::Internal, "no stage store is configured"))?;
+    if request.redelivered {
+        tracing::debug!(stage_run_id = %id, "a redelivered stage claim is decided by the lease");
+    }
     stages
-        .claim(id, request.redelivered)
+        .claim(id, request.holder, request.continuation)
+        .await
+        .map(Json)
+        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))
+}
+
+pub(crate) async fn heartbeat_stage(
+    State(state): State<Arc<EvidenceState>>,
+    Path(id): Path<String>,
+    payload: Result<Json<StageHeartbeat>, JsonRejection>,
+) -> Result<Json<StageHeartbeatOutcome>, ApiFailure> {
+    let Json(heartbeat) = payload
+        .map_err(|_| failure(ErrorCode::StageInvalid, "the body is not a stage heartbeat"))?;
+    if heartbeat.stage_run_id.to_string() != id {
+        return Err(failure(
+            ErrorCode::StageInvalid,
+            "the heartbeat names a different stage than the path",
+        ));
+    }
+    let stages = state
+        .stages
+        .as_ref()
+        .ok_or_else(|| failure(ErrorCode::Internal, "no stage store is configured"))?;
+    stages
+        .renew(id, heartbeat.holder, heartbeat.term)
         .await
         .map(Json)
         .map_err(|error| failure(ErrorCode::Internal, error.to_string()))
@@ -121,10 +149,16 @@ pub(crate) async fn computed_stage(
         .as_ref()
         .ok_or_else(|| failure(ErrorCode::Internal, "no object store is configured"))?;
     let _guard = state.stage_gate.lock().await;
-    record_computed(stages.as_ref(), objects.as_ref(), &id, computed.artifact)
-        .await
-        .map(Json)
-        .map_err(|error| failure(ErrorCode::StageInvalid, error.to_string()))
+    record_computed(
+        stages.as_ref(),
+        objects.as_ref(),
+        &id,
+        computed.lease_term,
+        computed.artifact,
+    )
+    .await
+    .map(Json)
+    .map_err(|error| failure(ErrorCode::StageInvalid, error.to_string()))
 }
 
 pub(crate) async fn failed_stage(
@@ -145,7 +179,7 @@ pub(crate) async fn failed_stage(
         .as_ref()
         .ok_or_else(|| failure(ErrorCode::Internal, "no stage store is configured"))?;
     stages
-        .fail(id, failed.error)
+        .fail(id, failed.lease_term, failed.error)
         .await
         .map(Json)
         .map_err(|error| failure(ErrorCode::Internal, error.to_string()))

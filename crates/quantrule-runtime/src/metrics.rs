@@ -57,6 +57,7 @@ const LEADER: &str = "quantrule_leader";
 const LEADER_TERM: &str = "quantrule_leader_term";
 const RUNS_MISSING_DIGEST: &str = "quantrule_runs_missing_digest";
 const OUTBOX_PENDING: &str = "quantrule_outbox_pending";
+const STAGE_OUTBOX_PENDING: &str = "quantrule_stage_outbox_pending";
 const AUTH_RELOAD_FAILURES: &str = "quantrule_auth_reload_failures_total";
 const AUTH_TOKEN_AGE: &str = "quantrule_auth_token_age_seconds";
 
@@ -115,6 +116,7 @@ struct Inner {
     leader_term: AtomicU64,
     runs_missing_digest: AtomicU64,
     outbox_pending: AtomicU64,
+    stage_outbox_pending: AtomicU64,
     auth_reload_failures: Mutex<BTreeMap<String, u64>>,
     auth_token_age_seconds: AtomicU64,
 }
@@ -200,6 +202,7 @@ impl Metrics {
                 leader_term: AtomicU64::new(0),
                 runs_missing_digest: AtomicU64::new(0),
                 outbox_pending: AtomicU64::new(0),
+                stage_outbox_pending: AtomicU64::new(0),
                 auth_reload_failures: Mutex::new(BTreeMap::new()),
                 auth_token_age_seconds: AtomicU64::new(0),
             }),
@@ -323,6 +326,13 @@ impl Metrics {
     /// Set the number of outbox notifications still pending.
     pub fn set_outbox_pending(&self, pending: u64) {
         self.inner.outbox_pending.store(pending, Ordering::Relaxed);
+    }
+
+    /// Set the number of stage request notifications still pending.
+    pub fn set_stage_outbox_pending(&self, pending: u64) {
+        self.inner
+            .stage_outbox_pending
+            .store(pending, Ordering::Relaxed);
     }
 
     /// Count one failed bearer-token reload by stable reason.
@@ -527,6 +537,18 @@ impl Metrics {
             OUTBOX_PENDING,
             &[],
             self.inner.outbox_pending.load(Ordering::Relaxed),
+        );
+        write_header(
+            &mut output,
+            STAGE_OUTBOX_PENDING,
+            "gauge",
+            "Stage request notifications waiting to be published.",
+        );
+        write_sample(
+            &mut output,
+            STAGE_OUTBOX_PENDING,
+            &[],
+            self.inner.stage_outbox_pending.load(Ordering::Relaxed),
         );
         write_header(
             &mut output,

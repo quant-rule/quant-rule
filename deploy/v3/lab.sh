@@ -2,10 +2,10 @@
 # Reference lab harness for the v3 topologies and the remote client path.
 #
 # The harness selects one descriptor, preflights release mode, and only then
-# provisions. The app, `minio`, and `minio_client` fixtures are blockers: a
-# release validation failure prints the exact field and `Unverified`, and the
-# script exits before Docker, SSH, jq, or a secret file is read. There is no
-# bypass.
+# provisions. The app, `minio`, `minio_client`, and derived Patroni pgBackRest
+# fixtures are blockers: a release validation failure prints the exact field and
+# `Unverified`, and the script exits before Docker, SSH, jq, or a secret file is
+# read. There is no bypass.
 #
 # Usage:
 #   deploy/v3/lab.sh --plan
@@ -19,7 +19,7 @@
 #   --plan | --dry-run                  print the sequence; no host is contacted
 #   --confirm                           run the lab-only failure phase
 #   --remote-client                     run only the client TLS/token phase
-#   --skip-database|--skip-queue|--skip-object|--skip-observability
+#   --skip-database|--skip-queue|--skip-queue-rebuild|--skip-object|--skip-observability
 #                                       forward to the failure harness; row Unverified
 #   --skip-failure                      provision only; failure rows Unverified
 #   -h | --help
@@ -58,8 +58,11 @@ confirm=0
 remote_client=0
 skip_database=0
 skip_queue=0
+skip_queue_rebuild=0
 skip_object=0
 skip_observability=0
+dr=0
+skip_dr=0
 skip_failure=0
 
 provision_stateful="Unverified"
@@ -70,6 +73,7 @@ failure_database="Unverified"
 failure_queue="Unverified"
 failure_object="Unverified"
 failure_observability="Unverified"
+failure_dr="Unverified"
 overall_evidence="Unverified"
 
 usage() {
@@ -118,12 +122,24 @@ while [ $# -gt 0 ]; do
       skip_queue=1
       shift
       ;;
+    --skip-queue-rebuild)
+      skip_queue_rebuild=1
+      shift
+      ;;
     --skip-object)
       skip_object=1
       shift
       ;;
     --skip-observability)
       skip_observability=1
+      shift
+      ;;
+    --dr)
+      dr=1
+      shift
+      ;;
+    --skip-dr)
+      skip_dr=1
       shift
       ;;
     --skip-failure)
@@ -163,6 +179,9 @@ lab: 2 swarm: tools/swarm.sh --allow-unverified bootstrap (lab only; references 
 lab: 3 observability: tools/observability.sh copy, start, wait, verify
 lab: 4 check: qr-deploy check $descriptor --remote docker --overlay --runtime (7/7)
 lab: 5 failure (lab only, --confirm): deploy/v3/test.sh --confirm --skip-deploy
+lab: 5a queue rebuild: plan only at tools/queue-rebuild.sh --plan; the empty-broker drill is operator-run and Unverified
+lab: 5b --skip-queue-rebuild forwards to the failure harness and leaves that row unrecorded
+lab: 5c dr: deploy/v3/dr.sh --plan is Docker-free; --dr runs the in-place lab restore after the failure phase; --skip-dr leaves the DR row Unverified
 lab: 6 remote client (--remote-client --confirm, from the client outside the Swarm):
 lab:     export QUANTRULE_API_URL='https://quantrule.dev/api/v1'
 lab:     export QUANTRULE_CA_CERT='<client ca.crt>'
@@ -177,7 +196,7 @@ lab: preconditions: three VMs 10.10.0.11..13, VIP 10.10.0.20, /etc/hosts or DNS 
 lab:   private CA and real ingress cert/key, 443/VRRP 112 plus the direct-edge 443 firewall control,
 lab:   three managers, SSH/sudo, a resolved app image, and no fixture secret on a host
 lab: evidence: value-free JSON under ${QR_LAB_EVIDENCE:-deploy/v3/evidence/lab-<UTC>}{-provision,-failure,-remote}.json
-lab: boundary: Simulated HA at most; Real HA is HA-014; app/minio/minio_client stay fixture blockers
+lab: boundary: Simulated HA at most; Real HA is HA-014; app/minio/minio_client/patroni stay fixture blockers; pgBackRest restore remains Unverified
 lab: this plan is not evidence
 PLAN
   if [ "$reference" = "lab" ]; then
@@ -213,7 +232,7 @@ release_preflight() {
       | head -n 1)
     if [ -n "$field" ]; then
       printf 'lab: blocker: %s\n' "$field" >&2
-      unverified "deploy.image.fixture at $field (app/minio/minio_client are fixture digests); no host is contacted"
+      unverified "deploy.image.fixture at $field (app/minio/minio_client/patroni are fixture digests); no host is contacted"
     fi
     printf '%s\n' "$output" >&2
     unverified "qr-deploy validate --release refused $descriptor; no host is contacted"
@@ -276,8 +295,11 @@ failure_phase() {
   local args=(--confirm --skip-deploy)
   [ "$skip_database" -eq 1 ] && args+=(--skip-database)
   [ "$skip_queue" -eq 1 ] && args+=(--skip-queue)
+  [ "$skip_queue_rebuild" -eq 1 ] && args+=(--skip-queue-rebuild)
   [ "$skip_object" -eq 1 ] && args+=(--skip-object)
   [ "$skip_observability" -eq 1 ] && args+=(--skip-observability)
+  [ "$dr" -eq 1 ] && args+=(--dr)
+  [ "$skip_dr" -eq 1 ] && args+=(--skip-dr)
   if [ "$skip_failure" -eq 1 ]; then
     say "failure: skipped (--skip-failure); rows Unverified"
     return 0
@@ -296,6 +318,11 @@ failure_phase() {
   [ "$skip_queue" -eq 1 ] || failure_queue="Simulated HA"
   [ "$skip_object" -eq 1 ] || failure_object="Simulated HA"
   [ "$skip_observability" -eq 1 ] || failure_observability="Simulated HA"
+  if [ "$skip_dr" -eq 1 ] || [ "$dr" -eq 0 ]; then
+    failure_dr="Unverified"
+  else
+    failure_dr="Simulated HA"
+  fi
   if [ "$skip_database" -eq 0 ] && [ "$skip_queue" -eq 0 ] \
     && [ "$skip_object" -eq 0 ] && [ "$skip_observability" -eq 0 ]; then
     overall_evidence="Simulated HA"
@@ -341,6 +368,6 @@ fi
 if [ "$failure_status" -ne 0 ]; then
   unverified "the failure phase did not complete"
 fi
-say "summary: provision ok; failure database $failure_database, queue $failure_queue, object $failure_object, observability $failure_observability"
+say "summary: provision ok; failure database $failure_database, queue $failure_queue, object $failure_object, observability $failure_observability, dr $failure_dr"
 say "remote client: run deploy/v3/lab.sh --remote-client --confirm on the client; browser is the separate apps/web suite"
 say "boundary: $overall_evidence at most; Real HA is HA-014"

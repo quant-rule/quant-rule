@@ -74,10 +74,19 @@ async fn strategy_stage(fixture: &Fixture, decisions: Vec<u8>) -> (MemoryStageCl
     );
     let stage_run_id = run.stage_run_id.clone();
     let record = evidence.submit(&profile(), run).await.expect("submit");
-    evidence
-        .claim_stage(record.stage_run_id.to_string(), false)
+    let record = match evidence
+        .claim_stage(
+            record.stage_run_id.to_string(),
+            "portfolio-test".to_owned(),
+            None,
+            false,
+        )
         .await
-        .expect("claim");
+        .expect("claim")
+    {
+        quantrule_service_api::StageClaimOutcome::Claimed(record) => record,
+        other => panic!("the strategy stage was not claimed: {other:?}"),
+    };
     let files = vec![
         ("decisions.ndjson".to_owned(), decisions),
         (
@@ -129,7 +138,7 @@ async fn strategy_stage(fixture: &Fixture, decisions: Vec<u8>) -> (MemoryStageCl
         .await
         .expect("manifest");
     let record = evidence
-        .stage_computed(stage_run_id.to_string(), artifact)
+        .stage_computed(stage_run_id.to_string(), record.lease_term, artifact)
         .await
         .expect("complete");
     (evidence, record)

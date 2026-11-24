@@ -14,7 +14,7 @@ use quantrule_api::{
 use quantrule_evidence_service::migrations;
 use quantrule_evidence_service::stage::{
     MemoryStages, NewStageRun, PgStageStore, StageCancelOutcome, StageClaimOutcome,
-    StageCreateOutcome, StageStore,
+    StageCreateOutcome, StageHeartbeatOutcome, StageStore,
 };
 
 /// A value unique to one invocation within this process.
@@ -223,14 +223,23 @@ async fn run_conformance(store: &dyn StageStore, token: &str) {
         "the list limit was ignored"
     );
 
-    let StageClaimOutcome::Claimed(claimed) = store.claim(id.clone(), false).await.expect("claim")
+    let StageClaimOutcome::Claimed(claimed) = store
+        .claim(id.clone(), "conformance-worker".to_owned(), None)
+        .await
+        .expect("claim")
     else {
         panic!("a queued stage was not claimed");
     };
     assert_eq!(claimed.state, StageState::Running);
     assert_eq!(claimed.attempts, 1);
+    assert_eq!(claimed.lease_term, 1);
 
-    let StageClaimOutcome::Running(running) = store.claim(id.clone(), false).await.expect("live")
+    // A live lease is never stolen, even by a second worker or a broker
+    // redelivery.
+    let StageClaimOutcome::Running(running) = store
+        .claim(id.clone(), "other-worker".to_owned(), None)
+        .await
+        .expect("live")
     else {
         panic!("a live delivery was reclaimed");
     };
@@ -238,35 +247,56 @@ async fn run_conformance(store: &dyn StageStore, token: &str) {
         running.attempts, 1,
         "a live delivery changed the attempt count"
     );
-
-    let StageClaimOutcome::Claimed(reclaimed) = store
-        .claim(id.clone(), true)
+    let StageHeartbeatOutcome::Renewed(renewed) = store
+        .renew(id.clone(), "conformance-worker".to_owned(), 1)
         .await
-        .expect("the first redelivery")
+        .expect("renew")
     else {
-        panic!("a redelivered stage was not reclaimed");
+        panic!("a live lease was not renewed");
+    };
+    assert_eq!(renewed.lease_term, 1);
+    let StageHeartbeatOutcome::Stale = store
+        .renew(id.clone(), "other-worker".to_owned(), 1)
+        .await
+        .expect("stale renew")
+    else {
+        panic!("another holder renewed the lease");
+    };
+
+    // The same worker's own continuation is a new attempt under a new term.
+    let StageClaimOutcome::Claimed(reclaimed) = store
+        .claim(id.clone(), "conformance-worker".to_owned(), Some(1))
+        .await
+        .expect("the first continuation")
+    else {
+        panic!("the worker's own continuation was refused");
     };
     assert_eq!(reclaimed.attempts, 2);
+    assert_eq!(reclaimed.lease_term, 2);
     let StageClaimOutcome::Claimed(reclaimed) = store
-        .claim(id.clone(), true)
+        .claim(id.clone(), "conformance-worker".to_owned(), Some(2))
         .await
-        .expect("the second redelivery")
+        .expect("the second continuation")
     else {
-        panic!("the second redelivery was not reclaimed");
+        panic!("the second continuation was refused");
     };
     assert_eq!(reclaimed.attempts, 3);
-    let StageClaimOutcome::Exhausted(spent) = store
-        .claim(id.clone(), true)
+    assert_eq!(reclaimed.lease_term, 3);
+    // The third attempt is still live, so a duplicate delivery is refused
+    // without stealing it; the expired-lease exhaustion path is covered by the
+    // memory store's expiry test.
+    let StageClaimOutcome::Running(spent) = store
+        .claim(id.clone(), "conformance-worker".to_owned(), Some(3))
         .await
-        .expect("the spent budget")
+        .expect("the live spent budget")
     else {
-        panic!("the retry budget was not exhausted");
+        panic!("a live stage was reclaimed after the retry budget");
     };
     assert_eq!(spent.attempts, 3);
 
     let artifact = artifacts();
     let completed = store
-        .complete(id.clone(), artifact.clone())
+        .complete(id.clone(), 3, artifact.clone())
         .await
         .expect("the completion");
     assert_eq!(completed.state, StageState::Succeeded);
@@ -334,7 +364,7 @@ async fn run_conformance(store: &dyn StageStore, token: &str) {
     );
 
     let StageClaimOutcome::Terminal(terminal) = store
-        .claim(id.clone(), false)
+        .claim(id.clone(), "conformance-worker".to_owned(), None)
         .await
         .expect("terminal claim")
     else {
@@ -353,6 +383,7 @@ async fn run_conformance(store: &dyn StageStore, token: &str) {
     let unchanged = store
         .complete(
             id.clone(),
+            3,
             StageArtifact::from_files(vec![ArtifactRef {
                 name: "other.json".to_owned(),
                 bytes: 1,
@@ -365,7 +396,7 @@ async fn run_conformance(store: &dyn StageStore, token: &str) {
     assert_eq!(unchanged.state, StageState::Succeeded);
     assert_eq!(unchanged.artifact, Some(artifact.clone()));
     let unchanged = store
-        .fail(id.clone(), "after success".to_owned())
+        .fail(id.clone(), 3, "after success".to_owned())
         .await
         .expect("the late failure");
     assert_eq!(unchanged.state, StageState::Succeeded);
@@ -387,7 +418,7 @@ async fn run_conformance(store: &dyn StageStore, token: &str) {
         panic!("a cancelled stage was cancelled again");
     };
     let StageClaimOutcome::Terminal(terminal) = store
-        .claim(second_id.clone(), false)
+        .claim(second_id.clone(), "conformance-worker".to_owned(), None)
         .await
         .expect("the cancelled claim")
     else {
@@ -415,22 +446,26 @@ async fn run_conformance(store: &dyn StageStore, token: &str) {
         .await
         .expect("the third stage");
     let third_id = third.record().stage_run_id.to_string();
-    let StageClaimOutcome::Claimed(_) = store
-        .claim(third_id.clone(), false)
+    let StageClaimOutcome::Claimed(third_claimed) = store
+        .claim(third_id.clone(), "conformance-worker".to_owned(), None)
         .await
         .expect("the third claim")
     else {
         panic!("the third stage was not claimed");
     };
     let failed = store
-        .fail(third_id.clone(), "the portfolio stage failed".to_owned())
+        .fail(
+            third_id.clone(),
+            third_claimed.lease_term,
+            "the portfolio stage failed".to_owned(),
+        )
         .await
         .expect("the failure");
     assert_eq!(failed.state, StageState::Failed);
     assert_eq!(failed.error.as_deref(), Some("the portfolio stage failed"));
     assert_eq!(failed.artifact, None);
     let unchanged = store
-        .complete(third_id.clone(), artifacts())
+        .complete(third_id.clone(), third_claimed.lease_term, artifacts())
         .await
         .expect("the late completion");
     assert_eq!(unchanged.state, StageState::Failed);
@@ -457,21 +492,21 @@ async fn run_conformance(store: &dyn StageStore, token: &str) {
     ));
     assert!(matches!(
         store
-            .claim("missing".to_owned(), false)
+            .claim("missing".to_owned(), "conformance-worker".to_owned(), None)
             .await
             .expect("the missing claim"),
         StageClaimOutcome::Missing
     ));
     assert!(
         store
-            .complete("missing".to_owned(), artifacts())
+            .complete("missing".to_owned(), 1, artifacts())
             .await
             .is_err(),
         "a completion of an unknown stage succeeded"
     );
     assert!(
         store
-            .fail("missing".to_owned(), "missing".to_owned())
+            .fail("missing".to_owned(), 1, "missing".to_owned())
             .await
             .is_err(),
         "a failure of an unknown stage succeeded"
@@ -483,10 +518,13 @@ async fn run_conformance(store: &dyn StageStore, token: &str) {
         .await
         .expect("the fourth stage");
     let fourth_id = fourth.record().stage_run_id.to_string();
-    store
-        .claim(fourth_id.clone(), false)
+    let StageClaimOutcome::Claimed(fourth_claimed) = store
+        .claim(fourth_id.clone(), "conformance-worker".to_owned(), None)
         .await
-        .expect("the fourth claim");
+        .expect("the fourth claim")
+    else {
+        panic!("the fourth stage was not claimed");
+    };
     let unique = StageArtifact::from_files(vec![ArtifactRef {
         name: "unique.json".to_owned(),
         bytes: 6,
@@ -494,7 +532,7 @@ async fn run_conformance(store: &dyn StageStore, token: &str) {
     }])
     .expect("the unique artifact");
     store
-        .complete(fourth_id.clone(), unique.clone())
+        .complete(fourth_id.clone(), fourth_claimed.lease_term, unique.clone())
         .await
         .expect("the fourth completion");
     let unique_hash = unique.files[0].sha256.clone();

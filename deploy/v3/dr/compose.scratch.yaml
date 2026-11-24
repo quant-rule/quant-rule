@@ -1,0 +1,57 @@
+# Scratch DR override for compose.yaml.
+#
+# It starts the same seven service binaries against a pgBackRest-restored PGDATA
+# in its own Compose project and a fresh object bucket. It never touches the
+# live project: the caller sets COMPOSE_PROJECT_NAME, QR_DR_PGDATA,
+# QR_DR_PKI_DIR, QR_DR_SECRETS_DIR, QR_DR_BUCKET, and QR_DR_PORT. No value is
+# written here.
+#
+# The base postgres volume is replaced (not appended) so the restored directory
+# is the only data source. The migrated schema and roles come from the restored
+# cluster; the migration jobs and db-bootstrap are intentionally not started.
+services:
+  postgres:
+    volumes: !override
+      - ${QR_DR_PGDATA:?}:/var/lib/postgresql/data
+      - pgpki:/var/lib/postgresql/pki:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+
+  minio:
+    environment:
+      MINIO_ROOT_USER: ${QR_DR_MINIO_ROOT_USER:?}
+      MINIO_ROOT_PASSWORD: ${QR_DR_MINIO_ROOT_PASSWORD:?}
+      MINIO_DEFAULT_BUCKETS: ${QR_DR_BUCKET:?}
+
+  gateway:
+    ports: !override
+      - "127.0.0.1:${QR_DR_PORT:?}:8080"
+    environment:
+      QR_OBJECT_BUCKET: ${QR_DR_BUCKET:?}
+
+  data:
+    environment:
+      QR_OBJECT_BUCKET: ${QR_DR_BUCKET:?}
+
+  model:
+    environment:
+      QR_OBJECT_BUCKET: ${QR_DR_BUCKET:?}
+
+  strategy:
+    environment:
+      QR_OBJECT_BUCKET: ${QR_DR_BUCKET:?}
+
+  backtest:
+    environment:
+      QR_OBJECT_BUCKET: ${QR_DR_BUCKET:?}
+
+  evidence:
+    environment:
+      QR_OBJECT_BUCKET: ${QR_DR_BUCKET:?}
+
+  simulation:
+    environment:
+      QR_OBJECT_BUCKET: ${QR_DR_BUCKET:?}

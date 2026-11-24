@@ -65,6 +65,7 @@ write_evidence() {
     --arg queue "$failure_queue" \
     --arg object "$failure_object" \
     --arg failure_observability "$failure_observability" \
+    --arg dr "$failure_dr" \
     --argjson tools "$(tool_versions_json)" \
     '{
       v: "quantrule.lab-evidence/v1",
@@ -78,7 +79,7 @@ write_evidence() {
       provision: {stateful: $stateful, swarm: $swarm,
                   observability: $observability, remote_check: $check},
       failure: {database: $database, queue: $queue, object: $object,
-                observability: $failure_observability},
+                observability: $failure_observability, dr: $dr},
       remote_cli: {health: "Unverified", tls: "Unverified", verify: "Unverified",
                    untrusted_ca: "Unverified", canonical_digest: null},
       browser: "Unverified",

@@ -195,7 +195,7 @@ async fn seed_model_stage(
         .await
         .expect("the model stage");
     let StageClaimOutcome::Claimed(record) = stages
-        .claim(run_id.to_string(), false)
+        .claim(run_id.to_string(), "promoted-test".to_owned(), None)
         .await
         .expect("the model claim")
     else {
@@ -203,7 +203,11 @@ async fn seed_model_stage(
     };
     assert_eq!(record.state, StageState::Running);
     stages
-        .complete(run_id.to_string(), model_artifact(artifact_seed))
+        .complete(
+            run_id.to_string(),
+            record.lease_term,
+            model_artifact(artifact_seed),
+        )
         .await
         .expect("the model stage completion");
 }
@@ -233,15 +237,19 @@ async fn seed_strategy_stage(stages: &MemoryStages) {
         )
         .await
         .expect("the strategy stage");
-    let StageClaimOutcome::Claimed(_) = stages
-        .claim(run_id.to_string(), false)
+    let StageClaimOutcome::Claimed(record) = stages
+        .claim(run_id.to_string(), "promoted-test".to_owned(), None)
         .await
         .expect("the strategy claim")
     else {
         panic!("the strategy stage was not claimed");
     };
     stages
-        .complete(run_id.to_string(), model_artifact(b"strategy"))
+        .complete(
+            run_id.to_string(),
+            record.lease_term,
+            model_artifact(b"strategy"),
+        )
         .await
         .expect("the strategy stage completion");
 }

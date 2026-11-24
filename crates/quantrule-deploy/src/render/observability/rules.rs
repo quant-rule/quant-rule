@@ -283,11 +283,11 @@ pub fn alert_rules() -> String {
         ),
         (
             "BackupAgeHigh",
-            "time() - quantrule_backup_last_success_timestamp_seconds > 8 * 24 * 3600",
+            "absent(quantrule_backup_last_success_timestamp_seconds) or time() - quantrule_backup_last_success_timestamp_seconds > 8 * 24 * 3600",
             "1h",
             "critical",
             "F16",
-            "the last successful backup is more than eight days old",
+            "the last successful backup is more than eight days old, or the backup-age textfile is missing",
         ),
         (
             "VerifyAgeHigh",

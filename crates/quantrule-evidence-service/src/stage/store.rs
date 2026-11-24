@@ -12,7 +12,8 @@ use quantrule_api::{
 use quantrule_runtime::adapters::BoxFuture;
 
 pub use quantrule_service_api::{
-    MAX_ATTEMPTS, NewStageRun, StageCancelOutcome, StageClaimOutcome, StageRecord,
+    MAX_ATTEMPTS, NewStageRun, StageCancelOutcome, StageClaimOutcome, StageHeartbeatOutcome,
+    StageRecord,
 };
 
 /// Why a stage write failed.
@@ -88,6 +89,9 @@ impl StageExpiry {
 /// cannot turn a stage into evidence by asking the run store for its id.
 pub trait StageStore: Send + Sync {
     /// Submit one stage for a profile.
+    ///
+    /// The `stage.requested` intent commits with the stage row, so a crash
+    /// after the commit leaves a durable notification, not a lost stage.
     fn create(
         &self,
         profile: ProfileId,
@@ -127,25 +131,46 @@ pub trait StageStore: Send + Sync {
         artifact_id: Digest,
     ) -> BoxFuture<Result<Option<StageRecord>, StageStoreError>>;
 
-    /// Claim a delivery. A queued stage starts; a redelivered, uncomputed
-    /// running stage is reclaimed; a succeeded stage is terminal.
+    /// Claim a delivery.
+    ///
+    /// A queued stage starts. A running stage is claimable only when its lease
+    /// is absent or expired, or when `continuation` names the same holder's own
+    /// live term. A live lease is never stolen and a terminal row is never
+    /// claimed. `attempts` counts claims, so a continuation consumes one.
     fn claim(
         &self,
         stage_run_id: String,
-        redelivered: bool,
+        holder: String,
+        continuation: Option<u64>,
     ) -> BoxFuture<Result<StageClaimOutcome, StageStoreError>>;
 
+    /// Renew a live lease without changing its term.
+    fn renew(
+        &self,
+        stage_run_id: String,
+        holder: String,
+        term: u64,
+    ) -> BoxFuture<Result<StageHeartbeatOutcome, StageStoreError>>;
+
     /// Record the content-addressed artifact and mark the stage succeeded.
+    ///
+    /// `term` is the attempt's lease term; a stale term is refused and the
+    /// current row is returned unchanged.
     fn complete(
         &self,
         stage_run_id: String,
+        term: u64,
         artifact: StageArtifact,
     ) -> BoxFuture<Result<StageRecord, StageStoreError>>;
 
     /// Mark a running stage failed with its error.
+    ///
+    /// `term` is the attempt's lease term; a stale term is refused and the
+    /// current row is returned unchanged.
     fn fail(
         &self,
         stage_run_id: String,
+        term: u64,
         error: String,
     ) -> BoxFuture<Result<StageRecord, StageStoreError>>;
 

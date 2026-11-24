@@ -15,15 +15,19 @@
 //! second retry rule.
 
 pub mod memory;
+pub mod outbox;
 pub mod postgres;
+pub mod postgres_outbox;
 pub mod retention;
 pub mod store;
 pub mod verify;
 
 pub use memory::MemoryStages;
+pub use outbox::StageOutbox;
 pub use postgres::PgStageStore;
 pub use quantrule_service_api::{
-    MAX_ATTEMPTS, NewStageRun, StageCancelOutcome, StageClaimOutcome, StageRecord,
+    MAX_ATTEMPTS, NewStageRun, StageCancelOutcome, StageClaimOutcome, StageHeartbeatOutcome,
+    StageRecord,
 };
 pub use retention::{RetentionError, RetentionReport, cutoff, purge_expired, remove_deleted};
 pub use store::{StageCreateOutcome, StageDeletion, StageExpiry, StageStore, StageStoreError};

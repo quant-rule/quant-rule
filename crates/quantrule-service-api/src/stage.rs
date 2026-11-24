@@ -15,6 +15,12 @@ use quantrule_api::{
 };
 use serde::{Deserialize, Serialize};
 
+/// How long a claimed stage's lease stays valid without a heartbeat.
+pub const STAGE_LEASE_TTL_SECONDS: u64 = 60;
+
+/// How often a stage worker renews its lease while it executes.
+pub const STAGE_LEASE_RENEW_SECONDS: u64 = 20;
+
 /// The stage manifest schema version.
 pub const STAGE_MANIFEST_SCHEMA: &str = "quantrule.stage-manifest/v1";
 
@@ -140,6 +146,11 @@ pub struct StageRecord {
     pub error: Option<String>,
     /// The number of deliveries claimed.
     pub attempts: u32,
+    /// The monotonic lease term of the current attempt.
+    ///
+    /// A completion or failure must carry this term; a stale worker whose lease
+    /// expired and was reclaimed cannot write the new attempt's artifact.
+    pub lease_term: u64,
 }
 
 impl StageRecord {
@@ -158,6 +169,7 @@ impl StageRecord {
             submitted_at: run.submitted_at.clone(),
             error: None,
             attempts: 0,
+            lease_term: 0,
         }
     }
 
@@ -218,7 +230,39 @@ pub struct StageClaim {
     /// The stage run the message names.
     pub stage_run_id: StageRunId,
     /// Whether the broker says this delivery was redelivered.
+    ///
+    /// The lease is the claim right; this flag is recorded for the worker log
+    /// and compatibility, and it can never steal a live lease.
     pub redelivered: bool,
+    /// The worker identity recorded in the stage lease.
+    pub holder: String,
+    /// The worker's own previous term when it retries the same delivery.
+    #[serde(default)]
+    pub continuation: Option<u64>,
+}
+
+/// A worker's lease renewal.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct StageHeartbeat {
+    /// The stage run the lease belongs to.
+    pub stage_run_id: StageRunId,
+    /// The worker identity that holds the lease.
+    pub holder: String,
+    /// The lease term being renewed.
+    pub term: u64,
+}
+
+/// What a stage heartbeat did.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StageHeartbeatOutcome {
+    /// The lease is renewed and the stage is still running.
+    Renewed(Box<StageRecord>),
+    /// The term or holder no longer owns the lease.
+    Stale,
+    /// The stage does not exist.
+    Missing,
 }
 
 /// What a stage claim did.
@@ -243,6 +287,8 @@ pub enum StageClaimOutcome {
 pub struct StageComputed {
     /// The stage that produced the artifact.
     pub stage_run_id: StageRunId,
+    /// The lease term the worker was granted.
+    pub lease_term: u64,
     /// The content-addressed artifact bundle.
     pub artifact: StageArtifact,
 }
@@ -253,6 +299,8 @@ pub struct StageComputed {
 pub struct StageFailed {
     /// The stage that failed.
     pub stage_run_id: StageRunId,
+    /// The lease term the worker was granted.
+    pub lease_term: u64,
     /// The failure, as recorded on the stage row.
     pub error: String,
 }
@@ -837,6 +885,8 @@ mod tests {
         let claim = StageClaim {
             stage_run_id: new_run().stage_run_id,
             redelivered: false,
+            holder: "worker".to_owned(),
+            continuation: None,
         };
         let text = serde_json::to_string(&claim).expect("encode");
         assert_eq!(
@@ -845,6 +895,7 @@ mod tests {
         );
         let computed = StageComputed {
             stage_run_id: new_run().stage_run_id,
+            lease_term: 1,
             artifact: StageArtifact::from_files(vec![file("model.json", b"{}")])
                 .expect("the artifact"),
         };
@@ -855,6 +906,7 @@ mod tests {
         );
         let failed = StageFailed {
             stage_run_id: new_run().stage_run_id,
+            lease_term: 1,
             error: "the model failed".to_owned(),
         };
         let text = serde_json::to_string(&failed).expect("encode");

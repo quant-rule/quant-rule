@@ -36,6 +36,13 @@ pub const MINIO_CONFIG_HOST: &str = "/etc/quantrule/minio/minio.conf";
 /// The host path of the least-privilege bucket policy.
 pub const MINIO_POLICY_HOST: &str = "/etc/quantrule/minio/quantrule-app-policy.json";
 
+/// The read-only user the object archive uses as its source identity.
+pub const ARCHIVE_READER_USER: &str = "qr_archive_reader";
+
+/// The host path of the read-only object-archive policy.
+pub const MINIO_ARCHIVE_POLICY_HOST: &str =
+    "/etc/quantrule/minio/quantrule-archive-reader-policy.json";
+
 /// The bucket the application owns.
 pub const MINIO_BUCKET: &str = "quantrule";
 
@@ -59,6 +66,9 @@ pub fn render(
     }
     let path = out.join("minio-policy.json");
     write_public(&path, bucket_policy().as_bytes())?;
+    written.push(path);
+    let path = out.join("minio-archive-policy.json");
+    write_public(&path, archive_reader_policy().as_bytes())?;
     written.push(path);
 
     let pki = out.join("pki").join("minio");
@@ -196,6 +206,42 @@ pub fn bucket_policy() -> String {
     )
 }
 
+/// The read-only policy for `qr_archive_reader`: list and get, never write.
+///
+/// The archive tool mirrors from this identity to its own target. A policy that
+/// carried `PutObject` or `DeleteObject` would let a compromised archive host
+/// alter the source bucket, so neither action is rendered.
+#[must_use]
+pub fn archive_reader_policy() -> String {
+    format!(
+        r#"{{
+  "Version": "2012-10-17",
+  "Statement": [
+    {{
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetBucketLocation",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::{MINIO_BUCKET}"
+      ]
+    }},
+    {{
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::{MINIO_BUCKET}/*"
+      ]
+    }}
+  ]
+}}
+"#
+    )
+}
+
 fn host_by_name<'a>(
     descriptor: &'a Descriptor,
     host: &str,
@@ -313,6 +359,35 @@ mod tests {
             "s3:CreateBucket",
             "s3:DeleteBucket",
             "s3:PutBucketPolicy",
+            "arn:aws:s3:::*",
+        ] {
+            assert!(!policy.contains(forbidden), "{forbidden}: {policy}");
+        }
+    }
+
+    #[test]
+    fn the_archive_reader_policy_is_read_only_and_bucket_scoped() {
+        let policy = archive_reader_policy();
+        for expected in [
+            "\"Version\": \"2012-10-17\"",
+            "\"s3:GetBucketLocation\"",
+            "\"s3:ListBucket\"",
+            "\"s3:GetObject\"",
+            "\"arn:aws:s3:::quantrule\"",
+            "\"arn:aws:s3:::quantrule/*\"",
+        ] {
+            assert!(policy.contains(expected), "{expected}: {policy}");
+        }
+        for forbidden in [
+            "s3:PutObject",
+            "s3:DeleteObject",
+            "s3:AbortMultipartUpload",
+            "s3:ListMultipartUploadParts",
+            "s3:CreateBucket",
+            "s3:DeleteBucket",
+            "s3:PutBucketPolicy",
+            "s3:*",
+            "admin:",
             "arn:aws:s3:::*",
         ] {
             assert!(!policy.contains(forbidden), "{forbidden}: {policy}");

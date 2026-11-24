@@ -9,7 +9,7 @@ ok	observability	prometheus.yml	auth-and-tls	Patroni basic_auth password_file; M
 ok	observability	prometheus.yml	overlay-only	every target is an overlay service name or alias; no host underlay address
 ok	observability	alert-rules.yml	coverage	38 rules cover the 38 required alert names; F01..F17 each have a rule
 ok	observability	alert-rules.yml	labels	every rule has severity critical/warning and one bounded F01..F17 row; the 17-row HA matrix has an alert
-ok	observability	alert-rules.yml	metrics	Patroni 4 uses patroni_primary/patroni_sync_standby and received-minus-replayed lag; MinIO v2 uses drive-offline, erasure-set healing, and cluster health
+ok	observability	alert-rules.yml	metrics	Patroni 4 uses patroni_primary/patroni_sync_standby and received-minus-replayed lag; MinIO v2 uses drive-offline, erasure-set healing, and cluster health; BackupAgeHigh fires when the backup-age textfile is absent
 ok	observability	alert-rules.yml	ha-coverage	gateway replica, etcd node, HAProxy primary backend, MinIO health, and manager quorum have bounded HA rules
 ok	observability	alertmanager.yml	receiver	one quantrule-null receiver; no external receiver configuration
 ok	observability	alertmanager.yml	routing	group_by alertname and failure_row; a critical-over-warning inhibit rule shares both labels

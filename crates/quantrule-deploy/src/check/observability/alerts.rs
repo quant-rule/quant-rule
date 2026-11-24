@@ -282,6 +282,10 @@ fn metric_row(text: &str, rules: &[Rule]) -> CheckRow {
             "max(minio_cluster_health_erasure_set_healing_drives) > 0",
         ),
         ("MinioClusterUnhealthy", "minio_cluster_health_status < 1"),
+        (
+            "BackupAgeHigh",
+            "absent(quantrule_backup_last_success_timestamp_seconds) or time() - quantrule_backup_last_success_timestamp_seconds > 8 * 24 * 3600",
+        ),
     ] {
         match rules.iter().find(|rule| rule.name == name) {
             Some(rule) if rule.expr == expr => {}
@@ -306,7 +310,7 @@ fn metric_row(text: &str, rules: &[Rule]) -> CheckRow {
             "observability",
             "alert-rules.yml",
             "metrics",
-            "Patroni 4 uses patroni_primary/patroni_sync_standby and received-minus-replayed lag; MinIO v2 uses drive-offline, erasure-set healing, and cluster health",
+            "Patroni 4 uses patroni_primary/patroni_sync_standby and received-minus-replayed lag; MinIO v2 uses drive-offline, erasure-set healing, and cluster health; BackupAgeHigh fires when the backup-age textfile is absent",
         )
     } else {
         CheckRow::failed(

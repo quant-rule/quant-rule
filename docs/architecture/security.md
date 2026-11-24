@@ -1,6 +1,6 @@
 # Security
 
-- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); multi-host overlay added 2026-11-20; internal TLS added 2026-11-23 (#1108); PLAT-002 ingress, PLAT-003 Patroni/etcd/HAProxy, PLAT-004 RabbitMQ, PLAT-005 MinIO object bootstrap/check rows/node-loss lab, PLAT-006 observability, and PLAT-007 registry/signing/SBOM/CVE phases 1–2 added 2026-11-24; approved 2026-11-12
+- Status: Current; released as v0.9.0 on 2026-11-15 (prepared as v1.0.0); multi-host overlay added 2026-11-20; internal TLS added 2026-11-23 (#1108); PLAT-002 ingress, PLAT-003 Patroni/etcd/HAProxy, PLAT-004 RabbitMQ, PLAT-005 MinIO object bootstrap/check rows/node-loss lab, PLAT-006 observability, PLAT-007 registry/signing/SBOM/CVE phases 1–2, and HA-013 phase 1a pgBackRest repository/age signal, phase 2 stage lease/outbox and queue rebuild, and phase 3 object archive/DR added 2026-11-24; approved 2026-11-12
 - Part of: [`README.md`](README.md)
 - Decision: [`ADR-2026-11-12-03`](../adr/2026-11-12/03-single-principal-no-accounts.md)
 - Claim type: Behaviour Claim
@@ -100,9 +100,8 @@ require TLS; RabbitMQ has no plaintext listener, its Erlang cookie is copied
 only to the three brokers, and definitions are stripped of users/permissions.
 MinIO keeps root files on MinIO hosts only, gives the app a least-privilege
 `qr_app` policy, never mounts root into an app, and is checked at the app path,
-manifest hosts, and leaf; the lab proves one node loss keeps writes. Prometheus,
-Alertmanager, Loki, Grafana, blackbox, node_exporter, and promtail stay on the
-overlay with no published port; Grafana is anonymous Viewer with no login,
+manifest hosts, and leaf; the lab proves one node loss keeps writes. The
+pgBackRest passphrase and S3 credentials are mode-600 files read into the Patroni process or stdin, never a config/argument/log; the repository is off-host except the labelled lab. The archive source uses the fixed read-only `qr_archive_reader` (list/get only); target credentials are operator-owned. `deploy/v3/dr.sh --in-place` requires `--confirm`, the disposable lab, and a pre-restore backup. Prometheus, Alertmanager, Loki, Grafana, blackbox, node_exporter, and promtail stay on the overlay with no published port; Grafana is anonymous Viewer with no login,
 Prometheus and Alertmanager sit on distinct hosts, and promtail's Docker socket,
 Prometheus's root read of the Patroni password file, and MinIO's public metrics auth are read-only overlay paths. CA: [internal TLS](../config/2026-11-23/internal-tls.md).
 
@@ -133,7 +132,7 @@ Every rejection returns a code a client can act on and a message a human can rea
 ## 4. Data at rest
 
 - Candle and artifact bytes live in object storage; metadata in Postgres; volumes
-  are local and backup archives contain sensitive candle data.
+  are local; the Compose archive and the encrypted pgBackRest repository contain sensitive candle data.
 - No secret is committed or logged; application secrets are files, never
   environment values. The PKI directory is Git-ignored; definitions are stored
   stripped of credentials, mode 600, never in Git.

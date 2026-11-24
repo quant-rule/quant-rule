@@ -118,8 +118,31 @@ fn release_mode_refuses_the_labelled_fixture_digest() {
     let real = format!("sha256:{}", "9".repeat(64));
     value["image"]["digest"] = serde_json::json!(real.clone());
     value["images"]["minio"]["digest"] = serde_json::json!(real.clone());
-    value["images"]["minio_client"]["digest"] = serde_json::json!(real);
+    value["images"]["minio_client"]["digest"] = serde_json::json!(real.clone());
+    value["images"]["patroni"]["digest"] = serde_json::json!(real);
     validate_release(&descriptor(value)).expect("a fully pinned descriptor is accepted");
+}
+
+#[test]
+fn release_mode_refuses_the_derived_patroni_fixture_and_an_unencrypted_repository() {
+    let mut value = sample();
+    value["image"]["digest"] = serde_json::json!(format!("sha256:{}", "9".repeat(64)));
+    value["images"]["minio"]["digest"] = serde_json::json!(format!("sha256:{}", "8".repeat(64)));
+    value["images"]["minio_client"]["digest"] =
+        serde_json::json!(format!("sha256:{}", "7".repeat(64)));
+    let error = validate_release(&descriptor(value.clone())).expect_err("patroni fixture");
+    assert!(
+        error.to_string().contains("images.patroni.digest"),
+        "{error}"
+    );
+
+    value["images"]["patroni"]["digest"] = serde_json::json!(format!("sha256:{}", "6".repeat(64)));
+    value["backup"]["cipher"] = serde_json::json!("none");
+    let error = validate_release(&descriptor(value)).expect_err("unencrypted repository");
+    assert!(
+        error.to_string().contains("deploy.backup.cipher"),
+        "{error}"
+    );
 }
 
 #[test]

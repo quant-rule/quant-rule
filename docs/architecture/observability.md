@@ -1,6 +1,6 @@
 # Observability
 
-- Status: Current for HA-009 slices 1–3 and PLAT-006 phases 1–2 (seven-service scrape, 38 alert rules over 17 rows, Loki/promtail, four dashboards, operator tool, `check/observability.rs`, lab assertions)
+- Status: Current for HA-009 slices 1–3, PLAT-006 phases 1–2, and HA-013 phases 1a–2 (seven-service scrape, 38 alert rules over 17 rows including `BackupAgeHigh` with the absent clause, Backup & DR dashboard row, Loki/promtail, four dashboards, operator tool, `check/observability.rs`, lab assertions)
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 - Issue: [#1107](https://github.com/quant-rule/quant-rule/issues/1107)
@@ -34,7 +34,7 @@ metric name.
 | `quantrule_leader` | gauge | `service` | Whether this replica holds the evidence lease |
 | `quantrule_leader_term` | gauge | `service` | The evidence term held; zero on a standby |
 | `quantrule_runs_missing_digest` | gauge | — | Succeeded runs whose digest is still missing |
-| `quantrule_outbox_pending` | gauge | — | Run notifications still to publish |
+| `quantrule_outbox_pending` / `quantrule_stage_outbox_pending` | gauge | — | Run / stage notifications still to publish |
 | `quantrule_auth_reload_failures_total` | counter | `reason` | Bearer-token reload failures (`read`, `empty`, `format`, `short`) |
 | `quantrule_auth_token_age_seconds` | gauge | — | Age of the token currently in use |
 
@@ -70,8 +70,9 @@ upstream family and never proxies upstream metrics. `queue` is a fixed kind
 The listener starts for all seven services. The backtest listener also serves
 `/health` and `/ready`; every other service serves those two on its own HTTP
 port. PLAT-006 scrapes `tasks.<service>:9100`, the stateful and ingress
-endpoints, node_exporter, blackbox, and itself; the rules, null receiver, logs,
-and dashboards are in the [observability contract](../config/2026-11-23/observability.md).
+endpoints, node_exporter, blackbox, and itself; node_exporter also reads the
+backup-age textfile. The rules, null receiver, logs, and dashboards are in the
+[observability contract](../config/2026-11-23/observability.md).
 
 ## 3. Structured logs
 
@@ -165,5 +166,5 @@ or the canonical digest.
 ## 8. Non-goals and later slices
 
 - Token rotation logs a stable reason, never a value or fingerprint; auth series are gateway-only.
-- Queue depth is a passive declare; PLAT-006 scrapes it, the stateful endpoints, and routes 38 rules over F01..F17 to one null receiver with four dashboards.
+- Queue depth is a passive declare; PLAT-006 scrapes it and the stateful endpoints, routes 38 rules over F01..F17 to one null receiver, and ships four dashboards; `BackupAgeHigh` fires when the backup-age textfile is absent, not only when it is old.
 - Phase 2 adds `check/observability.rs` (28 Docker-free rows, including the 38-rule/17-row HA matrix guard) and the lab assertions; no migration, route, or command changes.

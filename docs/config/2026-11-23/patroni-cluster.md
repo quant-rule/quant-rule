@@ -2,8 +2,10 @@
 
 - Date: 2026-11-23 (UTC)
 - Status: Current for the v3 stateful render, boot order, cluster bootstrap,
-  static check rows, and the database-failover lab harness; a live three-VM lab
-  result is `Unverified` in this environment, never a pass
+  static check rows, the database-failover lab harness, and HA-013 phase 1a
+  pgBackRest archive/render/check plus phase 3 object archive/DR; a live lab,
+  backup, restore, archive, or DR drill is `Unverified` in this environment,
+  never a pass
 - Issue: [#1116](https://github.com/quant-rule/quant-rule/issues/1116)
 - Claim type: Behaviour Claim
 - Related: [ADR-HA](../../adr/2026-11-22/1082-ha-deployment-profile.md),
@@ -11,6 +13,7 @@
   [four databases](../2026-11-22/four-databases.md),
   [internal TLS](internal-tls.md),
   [RabbitMQ cluster](rabbitmq-cluster.md),
+  [backup and restore](../2026-11-24/backup-restore.md),
   [HA architecture](../../architecture/ha.md),
   [manual 15](../../manual/15-ha-deployment.md)
 
@@ -60,7 +63,7 @@ Patroni and etcd are not started by the Swarm stack; their host Compose file is
 The descriptor names hosts, image pins, secrets, and the watchdog mode. It never
 contains a configuration body or a secret value. A configuration change is a
 renderer change and a new descriptor, not an edit to a running host file. The
-renderer writes configs at mode 600 and the manifest at 644; `tools/stateful.sh
+renderer writes configs at mode 600 (the secret-free `pgbackrest-<host>.conf` at 644 so PostgreSQL's archive command can read it) and the manifest at 644; `tools/stateful.sh
 copy` sends a file over SSH standard input, never through an argument or a log.
 
 ## 3. RPO and synchronous mode
@@ -222,15 +225,15 @@ sequence is idempotent and is retried before the stack deploy.
 
 ## 9. PITR boundary
 
-PLAT-003 sets `archive_mode: on`, a file-based `archive_command`,
-`restore_command`, `archive_timeout: 60`, `wal_log_hints: on`, and
-`wal_level: replica`. The host volume `/srv/quantrule/patroni/wal-archive` is
-mounted at `/srv/quantrule/wal-archive`; the file commands write and read there.
-They are configured placeholders, not the production archive: HA-013 owns the
-pgBackRest stanza, repository, schedule, retention, and restore drill and will
-replace them. A descriptor with `pitr: true` means the archive and recovery
-knobs are configured; PLAT-003 does not claim PITR, restore, or WAL-retention
-evidence.
+HA-013 phase 1a sets `archive_mode: on`, `archive_timeout: 60`,
+`wal_level: replica`, and the stanza commands
+`pgbackrest --stanza=quantrule archive-push %p` and
+`pgbackrest --stanza=quantrule archive-get %f "%p"`. The node-local
+`/srv/quantrule/wal-archive` volume is removed. Every Patroni node receives
+`pgbackrest-<host>.conf` with one `quantrule` stanza, AES-256, retention, and
+either an off-host S3 repository or the dedicated posix path, mounted read-write from one shared filesystem on every Patroni host.
+The passphrase and S3 credentials are mode-600 files read into the process environment, never a config or argument ([backup contract](../2026-11-24/backup-restore.md)).
+A descriptor with `pitr: true` means the archive and recovery knobs are configured; a live backup, verify, restore, or PITR drill is `Unverified`; `deploy/v3/dr.sh` restores objects before rows and fails on a digest mismatch.
 
 ## 10. Monitoring and check rows
 
@@ -248,7 +251,10 @@ URLs, Prometheus metrics, and no underlay address. HAProxy: `/primary` check on
 8008, every Patroni server, `shutdown-sessions`, overlay-only stats, and no
 published port. The manifest must list the same `sans` as the config aliases and
 no value or fingerprint. Certificate rows query the Postgres and etcd leaves
-through `QR_DEPLOY_OPENSSL`; a missing `openssl` is a failed `limited` row.
+through `QR_DEPLOY_OPENSSL`; a missing `openssl` is a failed `limited` row. The
+13 backup rows check the stanza, archive commands, no placeholder, repository,
+backup host, off-host boundary, object archive, derived image, secret absence,
+script, schedule, and unit ([backup contract](../2026-11-24/backup-restore.md)).
 
 `qr-deploy check --out <render-dir>` (or `QR_DEPLOY_OUT`) reads the rendered
 config, unit, manifest, and PKI tree so the checked bytes are the copied bytes.
@@ -294,7 +300,7 @@ does not exercise the watchdog `automatic`/`required` paths.
 | The default lab pauses a container; it does not prove a host, disk, power, or AZ failure | Record `Simulated HA`; `Real HA` is HA-014 |
 | Watchdog `automatic`/`required` is not exercised by the pause lab | Keep the lab `off`; verify a softdog on the host before a separate phase |
 | A lost etcd quorum has no automatic failover; mTLS leaves rotate by restart | Keep three members across hosts; plan a rolling restart; never remove a member while quorum is lost |
-| The archive commands are file placeholders, not a backup repository | HA-013 owns pgBackRest, retention, and the restore drill |
+| The pgBackRest repository is configured but not exercised | Build and pin the derived image, run phase 1b smoke/verify/info, and keep the live drill `Unverified` until phase 3; `deploy/v3/dr.sh` is the drill. |
 | Scrape, dashboard, and alert configuration is out of scope | PLAT-006 ships it; the metrics listeners stay on the overlay |
 
 The fast tier proves the rendered contract, not a live Patroni cluster,
@@ -310,6 +316,7 @@ rejoin result, and its absence is `Unverified`.
 | No synchronous standby | Writes block by design; restore the standby or accept the write outage |
 | HAProxy marks every server down | Check Patroni REST auth, the password file, and the `/primary` response |
 | Patroni fails to start on TLS | Check the leaf SAN, mode 600 key, and `PKI_EXTRA_SANS` |
+| `archive-push` fails | Check the repository endpoint/CA/path, the passphrase file, and `pgbackrest info`; do not switch to a local WAL path |
 | A config or secret changed | Re-render and recopy; never edit a running host file in place |
 
 The previous image, descriptor, render directory, and data volumes stay in
