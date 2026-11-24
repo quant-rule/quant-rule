@@ -22,6 +22,7 @@
 #   --skip-database|--skip-queue|--skip-queue-rebuild|--skip-object|--skip-observability
 #                                       forward to the failure harness; row Unverified
 #   --skip-failure                      provision only; failure rows Unverified
+#   --chaos | --skip-chaos              forward the chaos cases; default skip
 #   -h | --help
 #
 # Environment:
@@ -49,6 +50,9 @@ script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 root="$(cd -- "$script_dir/../.." && pwd)"
 cd "$root"
 
+# shellcheck source=deploy/v3/chaos.sh
+. "$script_dir/chaos.sh"
+
 reference=lab
 descriptor=""
 out=${OUT:-deploy/v3/out}
@@ -61,6 +65,8 @@ skip_queue=0
 skip_queue_rebuild=0
 skip_object=0
 skip_observability=0
+chaos=0
+skip_chaos=1
 dr=0
 skip_dr=0
 skip_failure=0
@@ -134,6 +140,16 @@ while [ $# -gt 0 ]; do
       skip_observability=1
       shift
       ;;
+    --chaos)
+      chaos=1
+      skip_chaos=0
+      shift
+      ;;
+    --skip-chaos)
+      chaos=0
+      skip_chaos=1
+      shift
+      ;;
     --dr)
       dr=1
       shift
@@ -167,6 +183,12 @@ case "$reference" in
     ;;
 esac
 
+if [ "$plan" -eq 0 ] && [ "$remote_client" -eq 0 ] && [ "$skip_failure" -eq 0 ] \
+  && [ "$chaos" -eq 1 ] && [ "$confirm" -eq 0 ]; then
+  printf 'lab: --chaos requires --confirm\n' >&2
+  exit 2
+fi
+
 if [ "$plan" -eq 1 ]; then
   cat <<PLAN
 lab: plan (no Docker, SSH, jq, qr-deploy, or secret file is read)
@@ -182,6 +204,8 @@ lab: 5 failure (lab only, --confirm): deploy/v3/test.sh --confirm --skip-deploy
 lab: 5a queue rebuild: plan only at tools/queue-rebuild.sh --plan; the empty-broker drill is operator-run and Unverified
 lab: 5b --skip-queue-rebuild forwards to the failure harness and leaves that row unrecorded
 lab: 5c dr: deploy/v3/dr.sh --plan is Docker-free; --dr runs the in-place lab restore after the failure phase; --skip-dr leaves the DR row Unverified
+lab: 5d chaos: --chaos requires --confirm and forwards to deploy/v3/test.sh; --skip-chaos is the default and leaves HA-18..HA-23 Unverified
+$(chaos_plan)
 lab: 6 remote client (--remote-client --confirm, from the client outside the Swarm):
 lab:     export QUANTRULE_API_URL='https://quantrule.dev/api/v1'
 lab:     export QUANTRULE_CA_CERT='<client ca.crt>'
@@ -298,6 +322,11 @@ failure_phase() {
   [ "$skip_queue_rebuild" -eq 1 ] && args+=(--skip-queue-rebuild)
   [ "$skip_object" -eq 1 ] && args+=(--skip-object)
   [ "$skip_observability" -eq 1 ] && args+=(--skip-observability)
+  if [ "$chaos" -eq 1 ]; then
+    args+=(--chaos)
+  else
+    args+=(--skip-chaos)
+  fi
   [ "$dr" -eq 1 ] && args+=(--dr)
   [ "$skip_dr" -eq 1 ] && args+=(--skip-dr)
   if [ "$skip_failure" -eq 1 ]; then

@@ -310,7 +310,7 @@ is the target minus the newest covered marker; cluster RPO 0 is the
 synchronous-standby property, backup RPO is WAL lag, and object RPO is the
 archive interval. RTO is split into restore, startup, and digest seconds. The
 three-VM lab is `Simulated HA`; a scratch row is `Measured` only for the
-operations run; `Real HA` is HA-014.
+operations run; `Real HA` is HA-014. The [matrix](chaos-matrix.md) records F16 as static `Current`; live claims stay `Unverified`.
 
 The queue is not archived. Evidence migration 22 adds a lease-fenced stage
 claim and a stage outbox; a live lease is never stolen, a terminal row is never

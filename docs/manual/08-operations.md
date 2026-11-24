@@ -59,7 +59,7 @@ token in local storage and sends it only as `Authorization: Bearer`.
 Loki 30d, Alertmanager 120h with one internal `quantrule-null` receiver, and
 four read-only Grafana dashboards. node_exporter and promtail run everywhere;
 manager quorum is a `docker node ls` textfile, never a container socket.
-F01..F17 and the ports are in the [observability contract](../config/2026-11-23/observability.md); `qr-deploy check` runs the 28 observability rows, `--remote docker` adds every running task image, `--runtime` proves all seven service digests, and the `ha` lab asserts the manager and gateway alerts fire and resolve; no port is public.
+F01..F17 and the ports are in the [observability contract](../config/2026-11-23/observability.md); `qr-deploy check` runs the 28 observability rows, `--remote docker` adds every running task image, `--runtime` proves all seven service digests, and the `ha` lab asserts the manager and gateway alerts fire and resolve; no port is public. HA-014 records the 23 failure rows in the [chaos matrix](../config/2026-11-24/chaos-matrix.md); `deploy/v3/test.sh --chaos --confirm` runs the lab cases and `deploy/v3/real-ha.sh` is the operator-only HA-22/HA-23 attestation gate, with no live row claimed here.
 
 ## Retention fields
 

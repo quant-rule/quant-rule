@@ -57,7 +57,7 @@ preconditions. Cert mode is current; `acme` is refused.
 | 13 | operator | `tools/swarm.sh upgrade` / `rollback` | Snapshot; new render deployed; old stack recoverable |
 | 14 | client | Open `https://quantrule.dev`; enter the gateway token | Certificate valid; client loads; `/ready` healthy |
 | 15 | operator | Rotate the token with the sequence below | New secret name; rolling replacement; old secret removed |
-| 16 | lab | `deploy/v3/lab.sh --plan`, then `deploy/v3/lab.sh --confirm` (`--skip-database`/`--skip-queue`/`--skip-queue-rebuild`/`--skip-object`/`--dr`/`--skip-dr`) | Deploy; all-service digest; worker/manager, ingress, database, queue, MinIO loss; RTO; probe hash; restore; digest; evidence; the optional in-place DR drill and the empty-broker rebuild is a plan |
+| 16 | lab | `deploy/v3/lab.sh --plan`, then `deploy/v3/lab.sh --confirm` (`--skip-database`/`--skip-queue`/`--skip-queue-rebuild`/`--skip-object`/`--chaos`/`--skip-chaos`/`--dr`/`--skip-dr`) | Deploy; all-service digest; worker/manager, ingress, database, queue, MinIO loss; RTO; probe hash; restore; digest; evidence; the optional in-place DR drill and the empty-broker rebuild is a plan |
 
 `tools/stateful.sh network` runs `bootstrap.sh --network-only`, which creates and validates the overlay and exits before secrets, configs, labels, jobs, or stack.
 `copy` sends each manifest file over SSH standard input, never as an argument, and honors `hosts`: broker material only to brokers, MinIO root/config/PKI only
@@ -128,8 +128,7 @@ unit/alias, HAProxy 9000, manifest, app, and leaf SAN/expiry.
 
 `deploy/v3/lab.sh` is the lab harness; `tools/test_tiers.sh ha` defaults to
 `deploy/v3/deploy.lab.json`, and `--reference three-az|single-az|lab` selects the
-descriptor. `--plan` is Docker/SSH/jq/secret-free. The preflight runs
-`qr-deploy validate <descriptor> --release`; the app, `minio`, and `minio_client` fixtures
+descriptor. `--plan` is Docker/SSH/jq/secret-free. The preflight runs `qr-deploy validate <descriptor> --release`; the app, `minio`, and `minio_client` fixtures
 stop it at the exact field with `Unverified` before a host is contacted, with no
 bypass ([order](../config/2026-11-24/reference-topologies.md#61-lab-provisioning-order)).
 Only the lab descriptor runs `deploy/v3/test.sh --confirm --skip-deploy`, which
@@ -143,6 +142,7 @@ or `--url` flag. The browser suite is `apps/web/playwright.remote.config.ts`
 `QR_LAB_EVIDENCE`; three VMs on one computer are `Simulated HA`, not host/AZ
 loss; `swarm-ha`/`single-az` stay `HA profile (unverified)` until HA-014.
 HA-013 phase 1a configures pgBackRest, the derived Patroni image, the Compose four-database archive, and the backup-age signal; phase 2 adds the stage lease/outbox and `tools/queue-rebuild.sh`; phase 3 adds the one-way `tools/object-archive.sh` and `deploy/v3/dr.sh`, and `--dr` runs the in-place lab drill after the failure phase while `--skip-dr` leaves it `Unverified`. The live drill and empty-broker drill are `Unverified`; object lock is not in v1.5.10.
+HA-014 adds `deploy/v3/chaos.sh`: `--chaos` requires `--confirm` and runs the HA-18..HA-21 worker/leader kills, the non-VIP gateway kill, and the etcd member stop/start; `--skip-chaos` is the default and leaves every chaos row `Unverified`. Evidence is one value-free `quantrule.ha-evidence/v1` JSON per row under `QR_HA_EVIDENCE`; `Simulated HA` is the maximum. `deploy/v3/real-ha.sh` is the operator-only HA-22/HA-23 gate: it refuses `lab-single-host` and a missing human attestation and never executes a power or disk command. The 23 rows are in the [failure and chaos matrix](../config/2026-11-24/chaos-matrix.md).
 ## What you see
 
 | Field | Meaning |
@@ -168,7 +168,7 @@ HA-013 phase 1a configures pgBackRest, the derived Patroni image, the Compose fo
 placement, one 443-only ingress, certificate SAN/expiry, headers, port-80
 closure, mounts, and live digest/health; `--remote docker --overlay` adds Swarm,
 labels, encryption, replicas, task images, ports, and task state; `--runtime`
-proves all seven service digests. The fast tier is static/golden/fake-probe; the lab proves simulated failure only.
+proves all seven service digests. The fast tier is static/golden/fake-probe; the lab proves simulated failure only; the chaos cases are `Simulated HA` at most, and `Real HA` is the operator-only gate.
 
 ## Failure
 
@@ -186,14 +186,14 @@ proves all seven service digests. The fast tier is static/golden/fake-probe; the
 | `deploy.secret.duplicate_credential` | Two roles share a password | Issue a distinct credential |
 | Signature verification failed | The public key, Sigstore bundle, or signed image is absent, or cosign rejected the digest | Run `tools/release.sh verify <digest> <bundle>`; fix `deploy/v3/cosign.pub` or re-sign; do not use `--allow-unverified` outside the lab |
 | `deploy.remote.docker` / `deploy.overlay.network` / `runtime <service>` | Docker is unreachable, an inspect failed, the overlay is missing, or a service reports a foreign digest | Fix the daemon/permission/overlay/image; a failed or `Unverified` row is not a pass |
-| `UNVERIFIED` from `ha` | The lab or a preflight is not met | Fix the Swarm, managers, hosts, SSH, TLS, or watchdog mode; do not claim a pass |
+| `UNVERIFIED` from `ha` | The lab or a preflight is not met | Fix the Swarm, managers, hosts, SSH, TLS, or watchdog mode; chaos and Real HA rows stay `Unverified`; do not claim a pass |
 | `already exists with a different rendered file` / `exists without the quantrule.source_sha256 label` | A secret/config changed under the same name, or predates the drift check | Rotate with a new name and a rolling update; remove the old object after it drains |
 | `stateful: not ready after …` | MinIO, etcd, Patroni, HAProxy, or RabbitMQ did not converge | Run `tools/stateful.sh status`; check the drive owner, `mc admin info` healing, mTLS SANs, the REST password, the sync standby, and the broker cluster |
 | `qr_app probe failed` | An existing user has a different secret | Rotate `object_store_secret_key`, update the app Swarm secret, rerun `object-bootstrap` |
 | `stateful: cannot copy …` | SSH or sudo failed, or the rendered file is missing | Fix the SSH/sudo path; render again; never put a secret on the command line |
 ## Related
 
-- [Deployment v3 contract](../config/2026-11-22/deploy-v3.md), [ingress](../config/2026-11-23/ingress.md), [Patroni cluster](../config/2026-11-23/patroni-cluster.md), [RabbitMQ cluster](../config/2026-11-23/rabbitmq-cluster.md), [MinIO cluster](../config/2026-11-23/minio-cluster.md), [backup and restore](../config/2026-11-24/backup-restore.md)
+- [Deployment v3 contract](../config/2026-11-22/deploy-v3.md), [ingress](../config/2026-11-23/ingress.md), [Patroni cluster](../config/2026-11-23/patroni-cluster.md), [RabbitMQ cluster](../config/2026-11-23/rabbitmq-cluster.md), [MinIO cluster](../config/2026-11-23/minio-cluster.md), [backup and restore](../config/2026-11-24/backup-restore.md), [failure and chaos matrix](../config/2026-11-24/chaos-matrix.md)
 - [Swarm control plane](../config/2026-11-23/swarm-control.md)
 - [HA architecture](../architecture/ha.md) and [observability](../config/2026-11-23/observability.md)
 - [File-backed secrets](../config/2026-11-23/secret-files.md) and [internal TLS](../config/2026-11-23/internal-tls.md)
