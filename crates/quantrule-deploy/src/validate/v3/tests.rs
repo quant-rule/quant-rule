@@ -115,8 +115,11 @@ fn release_mode_refuses_the_labelled_fixture_digest() {
     );
 
     let mut value = sample();
-    value["image"]["digest"] = serde_json::json!(format!("sha256:{}", "9".repeat(64)));
-    validate_release(&descriptor(value)).expect("a real digest is accepted");
+    let real = format!("sha256:{}", "9".repeat(64));
+    value["image"]["digest"] = serde_json::json!(real.clone());
+    value["images"]["minio"]["digest"] = serde_json::json!(real.clone());
+    value["images"]["minio_client"]["digest"] = serde_json::json!(real);
+    validate_release(&descriptor(value)).expect("a fully pinned descriptor is accepted");
 }
 
 #[test]

@@ -448,7 +448,7 @@ fn stack_rows() -> String {
     .map(|(name, replicas)| format!("quantrule-ha_{name} {replicas}/{replicas} {image}"))
     .collect::<Vec<_>>();
     rows.push(
-        "quantrule-ha_ingress 2/2 traefik@sha256:8330e8d28853641532609f63676dc2eec8d19e2bc7fadd5505a1d0c8c254d042"
+        "quantrule-ha_ingress 2/2 traefik@sha256:8301d6f60957a422f98918aacf2b01482abde3e74ead3719aabdb7c64045fe28"
             .to_owned(),
     );
     rows.join("\n") + "\n"

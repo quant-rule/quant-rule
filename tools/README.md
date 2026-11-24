@@ -27,6 +27,7 @@ gate and in CI.
 | Release evidence | Prints the offline release plan; generates the SPDX SBOM from an exact digest; gates Grype plus `cargo audit` with an expiring allowlist; signs a digest into a Sigstore bundle plus `cosign save` signed image and verifies it offline; writes an OCI bundle with the real bundles and saved image; pins a descriptor image without touching the 16 infrastructure pins. | `tools/release.sh` |
 | Reviewer verification | Submits two equivalent runs through the gateway and prints one canonical digest; `--cacert`/`QUANTRULE_CA_CERT` trusts a private CA. | `tools/verify.sh` |
 | HA lab tier | Opt-in three-VM Swarm deploy, worker/manager/VIP loss, Patroni-primary pause, HAProxy pause, RTO, marker/digest/rejoin evidence, and the observability phase (probe/job baseline, promtool rule unit, manager/gateway alerts); `--plan` is Docker-free and a missing lab prints `UNVERIFIED`. | `deploy/v3/test.sh` |
+| Lab harness | Preflights release mode, provisions stateful -> swarm -> observability -> the remote/overlay/runtime check, runs the lab-only failure harness, and runs the client TLS/token phase; `--plan` is Docker/SSH/jq/secret-free, the app/MinIO fixtures stop it at the named field with `Unverified`, and evidence is value-free JSON. | `deploy/v3/lab.sh` |
 | Composed tier | Checks a running Compose stack's gateway, then submits two equivalent runs and compares their canonical digest. | `tools/composed.sh` |
 | Project-sync test | Checks that `Done` is terminal in the board status decision. | `tools/test_project_sync.sh` |
 

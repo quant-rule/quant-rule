@@ -10,6 +10,7 @@
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "test": "bun test",
     "e2e": "playwright test --project=chromium",
+    "test:remote": "bun run e2e-remote/gate.ts && playwright test --config playwright.remote.config.ts",
     "preview:test": "vite preview --host 127.0.0.1 --port 4173"
   },
   "devDependencies": {

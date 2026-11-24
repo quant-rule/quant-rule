@@ -206,8 +206,8 @@ keeps its historical heading and states the prepared version in a tag note.
 
 - Included:
 - Deliberately excluded:
-- Infrastructure pins: the 16 `images.*` digests are fixtures until PLAT-008; a
-  production descriptor needs real infrastructure digests.
+- Infrastructure pins: 14 `images.*` digests are resolved; the app, `minio`, and
+  `minio_client` remain blockers until an operator supplies real digests.
 
 ## Verification
 

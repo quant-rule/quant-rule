@@ -9,7 +9,7 @@
   PLAT-005 owns MinIO erasure/TLS/front door, bucket/versioning/`qr_app`,
   object bootstrap, check rows, and node-loss lab. PLAT-006 owns observability;
   PLAT-007 owns registry distribution, Sigstore bundle/signed image, SBOM/CVE
-  evidence, running-task image checks, and the all-service digest probe; HA-013/014 own backup and real HA.
+  evidence, running-task image checks, and the all-service digest probe; PLAT-008 owns the reference descriptors and the lab harness; HA-013/014 own backup and real HA.
 
 ## Goal
 Render the seven-service Swarm stack and the pinned per-host stateful units,
@@ -22,10 +22,10 @@ before the stack, and check the one HTTPS ingress without overclaiming.
 
 | Need | Value |
 |---|---|
-| Hosts | Eleven Linux hosts or VMs on one overlay: two edge, two core, three compute, four infra; the lab uses three VMs |
+| Hosts | Eleven Linux hosts or VMs on one overlay: two edge, two core, three compute, four infra; the reference descriptors use the same names (`three-az.json` spreads four racks over three AZs, `single-az.json` keeps four racks in one AZ); the lab uses three VMs |
 | Managers | Three odd declared hosts (`swarm.managers`), preferably dedicated; the lab uses its three VMs |
 | Docker | Swarm mode initialized; the declared manager hosts hold the manager role |
-| Image | `ghcr.io/quant-rule/quantrule-platform` pulled by digest, signed with the offline cosign key, and verified as a Sigstore bundle plus `cosign save` signed image before deploy (`jq` and `cosign` are required); the 16 infrastructure images are pinned by `sha256:` digest and remain fixtures until PLAT-008 |
+| Image | `ghcr.io/quant-rule/quantrule-platform` pulled by digest, signed with the offline cosign key, and verified as a Sigstore bundle plus `cosign save` signed image before deploy (`jq` and `cosign` are required); 14 infrastructure images are resolved and pinned by `sha256:` digest, while `minio`, `minio_client`, and the app image remain blockers ([reference contract](../config/2026-11-24/reference-topologies.md)) |
 | Secrets | A mode-700 directory with one mode-600 file per name, including the five stateful secrets and the two MinIO root secrets; the fixture values are fake |
 | PKI | `endpoints.*.tls_ca` plus `postgres/server.*`, `etcd/{server,peer,client}.*`, `rabbitmq/server.*`, and `minio/{public.crt,private.key,CAs/ca.crt}` under the CA's parent; SANs `postgres`+every `patroni-<host>`, every `etcd-<host>`, `rabbitmq`+every `rabbitmq-<host>`, `minio`+every `minio-<host>`; keys mode 600 |
 | Ingress | One DNS `A` record TTL 60 -> `ingress.vip`; keepalived on the edge pair; cert mode; the private CA in the client trust store |
@@ -33,7 +33,10 @@ before the stack, and check the one HTTPS ingress without overclaiming.
 | Client | A machine that resolves `quantrule.dev`, reaches 443, and trusts the private CA (`QUANTRULE_CA_CERT` for the shell, OS/browser store for the browser) |
 
 The lab profile runs three VMs on one physical host: the only co-location
-exception, with `Simulated HA` evidence. Cert mode is current; `acme` is refused.
+exception, with `Simulated HA` evidence. The template uses `10.10.0.11..13`, VIP
+`10.10.0.20`, public addresses `10.10.0.11/12`, and one `lab` failure domain;
+`/etc/hosts`, the private CA, the operator certificate, and the firewall are
+preconditions. Cert mode is current; `acme` is refused.
 
 ## Steps
 
@@ -54,17 +57,14 @@ exception, with `Simulated HA` evidence. Cert mode is current; `acme` is refused
 | 13 | operator | `tools/swarm.sh upgrade` / `rollback` | Snapshot; new render deployed; old stack recoverable |
 | 14 | client | Open `https://quantrule.dev`; enter the gateway token | Certificate valid; client loads; `/ready` healthy |
 | 15 | operator | Rotate the token with the sequence below | New secret name; rolling replacement; old secret removed |
-| 16 | lab | `tools/test_tiers.sh ha --plan`, then `ha --confirm` (`--skip-database`/`--skip-queue`/`--skip-object`) | Deploy; all-service digest; worker/manager, ingress, database, queue, MinIO loss; RTO; probe hash; restore; digest; evidence |
+| 16 | lab | `deploy/v3/lab.sh --plan`, then `deploy/v3/lab.sh --confirm` (`--skip-database`/`--skip-queue`/`--skip-object`) | Deploy; all-service digest; worker/manager, ingress, database, queue, MinIO loss; RTO; probe hash; restore; digest; evidence |
 
-`tools/stateful.sh network` runs `bootstrap.sh --network-only`, which creates and
-validates the overlay and exits before secrets, configs, labels, jobs, or stack.
-`copy` sends each manifest file over SSH standard input, never as an argument,
-and honors `hosts`: broker material only to brokers, MinIO root/config/PKI only
+`tools/stateful.sh network` runs `bootstrap.sh --network-only`, which creates and validates the overlay and exits before secrets, configs, labels, jobs, or stack.
+`copy` sends each manifest file over SSH standard input, never as an argument, and honors `hosts`: broker material only to brokers, MinIO root/config/PKI only
 to MinIO hosts. `start` runs MinIO, etcd, Patroni, HAProxy, then the seed broker
 and the other two.
 
-`wait` writes a mode-600 `mc` config and runs `mc` with the MinIO CA; it requires
-every `minio-<host>:9000` in `mc admin info`, zero offline/healing, the expected
+`wait` writes a mode-600 `mc` config and runs `mc` with the MinIO CA; it requires every `minio-<host>:9000` in `mc admin info`, zero offline/healing, the expected
 count, then etcd health, a Patroni leader + sync standby, three brokers with no
 alarms, and a primary psql. `queue-bootstrap` reads `queue_url` from
 `QR_STATEFUL_QUEUE_URL` (or the descriptor path) and hashes the password on
@@ -126,22 +126,22 @@ unit/alias, HAProxy 9000, manifest, app, and leaf SAN/expiry.
 
 ## Lab tier
 
-`tools/test_tiers.sh ha` defaults to `deploy/v3/deploy.lab.json`; an explicit
-descriptor wins, and `--plan` is Docker-free. A real run preflights Docker,
-Swarm, three odd managers, hosts, SSH/jq/curl/nc, the VIP, and the CA; deploys,
-checks, drains a worker and a manager, and moves the VIP; `--runtime` runs after
-deploy and restore, prints only service + digest, and sets the all-service row
-`Measured` only when all seven match. The database phase pauses the primary with
-watchdog `off`, measures a new leader + sync RTO, compares digest/LSN, dials the
-surviving HAProxy, and restores. The queue phase stops the quorum leader, proves
-quorum/no alarms and a confirmed publish, and restores. The MinIO phase stops one
-node, compares the probe SHA-256, heals with a bounded `mc admin heal -r`, and
-waits for zero healing. `--confirm` is required; skip flags leave that row `Unverified`; a missing lab prints `UNVERIFIED`.
-
-Three VMs on one computer are `Simulated HA`, not host/AZ loss; `swarm-ha`/
-`single-az` stay `HA profile (unverified)` until HA-014. The queue and object
-results are `Simulated HA` at their own level only; the end-to-end digest is
-`Measured` only when `tools/verify.sh` succeeds, otherwise `Unverified`/`Blocked`.
+`deploy/v3/lab.sh` is the lab harness; `tools/test_tiers.sh ha` defaults to
+`deploy/v3/deploy.lab.json`, and `--reference three-az|single-az|lab` selects the
+descriptor. `--plan` is Docker/SSH/jq/secret-free. The preflight runs
+`qr-deploy validate <descriptor> --release`; the app, `minio`, and `minio_client` fixtures
+stop it at the exact field with `Unverified` before a host is contacted, with no
+bypass ([order](../config/2026-11-24/reference-topologies.md#61-lab-provisioning-order)).
+Only the lab descriptor runs `deploy/v3/test.sh --confirm --skip-deploy`, which
+remains the failure harness: it drains a worker/manager, moves the VIP, pauses
+the primary, and stops a broker and a MinIO node; `--confirm` gates it and every
+`--skip-*` leaves that row `Unverified`. The remote phase is `deploy/v3/lab.sh --remote-client
+--confirm` on the client (`QUANTRULE_API_URL=https://quantrule.dev/api/v1`,
+`QUANTRULE_CA_CERT`, `QUANTRULE_TOKEN`); the shell has no `--remote`, `--cacert`,
+or `--url` flag. The browser suite is `apps/web/playwright.remote.config.ts`
+(`QR_REMOTE_BROWSER=1`, `QR_REMOTE_URL`). Evidence is value-free JSON under
+`QR_LAB_EVIDENCE`; three VMs on one computer are `Simulated HA`, not host/AZ
+loss; `swarm-ha`/`single-az` stay `HA profile (unverified)` until HA-014.
 HA-013 owns archive/off-host copy, restore drills, second-site replication, and object-lock scope; none is in v1.5.10.
 ## What you see
 

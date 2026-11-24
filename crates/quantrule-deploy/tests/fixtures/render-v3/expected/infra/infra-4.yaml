@@ -78,7 +78,7 @@ services:
         -
           "wget -q -O /dev/null http://127.0.0.1:9100/metrics"
       timeout: "5s"
-    image: "prom/node-exporter@sha256:c26a6b6c79c6a303387b01b3dcfc34824e4cf03fe9c2e9899a762b601e46a680"
+    image: "prom/node-exporter@sha256:7296504d4ada44b7d7ab4431e27e9f9900d8488f8d55842f4b12ae2704e16dfe"
     logging:
       driver: "json-file"
       options:
@@ -119,7 +119,7 @@ services:
         -
           "wget -q -O /dev/null http://127.0.0.1:9080/ready"
       timeout: "5s"
-    image: "grafana/promtail@sha256:60b24aa368eea19a4fe8d35e294777963ba4a21f908a293de6f9e90d409ca919"
+    image: "grafana/promtail@sha256:a761cb834cfaeee29745440d4884d6748f0a08d8f68928db1d707018c1dcfbe9"
     logging:
       driver: "json-file"
       options:

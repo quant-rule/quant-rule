@@ -22,12 +22,9 @@ artifact, or research evidence.
 
 ## Internal TLS
 
-`make up` runs `make pki` first and creates `pki/` (mode 700) with a 10-year
-offline root, a 5-year intermediate, 180-day server leaves for `postgres`,
-`minio` and `rabbitmq`, and a bundled `ca.crt`. The stack mounts only `ca.crt`
-into the application containers; the one-shot `pki-init` copies the server key
-and certificate into a service-owned volume (key 0600) before the stock
-non-root database, broker and store start.
+`make up` runs `make pki` first: a mode-700 `pki/` with a 10-year offline root,
+a 5-year intermediate, 180-day leaves for `postgres`, `minio` and `rabbitmq`, and
+a bundled `ca.crt`; the one-shot `pki-init` stages each server key at mode 0600.
 
 | Task | Command | Expect |
 |---|---|---|
@@ -39,8 +36,7 @@ non-root database, broker and store start.
 
 A missing CA, wrong CA, hostname mismatch or expired leaf fails closed: the pool
 does not open, the migration job fails, or `/ready` reports the dependency down;
-there is no plaintext fallback. Internal HTTP stays plaintext on the overlay
-([TLS contract](../config/2026-11-23/internal-tls.md)).
+there is no plaintext fallback ([TLS contract](../config/2026-11-23/internal-tls.md)); internal HTTP stays plaintext on the overlay.
 
 ## Steps
 
@@ -93,10 +89,9 @@ evidence are permanent.
 | Invalid edit | The gateway keeps the last good token and increments `quantrule_auth_reload_failures_total`; it never disables authentication |
 
 The gateway reads only `QR_BEARER_TOKEN_FILE`; a plain `QR_BEARER_TOKEN` in the
-server environment is a startup error. Application secrets are files under
-`/run/secrets`; the entrypoint stages them for UID 10001 and drops privileges.
-`make secrets` creates the local set; see
-[file-backed secrets](../config/2026-11-23/secret-files.md).
+server environment is a startup error. Application secrets are mode-600 files
+under `/run/secrets`; the entrypoint stages them for UID 10001 and drops
+privileges; `make secrets` creates the local set ([contract](../config/2026-11-23/secret-files.md)).
 
 The simplest rotation is a new operator value and `make remote` again:
 
@@ -128,10 +123,25 @@ export QUANTRULE_TOKEN='<token printed by make remote>'
 quantrule health
 ```
 
-Open `http://<server>:8080` in the browser on that machine and enter the token on
-**Connection**. The shell default is `http://127.0.0.1:8080/api/v1`, so the
-export is what makes the laptop a client rather than a local stack. A token is
-a network gate, not an account. There is one principal.
+The v3 lab uses the environment path too; `--remote` is a `qr-deploy check`
+option, not a shell flag:
+
+```bash
+export QUANTRULE_API_URL='https://quantrule.dev/api/v1'
+export QUANTRULE_CA_CERT='/path/to/ca.crt'
+export QUANTRULE_TOKEN='<gateway token>'
+quantrule health
+tools/verify.sh --api-url "$QUANTRULE_API_URL" --cacert "$QUANTRULE_CA_CERT" --profile <id>
+```
+
+Open the same host in the browser and enter the token on **Connection**; the
+browser trusts the private CA in its OS store, the shell reads
+`QUANTRULE_CA_CERT`, and a missing CA fails closed.
+`deploy/v3/lab.sh --remote-client --confirm` prints only status/digest; the
+browser suite is `apps/web/playwright.remote.config.ts`, and a missing lab prints
+`Unverified`. The shell default is `http://127.0.0.1:8080/api/v1`, so the export
+is what makes the laptop a client rather than a local stack. A token is a
+network gate, not an account. There is one principal.
 
 ## Metrics and logs
 
@@ -139,35 +149,29 @@ Each service starts an internal Prometheus listener when `QR_METRICS_BIND` is
 set; the default Compose stack sets `0.0.0.0:9090` inside the container network
 and publishes no metrics port. The gateway does not proxy `/metrics`.
 
-```bash
-docker compose exec -T gateway curl -fsS http://127.0.0.1:9090/metrics
-docker compose exec -T data curl -fsS http://127.0.0.1:9090/metrics
-```
+`docker compose exec -T gateway curl -fsS http://127.0.0.1:9090/metrics` reads one.
 
-The common families are build identity, process start, readiness, draining,
-dependency health, HTTP counts/duration/in-flight, queue depth, worker count,
-run/stage outcomes, retries/reconnects, the evidence leader and outbox, and the
-gateway auth families. Labels use the route template (`/runs/{id}`) or a fixed
-queue kind; never a raw path, generated queue name or id.
+The common families cover build, process start, readiness, draining, dependency,
+HTTP counts/duration/in-flight, queue depth, workers, run/stage outcomes,
+retries/reconnects, the evidence leader/outbox, and gateway auth; labels use the
+route template (`/runs/{id}`) or a fixed queue kind, never a raw path or id.
 
 `quantrule_ready` is `0` and `quantrule_draining` is `1` on SIGTERM; `/ready`
 answers `503 draining` immediately while `/health` stays `200`. The HTTP server
 waits `QR_DRAIN_TIMEOUT_HTTP` (20 s), a worker `QR_DRAIN_TIMEOUT_WORK` (25 s),
-and Compose allows 40 s. A deadline still exits `0` and logs
-`drain.deadline_exceeded`.
+and Compose allows 40 s; a deadline exits `0` and logs `drain.deadline_exceeded`.
 
 ### Drain and retries
 
-A draining worker stops claiming and lets its in-flight run finish; if the
-deadline aborts it, the run stays `running` with its lease and no digest, and
-lease expiry plus the outbox recover it. Shutdown never writes `failed`.
+A draining worker stops claiming and lets its in-flight run finish; a deadline
+leaves it `running` with its lease and no digest, recovered by expiry and the
+outbox. Shutdown never writes `failed`.
 
 Internal GET reads and the audited dataset-reference writes retry three times
-with a 200 ms base, factor four, a 5 s maximum and a 15 s deadline. A claim,
-compute, signal/stage create, decision, cancel and streaming body never retry.
-A queue consumer that errors reconnects with 1–30 s backoff, rebuilds the
-connection, then restarts with `restart_policy: any`; a drain during backoff is
-a clean stop.
+with a 200 ms base, factor four, a 5 s maximum and a 15 s deadline; a claim,
+compute, signal/stage create, decision, cancel and streaming body never retry. A
+queue consumer reconnects with 1–30 s backoff, rebuilds the connection, then
+restarts with `restart_policy: any`; a drain during backoff is a clean stop.
 
 The shell retries a GET on 3 attempts, 200 ms base, factor four, 5 s cap and
 15 s deadline; the browser uses 3 attempts, 250 ms base, factor four and 4 s
@@ -280,29 +284,27 @@ The exact commands and the rollback conditions are in
 [`migrations.md`](../architecture/migrations.md) section 5.
 
 An existing local stack created before file-backed secrets keeps its old store
-passwords. Export `QR_POSTGRES_PASSWORD`, `QR_RABBITMQ_PASSWORD` and
-`QR_OBJECT_STORE_PASSWORD` before the first `make secrets`, or reset a
-disposable stack with `make reset`; a kept stack needs a coordinated change.
+passwords; export `QR_POSTGRES_PASSWORD`, `QR_RABBITMQ_PASSWORD` and
+`QR_OBJECT_STORE_PASSWORD` before the first `make secrets`, or reset a disposable
+stack with `make reset`; a kept stack needs a coordinated change.
 
 ### Queue generation cutover
 
-An upgrade that changes the queue topology does not reuse the old names. Stop
-the gateway and old workers, let the old queues drain, then unbind or delete the
-empty old queues before the new generation publishes; an old queue bound to
-`quantrule.runs` receives copies with no consumer. A lost queued run is rebuilt
-from its run row.
+An upgrade that changes the queue topology does not reuse the old names. Stop the
+gateway and old workers, drain the old queues, then unbind or delete the empty
+ones before the new generation publishes; a lost queued run is rebuilt from its
+run row.
 
 ## What you see
 
 The Operations screen shows connection, product, API, image digest, health,
-active profile, token presence, retention, cleanup, the permanent-evidence rule,
-and run verification; Connection owns entering and forgetting the token.
+active profile, token, retention, cleanup, permanent evidence, and verification.
 
 ## What it proves
 
 **Verification.** Health, retention, token, backup, and digest reads prove the
-deployment is reachable and its evidence is intact; two equivalent runs with the
-same digest are the reproducibility proof. None of this is research evidence.
+deployment is reachable and evidence intact; two equivalent runs with the same
+digest are the reproducibility proof, not research evidence.
 
 ## Failure
 
@@ -324,7 +326,5 @@ same digest are the reproducibility proof. None of this is research evidence.
 
 ## Related
 
-- [First run](01-first-run.md)
-- [Improvement](07-improvement.md)
-- [End-to-end verification tutorial](../tutorials/2026-11-17/end-to-end-verification.md)
-- [Deployment](../architecture/deployment.md)
+- [First run](01-first-run.md) and [Improvement](07-improvement.md)
+- [End-to-end verification tutorial](../tutorials/2026-11-17/end-to-end-verification.md) and [Deployment](../architecture/deployment.md)

@@ -13,7 +13,7 @@ services:
       -
         "set -eu\numask 077\nauth=\"patroni:$$(cat /run/secrets/patroni_rest_password)\"\nencoded=$$(printf '%s' \"$$auth\" | base64 | tr -d '\\n')\nsed \"s|__PATRONI_REST_AUTH__|$$encoded|g\" /usr/local/etc/haproxy/haproxy.cfg > /tmp/haproxy.cfg\nexec haproxy -W -db -f /tmp/haproxy.cfg"
     container_name: "quantrule-haproxy-edge-1"
-    image: "haproxy@sha256:2a88fcd69de33b07362a9b98f822f2b31f7607932356829cee9a5d44d851a2db"
+    image: "haproxy@sha256:8ab12982db911f3f13e53c8e4c11312f65b8367301787acbab86459cddf288ea"
     logging:
       driver: "json-file"
       options:
@@ -50,7 +50,7 @@ services:
       -
         "NET_BROADCAST"
     container_name: "quantrule-keepalived-edge-1"
-    image: "osixia/keepalived@sha256:67a5f8c8ca46f83c69a30376f47eaa4704f29a0495675433812d5216b0171682"
+    image: "osixia/keepalived@sha256:4bf02d569ed240e6da272242b368ce5a25cf0f7d92114536367ee2c963c318a2"
     logging:
       driver: "json-file"
       options:
@@ -84,7 +84,7 @@ services:
         -
           "wget -q -O /dev/null http://127.0.0.1:9100/metrics"
       timeout: "5s"
-    image: "prom/node-exporter@sha256:c26a6b6c79c6a303387b01b3dcfc34824e4cf03fe9c2e9899a762b601e46a680"
+    image: "prom/node-exporter@sha256:7296504d4ada44b7d7ab4431e27e9f9900d8488f8d55842f4b12ae2704e16dfe"
     logging:
       driver: "json-file"
       options:
@@ -125,7 +125,7 @@ services:
         -
           "wget -q -O /dev/null http://127.0.0.1:9080/ready"
       timeout: "5s"
-    image: "grafana/promtail@sha256:60b24aa368eea19a4fe8d35e294777963ba4a21f908a293de6f9e90d409ca919"
+    image: "grafana/promtail@sha256:a761cb834cfaeee29745440d4884d6748f0a08d8f68928db1d707018c1dcfbe9"
     logging:
       driver: "json-file"
       options:

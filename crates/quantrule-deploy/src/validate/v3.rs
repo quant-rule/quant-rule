@@ -83,10 +83,81 @@ pub const DATABASE_FACTS: [(&str, &str, &str, &str); 4] = [
     ),
 ];
 
-/// The checked-in sample/lab application digest. It is an example, not a
-/// published image; release mode refuses it.
-pub const FIXTURE_IMAGE_DIGESTS: [&str; 1] =
-    ["sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"];
+/// Every labelled fixture digest. Release mode refuses all of them, at the
+/// exact `image.digest` or `images.<name>.digest` field, so reverting a pin to
+/// an old example is never silently accepted. The list is a denylist, not an
+/// allowlist: it does not prove a new digest exists, only that a known example
+/// or blocker cannot ship.
+pub const FIXTURE_IMAGE_DIGESTS: [(&str, &str); 17] = [
+    (
+        "sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe",
+        "labelled application fixture",
+    ),
+    (
+        "sha256:8330e8d28853641532609f63676dc2eec8d19e2bc7fadd5505a1d0c8c254d042",
+        "retired traefik fixture",
+    ),
+    (
+        "sha256:dc184ed86a2b6421fd5ea1bf2ffa3d6e9f1df86796bf0830a7476eb064a186ff",
+        "retired postgres fixture",
+    ),
+    (
+        "sha256:e78141e6fe0807c466f17d8343f99249c7480a94d603bc03f91b10e79e7b94fd",
+        "retired patroni fixture",
+    ),
+    (
+        "sha256:a6cec115044c30857d8458d120facbaa2251f21fd4ad39296a99017468d482dc",
+        "retired etcd fixture",
+    ),
+    (
+        "sha256:2a88fcd69de33b07362a9b98f822f2b31f7607932356829cee9a5d44d851a2db",
+        "retired haproxy fixture",
+    ),
+    (
+        "sha256:67a5f8c8ca46f83c69a30376f47eaa4704f29a0495675433812d5216b0171682",
+        "retired keepalived fixture",
+    ),
+    (
+        "sha256:605a57a95a166325381f132867163eafc20cb0ece6039504e45681136550e6b7",
+        "retired rabbitmq fixture",
+    ),
+    (
+        "sha256:bdf0781acceb93983c15eec9e56bfbd59dcadc98ea57467022d61aeee074a2cc",
+        "MinIO blocker; anonymous registry metadata is denied here",
+    ),
+    (
+        "sha256:5c5b1f8f2a4e3d6c9b7a1e0f8d2c4b6a9e7f1d3c5b8a0e2f4d6c8b1a3e5f7d9c",
+        "MinIO client blocker; anonymous registry metadata is denied here",
+    ),
+    (
+        "sha256:c4bfb1e3ef91709eca17ae08b3676ac008939765ad9cf6c2b4617f363b1354be",
+        "retired prometheus fixture",
+    ),
+    (
+        "sha256:2e28e87d9b98ca68880a966df73ad63f90db6b4df6ae86637e130f52f48264ba",
+        "retired grafana fixture",
+    ),
+    (
+        "sha256:e13e67451cba9b2074bf13220303cb12e4ef2316709cd6f0fbd6f8f76b59e2d5",
+        "retired loki fixture",
+    ),
+    (
+        "sha256:62187e72213c4a4a0d1e1634c2350b73f3a1320777fb2274827a1f8c524f0ff2",
+        "retired alertmanager fixture",
+    ),
+    (
+        "sha256:c26a6b6c79c6a303387b01b3dcfc34824e4cf03fe9c2e9899a762b601e46a680",
+        "retired node_exporter fixture",
+    ),
+    (
+        "sha256:60b24aa368eea19a4fe8d35e294777963ba4a21f908a293de6f9e90d409ca919",
+        "retired promtail fixture",
+    ),
+    (
+        "sha256:a4e65b27bff6ae4a3491998b70df242bafffc87b0ddacbd7f9d0a4132395732a",
+        "retired blackbox_exporter fixture",
+    ),
+];
 
 /// Validate a v3 descriptor without opening local files.
 ///
@@ -113,20 +184,38 @@ pub fn validate(descriptor: &Descriptor) -> Result<(), Error> {
     Ok(())
 }
 
-/// Refuse the labelled sample/lab fixture in a release-mode descriptor.
+/// Refuse any labelled fixture digest in a release-mode descriptor.
 ///
 /// # Errors
 ///
-/// Returns `deploy.image.fixture` when the app digest is a checked-in example.
+/// Returns `deploy.image.fixture` at the exact field that still carries a
+/// fixture or blocker digest: `image.digest`, `images.minio.digest`,
+/// `images.minio_client.digest`, or a reverted old infrastructure pin.
 pub fn validate_release(descriptor: &Descriptor) -> Result<(), Error> {
-    if FIXTURE_IMAGE_DIGESTS.contains(&descriptor.image.digest.as_str()) {
+    if let Some(reason) = fixture_reason(&descriptor.image.digest) {
         return Err(rule(
             "deploy.image.fixture",
             "image.digest",
-            "is the labelled sample/lab fixture; pin the published release digest with tools/release.sh pin",
+            format!("is the {reason}; pin the published release digest with tools/release.sh pin"),
         ));
     }
+    for (name, pin) in &descriptor.images {
+        if let Some(reason) = fixture_reason(&pin.digest) {
+            return Err(rule(
+                "deploy.image.fixture",
+                format!("images.{name}.digest"),
+                format!("is the {reason}; pin a reviewed registry digest in images.{name}.digest"),
+            ));
+        }
+    }
     Ok(())
+}
+
+fn fixture_reason(digest: &str) -> Option<&'static str> {
+    FIXTURE_IMAGE_DIGESTS
+        .iter()
+        .find(|(fixture, _)| *fixture == digest)
+        .map(|(_, reason)| *reason)
 }
 
 /// Validate a v3 descriptor and every local secret and ingress file.

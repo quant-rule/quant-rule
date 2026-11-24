@@ -1,0 +1,200 @@
+{
+  "v": "quantrule.sizing/v1",
+  "platform": {
+    "os": [
+      "Ubuntu 24.04 LTS",
+      "Debian 13"
+    ],
+    "arch": "x86_64",
+    "container_engine": "Docker Engine 27.5 or later",
+    "compose": "Docker Compose v2.30 or later",
+    "orchestrator": "Docker Swarm mode",
+    "managers": 3,
+    "manager_rule": "odd count; three managers tolerate one manager loss"
+  },
+  "network": {
+    "minimum_link": "1 GbE",
+    "recommended_link": "10 GbE",
+    "mtu": 1500,
+    "ntp": "chrony or systemd-timesyncd; UTC on every host",
+    "vxlan_nat": false,
+    "ports": [
+      {
+        "port": "2377/tcp",
+        "scope": "managers",
+        "purpose": "Swarm control plane"
+      },
+      {
+        "port": "7946/tcp+udp",
+        "scope": "all nodes",
+        "purpose": "Swarm node gossip"
+      },
+      {
+        "port": "4789/udp",
+        "scope": "all nodes",
+        "purpose": "VXLAN overlay; never NATed"
+      },
+      {
+        "port": "112",
+        "scope": "edge pair",
+        "purpose": "VRRP; same L2 segment"
+      },
+      {
+        "port": "443/tcp",
+        "scope": "public",
+        "purpose": "the only public application port"
+      },
+      {
+        "port": "22/tcp",
+        "scope": "restricted",
+        "purpose": "operator SSH from the management network only"
+      }
+    ]
+  },
+  "roles": {
+    "edge": {
+      "min": {
+        "vcpu": 2,
+        "memory_gib": 4,
+        "disk_gib": 40
+      },
+      "recommended": {
+        "vcpu": 4,
+        "memory_gib": 8,
+        "disk_gib": 80
+      },
+      "disk_medium": "ssd",
+      "placement": "ingress, gateway, keepalived, HAProxy",
+      "notes": [
+        "Two hosts share one L2 segment and the 443 VIP.",
+        "One 1 GbE public NIC and one private overlay NIC are recommended."
+      ]
+    },
+    "core": {
+      "min": {
+        "vcpu": 4,
+        "memory_gib": 8,
+        "disk_gib": 100
+      },
+      "recommended": {
+        "vcpu": 8,
+        "memory_gib": 16,
+        "disk_gib": 200
+      },
+      "disk_medium": "ssd",
+      "placement": "data, evidence, simulation",
+      "notes": [
+        "Two hosts carry the API and evidence tier.",
+        "The data service is read-mostly; the evidence leader writes the run record."
+      ]
+    },
+    "compute": {
+      "min": {
+        "vcpu": 8,
+        "memory_gib": 16,
+        "disk_gib": 100
+      },
+      "recommended": {
+        "vcpu": 16,
+        "memory_gib": 32,
+        "disk_gib": 200
+      },
+      "disk_medium": "ssd",
+      "placement": "model, strategy, backtest",
+      "notes": [
+        "Backtests are CPU-bound; size by the largest concurrent run budget.",
+        "Three hosts keep one worker slot after one host loss."
+      ]
+    },
+    "infra": {
+      "min": {
+        "vcpu": 4,
+        "memory_gib": 16,
+        "disk_gib": 200
+      },
+      "recommended": {
+        "vcpu": 8,
+        "memory_gib": 32,
+        "disk_gib": 500
+      },
+      "disk_medium": "nvme",
+      "placement": "PostgreSQL/Patroni, etcd, RabbitMQ, MinIO, observability",
+      "notes": [
+        "Use local NVMe; network storage does not satisfy the fsync or erasure assumptions.",
+        "MinIO needs one dedicated drive per node in the HA profiles.",
+        "Observability units are pinned to infra hosts in the eleven-host reference."
+      ]
+    },
+    "observability": {
+      "min": {
+        "vcpu": 2,
+        "memory_gib": 4,
+        "disk_gib": 50
+      },
+      "recommended": {
+        "vcpu": 4,
+        "memory_gib": 8,
+        "disk_gib": 100
+      },
+      "disk_medium": "ssd",
+      "placement": "dedicated Prometheus, Alertmanager, Loki, Grafana",
+      "notes": [
+        "Optional role for deployments that separate monitoring from the data stores.",
+        "The eleven-host reference places the four units on infra hosts instead."
+      ]
+    },
+    "lab": {
+      "min": {
+        "vcpu": 8,
+        "memory_gib": 16,
+        "disk_gib": 150
+      },
+      "recommended": {
+        "vcpu": 16,
+        "memory_gib": 32,
+        "disk_gib": 300
+      },
+      "disk_medium": "ssd",
+      "placement": "three VMs on one physical host",
+      "notes": [
+        "The lab proves simulated node failure only; it is not an AZ or rack claim.",
+        "Two drives per MinIO VM at EC:3 keep the write quorum after one VM loss."
+      ]
+    },
+    "client": {
+      "min": {
+        "vcpu": 2,
+        "memory_gib": 4,
+        "disk_gib": 20
+      },
+      "recommended": {
+        "vcpu": 2,
+        "memory_gib": 4,
+        "disk_gib": 20
+      },
+      "disk_medium": "ssd",
+      "placement": "browser or command shell",
+      "notes": [
+        "The client runs no server container and stores no run artifact.",
+        "A build client needs compute sizing for the Rust and Bun toolchains."
+      ]
+    }
+  },
+  "unsupported": [
+    "macOS server",
+    "Windows server",
+    "ARM64 server",
+    "a single Swarm manager",
+    "one stateful node",
+    "one MinIO drive",
+    "all MinIO drives on one physical disk",
+    "public 8080/tcp",
+    "public 5432/tcp",
+    "public 9000/tcp",
+    "public 5671/tcp",
+    "public 15672/tcp",
+    "ACME certificate issuance",
+    "a public-cloud load balancer",
+    "a public-cloud managed stateful service without a separate ADR"
+  ]
+}

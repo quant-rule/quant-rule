@@ -56,6 +56,13 @@ loaded; the Compose files use `network_mode: host` and the env file's
 600; an env file names `/run/secrets/<name>`, never the value. `qr-deploy check`
 still reads `secrets.env` on the operator host.
 
+For the v3 TLS path, the shell reads the environment rather than a flag:
+`QUANTRULE_API_URL=https://quantrule.dev/api/v1`, `QUANTRULE_CA_CERT=<ca>`, and
+`QUANTRULE_TOKEN` or `--token`. `--remote` is a `qr-deploy check` option, never a
+shell flag. `deploy/v3/lab.sh --remote-client --confirm` runs the client TLS/token
+phase outside the Swarm, prints only status/digest, and fails closed on a missing
+CA; the lab row stays `Unverified` until the full lab runs.
+
 Rotate the gateway token with the [manual 08 steps](08-operations.md): replace
 `env/secrets/bearer_token` on the gateway host, copy it into the gateway's
 staged path, and send `SIGHUP`. The next request sees the new value without a
@@ -138,6 +145,7 @@ or the service, not the trust boundary.
 
 ## Related
 
+- [Reference topologies and sizing](../config/2026-11-24/reference-topologies.md)
 - [Multi-host architecture](../architecture/multi-host.md)
 - [HA deployment chapter](15-ha-deployment.md)
 - [Deployment v3 contract](../config/2026-11-22/deploy-v3.md)

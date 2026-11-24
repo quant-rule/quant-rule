@@ -142,7 +142,9 @@ client never constructs a `data_version`.
 
 The browser is the only GUI. The CLI is the agent and automation client. There
 is no Tauri shell, desktop app, installer, or browser console. macOS is
-unsupported in the next release.
+unsupported in the next release. In the v3 reference topologies the client reaches `https://quantrule.dev` on 443 through the VIP; the shell reads `QUANTRULE_API_URL`,
+`QUANTRULE_CA_CERT`, and `QUANTRULE_TOKEN`/`--token` and has no `--remote`, `--cacert`, or `--url` flag. The lab-gated remote browser suite
+uses the OS/NSS trust store with no certificate bypass and asserts load, token, `/version`, and a gated route ([reference topologies](../config/2026-11-24/reference-topologies.md)).
 
 ## 10. Accessibility and determinism
 
@@ -159,7 +161,7 @@ unsupported in the next release.
 | Build | `bun run build` (Vite) |
 | Dev server | `bun run dev`, proxying `/api` to `localhost:8080` |
 | Unit tests | the Vite test runner under Bun |
-| End-to-end | Playwright |
+| End-to-end | Playwright; the remote lab suite is gated by `QR_REMOTE_BROWSER=1` |
 
 Bun is the client toolchain only. The built assets are static and served by the gateway; no Bun runtime exists in the image.
 

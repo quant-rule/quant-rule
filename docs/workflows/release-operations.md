@@ -201,7 +201,7 @@ report, and the release note; there is no download page.
 | 6. Contract check | `/version` reports the product version; `/health` reports the digest |
 | 7. Verification | Composed tier and a clean-host `make verify` |
 | 8. Signature | Operator records `cosign.bundle`, `attestation.bundle`, and `cosign save` `signed-image/`; `tools/release.sh verify` passes from the saved image |
-| 9. Note | The five supply-chain fields carry the digest and evidence hashes; PLAT-008 blocks the 16 fixture infra pins |
+| 9. Note | The five supply-chain fields carry the digest and evidence hashes; PLAT-008 resolved 14 infra pins, and the app, `minio`, and `minio_client` remain blockers |
 | 10. Tag | Annotated `vMAJOR.MINOR.PATCH` from `main` after the release PR merges; human authorization |
 
 A `workflow_dispatch` with `publish_snapshot` pushes, scans, and records a

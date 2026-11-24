@@ -9,31 +9,31 @@
   "images": {
     "traefik": {
       "reference": "traefik",
-      "digest": "sha256:8330e8d28853641532609f63676dc2eec8d19e2bc7fadd5505a1d0c8c254d042"
+      "digest": "sha256:8301d6f60957a422f98918aacf2b01482abde3e74ead3719aabdb7c64045fe28"
     },
     "postgres": {
       "reference": "postgres",
-      "digest": "sha256:dc184ed86a2b6421fd5ea1bf2ffa3d6e9f1df86796bf0830a7476eb064a186ff"
+      "digest": "sha256:156d40cfa063d6babb15d329a8e15b26a8d0690ebb6084c956084f3b025c3b30"
     },
     "patroni": {
-      "reference": "patroni/patroni",
-      "digest": "sha256:e78141e6fe0807c466f17d8343f99249c7480a94d603bc03f91b10e79e7b94fd"
+      "reference": "batonogov/patroni-docker",
+      "digest": "sha256:0de7dc8bc5919c76721bee1475ed30155b1848c0a6bac7298605bf39eef1a7eb"
     },
     "etcd": {
       "reference": "quay.io/coreos/etcd",
-      "digest": "sha256:a6cec115044c30857d8458d120facbaa2251f21fd4ad39296a99017468d482dc"
+      "digest": "sha256:316f5d367455f75a327f9dc72f669cbf645651859fa2e272f692a1f2dee6f5c9"
     },
     "haproxy": {
       "reference": "haproxy",
-      "digest": "sha256:2a88fcd69de33b07362a9b98f822f2b31f7607932356829cee9a5d44d851a2db"
+      "digest": "sha256:8ab12982db911f3f13e53c8e4c11312f65b8367301787acbab86459cddf288ea"
     },
     "keepalived": {
       "reference": "osixia/keepalived",
-      "digest": "sha256:67a5f8c8ca46f83c69a30376f47eaa4704f29a0495675433812d5216b0171682"
+      "digest": "sha256:4bf02d569ed240e6da272242b368ce5a25cf0f7d92114536367ee2c963c318a2"
     },
     "rabbitmq": {
       "reference": "rabbitmq",
-      "digest": "sha256:605a57a95a166325381f132867163eafc20cb0ece6039504e45681136550e6b7"
+      "digest": "sha256:183272aa2ff82718cabeef343de8d9a900931ea65fda4e563fed2a6d9efde578"
     },
     "minio": {
       "reference": "minio/minio",
@@ -45,31 +45,31 @@
     },
     "prometheus": {
       "reference": "prom/prometheus",
-      "digest": "sha256:c4bfb1e3ef91709eca17ae08b3676ac008939765ad9cf6c2b4617f363b1354be"
+      "digest": "sha256:1f0f50f06acaceb0f5670d2c8a658a599affe7b0d8e78b898c1035653849a702"
     },
     "grafana": {
       "reference": "grafana/grafana",
-      "digest": "sha256:2e28e87d9b98ca68880a966df73ad63f90db6b4df6ae86637e130f52f48264ba"
+      "digest": "sha256:0615ec4fbd4072004b7d86b46ded63013a74b7d6eb1119273dd89e8fa25c13cf"
     },
     "loki": {
       "reference": "grafana/loki",
-      "digest": "sha256:e13e67451cba9b2074bf13220303cb12e4ef2316709cd6f0fbd6f8f76b59e2d5"
+      "digest": "sha256:b43c257ccfc925d4a50b8717cac61a3b51df8c48d01847936057e5c4075a24a7"
     },
     "alertmanager": {
       "reference": "prom/alertmanager",
-      "digest": "sha256:62187e72213c4a4a0d1e1634c2350b73f3a1320777fb2274827a1f8c524f0ff2"
+      "digest": "sha256:e638797febd034838eca8b98cdbd46f951e9bf7f178777aa8669167406a9946c"
     },
     "node_exporter": {
       "reference": "prom/node-exporter",
-      "digest": "sha256:c26a6b6c79c6a303387b01b3dcfc34824e4cf03fe9c2e9899a762b601e46a680"
+      "digest": "sha256:7296504d4ada44b7d7ab4431e27e9f9900d8488f8d55842f4b12ae2704e16dfe"
     },
     "promtail": {
       "reference": "grafana/promtail",
-      "digest": "sha256:60b24aa368eea19a4fe8d35e294777963ba4a21f908a293de6f9e90d409ca919"
+      "digest": "sha256:a761cb834cfaeee29745440d4884d6748f0a08d8f68928db1d707018c1dcfbe9"
     },
     "blackbox_exporter": {
       "reference": "prom/blackbox-exporter",
-      "digest": "sha256:a4e65b27bff6ae4a3491998b70df242bafffc87b0ddacbd7f9d0a4132395732a"
+      "digest": "sha256:ea1c7aa3ef3f307cd03e85f34abb604478ccb90b567fc690da0cd9776da76b13"
     }
   },
   "network": {
@@ -79,7 +79,7 @@
   "ingress": {
     "dns": "quantrule.dev",
     "port": 443,
-    "vip": "203.0.113.20",
+    "vip": "10.10.0.20",
     "interface": "eth0",
     "tls": "cert",
     "files": {
@@ -99,12 +99,12 @@
     "lab-1": {
       "address": "10.10.0.11",
       "failure_domain": "lab",
-      "public_address": "203.0.113.10"
+      "public_address": "10.10.0.11"
     },
     "lab-2": {
       "address": "10.10.0.12",
       "failure_domain": "lab",
-      "public_address": "203.0.113.11"
+      "public_address": "10.10.0.12"
     },
     "lab-3": {
       "address": "10.10.0.13",
