@@ -16,6 +16,13 @@
 # looks present but cannot verify. The queue is not restored; messages are
 # rebuilt from run rows after the stack starts.
 #
+# The target must carry the fixed four-database roles that `db-bootstrap`
+# creates. The dumps record `qr_<database>_owner` as the object owner and rely
+# on that role's default privileges to grant the app role its DML rights, so
+# `pg_restore` keeps ownership and ACLs instead of stripping them. A fresh
+# `db-bootstrap` leaves the four application schemas empty; `--clean
+# --if-exists` replaces those empty schemas on a restore.
+#
 # Usage: tools/restore.sh ARCHIVE [--yes] [--force] [--check]
 #   ARCHIVE   the quantrule-*.tar.gz written by tools/backup.sh
 #   --yes     do not prompt (required when stdin is not a terminal)
@@ -296,10 +303,13 @@ if ! tar -C "$payload/$BACKUP_OBJECTS_DIR" -cf - . | backup_minio_run \
 fi
 
 backup_log 'restoring the four databases'
+# Keep the dump's owner and ACLs. The fixed owner role owns every object and
+# its default privileges grant the app role DML; stripping either leaves the
+# migration job and the service unable to read the restored tables.
 for database in $BACKUP_DATABASES; do
   if ! backup_compose exec -T postgres \
     pg_restore -U "$postgres_user" -d "$database" \
-    --no-owner --no-privileges --exit-on-error \
+    --clean --if-exists --exit-on-error \
     < "$payload/$BACKUP_DATABASES_DIR/$database.dump"; then
     backup_die "pg_restore failed for $database"
   fi

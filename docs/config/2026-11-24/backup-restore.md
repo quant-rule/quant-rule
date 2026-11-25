@@ -258,23 +258,28 @@ database name, and the object key; the delimiter is `|` because a tab collapses
 an empty field.
 
 `tools/backup.sh` stops the application services, dumps each database with
-`pg_dump --format=custom --no-owner --no-privileges`, mirrors the bucket, writes
-the manifest, archives, and writes the sidecar. Postgres, MinIO, and RabbitMQ
-stay up; the queue is not archived. It starts the stopped services on every exit
-path. `tools/restore.sh ARCHIVE --check` verifies the sidecar, the entry list,
-the manifest schema, each payload size and hash, exactly four distinct known
-databases, one dump per database, the extra-file rule, and the object keys; it
-runs no Docker command and writes nothing. A live restore refuses a non-clean
-target without `--force` and a non-interactive run without `--yes`, drops each
-database's owner schemas, writes objects before rows, and restores each dump
-with `pg_restore --no-owner --no-privileges --exit-on-error`. A partial set, a
-duplicate, an unknown database, or a changed payload is refused before the
-target is touched.
+`pg_dump --format=custom`, mirrors the bucket, writes the manifest, archives,
+and writes the sidecar. Each dump keeps the object owner and ACL entries; the
+target stack carries the fixed `qr_*` roles from `db-bootstrap`, and the
+migration job and the service need the owner role and the app role's DML
+grants. Postgres, MinIO, and RabbitMQ stay up; the queue is not archived. It
+starts the stopped services on every exit path. `tools/restore.sh ARCHIVE
+--check` verifies the sidecar, the entry list, the manifest schema, each payload
+size and hash, exactly four distinct known databases, one dump per database,
+the extra-file rule, and the object keys; it runs no Docker command and writes
+nothing. A live restore refuses a non-clean target without `--force` and a
+non-interactive run without `--yes`, drops each database's owner schemas under
+`--force`, writes objects before rows, and restores each dump with
+`pg_restore --clean --if-exists --exit-on-error`. `--clean --if-exists` also
+replaces the empty schemas a fresh `db-bootstrap` leaves, without dropping a
+non-empty target that the guard already refused. A partial set, a duplicate, an
+unknown database, or a changed payload is refused before the target is touched.
 
 `tools/test_backup.sh` seeds all four databases and objects, checks the
-refusals, wipes its own project, restores, and compares. It needs Docker and is
-opt-in; `--plan` is Docker-free. The v3 drill is `deploy/v3/dr.sh`; this Compose
-pair is not the v3 PITR path.
+refusals, wipes its own project, creates the fresh `db-bootstrap` schemas,
+restores with `--force`, and compares every row, object, and artifact hash. It
+needs Docker and is opt-in; `--plan` is Docker-free. The v3 drill is
+`deploy/v3/dr.sh`; this Compose pair is not the v3 PITR path.
 
 ## 11. Observability
 

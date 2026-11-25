@@ -269,12 +269,13 @@ table_digest() {
     "SET TIME ZONE 'UTC';
      SELECT '$database.$schema.$table', count(*),
             coalesce(md5(string_agg(t::text, E'\n' ORDER BY t::text)), '-')
-       FROM $schema.$table t"
+       FROM $schema.$table t" </dev/null
 }
 
 table_digests() {
+  # Stable application rows only. Leader leases and outboxes change while the
+  # service runs, so they are not part of the refusal comparison.
   table_digest "$gateway_db" gateway profiles
-  table_digest "$catalog_db" catalog profiles
   table_digest "$catalog_db" catalog datasets
   table_digest "$catalog_db" catalog configs
   table_digest "$catalog_db" catalog config_bundles
@@ -423,10 +424,16 @@ cmp -s "$work/before/rows.txt" "$work/after-refusals/rows.txt" ||
 cmp -s "$work/before/objects.txt" "$work/after-refusals/objects.txt" ||
   fail 'a refused restore changed the objects'
 
-step 'wiping the project and restoring'
+step 'wiping the project, bootstrapping an empty four-database stack, and restoring'
 backup_compose down -v --remove-orphans >/dev/null
 [ -z "$(backup_compose ps -q)" ] || fail 'the project still has containers after down'
-tools/restore.sh "$archive" --yes >/dev/null
+# A fresh `db-bootstrap` creates the four databases and their empty service
+# schemas. Restore must replace those empty schemas, keep the fixed owner role
+# on every restored object, and leave the app role's default grants intact;
+# otherwise the migration jobs and the services cannot use the restored rows.
+backup_compose up -d --wait postgres minio rabbitmq >/dev/null
+backup_compose run --rm --no-deps db-bootstrap >/dev/null
+tools/restore.sh "$archive" --yes --force >/dev/null
 backup_compose up -d --wait >/dev/null
 wait_health
 
