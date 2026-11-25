@@ -82,6 +82,45 @@ fn the_application_and_owner_urls_are_separate() {
 }
 
 #[test]
+fn a_migration_only_owner_url_is_validated_with_the_ca() {
+    let config = config_with_files(
+        &[
+            (
+                "QR_DATABASE_OWNER_URL_FILE",
+                "/run/secrets/database_owner_url",
+            ),
+            ("QR_DATABASE_TLS_CA_PATH", "/run/pki/ca.crt"),
+        ],
+        &[(
+            "/run/secrets/database_owner_url",
+            "postgres://qr_evidence_owner:owner@postgres:5432/qr_evidence?sslmode=verify-full",
+        )],
+    )
+    .expect("the owner-only migration URL must validate against the CA");
+    assert!(config.database_owner_url.is_some());
+    assert!(!config.database_url_from_secret);
+
+    let error = config_with_files(
+        &[
+            (
+                "QR_DATABASE_OWNER_URL_FILE",
+                "/run/secrets/database_owner_url",
+            ),
+            ("QR_DATABASE_TLS_CA_PATH", "/run/pki/ca.crt"),
+        ],
+        &[(
+            "/run/secrets/database_owner_url",
+            "postgres://qr_evidence_owner:owner@postgres:5432/qr_evidence",
+        )],
+    )
+    .expect_err("an owner URL without verify-full must be refused");
+    assert!(
+        error.to_string().contains("QR_DATABASE_OWNER_URL_FILE"),
+        "{error}"
+    );
+}
+
+#[test]
 fn a_missing_owner_url_is_unset() {
     let config = Config::from_map(&BTreeMap::new()).expect("config");
     assert_eq!(config.database_owner_url, None);
