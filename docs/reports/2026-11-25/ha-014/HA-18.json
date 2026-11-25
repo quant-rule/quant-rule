@@ -1,0 +1,17 @@
+{
+  "schema": "quantrule.ha-evidence/v1",
+  "row": "HA-18",
+  "status": "Simulated HA",
+  "case": "worker-sigkill",
+  "profile": "lab-single-host",
+  "recorded_at": "2026-11-25T11:28:40Z",
+  "rto_seconds": 70,
+  "digest": "sha256:a0372f02db7bc65460906eba3242943da8c56f26c46fde470726cee856bc4cea",
+  "note": "a backtest task was SIGKILLed; the run was not succeeded without a digest and the expired lease retried it",
+  "real_ha": "not claimed by this script",
+  "details": {
+    "run_was_in_flight": true,
+    "lease_retried": true,
+    "partial_publish_absent": true
+  }
+}

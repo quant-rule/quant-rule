@@ -161,11 +161,17 @@ dr_epoch_value() {
   esac
 }
 
+# pgBackRest accepts `YYYY-MM-DD HH:MM:SS+00`, not the ISO `T...Z` form the
+# evidence records. Convert at the restore call site.
+dr_pgbackrest_time() {
+  date -u -d "$1" '+%Y-%m-%d %H:%M:%S+00'
+}
+
 # pgBackRest info --output=json is an array of stanzas; accept an object form
 # too so a future schema change does not turn a successful backup into a pass
 # with no label.
 dr_info_backups() {
-  jq -c '(if type == "array" then [.[].backups[]?] else [.backups[]?] end)'
+  jq -c '(if type == "array" then [.[].backup[]?] else [.backup[]?] end)'
 }
 
 # Resolve a backup label and a recovery time. `pgbackrest info --output=json`
@@ -229,10 +235,15 @@ dr_take_backup() {
   local start end info label epoch
   dr_say "backup: full backup before the restore"
   start=$(dr_now_epoch)
+  local backup_node
+  backup_node=$(dr_patroni_leader) || backup_node=$DR_NODE
+  [ -n "$backup_node" ] || backup_node=$DR_NODE
+  dr_say "backup: running the full backup on Patroni node $backup_node"
   if [ "${QR_DR_BACKUP_LOCAL:-0}" = "1" ]; then
     "$script" full || dr_unverified "the pre-restore full backup failed"
   else
-    PGBACKREST_NODE="$DR_NODE" PGBACKREST_LOCAL=auto \
+    PGBACKREST_NODE="$backup_node" PGBACKREST_LOCAL=auto QR_BACKUP_SUDO="${QR_BACKUP_SUDO-}" \
+      QR_BACKUP_SECRET_DIR="${QR_BACKUP_SECRET_DIR:-$DR_RENDER/secrets}" \
       "$script" full || dr_unverified "the pre-restore full backup failed"
   fi
   end=$(dr_now_epoch)
@@ -257,8 +268,13 @@ dr_take_backup() {
     return 0
   fi
   DR_BACKUP_LABEL=$label
-  DR_TARGET_EPOCH=$epoch
-  DR_TARGET_TIME=$(date -u -d "@$epoch" +%Y-%m-%dT%H:%M:%SZ)
+  # pgBackRest's info reports the backup start truncated to a whole second.
+  # A target equal to that second is just before the fresh backup's base, so
+  # automatic selection falls back to the previous backup and can need WAL
+  # from a timeline the cluster has already left. One second after the start
+  # selects the fresh backup while staying inside its WAL range.
+  DR_TARGET_EPOCH=$((epoch + 1))
+  DR_TARGET_TIME=$(date -u -d "@$((epoch + 1))" +%Y-%m-%dT%H:%M:%SZ)
   DR_TARGET_TYPE=time
   DR_BACKUP_TYPE=full
   dr_fact "backup_label" "$label"
@@ -293,20 +309,30 @@ dr_pgbackrest_env() {
 }
 
 dr_pgbackrest_run() {
-  local env_file=$1
+  local env_file=$1 config
   shift
+  # The in-place drill runs on the lab host, where the live pgBackRest config
+  # is installed at /etc/pgbackrest/pgbackrest.conf. The rendered file lives on
+  # the driver and is not visible to a remote Docker daemon.
+  if [ "$DR_MODE" = "in-place" ]; then
+    config=/etc/pgbackrest/pgbackrest.conf
+  else
+    config="$DR_RENDER/pgbackrest-$DR_NODE.conf"
+  fi
   local args=(
     run --rm
     --env-file "$env_file"
-    -v "$DR_RENDER/pgbackrest-$DR_NODE.conf:/etc/pgbackrest/pgbackrest.conf:ro"
-    --entrypoint pgbackrest
-    "$DR_PATRONI_IMAGE" --stanza=quantrule
+    -v "$config:/etc/pgbackrest/pgbackrest.conf:ro"
   )
+  if [ "$DR_MODE" = "in-place" ]; then
+    args+=(--network "$DR_OVERLAY")
+  fi
   if [ "$DR_REPO_KIND" = "posix" ]; then
     args+=(-v "$DR_REPO_PATH:$DR_REPO_PATH")
   elif [ -n "$DR_REPO_CA" ] && [ -r "$DR_REPO_CA" ]; then
     args+=(-v "$DR_REPO_CA:$DR_REPO_CA:ro")
   fi
+  args+=(--entrypoint pgbackrest "$DR_PATRONI_IMAGE" --stanza=quantrule)
   docker "${args[@]}" "$@"
 }
 
@@ -314,6 +340,18 @@ dr_pgbackrest_info() {
   local env_file="$DR_WORK/pgbackrest.env"
   dr_pgbackrest_env "$env_file"
   dr_pgbackrest_run "$env_file" info --output=json
+}
+
+# The current Patroni leader as a host key (`lab-1`), or empty when the status
+# cannot be read. The backup script runs on the leader because the lab policy
+# uses `backup-standby=n`.
+dr_patroni_leader() {
+  local output
+  output=$(docker exec "quantrule-patroni-$DR_NODE" sh -c \
+    'PATRONI_RESTAPI_PASSWORD=$(cat /run/secrets/patroni_rest_password) patronictl -c /etc/patroni/patroni.yml list' 2>/dev/null) || return 1
+  printf '%s\n' "$output" | awk -F'|' '
+    $4 ~ /Leader/ { gsub(/ /, "", $2); sub(/^patroni-/, "", $2); print $2; exit }
+  '
 }
 
 dr_restore_pgdata() {
@@ -327,7 +365,10 @@ dr_restore_pgdata() {
       args+=(--type=lsn --target="$DR_TARGET_LSN" --target-action=promote)
       ;;
     time)
-      args+=(--type=time --target="$DR_TARGET_TIME" --target-action=promote)
+      local pgr_time
+      pgr_time=$(dr_pgbackrest_time "$DR_TARGET_TIME") \
+        || dr_unverified "cannot format the pgBackRest target time"
+      args+=(--type=time --target="$pgr_time" --target-action=promote)
       ;;
     *)
       dr_die "unsupported target type $DR_TARGET_TYPE"

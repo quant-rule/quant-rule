@@ -22,17 +22,36 @@ chaos_gateway_kill() {
 }
 
 chaos_worker_kill() {
-  local run_id state digest node task container start term_before term_after attempt
+  local run_id state digest node task container start term_before term_after attempt poll
+  local -a nodes=() containers=()
   term_before=$(chaos_leader_term)
   for attempt in 1 2 3; do
+    # Resolve every backtest task before submitting. The fixed run takes about
+    # two seconds, so a service lookup after `run submit` loses the race; the
+    # kill is sent as soon as the run reports `running`.
+    chaos_config
+    nodes=()
+    containers=()
+    while read -r node task; do
+      [ -n "$node" ] || continue
+      container=$(remote "$node" "$docker_bin ps --filter name=$task --format '{{.ID}}'" </dev/null | head -n 1)
+      [ -n "$container" ] || continue
+      nodes+=("$node")
+      containers+=("$container")
+    done <<< "$("$docker_bin" service ps "${stack}_backtest" --filter desired-state=running --format '{{.Node}} {{.Name}}')"
+    [ "${#containers[@]}" -gt 0 ] || chaos_fail "no running backtest task"
     run_id=$(chaos_submit)
-    read -r node task < <("$docker_bin" service ps "${stack}_backtest" \
-      --filter desired-state=running --format '{{.Node}} {{.Name}}' | head -n 1) \
-      || chaos_fail "no running backtest task"
-    [ -n "$node" ] && [ -n "$task" ] || chaos_fail "no running backtest task"
-    container=$(remote "$node" "$docker_bin ps --filter name=$task --format '{{.ID}}'" | head -n 1)
+    for poll in $(seq 1 50); do
+      state=$(chaos_field "$run_id" status)
+      [ "$state" = "running" ] && break
+      [ "$state" = "queued" ] || break
+      sleep 0.1
+    done
     start=$SECONDS
-    chaos_kill_on_host "$node" "$container"
+    for poll in "${!containers[@]}"; do
+      remote "${nodes[$poll]}" "$docker_bin kill --signal=SIGKILL ${containers[$poll]}" >/dev/null 2>&1 &
+    done
+    wait
     state=$(chaos_field "$run_id" status)
     chaos_assert_no_partial "$run_id"
     if [ "$state" != "succeeded" ] || [ "$(chaos_field "$run_id" digest)" = "none" ]; then
@@ -58,15 +77,16 @@ chaos_leader_kill() {
   local run_id digest node task container host term_before term_after start found state_before attempt
   term_before=$(chaos_leader_term)
   for attempt in 1 2 3; do
+    chaos_config
     run_id=$(chaos_submit)
     found=0
     state_before=""
     while read -r node task; do
       [ -n "$node" ] || continue
       host=$node
-      container=$(remote "$host" "$docker_bin ps --filter name=$task --format '{{.ID}}'" | head -n 1)
+      container=$(remote "$host" "$docker_bin ps --filter name=$task --format '{{.ID}}'" </dev/null | head -n 1)
       [ -n "$container" ] || continue
-      if remote "$host" "$docker_bin exec $container sh -c 'curl -fsS http://127.0.0.1:9100/metrics'" 2>/dev/null \
+      if remote "$host" "$docker_bin exec $container sh -c 'curl -fsS http://\$(hostname -i):9100/metrics'" </dev/null 2>/dev/null \
         | grep -Eq '^quantrule_leader_term\{[^}]*service="evidence"[^}]*\} [1-9][0-9]*$'; then
         state_before=$(chaos_field "$run_id" status)
         start=$SECONDS
@@ -146,7 +166,6 @@ chaos_run() {
   chaos_require_lab
   chaos_shell
   chaos_dataset
-  chaos_config
   chaos_pg_host=$(jq -r '.stateful.postgres.nodes[0]' "$descriptor") \
     || chaos_fail "cannot read the first Patroni node"
   trap chaos_cleanup EXIT

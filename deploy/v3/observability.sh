@@ -116,12 +116,12 @@ obs_live_manager() {
 
 obs_baseline() {
   local ready health down jobs job firing unexpected attempt
-  ready=$(obs_value 'probe_success{job="blackbox",check="ready"}')
-  health=$(obs_value 'probe_success{job="blackbox",check="health"}')
+  ready=$(obs_value 'max(probe_success{job="blackbox",check="ready"})')
+  health=$(obs_value 'max(probe_success{job="blackbox",check="health"})')
   [ "$ready" = "1" ] || unverified "observability: the ready probe is ${ready:-missing}, expected 1"
   [ "$health" = "1" ] || unverified "observability: the health probe is ${health:-missing}, expected 1"
-  down=$(obs_query 'up{job=~"app|ingress|patroni|etcd|haproxy|rabbitmq|minio|node|promtail|blackbox|prometheus|alertmanager|loki|grafana"} == 0' \
-    | jq -r '.data.result | length')
+  down=$(obs_prom_get "/api/v1/targets?state=active" \
+    | jq -r '[.data.activeTargets[] | select(.health != "up")] | length')
   [ "$down" = "0" ] || unverified "observability: $down required scrape target(s) are down"
   jobs=$(obs_query 'count by (job) (up)' | jq -r '.data.result[].metric.job' | sort)
   for job in app ingress patroni etcd haproxy rabbitmq minio node promtail blackbox prometheus alertmanager loki grafana; do
@@ -196,9 +196,10 @@ obs_manager_loss() {
   obs_manager=$(obs_live_manager "$stopped") \
     || unverified "observability: no live manager to write the quorum textfile"
   say "observability: manager $stopped is down; write the quorum textfile from $obs_manager"
-  obs_tool manager-quorum || unverified "observability: manager-quorum failed"
   ready=""
   for attempt in $(seq 1 12); do
+    obs_tool manager-quorum >/dev/null \
+      || unverified "observability: manager-quorum failed"
     ready=$(obs_value 'quantrule_swarm_managers_ready')
     if [ -n "$ready" ] && [ "$ready" -lt 3 ]; then
       break
@@ -228,7 +229,7 @@ obs_ingress_loss() {
   local ready
   # Let the 15 s blackbox scrape observe the VIP on its new holder.
   sleep 20
-  ready=$(obs_value 'probe_success{job="blackbox",check="ready"}')
+  ready=$(obs_value 'max(probe_success{job="blackbox",check="ready"})')
   [ "$ready" = "1" ] \
     || unverified "observability: the VIP ready probe is ${ready:-missing} during the ingress drain"
   say "observability: the VIP ready probe stays 1 during the ingress drain"
@@ -244,7 +245,11 @@ obs_gateway_replica_loss() {
   host=$(jq -r '.services.gateway.hosts[]' "$descriptor" | grep -vx "$holder" | head -n 1)
   [ -n "$host" ] \
     || unverified "observability: no non-VIP gateway host for the replica proof"
-  container="quantrule-gateway-$host"
+  container=$($ssh_bin "$(host_address "$host")" \
+    "$obs_sudo $docker_bin ps --filter name=${stack}_gateway --format '{{.ID}}' | head -n 1" \
+    2>/dev/null || true)
+  [ -n "$container" ] \
+    || unverified "observability: no gateway task on $host"
   say "observability: pause $container on $host; the VIP stays on $holder"
   # shellcheck disable=SC2086
   $ssh_bin "$(host_address "$host")" "$obs_sudo $docker_bin pause $container" \

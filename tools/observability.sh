@@ -165,6 +165,13 @@ copy() {
     copy_one "$host" "$out/infra/$host.yaml" "/etc/quantrule/infra/$host.yaml" 644
     while IFS=$'\t' read -r source target mode; do
       [ -n "$source" ] || continue
+      # The Patroni REST password is a stateful secret owned by the stateful
+      # copy. Do not reset its mode here: the Patroni image runs as `postgres`
+      # and must still read it.
+      if [ "$target" = "/etc/quantrule/secrets/patroni_rest_password" ] \
+        && $ssh_bin "$host" "test -e '$target'" >/dev/null 2>&1; then
+        continue
+      fi
       copy_one "$host" "$out/$source" "$target" "$mode"
     done < <(
       jq -r --arg host "$host" '
@@ -179,14 +186,17 @@ copy() {
     # shellcheck disable=SC2086
     $ssh_bin "$host" "$sudo_bin sh -c '
       umask 022
-      install -d -m 0750 /srv/quantrule/prometheus /srv/quantrule/alertmanager
-      install -d -m 0750 /srv/quantrule/grafana
-      install -d -m 0750 /srv/quantrule/loki
+      install -d -m 0750 /srv/quantrule/prometheus /srv/quantrule/prometheus/data /srv/quantrule/alertmanager
+      install -d -m 0750 /srv/quantrule/grafana /srv/quantrule/grafana/data
+      install -d -m 0750 /srv/quantrule/loki /srv/quantrule/loki/data
       install -d -m 0750 /srv/quantrule/promtail
       install -d -m 0755 /srv/quantrule/node_exporter /srv/quantrule/node_exporter/textfile
-      chown 65534:65534 /srv/quantrule/alertmanager
-      chown 472:472 /srv/quantrule/grafana
-      chown 10001:10001 /srv/quantrule/loki
+      for d in /etc/quantrule/prometheus /etc/quantrule/blackbox /etc/quantrule/grafana /etc/quantrule/loki /etc/quantrule/promtail; do
+        [ ! -d "\$d" ] || chmod 0755 "\$d"
+      done
+      chown -R 65534:65534 /srv/quantrule/alertmanager /srv/quantrule/prometheus
+      chown -R 472:472 /srv/quantrule/grafana
+      chown -R 10001:10001 /srv/quantrule/loki
     '" || die "cannot create the observability data directories on $host"
   done
   printf 'observability: copied the configs, dashboards, CA, and Patroni password to %s\n' "$prom_host"
@@ -198,7 +208,10 @@ start_unit() {
   [ -n "$host" ] || die "cannot start $service without a host"
   printf 'observability: starting %s on %s\n' "$service" "$host"
   # shellcheck disable=SC2086
-  $ssh_bin "$host" "cd /etc/quantrule/infra && $sudo_bin $docker_bin compose -f $host.yaml up -d $service" || \
+  # Bind-mounted config files are read at process start; `compose up` alone does
+  # not recreate a running unit when only their bytes changed. Force one
+  # recreate so a copied Prometheus/Alertmanager/Loki/Grafana config takes effect.
+  $ssh_bin "$host" "cd /etc/quantrule/infra && $sudo_bin $docker_bin compose -f $host.yaml up -d --force-recreate $service" || \
     die "cannot start $service on $host"
 }
 
@@ -244,11 +257,26 @@ remote_ready() {
   remote_get "$host" "$service" "$url" >/dev/null
 }
 
+# Probe a service locally through the shipped app image, sharing the target
+# container's network namespace. Loki, Grafana, and promtail images do not all
+# include a shell HTTP client, and cross-host overlay DNS is not reliable in the
+# single-host lab.
+probe_ready() {
+  local host=$1 service=$2 path=$3 image port
+  case "$service" in
+    loki) port=3100 ;;
+    grafana) port=3000 ;;
+    promtail-*) port=9080 ;;
+    *) port=80 ;;
+  esac
+  image=$(jq -r '.image.reference + "@" + .image.digest' "$descriptor")
+  # shellcheck disable=SC2086
+  $ssh_bin "$host" "$sudo_bin $docker_bin run --rm --network container:$(container_name "$service") --entrypoint curl $image -fsS http://127.0.0.1:$port$path" >/dev/null
+}
+
 wait_ready() {
   prom_host=$(unit_host prometheus)
   alert_host=$(unit_host alertmanager)
-  loki_host=$(unit_host loki)
-  grafana_host=$(unit_host grafana)
   attempt=1
   while :; do
     failed=""
@@ -267,15 +295,15 @@ wait_ready() {
       remote_ready "$alert_host" alertmanager "http://127.0.0.1:9093/-/ready" || failed="Alertmanager /-/ready"
     fi
     if [ -z "$failed" ]; then
-      remote_ready "$loki_host" loki "http://127.0.0.1:3100/-/ready" || failed="Loki /-/ready"
+      probe_ready "$(unit_host loki)" loki "/ready" || failed="Loki /ready"
     fi
     if [ -z "$failed" ]; then
       for host in $(all_hosts); do
-        remote_ready "$host" "promtail-$host" "http://127.0.0.1:9080/ready" || { failed="promtail $host"; break; }
+        probe_ready "$host" "promtail-$host" "/ready" || { failed="promtail $host"; break; }
       done
     fi
     if [ -z "$failed" ]; then
-      remote_ready "$grafana_host" grafana "http://127.0.0.1:3000/api/health" || failed="Grafana /api/health"
+      probe_ready "$(unit_host grafana)" grafana "/api/health" || failed="Grafana /api/health"
     fi
     if [ -z "$failed" ]; then
       printf 'observability: ready: Prometheus, every target, 17 rule rows, Alertmanager, Loki, promtail, Grafana\n'
@@ -342,6 +370,7 @@ verify() {
 }
 
 status() {
+  prom_host=$(unit_host prometheus)
   for host in $(printf '%s\n' \
     "$(unit_host prometheus)" "$(unit_host grafana)" \
     "$(unit_host loki)" "$(unit_host alertmanager)" | sort -u); do
@@ -355,9 +384,9 @@ status() {
   printf 'Alertmanager: '
   remote_ready "$(unit_host alertmanager)" alertmanager "http://127.0.0.1:9093/-/ready" && printf 'ready\n' || printf 'not ready\n'
   printf 'Loki: '
-  remote_ready "$(unit_host loki)" loki "http://127.0.0.1:3100/-/ready" && printf 'ready\n' || printf 'not ready\n'
+  probe_ready "$(unit_host loki)" loki "/ready" && printf 'ready\n' || printf 'not ready\n'
   printf 'Grafana: '
-  remote_ready "$(unit_host grafana)" grafana "http://127.0.0.1:3000/api/health" && printf 'ready\n' || printf 'not ready\n'
+  probe_ready "$(unit_host grafana)" grafana "/api/health" && printf 'ready\n' || printf 'not ready\n'
 }
 
 case "$command" in

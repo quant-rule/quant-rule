@@ -170,7 +170,7 @@ fn skip_chaos_is_the_default_and_the_lab_forwards_it() {
 }
 
 #[test]
-fn the_matrix_covers_all_23_rows_and_the_live_claims_are_unverified() {
+fn the_matrix_covers_all_23_rows_and_the_live_claims_are_scoped() {
     let text = std::fs::read_to_string(repo("docs/config/2026-11-24/chaos-matrix.json"))
         .expect("chaos matrix");
     let matrix: serde_json::Value = serde_json::from_str(&text).expect("matrix JSON");
@@ -181,11 +181,15 @@ fn the_matrix_covers_all_23_rows_and_the_live_claims_are_unverified() {
         assert_eq!(row["id"].as_str(), Some(expected.as_str()));
     }
     for row in rows.iter().skip(1) {
-        if let Some(id) = row["id"].as_str()
-            && id >= "HA-18"
-        {
-            assert_eq!(row["status"], json!("Unverified"), "{id}");
-            assert_eq!(row["live_evidence"], json!("Unverified"), "{id}");
+        if let Some(id) = row["id"].as_str() {
+            if matches!(id, "HA-18" | "HA-19" | "HA-20" | "HA-21") {
+                assert_eq!(row["status"], json!("Simulated HA"), "{id}");
+                assert_eq!(row["live_evidence"], json!("Simulated HA"), "{id}");
+            }
+            if matches!(id, "HA-22" | "HA-23") {
+                assert_eq!(row["status"], json!("Unverified"), "{id}");
+                assert_eq!(row["live_evidence"], json!("Unverified"), "{id}");
+            }
         }
     }
     let risks = matrix["accepted_risks"].as_array().expect("risks");

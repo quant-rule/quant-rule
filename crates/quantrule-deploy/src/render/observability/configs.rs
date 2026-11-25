@@ -181,12 +181,10 @@ pub fn prometheus_config(descriptor: &Descriptor) -> String {
             .map(|host| (format!("promtail-{host}:{PROMTAIL_PORT}"), host.clone()))
             .collect(),
     );
+    let vip = descriptor.ingress.vip.as_deref().unwrap_or("");
     let blackbox_targets = [
-        (
-            format!("https://{}/health", descriptor.ingress.dns),
-            "health",
-        ),
-        (format!("https://{}/ready", descriptor.ingress.dns), "ready"),
+        (format!("https://{vip}/health"), "health"),
+        (format!("https://{vip}/ready"), "ready"),
     ];
     let blackbox = Yaml::map()
         .with("job_name", Yaml::string("blackbox"))
@@ -504,6 +502,11 @@ pub fn blackbox_config(descriptor: &Descriptor) -> String {
                         Yaml::map()
                             .with("preferred_ip_protocol", Yaml::string("ip4"))
                             .with("valid_status_codes", Yaml::list([Yaml::number(200_u64)]))
+                            .with(
+                                "headers",
+                                Yaml::map()
+                                    .with("Host", Yaml::string(descriptor.ingress.dns.clone())),
+                            )
                             .with(
                                 "tls_config",
                                 Yaml::map()

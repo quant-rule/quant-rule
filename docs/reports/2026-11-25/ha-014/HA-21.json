@@ -1,0 +1,16 @@
+{
+  "schema": "quantrule.ha-evidence/v1",
+  "row": "HA-21",
+  "status": "Simulated HA",
+  "case": "digest-parity-leader",
+  "profile": "lab-single-host",
+  "recorded_at": "2026-11-25T11:29:17Z",
+  "rto_seconds": 36,
+  "digest": "sha256:a0372f02db7bc65460906eba3242943da8c56f26c46fde470726cee856bc4cea",
+  "note": "tools/verify.sh --expected reproduced the clean baseline after the evidence leader restart",
+  "real_ha": "not claimed by this script",
+  "details": {
+    "baseline": "a0372f02db7bc65460906eba3242943da8c56f26c46fde470726cee856bc4cea",
+    "observed": "a0372f02db7bc65460906eba3242943da8c56f26c46fde470726cee856bc4cea"
+  }
+}

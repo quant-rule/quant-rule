@@ -1,0 +1,17 @@
+{
+  "schema": "quantrule.ha-evidence/v1",
+  "row": "HA-19",
+  "status": "Simulated HA",
+  "case": "evidence-leader-sigkill",
+  "profile": "lab-single-host",
+  "recorded_at": "2026-11-25T11:29:17Z",
+  "rto_seconds": 36,
+  "digest": "sha256:a0372f02db7bc65460906eba3242943da8c56f26c46fde470726cee856bc4cea",
+  "note": "the evidence leader was SIGKILLed; a higher lease term acquired and the run finalised once",
+  "real_ha": "not claimed by this script",
+  "details": {
+    "leader_term_before": "49",
+    "leader_term_after": "50",
+    "one_finalisation": true
+  }
+}

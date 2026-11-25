@@ -557,7 +557,7 @@ esac
 rabbitmqctl -q add_vhost "$vhost" >/dev/null 2>&1 || true
 hash=$(printf "%s" "$password" | rabbitmqctl -q hash_password 2>/dev/null)
 [ -n "$hash" ] || { printf "stateful: cannot hash the queue password\n" >&2; exit 1; }
-result=$(rabbitmqctl -q eval "case rabbit_auth_backend_internal:add_user(<<\"$user\">>, <<\"$hash\">>) of ok -> ok; {error, user_already_exists} -> rabbit_auth_backend_internal:change_password(<<\"$user\">>, <<\"$hash\">>); Error -> Error end.")
+result=$(rabbitmqctl -q eval "H = base64:decode(<<\"$hash\">>), try rabbit_auth_backend_internal:add_user_with_pre_hashed_password_sans_validation(<<\"$user\">>, H, []) of ok -> ok catch throw:{error, {user_already_exists, _}} -> rabbit_auth_backend_internal:change_password_hash(<<\"$user\">>, H); Class:Reason -> {Class, Reason} end.")
 [ "$result" = "ok" ] || { printf "stateful: cannot create or update the queue user: %s\n" "$result" >&2; exit 1; }
 rabbitmqctl -q set_permissions -p "$vhost" "$user" ".*" ".*" ".*" >/dev/null
 printf "stateful: queue user %s is ready on vhost %s\n" "$user" "$vhost"

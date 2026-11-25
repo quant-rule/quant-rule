@@ -1,0 +1,15 @@
+{
+  "schema": "quantrule.ha-evidence/v1",
+  "row": "HA-23",
+  "status": "Unverified",
+  "case": "real-host-az",
+  "profile": "lab-single-host",
+  "recorded_at": "2026-11-25T11:29:33Z",
+  "rto_seconds": 0,
+  "digest": "Unverified",
+  "note": "operator-only real-ha gate; the AZ1 MinIO/ingress limitation stays an accepted risk",
+  "real_ha": "not claimed by this script",
+  "details": {
+    "reason": "no real-host run"
+  }
+}

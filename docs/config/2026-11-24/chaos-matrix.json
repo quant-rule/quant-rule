@@ -14,8 +14,8 @@
       "physical_hosts": 0,
       "failure_domains": 0,
       "recorded_on": "2026-11-24",
-      "notes": "F01 static alert/check coverage only; the live failure is not run here.",
-      "live_evidence": "Unverified"
+      "notes": "F01 static alert/check coverage; the live non-VIP gateway SIGKILL is Simulated HA on the lab (RTO 12 s, digest unchanged).",
+      "live_evidence": "Simulated HA"
     },
     {
       "id": "HA-02",
@@ -174,8 +174,8 @@
       "physical_hosts": 0,
       "failure_domains": 0,
       "recorded_on": "2026-11-24",
-      "notes": "F11 static alert/check coverage only; the chaos etcd member stop/start case is Unverified.",
-      "live_evidence": "Unverified"
+      "notes": "F11 static alert/check coverage; the live etcd member stop/start is Simulated HA on the lab (RTO 4 s).",
+      "live_evidence": "Simulated HA"
     },
     {
       "id": "HA-12",
@@ -279,15 +279,15 @@
       "owner": "HA-014",
       "issue": "#1112",
       "test": "deploy/v3/test.sh --chaos --confirm",
-      "evidence": "docs/reports/2026-11-24/ha-014/HA-18.json",
-      "status": "Unverified",
+      "evidence": "docs/reports/2026-11-25/ha-014/HA-18.json",
+      "status": "Simulated HA",
       "tier": "lab",
       "topology": "lab-single-host",
       "physical_hosts": 1,
       "failure_domains": 1,
-      "recorded_on": "2026-11-24",
-      "notes": "No lab run here. The case submits a fixed run, SIGKILLs a backtest task, and waits for lease expiry/retry; the planned evidence path is not created.",
-      "live_evidence": "Unverified"
+      "recorded_on": "2026-11-25",
+      "notes": "Lab worker SIGKILL: a backtest task was killed while the run was in flight; no succeeded run without a digest, the lease retried it, and the canonical digest matched; RTO 70 s in the recorded evidence.",
+      "live_evidence": "Simulated HA"
     },
     {
       "id": "HA-19",
@@ -295,15 +295,15 @@
       "owner": "HA-014",
       "issue": "#1112",
       "test": "deploy/v3/test.sh --chaos --confirm",
-      "evidence": "docs/reports/2026-11-24/ha-014/HA-19.json",
-      "status": "Unverified",
+      "evidence": "docs/reports/2026-11-25/ha-014/HA-19.json",
+      "status": "Simulated HA",
       "tier": "lab",
       "topology": "lab-single-host",
       "physical_hosts": 1,
       "failure_domains": 1,
-      "recorded_on": "2026-11-24",
-      "notes": "No lab run here. The case SIGKILLs the evidence leader, observes a higher lease term, and requires one succeeded run with one digest; the planned evidence path is not created.",
-      "live_evidence": "Unverified"
+      "recorded_on": "2026-11-25",
+      "notes": "Lab evidence-leader SIGKILL: lease term 49 -> 50, one finalisation, and the canonical digest matched; RTO 36 s in the recorded evidence.",
+      "live_evidence": "Simulated HA"
     },
     {
       "id": "HA-20",
@@ -311,15 +311,15 @@
       "owner": "HA-014",
       "issue": "#1112",
       "test": "deploy/v3/test.sh --chaos --confirm",
-      "evidence": "docs/reports/2026-11-24/ha-014/HA-20.json",
-      "status": "Unverified",
+      "evidence": "docs/reports/2026-11-25/ha-014/HA-20.json",
+      "status": "Simulated HA",
       "tier": "lab",
       "topology": "lab-single-host",
       "physical_hosts": 1,
       "failure_domains": 1,
-      "recorded_on": "2026-11-24",
-      "notes": "No lab run here. The case checks the run detail after the kill and fetches every referenced artifact; the planned evidence path is not created.",
-      "live_evidence": "Unverified"
+      "recorded_on": "2026-11-25",
+      "notes": "No partial publish after the worker/leader kill: no succeeded run without a digest and every referenced artifact fetched 200; RTO 36 s in the recorded evidence.",
+      "live_evidence": "Simulated HA"
     },
     {
       "id": "HA-21",
@@ -327,15 +327,15 @@
       "owner": "HA-014",
       "issue": "#1112",
       "test": "deploy/v3/test.sh --chaos --confirm",
-      "evidence": "docs/reports/2026-11-24/ha-014/HA-21.json",
-      "status": "Unverified",
+      "evidence": "docs/reports/2026-11-25/ha-014/HA-21.json",
+      "status": "Simulated HA",
       "tier": "lab",
       "topology": "lab-single-host",
       "physical_hosts": 1,
       "failure_domains": 1,
-      "recorded_on": "2026-11-24",
-      "notes": "No lab run here. tools/verify.sh --expected compares the clean baseline with the restarted path; the planned evidence path is not created.",
-      "live_evidence": "Unverified"
+      "recorded_on": "2026-11-25",
+      "notes": "Digest parity after the worker and evidence-leader restarts: tools/verify.sh --expected reproduced the clean baseline; RTO 36 s in the recorded evidence.",
+      "live_evidence": "Simulated HA"
     },
     {
       "id": "HA-22",
@@ -343,7 +343,7 @@
       "owner": "HA-014",
       "issue": "#1112",
       "test": "deploy/v3/real-ha.sh --confirm-real-ha --descriptor <descriptor> --evidence <file>",
-      "evidence": "docs/reports/2026-11-24/ha-014/HA-22.json",
+      "evidence": "docs/reports/2026-11-25/ha-014/HA-22.json",
       "status": "Unverified",
       "tier": "real-host",
       "topology": "physical-hosts",
@@ -359,7 +359,7 @@
       "owner": "HA-014",
       "issue": "#1112",
       "test": "deploy/v3/real-ha.sh --confirm-real-ha --descriptor <descriptor> --evidence <file>",
-      "evidence": "docs/reports/2026-11-24/ha-014/HA-23.json",
+      "evidence": "docs/reports/2026-11-25/ha-014/HA-23.json",
       "status": "Unverified",
       "tier": "real-host",
       "topology": "three-az",
