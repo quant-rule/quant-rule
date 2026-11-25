@@ -55,11 +55,23 @@ pub(super) fn parse_ca_path(name: &'static str, value: &str) -> Result<PathBuf, 
 /// the hostname check, and a CA path without a TLS mode is refused because it
 /// would leave the connection plaintext while looking protected.
 pub(super) fn validate_database(url: &str, ca: Option<&Path>) -> Result<(), ConfigError> {
+    validate_database_named("QR_DATABASE_URL_FILE", url, ca)
+}
+
+/// Validate a database URL and name the variable in the error.
+///
+/// The one-shot owner migration has only `QR_DATABASE_OWNER_URL_FILE`; it must
+/// validate that URL, not the absent application URL.
+pub(super) fn validate_database_named(
+    name: &'static str,
+    url: &str,
+    ca: Option<&Path>,
+) -> Result<(), ConfigError> {
     let mode = ssl_mode(url);
     match (ca, mode.as_deref()) {
         (Some(_), Some("verify-full")) => Ok(()),
         (Some(_), Some(mode)) => Err(ConfigError::Secret {
-            name: "QR_DATABASE_URL_FILE",
+            name,
             reason: match mode {
                 "prefer" | "require" | "verify-ca" => {
                     "must use sslmode=verify-full when a TLS CA is configured"
@@ -68,7 +80,7 @@ pub(super) fn validate_database(url: &str, ca: Option<&Path>) -> Result<(), Conf
             },
         }),
         (Some(_), None) => Err(ConfigError::Secret {
-            name: "QR_DATABASE_URL_FILE",
+            name,
             reason: "must use sslmode=verify-full when a TLS CA is configured",
         }),
         (None, Some("disable")) | (None, None) => Ok(()),
@@ -76,12 +88,12 @@ pub(super) fn validate_database(url: &str, ca: Option<&Path>) -> Result<(), Conf
             if mode.starts_with("verify") || mode == "require" || mode == "prefer" =>
         {
             Err(ConfigError::Secret {
-                name: "QR_DATABASE_URL_FILE",
+                name,
                 reason: "a TLS sslmode requires QR_DATABASE_TLS_CA_PATH",
             })
         }
         (None, Some(_)) => Err(ConfigError::Secret {
-            name: "QR_DATABASE_URL_FILE",
+            name,
             reason: "has an unknown sslmode",
         }),
     }

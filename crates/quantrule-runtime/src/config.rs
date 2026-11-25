@@ -834,7 +834,16 @@ impl Config {
         if let Some(value) = values.get("QR_DRAIN_TIMEOUT_WORK") {
             config.drain_timeout_work = parse_drain_timeout("QR_DRAIN_TIMEOUT_WORK", value)?;
         }
-        tls::validate_database(&config.database_url, config.database_tls_ca.as_deref())?;
+        if let Some(owner) = &config.database_owner_url {
+            tls::validate_database_named(
+                "QR_DATABASE_OWNER_URL_FILE",
+                owner,
+                config.database_tls_ca.as_deref(),
+            )?;
+        }
+        if config.database_url_from_secret {
+            tls::validate_database(&config.database_url, config.database_tls_ca.as_deref())?;
+        }
         tls::validate_queue(&config.queue_url, config.queue_tls_ca.as_deref())?;
         tls::validate_object_store(
             &config.object_store_url,
