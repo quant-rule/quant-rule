@@ -321,6 +321,7 @@ jobs:
         run: |
           digest="$(docker image inspect "$IMAGE" --format '{{.Id}}')"
           bash tools/secrets.sh
+          bash tools/pki.sh
           QR_IMAGE="$IMAGE" QR_IMAGE_DIGEST="$digest" \
             docker compose --env-file secrets/compose.env up -d --wait --no-build
           trap 'docker compose down --volumes --remove-orphans' EXIT
