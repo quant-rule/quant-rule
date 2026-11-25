@@ -1,0 +1,3 @@
+2026-11-25T19:33:19Z make scale N=2: model 2/2 healthy, backtest 2/2 healthy
+cycles 3-4 (2 workers): verified sha256:a0372f02db7bc65460906eba3242943da8c56f26c46fde470726cee856bc4cea
+2026-11-25T19:40:35Z make scale N=1: model 1/1 healthy, backtest 1/1 healthy
