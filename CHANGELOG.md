@@ -139,6 +139,7 @@ history is in Git and the pull requests.
 
 ### Changed
 
+- The HA-014 matrix records HA-08, HA-10, HA-12, HA-14, and HA-15 as `Simulated HA` from the 2026-11-25 single-machine lab: database RTO 30 s, RabbitMQ RTO 7 s, and MinIO 4 of 6 drives during the node loss, all with the canonical digest unchanged. Observability, chaos, and DR remain `Unverified`, and `Real HA` is not claimed.
 - The `ha` lab reports per-phase results and a summary; it no longer prints an end-to-end `PASS` while PLAT-005 MinIO is unconfigured. The RabbitMQ phase is scoped `Simulated HA`; `--skip-queue` leaves it `Unverified`.
 - The four stateful secrets are now five; `rabbitmq_erlang_cookie` joins the Patroni passwords and remains excluded from app Swarm secrets.
 - `backtest` and `evidence` render `restart_policy: any` without a maximum attempt because they consume the queue; the other services keep the bounded `on-failure` policy. The readiness gap during a reconnect is deliberate and documented.

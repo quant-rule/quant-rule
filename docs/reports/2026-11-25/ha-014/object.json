@@ -1,0 +1,60 @@
+{
+  "evidence": "Simulated HA",
+  "scope": "object_store",
+  "profile": "lab-single-host",
+  "recorded_at": "2026-11-25T03:56:36Z",
+  "layout": {
+    "nodes": [
+      "lab-1",
+      "lab-2",
+      "lab-3"
+    ],
+    "drives": [
+      2,
+      2,
+      2
+    ],
+    "total_drives": 6,
+    "parity": "EC:3",
+    "write_quorum": 4,
+    "drives_after_node_loss": 4,
+    "max_node_drives": 2
+  },
+  "node_loss": {
+    "stopped": "lab-1",
+    "drives_online": 4,
+    "drives_offline": 2,
+    "drives_healing": 0,
+    "write_quorum_survived": true,
+    "rto_seconds": 39
+  },
+  "probe": {
+    "bucket": "quantrule",
+    "key": "lab/minio-node-loss-probe",
+    "sha256": "e6b6c9470aeb53fa9d6560fb489807db34545897105770fc89c9644138493f1d",
+    "read_after_loss": "e6b6c9470aeb53fa9d6560fb489807db34545897105770fc89c9644138493f1d",
+    "read_after_restore": "e6b6c9470aeb53fa9d6560fb489807db34545897105770fc89c9644138493f1d",
+    "hash_unchanged": true
+  },
+  "heal": {
+    "command": "mc admin heal -r qr/quantrule",
+    "bounded_seconds": 600,
+    "drives_healing_after": 0
+  },
+  "app": {
+    "health": "healthy",
+    "ready": "healthy",
+    "path": "https://<dns>/health and /ready"
+  },
+  "digests": {
+    "status": "Measured",
+    "before": "sha256:a0372f02db7bc65460906eba3242943da8c56f26c46fde470726cee856bc4cea",
+    "after_loss": "sha256:a0372f02db7bc65460906eba3242943da8c56f26c46fde470726cee856bc4cea",
+    "after_restore": "sha256:a0372f02db7bc65460906eba3242943da8c56f26c46fde470726cee856bc4cea"
+  },
+  "claims": {
+    "object_store": "Simulated HA",
+    "end_to_end": "Measured",
+    "real_ha": "HA-014 only"
+  }
+}
