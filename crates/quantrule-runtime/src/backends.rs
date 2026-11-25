@@ -235,10 +235,22 @@ impl ControlQueue {
 
     /// Whether the selected queue answers.
     ///
+    /// A dead connection is reopened before the probe answers, so a standby
+    /// replica heals after a broker restart instead of reporting `down` until
+    /// it is promoted.
+    ///
     /// # Errors
     ///
-    /// Returns the adapter's message when the probe fails.
+    /// Returns the adapter's message when the probe and the reconnect fail.
     pub async fn check(&self) -> Result<(), QueueError> {
+        self.ensure_connected().await
+    }
+
+    async fn ensure_connected(&self) -> Result<(), QueueError> {
+        if self.queue.check().is_ok() {
+            return Ok(());
+        }
+        self.queue.reopen().await?;
         self.queue.check()
     }
 
@@ -248,6 +260,7 @@ impl ControlQueue {
     ///
     /// Returns the adapter's message when the passive declare fails.
     pub async fn depth(&self, queue: &str) -> Result<u64, QueueError> {
+        self.ensure_connected().await?;
         self.queue.depth(queue).await
     }
 }
@@ -258,7 +271,14 @@ impl Queue for ControlQueue {
     }
 
     fn publish(&self, routing_key: &str, payload: Vec<u8>) -> BoxFuture<Result<(), QueueError>> {
-        self.queue.publish(routing_key, payload)
+        let queue = Arc::clone(&self.queue);
+        let routing_key = routing_key.to_owned();
+        Box::pin(async move {
+            if queue.check().is_err() {
+                queue.reopen().await?;
+            }
+            queue.publish(&routing_key, payload).await
+        })
     }
 }
 

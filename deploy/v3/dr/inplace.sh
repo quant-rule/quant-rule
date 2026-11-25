@@ -133,7 +133,7 @@ dr_inplace_start_patroni() {
   while [ "$attempt" -lt 90 ]; do
     attempt=$((attempt + 1))
     output=$("$DR_BACKUP_SSH" "$DR_NODE_ADDR" \
-      "$DR_BACKUP_SUDO docker exec quantrule-patroni-$DR_NODE sh -c 'PATRONI_CTL_PASSWORD=\$(cat /run/secrets/patroni_rest_password) patronictl -c /etc/patroni/patroni.yml list'" 2>/dev/null || true)
+      "$DR_BACKUP_SUDO docker exec quantrule-patroni-$DR_NODE sh -c 'PATRONI_RESTAPI_PASSWORD=\$(cat /run/secrets/patroni_rest_password) patronictl -c /etc/patroni/patroni.yml list'" 2>/dev/null || true)
     if printf '%s\n' "$output" | grep -q 'Leader' \
       && printf '%s\n' "$output" | grep -q 'Sync'; then
       return 0

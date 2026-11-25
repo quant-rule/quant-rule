@@ -219,7 +219,7 @@ fn the_wait_checks_every_minio_node_and_drive() {
         "admin info local",
         "minio-$node:9000",
         "0 drives offline",
-        "0 drives healing",
+        "[1-9][0-9]* drives healing",
         "$total drives online",
         "minio_total_drives",
         "minio_write_config \"$minio_host\" \"$minio_mc_dir\"",

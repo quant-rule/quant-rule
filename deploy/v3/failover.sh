@@ -31,10 +31,11 @@ db_patroni_list() {
   local host=$1
   # shellcheck disable=SC2086
   remote "$host" "$docker_bin exec quantrule-patroni-$host sh -c \
-    'PATRONI_CTL_PASSWORD=\$(cat /run/secrets/patroni_rest_password) patronictl -c /etc/patroni/patroni.yml list'"
+    'PATRONI_RESTAPI_PASSWORD=\$(cat /run/secrets/patroni_rest_password) patronictl -c /etc/patroni/patroni.yml list'"
 }
 
-# The member name in one role column (`Leader`, `Sync`, `Replica`), or empty.
+# The member name in one role column (`Leader`, `Sync`, `Sync Standby`,
+# `Replica`), or empty. Patroni 4 prints the long form for the sync standby.
 db_role_member() {
   local list=$1 role=$2
   printf '%s\n' "$list" | awk -F'|' -v role="$role" '
@@ -42,7 +43,10 @@ db_role_member() {
       member = $2
       gsub(/^ +| +$/, "", member)
       gsub(/^ +| +$/, "", $4)
-      if (tolower($4) == tolower(role)) { print member; exit }
+      if (tolower($4) == tolower(role) || index(tolower($4), tolower(role)) == 1) {
+        print member
+        exit
+      }
     }
   '
 }
@@ -104,13 +108,14 @@ db_psql_local() {
 # the HAProxy control; the hostname stays `postgres`, so `verify-full` still
 # verifies the Postgres SAN.
 db_psql_remote() {
-  local exec_host=$1 sql=$2 extra_env=${3:-}
+  local exec_host=$1 sql=$2 extra_env=${3:-} escaped
+  escaped=${sql//\'/\'\\\'\'}
   # shellcheck disable=SC2086
   remote "$exec_host" "$docker_bin exec quantrule-patroni-$exec_host sh -c \
     'PGPASSWORD=\$(cat /run/secrets/postgres_superuser_password); \
      export PGPASSWORD; \
      $extra_env PGSSLMODE=verify-full PGSSLROOTCERT=/etc/quantrule/pki/ca.crt PGCONNECT_TIMEOUT=5 \
-     psql -h postgres -U postgres -d postgres -tAc \"$sql\"'"
+     psql -h postgres -U postgres -d postgres -tAc \"$escaped\"'"
 }
 
 # Write through the application endpoint: the HAProxy `postgres` alias and TLS.
@@ -175,20 +180,37 @@ db_preflight() {
     $ssh_bin "$(host_address "$host")" true >/dev/null 2>&1 \
       || db_fail "cannot SSH to $host ($(host_address "$host")); set QR_SWARM_SSH"
   done
+  local host attempt
   for host in $db_etcd_hosts; do
-    db_etcd_health "$host" || db_fail "etcd $host is not healthy with the client TLS leaves"
+    attempt=0
+    until db_etcd_health "$host"; do
+      attempt=$((attempt + 1))
+      [ "$attempt" -lt 30 ] || db_fail "etcd $host is not healthy with the client TLS leaves"
+      sleep 2
+    done
   done
-  db_etcd_leader_endpoint=$(db_etcd_leader "$(printf '%s\n' "$db_etcd_hosts" | head -n 1)") \
-    || db_fail "cannot read the etcd leader with the client TLS leaves"
+  db_etcd_leader_endpoint=""
+  for attempt in $(seq 1 30); do
+    db_etcd_leader_endpoint=$(db_etcd_leader "$(printf '%s\n' "$db_etcd_hosts" | head -n 1)" 2>/dev/null || true)
+    [ -n "$db_etcd_leader_endpoint" ] && break
+    sleep 2
+  done
   [ -n "$db_etcd_leader_endpoint" ] || db_fail "etcd reports no leader"
 
-  local first_postgres first_haproxy output running
+  local first_postgres first_haproxy output running primary sync
   first_postgres=$(printf '%s\n' "$db_postgres_hosts" | head -n 1)
   first_haproxy=$(printf '%s\n' "$db_haproxy_hosts" | head -n 1)
-  output=$(db_patroni_list "$first_postgres") \
-    || db_fail "cannot read patronictl list on $first_postgres"
-  db_primary=$(db_role_member "$output" Leader)
-  db_sync=$(db_role_member "$output" Sync)
+  primary=""
+  sync=""
+  for attempt in $(seq 1 60); do
+    output=$(db_patroni_list "$first_postgres" 2>/dev/null || true)
+    primary=$(db_role_member "$output" Leader)
+    sync=$(db_role_member "$output" Sync)
+    [ -n "$primary" ] && [ -n "$sync" ] && break
+    sleep 2
+  done
+  db_primary=$primary
+  db_sync=$sync
   [ -n "$db_primary" ] || db_fail "patronictl reports no leader"
   [ -n "$db_sync" ] || db_fail "patronictl reports no synchronous standby; writes would block"
   case "$db_primary" in patroni-*) ;; *) db_fail "unexpected leader member $db_primary" ;; esac
@@ -315,7 +337,7 @@ db_haproxy_control() {
 
 db_restore() {
   local old_host old_member deadline output role streaming logs
-  old_host=$(db_baseline_host)
+  old_host=$db_baseline_host
   old_member=$db_primary
   db_unpause "$old_host" "quantrule-patroni-$old_host"
   deadline=$(( $(date +%s) + 180 ))
@@ -327,7 +349,7 @@ db_restore() {
       "SELECT count(*) FROM pg_stat_replication WHERE state = 'streaming';" \
       2>/dev/null | tr -d '[:space:]' || true)
     case "$role" in
-      Replica | Sync)
+      Replica | Sync*)
         if [ -n "$streaming" ] && [ "$streaming" -ge 2 ]; then
           break
         fi
@@ -336,7 +358,7 @@ db_restore() {
     sleep 1
   done
   case "$role" in
-    Replica | Sync) ;;
+    Replica | Sync*) ;;
     *) db_fail "$old_member did not rejoin as a replica" ;;
   esac
   [ -n "$streaming" ] && [ "$streaming" -ge 2 ] \

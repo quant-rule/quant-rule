@@ -305,7 +305,9 @@ rabbitmq_ready() {
 rabbitmq_eval() {
   host=$1
   expression=$2
-  rabbitmq_exec "$host" rabbitmqctl -q eval "$expression" | tr -d '[:space:]'
+  # Quote the Erlang expression for the remote shell; parentheses and colons
+  # are not valid unquoted shell syntax.
+  $ssh_bin "$host" "$sudo_bin $docker_bin exec -u rabbitmq $(rabbitmq_container "$host") rabbitmqctl -q eval '$expression'" | tr -d '[:space:]'
 }
 
 rabbitmq_cluster_ready() {
@@ -363,7 +365,7 @@ patroni_list() {
   host=$1
   # shellcheck disable=SC2086
   $ssh_bin "$host" "$sudo_bin $docker_bin exec quantrule-patroni-$host sh -c \
-    'PATRONI_CTL_PASSWORD=\$(cat /run/secrets/patroni_rest_password) patronictl -c /etc/patroni/patroni.yml list'"
+    'PATRONI_RESTAPI_PASSWORD=\$(cat /run/secrets/patroni_rest_password) patronictl -c /etc/patroni/patroni.yml list'"
 }
 
 patroni_ready() {
@@ -439,7 +441,7 @@ minio_mc() {
   overlay=$(overlay)
   # shellcheck disable=SC2086
   $ssh_bin "$host" "$sudo_bin $docker_bin run --rm --network $overlay \
-    -v $directory:/mc:ro \
+    -v $directory:/mc \
     -v /etc/quantrule/pki/minio/CAs/ca.crt:/certs/ca.crt:ro \
     -e SSL_CERT_FILE=/certs/ca.crt \
     $image --config-dir /mc $*"
@@ -458,7 +460,7 @@ minio_mc_shell() {
   # shellcheck disable=SC2086
   $ssh_bin "$host" "$sudo_bin $docker_bin run --rm --network $overlay \
     --entrypoint /bin/sh $mounts \
-    -v $directory:/mc:ro \
+    -v $directory:/mc \
     -v /etc/quantrule/pki/minio/CAs/ca.crt:/certs/ca.crt:ro \
     -e SSL_CERT_FILE=/certs/ca.crt \
     $image -c '$script'"
@@ -472,8 +474,12 @@ minio_ready() {
     printf '%s\n' "$info" | grep -q "minio-$node:9000" || return 1
   done
   printf '%s\n' "$info" | grep -q "0 drives offline" || return 1
-  printf '%s\n' "$info" | grep -q "0 drives healing" || return 1
   printf '%s\n' "$info" | grep -Eq "$total drives online" || return 1
+  # This mc version prints `N drives healing` only while a heal is running; an
+  # absent line is the healthy zero, and a positive count is the failure.
+  if printf '%s\n' "$info" | grep -Eq '[1-9][0-9]* drives healing'; then
+    return 1
+  fi
 }
 
 wait_ready() {

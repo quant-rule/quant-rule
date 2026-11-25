@@ -56,7 +56,7 @@ fn runtime_table() -> [(&'static str, u16, &'static str); 7] {
         ("data", 8080, "/version"),
         ("model", 8080, "/version"),
         ("strategy", 8080, "/version"),
-        ("backtest", 9090, "/health"),
+        ("backtest", 9100, "/health"),
         ("evidence", 8080, "/version"),
         ("simulation", 8080, "/version"),
     ]
@@ -69,7 +69,17 @@ fn inspect_runtime(
     let image = app_image(descriptor);
     let network = &descriptor.network.overlay;
     let mut rows = Vec::new();
-    for (service, port, path) in runtime_table() {
+    for (service, default_port, path) in runtime_table() {
+        // The backtest worker serves no public API: its `/health` lives on the
+        // internal metrics listener, not the unused service bind.
+        let port = if service == "backtest" {
+            default_port
+        } else {
+            descriptor
+                .services
+                .get(service)
+                .map_or(default_port, |value| value.port)
+        };
         let url = format!("http://{service}:{port}{path}");
         match docker.runtime_probe(network, &image, &url) {
             Ok(body) => {

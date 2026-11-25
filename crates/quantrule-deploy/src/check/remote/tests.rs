@@ -417,6 +417,50 @@ fn a_second_published_port_fails() {
 }
 
 #[test]
+fn an_empty_encrypted_option_is_accepted() {
+    let descriptor = descriptor();
+    let mut fake = healthy(&descriptor);
+    fake.networks.insert(
+        descriptor.network.overlay.clone(),
+        Ok(serde_json::json!({
+            "Name": descriptor.network.overlay,
+            "Driver": "overlay",
+            "Attachable": true,
+            "Options": {"encrypted": ""}
+        })
+        .to_string()),
+    );
+    let rows = rows(&fake);
+    assert!(
+        !failures(&rows).iter().any(|row| row
+            .error
+            .as_deref()
+            .is_some_and(|error| error.contains("not encrypted"))),
+        "{}",
+        text(&rows)
+    );
+}
+
+#[test]
+fn a_zero_service_status_uses_the_task_list() {
+    let descriptor = descriptor();
+    let mut fake = healthy(&descriptor);
+    let full = format!("{}_gateway", stack_name(&descriptor));
+    let mut service: serde_json::Value =
+        serde_json::from_str(fake.services[&full].as_ref().expect("service")).expect("service");
+    service["ServiceStatus"] = serde_json::json!({"RunningTasks": 0, "DesiredTasks": 0});
+    fake.services.insert(full, Ok(service.to_string()));
+    let rows = rows(&fake);
+    assert!(
+        !failures(&rows)
+            .iter()
+            .any(|row| row.subject == "service gateway"),
+        "{}",
+        text(&rows)
+    );
+}
+
+#[test]
 fn an_unencrypted_overlay_fails() {
     let descriptor = descriptor();
     let mut fake = healthy(&descriptor);

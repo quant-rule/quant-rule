@@ -440,6 +440,17 @@ fn object_row(descriptor: &Descriptor, out: Option<&Path>) -> CheckRow {
 fn image_row(descriptor: &Descriptor) -> CheckRow {
     let pin = &descriptor.images["patroni"];
     if pin.reference != PGBACKREST_IMAGE_REFERENCE {
+        if descriptor.profile == crate::descriptor::v3::Profile::LabSingleHost {
+            return CheckRow::ok(
+                "backup",
+                "image",
+                "local-lab",
+                format!(
+                    "lab uses the locally published derived image {}; the release reference is {PGBACKREST_IMAGE_REFERENCE}",
+                    pin.reference
+                ),
+            );
+        }
         return CheckRow::failed(
             "backup",
             "image",
@@ -796,6 +807,19 @@ mod tests {
                 rows.iter().map(row_text).collect::<String>()
             );
         }
+    }
+
+    #[test]
+    fn a_lab_local_patroni_image_is_reported_not_failed() {
+        let mut value: serde_json::Value =
+            serde_json::from_str(include_str!("../../../../deploy/v3/deploy.lab.json"))
+                .expect("lab descriptor");
+        value["images"]["patroni"]["reference"] =
+            serde_json::json!("10.10.0.2:5000/quantrule/patroni");
+        let descriptor: Descriptor = serde_json::from_value(value).expect("lab");
+        let row = image_row(&descriptor);
+        assert!(!row.is_failure(), "{row:?}");
+        assert_eq!(row.state, "local-lab");
     }
 
     #[test]

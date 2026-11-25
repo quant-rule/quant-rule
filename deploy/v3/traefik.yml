@@ -36,16 +36,6 @@ metrics:
     addEntryPointsLabels: true
     addServicesLabels: true
 
-tls:
-  stores:
-    default:
-      defaultCertificate:
-        certFile: /etc/traefik/certs/ingress.crt
-        keyFile: /etc/traefik/certs/ingress.key
-  options:
-    default:
-      minVersion: VersionTLS12
-
 accessLog:
   format: json
   fields:

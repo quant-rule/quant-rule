@@ -228,11 +228,17 @@ o_admin_info() {
 }
 
 # One count from the `mc admin info` summary (`N drives online|offline|healing`).
+# This mc version prints `N drives healing` only while a heal is running, so an
+# absent healing line is the healthy zero, never an unparsed value.
 o_drive_count() {
-  local text=$1 state=$2
-  printf '%s\n' "$text" \
+  local text=$1 state=$2 count
+  count=$(printf '%s\n' "$text" \
     | sed -n "s/.* \([0-9][0-9]*\) drives $state.*/\1/p" \
-    | tail -n 1
+    | tail -n 1)
+  if [ -z "$count" ] && [ "$state" = "healing" ]; then
+    count=0
+  fi
+  printf '%s' "$count"
 }
 
 o_ready() {

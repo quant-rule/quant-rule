@@ -85,7 +85,7 @@ fn failures(rows: &[CheckRow]) -> Vec<&CheckRow> {
 #[test]
 fn the_probe_reads_backtest_health_and_every_version_endpoint() {
     assert_eq!(runtime_table().len(), 7);
-    assert!(runtime_table().contains(&("backtest", 9090, "/health")));
+    assert!(runtime_table().contains(&("backtest", 9100, "/health")));
     assert!(
         runtime_table()
             .iter()
@@ -126,7 +126,7 @@ fn a_runtime_digest_mismatch_fails_closed() {
     let descriptor = descriptor();
     let mut fake = healthy(&descriptor);
     fake.responses.insert(
-        "http://backtest:9090/health".to_owned(),
+        "http://backtest:9100/health".to_owned(),
         Ok(r#"{"image_digest":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}"#
             .to_owned()),
     );

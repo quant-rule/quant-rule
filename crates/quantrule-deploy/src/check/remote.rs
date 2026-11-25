@@ -467,8 +467,12 @@ fn inspect_docker(
             .and_then(|text| parse_single::<ServiceInspect>(&text, "service"))
         {
             Ok(service) => {
+                let task_running = docker
+                    .service_tasks(&full)
+                    .ok()
+                    .map(|text| running_task_count(&text));
                 let (issues, running, desired) =
-                    service_issues(&service, &expected_image, expected_replicas);
+                    service_issues(&service, &expected_image, expected_replicas, task_running);
                 if issues.is_empty() {
                     rows.push(CheckRow::ok(
                         "remote",
@@ -683,8 +687,11 @@ fn network_row(group: &'static str, descriptor: &Descriptor, network: &NetworkIn
     if !network.attachable {
         issues.push("the network is not attachable".to_owned());
     }
-    if network.options.get("encrypted").map(String::as_str) != Some("true") {
-        issues.push("the network is not encrypted".to_owned());
+    match network.options.get("encrypted").map(String::as_str) {
+        // Docker 27 reports `encrypted: ""` for an encrypted overlay; an
+        // absent key is unencrypted and an explicit false is not trusted.
+        Some("") | Some("true") => {}
+        _ => issues.push("the network is not encrypted".to_owned()),
     }
     if issues.is_empty() {
         CheckRow::ok(
@@ -732,10 +739,18 @@ fn service_table(descriptor: &Descriptor) -> Vec<(String, String, String, u32)> 
     table
 }
 
+fn running_task_count(text: &str) -> u64 {
+    text.lines()
+        .filter_map(|line| serde_json::from_str::<TaskInspect>(line).ok())
+        .filter(|task| task.current_state.starts_with("Running"))
+        .count() as u64
+}
+
 fn service_issues(
     service: &ServiceInspect,
     expected_image: &str,
     expected_replicas: u32,
+    task_running: Option<u64>,
 ) -> (Vec<String>, u64, u64) {
     let mut issues = Vec::new();
     let image = &service.spec.task_template.container_spec.image;
@@ -758,7 +773,13 @@ fn service_issues(
     } else {
         spec_replicas
     };
-    let running = service.service_status.running_tasks;
+    // Docker 27 reports a nil or zero `ServiceStatus` for a service that is
+    // running; the task list is authoritative in that case.
+    let running = if service.service_status.running_tasks > 0 {
+        service.service_status.running_tasks
+    } else {
+        task_running.unwrap_or(0)
+    };
     if desired != u64::from(expected_replicas) {
         issues.push(format!(
             "desired tasks {desired}, expected {expected_replicas}"
