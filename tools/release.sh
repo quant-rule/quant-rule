@@ -160,7 +160,9 @@ install_tools() {
   mkdir -p "$directory"
   local temporary
   temporary=$(mktemp -d "${TMPDIR:-/tmp}/qr-release-tools.XXXXXX")
-  trap 'rm -rf "$temporary"' EXIT
+  # Expand the path now: the EXIT trap runs after this function's locals are
+  # out of scope, so a deferred "$temporary" would be unset under `set -u`.
+  trap "rm -rf '$temporary'" EXIT
   fetch_verified "https://github.com/sigstore/cosign/releases/download/$COSIGN_VERSION/cosign-linux-amd64" \
     "$COSIGN_SHA256" "$temporary/cosign" "cosign $COSIGN_VERSION"
   install -m 755 "$temporary/cosign" "$directory/cosign"

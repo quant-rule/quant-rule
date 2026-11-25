@@ -178,6 +178,7 @@ history is in Git and the pull requests.
 
 ### Fixed
 
+- `tools/release.sh install-tools` no longer fails at exit with `temporary: unbound variable`; the EXIT trap now expands the temporary directory path before the function's local scope ends, so the release workflow can install cosign, syft, and grype.
 - A Compose restore now keeps the dump's owner and ACL entries, so the four `qr_*_owner` roles still own the restored tables and the app roles keep their DML grants; the migration jobs and services can use the restored rows instead of failing with `permission denied`. `pg_restore --clean --if-exists` also replaces the empty schemas a fresh `db-bootstrap` leaves, so a restore into a freshly bootstrapped stack no longer fails on `schema already exists`.
 - The backup round-trip test now restores into that freshly bootstrapped target, compares the current tables (the removed `catalog.profiles` table is gone), and proves the restored migration ledger and app grants survive.
 - A migration-only process now validates `QR_DATABASE_OWNER_URL_FILE` against the TLS CA instead of the absent application URL, so `make up` can complete the four migration jobs with the documented TLS secrets.
