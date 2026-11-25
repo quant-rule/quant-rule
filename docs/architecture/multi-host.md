@@ -1,6 +1,6 @@
 # Multi-Host Deployment
 
-- Status: Implemented; hardening #980; release pending; the v3 Patroni/etcd/HAProxy tier, check rows, and failover harness are separate and current; the v3 RabbitMQ broker/checks/definitions are current and its live lab is `Unverified` without a three-VM host; the v3 MinIO erasure/check rows/node-loss lab are current and its live lab is `Unverified` here; PLAT-007 running-task image and all-service digest checks are current; HA-013 phase 1a pgBackRest/Compose archive, phase 2 stage lease/outbox and queue rebuild, and phase 3 object archive/DR/lab integration are current; its live drill is `Unverified`
+- Status: Implemented; hardening #980; release pending; the v3 Patroni/etcd/HAProxy tier, check rows, and failover harness are separate and current; the v3 RabbitMQ broker/checks/definitions are current and the 2026-11-25 lab records queue loss as `Simulated HA`; the v3 MinIO erasure/check rows/node-loss lab are current and the 2026-11-25 lab records object loss as `Simulated HA`; PLAT-007 running-task image and all-service digest checks are current; HA-013 phase 1a pgBackRest/Compose archive, phase 2 stage lease/outbox and queue rebuild, and phase 3 object archive/DR/lab integration are current; the 2026-11-25 in-place DR is `Measured`, while HA-22/HA-23 remain `Unverified`
 - Part of: [`README.md`](README.md)
 - Decision: [ADR-2026-11-20-01](../adr/2026-11-20/958-multi-host-deployment.md)
 - Claim type: Behaviour Claim
@@ -139,7 +139,7 @@ The gateway `/ready` reports the upstream states.
 
 - Stop the gateway, compute, and core roles; keep infrastructure running. Dump
   the four logical databases, mirror the bucket, write a manifest, and restore
-  objects before rows. The v3 pgBackRest path is [backup and restore](../config/2026-11-24/backup-restore.md); its live drill is `Unverified`. The v3 `tools/object-archive.sh` is a one-way archive, not replication, and `deploy/v3/dr.sh` proves the scratch/in-place digest.
+  objects before rows. The v3 pgBackRest path is [backup and restore](../config/2026-11-24/backup-restore.md); its 2026-11-25 in-place drill is `Measured`. The v3 `tools/object-archive.sh` is a one-way archive, not replication, and `deploy/v3/dr.sh` proves the scratch/in-place digest.
 - The queue is not archived; messages are rebuilt from run and stage rows. v3 definitions export/import is in the [RabbitMQ contract](../config/2026-11-23/rabbitmq-cluster.md); HA-013 phase 2 adds `tools/queue-rebuild.sh`, and the empty-broker drill is a plan.
 - Distribute the new image to every host, stop the gateway and workers, update
   core and compute, then start workers and gateway.
@@ -156,7 +156,7 @@ or DEB. Windows multi-host servers are not supported; the server profile is Linu
 Residual risks accepted for v1: database roles are per service but v2 uses one
 Postgres password for every role; every service shares the MinIO root
 credentials and one queue user; the overlay is the only service-to-service
-boundary and internal HTTP has no mTLS (HA-012); v2 `qr-deploy check` does not inspect a remote image (v3 `--remote docker` compares every running task image and `--runtime` proves seven digests); the v2 backup wrapper calls the Compose tools and the v3 pgBackRest path is separate with a live drill `Unverified`; the infrastructure host is a single point of failure.
+boundary and internal HTTP has no mTLS (HA-012); v2 `qr-deploy check` does not inspect a remote image (v3 `--remote docker` compares every running task image and `--runtime` proves seven digests); the v2 backup wrapper calls the Compose tools and the v3 pgBackRest path is separate with a 2026-11-25 `Measured` in-place drill; the infrastructure host is a single point of failure.
 
 ## 11. Related
 

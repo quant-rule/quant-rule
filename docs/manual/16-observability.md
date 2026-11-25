@@ -4,7 +4,8 @@
 - Audience: operator running the v3 Prometheus/Alertmanager/Loki/Grafana tier
 - Boundary: PLAT-006 owns the scrape, rules, dashboards, log pipeline, and
   `tools/observability.sh`. HA-013 phase 1a owns the backup-age textfile, phase 3 owns the object archive; HA-014 owns real HA
-  evidence, and a live three-VM lab is `Unverified` until it runs.
+  evidence; the 2026-11-25 lab is `Simulated HA`, and HA-22/HA-23 remain
+  `Unverified`.
 
 ## Goal
 
@@ -84,7 +85,8 @@ node_exporter already mounts; no container gets a Docker socket for it.
 dashboard provisioning, per-host placement, and readiness; the 28
 `check/observability.rs` rows prove the static contract, including the 38-rule/
 17-row HA matrix. They do not prove a live scrape, log delivery, alert delivery,
-or a three-VM lab; those remain `Unverified` here, and `Real HA` is HA-014.
+or a three-VM lab; the 2026-11-25 lab observably fires and resolves the
+manager/gateway alerts as `Simulated HA`, and `Real HA` is HA-014.
 
 ## Failure
 

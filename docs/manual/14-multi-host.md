@@ -48,7 +48,7 @@ Do not start this profile while the single-host stack owns
 | 13 | compute host | `docker ps --filter name=backtest`; `docker image inspect --format '{{.Id}}' <image>` | Worker present; image ID matches |
 | 14 | client | `QUANTRULE_API_URL=http://<gateway>:8080/api/v1`; `quantrule health` | Connected |
 | 15 | client | Submit the verification fixture and read the digest | Same digest as single-host |
-| 16 | infra host | Stop gateway, compute, and core; run the backup wrapper with `--application-stopped` | Archive and sidecar written with one dump per database; `--check` verifies it without Docker; the v3 pgBackRest path is separate and its live drill is `Unverified` |
+| 16 | infra host | Stop gateway, compute, and core; run the backup wrapper with `--application-stopped` | Archive and sidecar written with one dump per database; `--check` verifies it without Docker; the v3 pgBackRest path is separate and its 2026-11-25 in-place drill is `Measured` |
 
 Each host needs only the files for the services it runs. The image is already
 loaded; the Compose files use `network_mode: host` and the env file's
@@ -61,7 +61,7 @@ For the v3 TLS path, the shell reads the environment rather than a flag:
 `QUANTRULE_TOKEN` or `--token`. `--remote` is a `qr-deploy check` option, never a
 shell flag. `deploy/v3/lab.sh --remote-client --confirm` runs the client TLS/token
 phase outside the Swarm, prints only status/digest, and fails closed on a missing
-CA; the lab row stays `Unverified` until the full lab runs.
+CA; the remote-client row stays `Unverified`; the 2026-11-25 lab is `Simulated HA`.
 
 Rotate the gateway token with the [manual 08 steps](08-operations.md): replace
 `env/secrets/bearer_token` on the gateway host, copy it into the gateway's

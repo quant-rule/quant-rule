@@ -160,11 +160,11 @@ runs none and points at `http://<server>:8080`. Scaling is configuration.
    previous image is retired.
 4. Rollback starts the previous digest without its job; the schema stays
    expanded and the previous image must tolerate it. See [migrations.md](migrations.md)
-   §5. A destructive contract migration closes the window; recovery is the pgBackRest PITR, and a live drill is `Unverified`.
+   §5. A destructive contract migration closes the window; recovery is the pgBackRest PITR, and the 2026-11-25 in-place drill is `Measured`.
 
 The split does not copy rows from the old `quantrule` database: use `make reset`
 for disposable data, or the migration runbook for kept evidence.
 ## 8. What deployment does not provide
 
 Autoscaling and real HA evidence are out of this profile; image distribution, signing, SBOM, and the CVE gate are the [registry contract](../config/2026-11-24/registry.md). PostgreSQL, RabbitMQ and MinIO use internal TLS; the gateway serves plain HTTP behind the ingress ([ingress contract](../config/2026-11-23/ingress.md)). Multi-host placement is in [multi-host.md](multi-host.md); v3 render/check and the `tools/swarm.sh` control plane are in [deploy/v3](../config/2026-11-22/deploy-v3.md) and [swarm-control](../config/2026-11-23/swarm-control.md); Patroni/etcd/HAProxy is in [patroni-cluster](../config/2026-11-23/patroni-cluster.md), RabbitMQ in [rabbitmq-cluster](../config/2026-11-23/rabbitmq-cluster.md), MinIO in [minio-cluster](../config/2026-11-23/minio-cluster.md), observability in [observability](../config/2026-11-23/observability.md), and backup in [backup and restore](../config/2026-11-24/backup-restore.md); real HA is HA-014.
-The ingress/stateful/queue/MinIO check rows (`--out`/`QR_DEPLOY_OUT`), the `QUANTRULE_CA_CERT` trust path, the measured lab RTO, the MinIO probe hash/write quorum, `--skip-object`, and the `Unverified` lab boundary are documented in those contracts.
+The ingress/stateful/queue/MinIO check rows (`--out`/`QR_DEPLOY_OUT`), the `QUANTRULE_CA_CERT` trust path, the measured lab RTO, the MinIO probe hash/write quorum, `--skip-object`, and the `Simulated HA` lab boundary are documented in those contracts.

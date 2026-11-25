@@ -140,8 +140,8 @@ the primary, and stops a broker and a MinIO node; `--confirm` gates it and every
 or `--url` flag. The browser suite is `apps/web/playwright.remote.config.ts`
 (`QR_REMOTE_BROWSER=1`, `QR_REMOTE_URL`). Evidence is value-free JSON under
 `QR_LAB_EVIDENCE`; three VMs on one computer are `Simulated HA`, not host/AZ
-loss; `swarm-ha`/`single-az` stay `HA profile (unverified)` until HA-014.
-HA-013 phase 1a configures pgBackRest, the derived Patroni image, the Compose four-database archive, and the backup-age signal; phase 2 adds the stage lease/outbox and `tools/queue-rebuild.sh`; phase 3 adds the one-way `tools/object-archive.sh` and `deploy/v3/dr.sh`, and `--dr` runs the in-place lab drill after the failure phase while `--skip-dr` leaves it `Unverified`. The live drill and empty-broker drill are `Unverified`; object lock is not in v1.5.10.
+loss; the `swarm-ha`/`single-az` descriptors remain designs; the 2026-11-25 lab is `Simulated HA`.
+HA-013 phase 1a configures pgBackRest, the derived Patroni image, the Compose four-database archive, and the backup-age signal; phase 2 adds the stage lease/outbox and `tools/queue-rebuild.sh`; phase 3 adds the one-way `tools/object-archive.sh` and `deploy/v3/dr.sh`, and `--dr` runs the in-place lab drill after the failure phase while `--skip-dr` leaves it `Unverified`. The 2026-11-25 in-place drill is `Measured`; the empty-broker drill remains a plan. Object lock is not in v1.5.10.
 HA-014 adds `deploy/v3/chaos.sh`: `--chaos` requires `--confirm` and runs the HA-18..HA-21 worker/leader kills, the non-VIP gateway kill, and the etcd member stop/start; `--skip-chaos` is the default and leaves every chaos row `Unverified`. Evidence is one value-free `quantrule.ha-evidence/v1` JSON per row under `QR_HA_EVIDENCE`; `Simulated HA` is the maximum. `deploy/v3/real-ha.sh` is the operator-only HA-22/HA-23 gate: it refuses `lab-single-host` and a missing human attestation and never executes a power or disk command. The 23 rows are in the [failure and chaos matrix](../config/2026-11-24/chaos-matrix.md).
 ## What you see
 
@@ -177,7 +177,7 @@ proves all seven service digests. The fast tier is static/golden/fake-probe; the
 | `deploy.profile.failure_domains` | `swarm-ha` with fewer than three domains | Add a failure domain or choose `single-az` |
 | `deploy.stateful.postgres.synchronous_standby` | A value other than one | Keep one synchronous standby; writes fail closed without one |
 | `deploy.stateful.minio.parity` | Parity does not keep the write quorum or exceeds the data blocks | Use `auto` or `EC:N` with `N > max drives per node` and `2N <= total` |
-| `deploy.backup.*` | A true second-site claim or `cipher: none` | Set `object_replication: false` and `aes-256-cbc`; phase 3's archive is one-way and its live drill is `Unverified` |
+| `deploy.backup.*` | A true second-site claim or `cipher: none` | Set `object_replication: false` and `aes-256-cbc`; phase 3's archive is one-way and its 2026-11-25 in-place drill is `Measured` |
 | `deploy.secrets.missing` / `deploy.secret.url_safe` | A stateful or MinIO root secret is missing or not URL-safe | Install all seven mode-600 files; no spaces, `@`, `:`, or `/` |
 | `deploy.secret.weak_cookie` / `deploy.secret.default_cookie` | The Erlang cookie is short or a template | Use 32+ URL-safe characters, distinct from every password |
 | `deploy.secret.object_store_user` | The S3 access key is not `qr_app` | Write `qr_app`; the bucket policy is scoped to that user |

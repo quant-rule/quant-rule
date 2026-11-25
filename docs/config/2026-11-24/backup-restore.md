@@ -4,8 +4,9 @@
 - Status: Current for HA-013 phases 1a, 2, and 3: the descriptor fields,
   validation, render, check rows, derived Patroni image, Compose four-database
   archive, backup-age signal, stage lease/outbox, queue rebuild, object archive,
-  DR tool, and lab integration. The live repository, backup, restore, PITR,
-  object archive, queue rebuild, and DR drill are `Unverified` here.
+  DR tool, and lab integration. The 2026-11-25 Compose backup/restore and
+  in-place lab DR are `Measured`; the v3 empty-broker drill remains a plan, and
+  `Real HA` is not claimed.
 - Issue: [#1111](https://github.com/quant-rule/quant-rule/issues/1111)
 - Claim type: Behaviour Claim
 - Related: [ADR-HA-013](../../adr/2026-11-24/1111-backup-restore.md),
@@ -29,9 +30,9 @@ never archived: a message is derived from a run or stage row, and phase 2
 implements the rebuild; the stage lease and outbox make replay safe, and the
 empty-broker drill is a lab plan.
 
-The live backup, verify, restore, PITR, object archive, and DR drill are
-`Unverified` here; the static contract is current and no repository received a
-byte. A DR drill proves that a recorded backup and archive reproduce the
+The 2026-11-25 Compose backup/restore and in-place lab DR are `Measured`; the
+static contract is current. A v3 empty-broker drill remains a plan, and
+`Real HA` is not claimed. A DR drill proves that a recorded backup and archive reproduce the
 canonical digest; it does not prove the production SLO, a second site, or
 `Real HA`.
 
@@ -228,7 +229,7 @@ unit publishes no port and keeps its data under `/srv/quantrule/patroni/data`.
 
 | Row | Proves |
 |---|---|
-| `pitr` | `pitr` is true, the retention is set, and the live drill is `Unverified` |
+| `pitr` | `pitr` is true, the retention is set, and the 2026-11-25 in-place lab drill is `Measured` |
 | `stanza` | One `quantrule` section, `pg1-path`, port 5432, and the socket directory per node |
 | `archive` | `archive_mode`/`archive_timeout`/`wal_level`, `archive-push`, `archive-get` |
 | `placeholder` | No `/srv/quantrule/wal-archive` and no `test ! -f` in config or unit |
@@ -315,7 +316,7 @@ is the target minus the newest covered marker; cluster RPO 0 is the
 synchronous-standby property, backup RPO is WAL lag, and object RPO is the
 archive interval. RTO is split into restore, startup, and digest seconds. The
 three-VM lab is `Simulated HA`; a scratch row is `Measured` only for the
-operations run; `Real HA` is HA-014. The [matrix](chaos-matrix.md) records F16 as static `Current`; live claims stay `Unverified`.
+operations run; `Real HA` is HA-014. The [matrix](chaos-matrix.md) records F16 as static `Current`; the 2026-11-25 lab records the DR, while live backup/verify alarm triggers were not claimed.
 
 The queue is not archived. Evidence migration 22 adds a lease-fenced stage
 claim and a stage outbox; a live lease is never stolen, a terminal row is never
