@@ -1,5 +1,9 @@
 # QuantRule remote profile — one bearer token, one published port.
 #
+# The base file binds the unauthenticated local gateway to 127.0.0.1 only.
+# `tools/remote.sh` sets QR_GATEWAY_BIND=0.0.0.0 (or the operator's chosen
+# address) for this profile; a direct Compose run must set it too.
+#
 # This override is layered on `compose.yaml` by `make remote`:
 #
 #   docker compose -f compose.yaml -f compose.remote.yaml up -d --wait

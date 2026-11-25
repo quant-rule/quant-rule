@@ -29,8 +29,10 @@ A published gateway port without a gate is a misconfiguration. Exactly one of:
 
 `make token` prints a new 256-bit token. `make remote` reads
 `QR_BEARER_TOKEN` or generates one, writes `secrets/bearer_token` at mode 600,
-mounts it at `/run/secrets/bearer_token`, and publishes only `:8080`. The
-gateway reads `QR_BEARER_TOKEN_FILE`; the value is never in its environment.
+mounts it at `/run/secrets/bearer_token`, and binds `:8080` on all interfaces
+(or the address in `QR_GATEWAY_BIND`). The local `make up` profile binds
+`127.0.0.1:8080` only, because it is unauthenticated. The gateway reads
+`QR_BEARER_TOKEN_FILE`; the value is never in its environment.
 
 ```bash
 export QR_BEARER_TOKEN="$(./tools/token.sh)"
@@ -165,5 +167,4 @@ These are consequences of the single-principal decision, recorded not hidden.
 ## 8. Review triggers
 
 Invoke the Security and Privacy Reviewer when a port becomes public, a token or
-CA is introduced or rotated, multi-tenancy appears, or candle data leaves the
-network.
+CA is introduced or rotated, multi-tenancy appears, or candle data leaves the network.

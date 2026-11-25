@@ -171,6 +171,7 @@ history is in Git and the pull requests.
 
 ### Security
 
+- `make up` now binds the unauthenticated local gateway to `127.0.0.1:8080` only. `make remote` binds `0.0.0.0:8080` (or the address in `QR_GATEWAY_BIND`) and keeps the bearer gate, so a laptop on a shared network no longer exposes the API without a token by default.
 - A plain secret environment variable is refused in the server profile, so `docker inspect` and `/proc/<pid>/environ` never carry a DSN, queue URL, token or S3 key. An invalid token file cannot silently disable gateway authentication.
 - The private CA and server keys are Git-ignored and a `private-keys` governance checker refuses a committed key file or PEM private-key block. PostgreSQL and RabbitMQ do not request client certificates; a compromised overlay host can still impersonate a service over plaintext internal HTTP, as recorded in the TLS contract.
 

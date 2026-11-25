@@ -1,0 +1,19 @@
+S-01 bind check (2026-11-25 UTC)
+
+before, old compose.yaml, local make up:
+  8080/tcp -> 0.0.0.0:8080
+  LISTEN 0 4096 0.0.0.0:8080 0.0.0.0:*
+
+after, new compose.yaml, local make up:
+  8080/tcp -> 127.0.0.1:8080
+  LISTEN 0 4096 127.0.0.1:8080 0.0.0.0:*
+
+after, new compose.yaml + tools/remote.sh:
+  8080/tcp -> 0.0.0.0:8080
+  no token -> 401 auth.unauthorized
+  wrong token -> 401
+  configured token -> 200 on /profiles
+
+after returning to local:
+  8080/tcp -> 127.0.0.1:8080
+  /profiles without token -> 200

@@ -124,8 +124,11 @@ services:
       - qr_gateway_database_url
     volumes:
       - ${QR_PKI_DIR:-./pki}/ca.crt:/run/pki/ca.crt:ro
+    # The local profile is unauthenticated, so it binds loopback only. The
+    # remote profile sets QR_GATEWAY_BIND=0.0.0.0 (or a chosen interface) and
+    # adds the bearer gate; a direct Compose run inherits the loopback default.
     ports:
-      - "8080:8080"
+      - "${QR_GATEWAY_BIND:-127.0.0.1}:8080:8080"
     depends_on:
       data:
         condition: service_healthy

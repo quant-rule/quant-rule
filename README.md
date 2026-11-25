@@ -82,7 +82,7 @@ one-shot database bootstrap, and four one-shot migration jobs; see
 | Target | Effect |
 |---|---|
 | `make help` | List every target |
-| `make up` / `make secrets` / `make pki` | Create missing secrets and PKI, build, start, wait, print the URL |
+| `make up` / `make secrets` / `make pki` | Create missing secrets and PKI, build, start on `127.0.0.1:8080`, wait, print the URL |
 | `make down` | Stop, keep data |
 | `make reset` | Stop and delete volumes, after confirmation |
 | `make logs` / `make ps` | Observe |
@@ -90,7 +90,7 @@ one-shot database bootstrap, and four one-shot migration jobs; see
 | `make verify` | Submit the two fixture configs through the gateway and print the canonical digest |
 | `make test` / `make gate` | Fast tier / full workspace gate |
 | `make test-composed` / `test-parity` / `test-ha` | Composed, port-parity, and opt-in Swarm HA lab tiers |
-| `make remote` | Write `secrets/bearer_token`, publish only `:8080`, print the token and usage |
+| `make remote` | Write `secrets/bearer_token`, bind `:8080` on all interfaces, print the token and usage |
 | `make token` | Print a new bearer token; `--out` writes a mode-600 file |
 | `make compose-check` | Validate both Compose files with disposable secrets and PKI |
 | `make backup` / `make restore FILE=…` | Backup and restore (DIST-080, #671) |
@@ -98,7 +98,9 @@ one-shot database bootstrap, and four one-shot migration jobs; see
 
 `make remote` reuses `QR_BEARER_TOKEN` or generates one, writes
 `secrets/bearer_token` at mode 600, layers `compose.remote.yaml`, starts the
-stack with only `:8080` published, and prints the token and a `curl` example.
+stack with `:8080` bound on all interfaces (or `QR_GATEWAY_BIND`), and prints
+the token and a `curl` example. The local `make up` profile binds
+`127.0.0.1:8080` only because it is unauthenticated.
 The browser enters the token on the Connection screen and the shell reads
 `--token`, `QUANTRULE_TOKEN` or `QUANTRULE_TOKEN_FILE`; both then send
 `Authorization: Bearer` on every API call. Rotate by running `make remote` with
