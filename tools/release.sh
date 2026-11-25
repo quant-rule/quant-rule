@@ -252,9 +252,50 @@ scan() {
     die "cargo audit failed to run"
   fi
   jq -r '
+    def cvss_metric($m; $key; $table):
+      ($m[$key] // "") as $value | ($table[$value] // 0);
+    def cvss_base_score:
+      # RustSec writes CVSS v3.1 as the vector string, so compute the base
+      # score here rather than flattening every advisory to High. A v2 or
+      # malformed vector returns null and the caller keeps the conservative
+      # High classification.
+      if startswith("CVSS:3.") then
+        (split("/") | map(select(contains(":")) | split(":"))) as $parts
+        | reduce $parts[] as $part ({}; .[$part[0]] = $part[1]) as $m
+        | (if $m.S == "C" then 1 else 0 end) as $changed
+        | {
+            AV: cvss_metric($m; "AV"; {N: 0.85, A: 0.62, L: 0.55, P: 0.20}),
+            AC: cvss_metric($m; "AC"; {L: 0.77, H: 0.44}),
+            UI: cvss_metric($m; "UI"; {N: 0.85, R: 0.62}),
+            PR: (if $changed == 1
+                 then cvss_metric($m; "PR"; {N: 0.85, L: 0.68, H: 0.50})
+                 else cvss_metric($m; "PR"; {N: 0.85, L: 0.62, H: 0.27})
+                 end),
+            C: cvss_metric($m; "C"; {H: 0.56, L: 0.22, N: 0}),
+            I: cvss_metric($m; "I"; {H: 0.56, L: 0.22, N: 0}),
+            A: cvss_metric($m; "A"; {H: 0.56, L: 0.22, N: 0})
+          } as $v
+        | (1 - ((1 - $v.C) * (1 - $v.I) * (1 - $v.A))) as $iss
+        | (if $changed == 1
+           then 7.52 * ($iss - 0.029) - 3.25 * (($iss - 0.02) | pow(.; 15))
+           else 6.42 * $iss
+           end) as $impact
+        | (8.22 * $v.AV * $v.AC * $v.PR * $v.UI) as $exploitability
+        | if $impact <= 0 then 0
+          else
+            ((if $changed == 1 then 1.08 else 1 end) * ($impact + $exploitability)) as $raw
+            | (([$raw, 10] | min) * 10 | ceil) / 10
+          end
+      else null end;
+    def critical($cvss):
+      if ($cvss | type) == "array" then
+        ($cvss | map(.score // 0) | max // 0) >= 9.0
+      elif ($cvss | type) == "string" then
+        (try ($cvss | cvss_base_score) catch null) as $score
+        | $score != null and $score >= 9.0
+      else false end;
     (.vulnerabilities.list[]? | [
-      (if (((.advisory.cvss // []) | map(.score // 0) | max // 0) >= 9.0)
-       then "Critical" else "High" end),
+      (if critical(.advisory.cvss) then "Critical" else "High" end),
       (.advisory.id // ""),
       (.package.name // ""),
       (.package.version // ""),

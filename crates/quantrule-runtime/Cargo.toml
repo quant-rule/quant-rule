@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 publish = false
 
 [dependencies]
-aws-sdk-s3 = "1.159.0"
+aws-sdk-s3 = { version = "1.159.0", default-features = false, features = ["sigv4a", "http-1x", "default-https-client", "rt-tokio"] }
 aws-smithy-http-client = { version = "1.5", features = ["rustls-aws-lc", "rt-tokio"] }
 axum = "0.8.9"
 bytes = "1.12.1"
