@@ -3,7 +3,10 @@
 #
 # The archive holds one custom-format Postgres dump per logical database
 # (qr_gateway, qr_catalog, qr_evidence, qr_simulation), an object mirror of the
-# bucket, and a manifest that records the SHA-256 of every payload file. A
+# bucket, and a manifest that records the SHA-256 of every payload file. Each
+# dump keeps the object owner and ACL entries: the target stack has the fixed
+# qr_* roles from db-bootstrap, and the migration jobs and services need the
+# owner role and the app role's DML grants. A
 # detached `.sha256` sidecar covers the archive itself. `tools/restore.sh`
 # verifies both and refuses a partial four-database set before it writes
 # anything.
@@ -94,7 +97,7 @@ for database in $BACKUP_DATABASES; do
   dump="$databases_dir/$database.dump"
   if ! backup_compose exec -T postgres \
     pg_dump -U "$postgres_user" -d "$database" \
-    --format=custom --no-owner --no-privileges > "$dump"; then
+    --format=custom > "$dump"; then
     backup_die "pg_dump failed for $database"
   fi
   [ -s "$dump" ] || backup_die "pg_dump produced no bytes for $database"
