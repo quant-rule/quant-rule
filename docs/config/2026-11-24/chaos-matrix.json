@@ -35,19 +35,19 @@
     },
     {
       "id": "HA-03",
-      "claim": "F03 service replica: the target-down alert rule and the static contract exist; live replica loss is not claimed.",
+      "claim": "F03 service replica: the target-down alert rule and the static contract exist; the lab SIGKILLed one non-VIP gateway task, GatewayReplicaDown fired and resolved, and the canonical digest was unchanged.",
       "owner": "PLAT-006",
       "issue": "#1112",
       "test": "cargo test -p quantrule-deploy the_ha_matrix_maps_every_row_to_a_rule",
-      "evidence": "crates/quantrule-deploy/src/check/observability/alerts.rs",
+      "evidence": "docs/reports/2026-11-25/ha-014/HA-01.json",
       "status": "Current",
       "tier": "static",
       "topology": "n/a",
       "physical_hosts": 0,
       "failure_domains": 0,
       "recorded_on": "2026-11-24",
-      "notes": "F03 static alert/check coverage only; the live failure is not run here.",
-      "live_evidence": "Unverified"
+      "notes": "F03 static alert/check coverage; live non-VIP gateway task SIGKILL is Simulated HA on the lab (RTO 12 s, digest unchanged).",
+      "live_evidence": "Simulated HA"
     },
     {
       "id": "HA-04",
@@ -259,19 +259,19 @@
     },
     {
       "id": "HA-17",
-      "claim": "F17 manager/node capacity: the manager-quorum, textfile, filesystem, and memory alert rules and the static contract exist; live capacity loss is not claimed.",
+      "claim": "F17 manager/node capacity: the manager-quorum, textfile, filesystem, and memory alert rules and the static contract exist; the lab stopped one manager, SwarmManagerQuorumAtRisk fired and resolved, and the canonical digest was unchanged.",
       "owner": "PLAT-006",
       "issue": "#1112",
       "test": "cargo test -p quantrule-deploy the_ha_matrix_maps_every_row_to_a_rule",
-      "evidence": "crates/quantrule-deploy/src/check/observability/alerts.rs",
+      "evidence": "docs/reports/2026-11-25/ha-014/lab.md",
       "status": "Current",
       "tier": "static",
       "topology": "n/a",
       "physical_hosts": 0,
       "failure_domains": 0,
       "recorded_on": "2026-11-24",
-      "notes": "F17 static alert/check coverage only; the live failure is not run here.",
-      "live_evidence": "Unverified"
+      "notes": "F17 static alert/check coverage; live manager loss is Simulated HA on the lab; the quorum textfile reported fewer than three ready managers.",
+      "live_evidence": "Simulated HA"
     },
     {
       "id": "HA-18",
