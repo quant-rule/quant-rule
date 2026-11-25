@@ -1,0 +1,4 @@
+QuantRule is dual-licensed under MIT OR Apache-2.0.
+
+See LICENSE-MIT and LICENSE-APACHE. The crate `license` fields and the
+container image label carry the same expression.

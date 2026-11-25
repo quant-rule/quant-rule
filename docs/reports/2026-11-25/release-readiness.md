@@ -27,7 +27,7 @@
 | 72-hour soak | Not run | The 2026-11-25 sample is 6 cycles over about 21 minutes |
 | Versioned rolling upgrade | Not run | No release image exists; the cutover/rollback drill is the closest evidence |
 | SBOM, CVE scan, image signature | Not produced | The release workflow produces them at tag time |
-| Commercial licence text | Not authored | Proprietary/all-rights-reserved boundary is recorded; the terms are a human/legal decision |
+| Licence | Resolved | MIT OR Apache-2.0 chosen and declared in the crate metadata, image labels, and LICENSE-MIT/LICENSE-APACHE |
 | Real remote TLS client | Not run | The v3 lab is `Simulated HA`; the remote-client row is `Unverified` |
 
 ## 3. Tag checklist
@@ -50,6 +50,6 @@ volumes/stack; no schema downgrade is performed.
 
 The technical evidence is complete for a **v1.6.0 release candidate** with the
 gates above recorded honestly. It does not justify a `Real HA` claim, a 72-hour
-soak claim, or a versioned-upgrade claim. The human must accept the residual
+soak claim, or a versioned-upgrade claim. The human must accept the remaining residual
 risks and authorize the tag; the release workflow then produces the supply-chain
 evidence.
