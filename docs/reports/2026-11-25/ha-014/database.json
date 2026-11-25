@@ -1,0 +1,44 @@
+{
+  "evidence": "Simulated HA",
+  "profile": "lab-single-host",
+  "recorded_at": "2026-11-25T04:00:46Z",
+  "topology": {
+    "primary_before": "patroni-lab-2",
+    "primary_after": "patroni-lab-1",
+    "sync_before": "patroni-lab-1",
+    "sync_after": "patroni-lab-3",
+    "etcd_leader": "https://etcd-lab-1:2379"
+  },
+  "failover": {
+    "method": "docker pause of the primary Patroni container with the watchdog off",
+    "rto_seconds": 30
+  },
+  "markers": {
+    "baseline": "1",
+    "after": "1",
+    "total": "2"
+  },
+  "wal": {
+    "lsn_before": "1/10000118",
+    "lsn_after": "1/10042308"
+  },
+  "digests": {
+    "before": "sha256:a0372f02db7bc65460906eba3242943da8c56f26c46fde470726cee856bc4cea",
+    "after_failover": "sha256:a0372f02db7bc65460906eba3242943da8c56f26c46fde470726cee856bc4cea",
+    "after_restore": "sha256:a0372f02db7bc65460906eba3242943da8c56f26c46fde470726cee856bc4cea"
+  },
+  "rejoin": "pg_rewind",
+  "haproxy_control": {
+    "paused": "quantrule-haproxy-lab-1",
+    "survivor": "quantrule-haproxy-lab-2",
+    "path": "postgres hostname via PGHOSTADDR=10.0.1.71 (sslmode=verify-full)",
+    "tls": "sslmode=verify-full",
+    "lab_check": true,
+    "app_path": "postgres alias, sslmode=verify-full",
+    "result": "paused quantrule-haproxy-lab-1; quantrule-haproxy-lab-2 answered over TLS"
+  },
+  "claims": {
+    "rpo": "RPO 0 for acknowledged commits; no disk, power, or AZ claim",
+    "rto": "RTO is measured, not the 15-minute SLO"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "evidence": "Simulated HA",
+  "scope": "queue",
+  "profile": "lab-single-host",
+  "recorded_at": "2026-11-25T03:31:05Z",
+  "generation": 1,
+  "queues": [
+    "runs.backtest.g1",
+    "runs.evidence.g1",
+    "runs.dead-letter.g1",
+    "stages.worker.g1"
+  ],
+  "broker_loss": {
+    "stopped": "lab-2",
+    "leader_before": "rabbit@rabbitmq-lab-2",
+    "leader_after": "rabbit@rabbitmq-lab-3",
+    "running_nodes_after_loss": 2,
+    "all_queues_have_quorum": true,
+    "alarms": 0,
+    "rto_seconds": 7
+  },
+  "acknowledged_publish": {
+    "before": "quantrule-lab-queue-probe-before-g1",
+    "after": "quantrule-lab-queue-probe-after-g1",
+    "survived_one_broker_loss": true,
+    "restored_cluster_accepted": true
+  },
+  "app": {
+    "health": "healthy",
+    "ready": "healthy",
+    "path": "https://<dns>/health and /ready"
+  },
+  "definitions": "live export verified; users/permissions stripped; no value or hash recorded",
+  "digests": {
+    "status": "Measured",
+    "before": "sha256:a0372f02db7bc65460906eba3242943da8c56f26c46fde470726cee856bc4cea",
+    "after": "sha256:a0372f02db7bc65460906eba3242943da8c56f26c46fde470726cee856bc4cea"
+  },
+  "claims": {
+    "queue_level": "Simulated HA",
+    "end_to_end": "Unverified until the MinIO phase and tools/verify.sh succeed",
+    "real_ha": "HA-014 only"
+  }
+}
