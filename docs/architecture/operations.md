@@ -19,7 +19,7 @@ make down    # stop, keep data
 alive. `GET /ready` is the routing authority: it returns `503` when a dependency
 is down, when a response has a different `service` identity, or immediately when
 the process is draining. The gateway probes each upstream `/ready`; the backtest
-worker exposes both routes on its internal listener. A service is healthy when its check passes, not when its container is running. The v3 Swarm check is [manual 15](../manual/15-ha-deployment.md); its ingress is the [Traefik/VIP contract](../config/2026-11-23/ingress.md); its database tier is the [Patroni/etcd/HAProxy contract](../config/2026-11-23/patroni-cluster.md); its rolling update is stop-first when no spare slot exists, per [swarm-control](../config/2026-11-23/swarm-control.md); rotate its token by a new secret name and rolling update, not `SIGHUP`. `--remote docker --overlay` inspects the live Swarm and stateful rows; the ingress rows prove the certificate/headers/port-80 closure/mounts; `tools/test_tiers.sh ha` drains a worker and the VIP holder, stops a manager, and pauses the Patroni primary; HA-014 adds the 23-row [failure matrix](../config/2026-11-24/chaos-matrix.md) and the opt-in `--chaos` worker/leader/gateway/etcd cases, and no live row is claimed here.
+worker exposes both routes on its internal listener. A service is healthy when its check passes, not when its container is running. The v3 Swarm check is [manual 15](../manual/15-ha-deployment.md); its ingress is the [Traefik/VIP contract](../config/2026-11-23/ingress.md); its database tier is the [Patroni/etcd/HAProxy contract](../config/2026-11-23/patroni-cluster.md); its rolling update is stop-first when no spare slot exists, per [swarm-control](../config/2026-11-23/swarm-control.md); rotate its token by a new secret name and rolling update, not `SIGHUP`. `--remote docker --overlay` inspects the live Swarm and stateful rows; the ingress rows prove the certificate/headers/port-80 closure/mounts; `tools/test_tiers.sh ha` drains a worker and the VIP holder, stops a manager, and pauses the Patroni primary; HA-014 adds the 23-row [failure matrix](../config/2026-11-24/chaos-matrix.md) and the opt-in `--chaos` worker/leader/gateway/etcd cases; the 2026-11-25 lab records 13 `Simulated HA` rows, while HA-22/HA-23 remain `Unverified`.
 
 | Signal | Healthy | Action |
 |---|---|---|
@@ -120,12 +120,12 @@ run without `--yes`. Objects are written before rows, so an interrupted restore
 leaves unreferenced blobs rather than missing bytes; after `make reset`, restore
 before `make up`.
 
-The mirror uses the `mc` bundled in the pinned MinIO image; v3 pins `images.minio_client`, enables versioning, and the check/lab verify the bucket, `qr_app`, the probe hash, and zero healing. HA-013 phase 3 adds `tools/object-archive.sh` (one-way, read-only source, no delete/watch/replicate) and `deploy/v3/dr.sh` (scratch or in-place lab restore, canonical digest, RPO/RTO); the live archive and drill are `Unverified` ([backup contract](../config/2026-11-24/backup-restore.md)).
+The mirror uses the `mc` bundled in the pinned MinIO image; v3 pins `images.minio_client`, enables versioning, and the check/lab verify the bucket, `qr_app`, the probe hash, and zero healing. HA-013 phase 3 adds `tools/object-archive.sh` (one-way, read-only source, no delete/watch/replicate) and `deploy/v3/dr.sh` (scratch or in-place lab restore, canonical digest, RPO/RTO); the 2026-11-25 in-place lab drill is `Measured`; the archive remains one-way ([backup contract](../config/2026-11-24/backup-restore.md)).
 In v3, `render` writes `pgbackrest-<host>.conf` and `pgbackrest-backup.sh`; the backup host writes the age textfile only after a real full/diff, and `BackupAgeHigh` fires when it is absent or eight days old.
 
 The default stack starts seven services, three stores, the bootstrap, and four migration jobs ([deployment.md](deployment.md) §2.1). The database contract is [four databases](../config/2026-11-22/four-databases.md); the v3 repository, stanza, retention, and check rows are [backup and restore](../config/2026-11-24/backup-restore.md).
 The Compose tools dump all four databases; the v3 pgBackRest path is separate and
-its live backup/restore/PITR drill is `Unverified`.
+its 2026-11-25 in-place backup/restore/PITR drill is `Measured`.
 
 Round trip: `tools/test_backup.sh` is opt-in, uses an isolated project, and never
 touches the default project. It seeds the four databases and objects, checks the
@@ -153,7 +153,7 @@ The release image is pulled by digest from GHCR and verified as a Sigstore bundl
 | Incident | First response |
 |---|---|
 | Disk full | Stop workers, free object storage, restart |
-| Database corruption | Restore from the pgBackRest repository and PITR target, or the last Compose archive; run `deploy/v3/dr.sh --target scratch --confirm` to prove the digest; record the data-loss window; a live drill is `Unverified` |
+| Database corruption | Restore from the pgBackRest repository and PITR target, or the last Compose archive; run `deploy/v3/dr.sh --target scratch --confirm` to prove the digest; record the data-loss window; the 2026-11-25 in-place drill is `Measured` |
 | Migration job failed or stopped | Keep the old stack serving; read the job log and ledger; re-run it (it resumes) or correct forward, never edit an applied migration |
 | Object store loss | Restore from backup; any missing artifact makes its runs unverifiable |
 | Queue loss | Acknowledged messages survive one broker loss; rebuild a lost queue from `queued` rows |

@@ -59,7 +59,7 @@ token in local storage and sends it only as `Authorization: Bearer`.
 Loki 30d, Alertmanager 120h with one internal `quantrule-null` receiver, and
 four read-only Grafana dashboards. node_exporter and promtail run everywhere;
 manager quorum is a `docker node ls` textfile, never a container socket.
-F01..F17 and the ports are in the [observability contract](../config/2026-11-23/observability.md); `qr-deploy check` runs the 28 observability rows, `--remote docker` adds every running task image, `--runtime` proves all seven service digests, and the `ha` lab asserts the manager and gateway alerts fire and resolve; no port is public. HA-014 records the 23 failure rows in the [chaos matrix](../config/2026-11-24/chaos-matrix.md); `deploy/v3/test.sh --chaos --confirm` runs the lab cases and `deploy/v3/real-ha.sh` is the operator-only HA-22/HA-23 attestation gate, with no live row claimed here.
+F01..F17 and the ports are in the [observability contract](../config/2026-11-23/observability.md); `qr-deploy check` runs the 28 observability rows, `--remote docker` adds every running task image, `--runtime` proves all seven service digests, and the `ha` lab asserts the manager and gateway alerts fire and resolve; no port is public. HA-014 records the 23 failure rows in the [chaos matrix](../config/2026-11-24/chaos-matrix.md); `deploy/v3/test.sh --chaos --confirm` runs the lab cases and `deploy/v3/real-ha.sh` is the operator-only HA-22/HA-23 attestation gate; the 2026-11-25 lab records 13 `Simulated HA` rows, while HA-22/HA-23 remain `Unverified`.
 
 ## Retention fields
 
@@ -262,7 +262,7 @@ the policies, and probes. One node loss keeps the write quorum; the lab re-reads
 `tools/object-archive.sh --plan` is the one-way archive; `--confirm` copies to the operator target with no delete, watch, or replicate. `deploy/v3/dr.sh --plan`
 prints the scratch or in-place drill; a live drill needs `--confirm`, and
 `--in-place` needs the disposable lab and a pre-restore backup. It reruns the
-same run/config and fails on a digest mismatch; RPO/RTO are measured, not the SLO. The live drill is `Unverified`; object lock is not in v1.5.10.
+same run/config and fails on a digest mismatch; RPO/RTO are measured, not the SLO. The 2026-11-25 in-place drill is `Measured`; object lock is not in v1.5.10.
 
 ## Migrations
 
