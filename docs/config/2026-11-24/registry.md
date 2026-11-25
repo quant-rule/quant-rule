@@ -185,8 +185,9 @@ exactly `id`, `package`, `version`, `severity`, `reason`, `owner`, `expires`, an
 expired or malformed entry fails the
 scan. The file ships with an empty `entries` array. A real exception requires
 human approval and a ticket; it is never added by an agent to make a release
-pass. The `cargo audit` path treats a RustSec vulnerability conservatively as
-High unless its CVSS score is 9.0 or above, in which case it is Critical.
+pass. The `cargo audit` path parses a RustSec CVSS v3.1 vector string and
+computes its base score; a score of 9.0 or above is Critical. A missing,
+non-v3, or unparsable vector is treated conservatively as High.
 
 The scan runs before the version image tag is pushed. A failed scan stops the
 release job: no version image tag, no GitHub release, no digest claim. The

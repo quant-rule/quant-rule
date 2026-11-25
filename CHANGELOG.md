@@ -178,6 +178,8 @@ history is in Git and the pull requests.
 
 ### Fixed
 
+- The release scan now parses a RustSec CVSS v3.1 vector string and computes its base score, so a Critical advisory is still classified as Critical and the CVE gate no longer aborts with `Cannot iterate over string` when an advisory carries a CVSS vector.
+- `quantrule-runtime` now enables only the AWS S3 client's modern `default-https-client` path, so the unused legacy rustls 0.21/hyper 0.14 graph is no longer resolved, and `url` is 2.5.9. The cargo audit gate has no remaining advisory and no allowlist entry is added.
 - The release image now starts as root like the local image, so `quantrule-entry` can stage the file-backed secrets for UID 10001 and then drop privileges; the previous `USER 10001` left every migration job unable to read its owner URL.
 - The release workflow now runs `tools/pki.sh` before the composed suite, so `pki-init` has the PostgreSQL, RabbitMQ, and MinIO certificates it stages and the snapshot/release image gate can complete.
 - `tools/release.sh install-tools` no longer fails at exit with `temporary: unbound variable`; the EXIT trap now expands the temporary directory path before the function's local scope ends, so the release workflow can install cosign, syft, and grype.

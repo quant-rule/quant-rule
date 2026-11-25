@@ -455,10 +455,24 @@ fn an_unfixed_high_needs_a_valid_unexpired_allowlist_entry() {
 fn a_fixed_cargo_audit_vulnerability_fails_the_gate() {
     let directory = temp_dir();
     let allow = allowlist(&directory, "");
-    let cargo = r#"{"vulnerabilities":{"list":[{"advisory":{"id":"RUSTSEC-1","cvss":[{"score":5.0}]},"package":{"name":"demo","version":"1.0.0"},"versions":{"patched":["1.0.1"]}}]}}"#;
+    let cargo = r#"{"vulnerabilities":{"list":[{"advisory":{"id":"RUSTSEC-1","cvss":"CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"},"package":{"name":"demo","version":"1.0.0"},"versions":{"patched":["1.0.1"]}}]}}"#;
     let output = scan(&directory, EMPTY_GRYPE, cargo, "1", &allow);
     assert_eq!(output.status.code(), Some(1));
-    assert!(String::from_utf8_lossy(&output.stderr).contains("fixable High"));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("FAIL Critical RUSTSEC-1"));
+    let _ = std::fs::remove_dir_all(directory);
+}
+
+#[test]
+fn a_non_critical_cvss_vector_stays_high() {
+    let directory = temp_dir();
+    let allow = allowlist(&directory, "");
+    // 3.7 (low) must not be promoted to Critical by the vector parser.
+    let cargo = r#"{"vulnerabilities":{"list":[{"advisory":{"id":"RUSTSEC-2","cvss":"CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N"},"package":{"name":"demo","version":"1.0.0"},"versions":{"patched":["1.0.1"]}}]}}"#;
+    let output = scan(&directory, EMPTY_GRYPE, cargo, "1", &allow);
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("FAIL fixable High RUSTSEC-2"), "{stderr}");
+    assert!(!stderr.contains("FAIL Critical"), "{stderr}");
     let _ = std::fs::remove_dir_all(directory);
 }
 
