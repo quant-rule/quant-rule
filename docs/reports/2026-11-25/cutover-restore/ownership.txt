@@ -1,0 +1,13 @@
+== qr_gateway
+tables=2
+== qr_catalog
+tables=11
+== qr_evidence
+tables=21
+== qr_simulation
+tables=4
+grants:
+t
+t
+t
+t
