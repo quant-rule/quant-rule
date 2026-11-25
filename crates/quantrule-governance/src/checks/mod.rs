@@ -27,6 +27,7 @@ pub mod py_guard;
 pub mod registry;
 pub mod release_audit;
 pub mod releases;
+pub mod research_readiness;
 pub mod rust_tests;
 pub mod structure;
 pub mod terms;
@@ -146,6 +147,10 @@ pub const CHECKERS: &[Checker] = &[
         run: releases::check,
     },
     Checker {
+        name: "research-readiness",
+        run: research_readiness::check,
+    },
+    Checker {
         name: "validation",
         run: validation::check,
     },
@@ -206,7 +211,7 @@ mod tests {
 
     #[test]
     fn the_registry_has_one_unique_name_per_checker() {
-        assert_eq!(CHECKERS.len(), 28);
+        assert_eq!(CHECKERS.len(), 29);
         let names: BTreeSet<_> = CHECKERS.iter().map(|checker| checker.name).collect();
         assert_eq!(names.len(), CHECKERS.len());
     }

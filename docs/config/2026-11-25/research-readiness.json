@@ -1,0 +1,170 @@
+{
+  "schema": "quantrule.research-readiness/v1",
+  "recorded_on": "2026-11-25",
+  "system": {
+    "kind": "research-only",
+    "trading": false,
+    "statement": "QuantRule turns historical OHLCV candles into reproducible evidence about whether a rule-based alpha has an edge. It does not trade, connect to a broker, or provide real-time risk."
+  },
+  "rows": [
+    {
+      "id": "RR-01",
+      "claim": "Every run reads one immutable data version and only its declared partition; a later bar cannot enter an earlier output.",
+      "owner": "Data Steward / Test Engineer",
+      "issue": "#1113",
+      "test": "partition checker; data-quality and causality tests",
+      "evidence": [
+        "data/partitions.json",
+        "docs/workflows/data-lifecycle.md",
+        "docs/config/2026-10-30/data-v3.md",
+        "docs/config/2026-11-08/data-change-MR7-01.md"
+      ],
+      "status": "Current",
+      "tier": "Fast",
+      "boundary": "The repository proves the partition and version contract and the causality tests; it does not audit the operator's external source files.",
+      "recorded_on": "2026-11-25",
+      "notes": "2023 is excluded from every partition; portfolio_holdout is 2025 with five instruments."
+    },
+    {
+      "id": "RR-02",
+      "claim": "Every improvement run is pre-registered before execution; validation is one-shot and a development run cannot read the holdout.",
+      "owner": "Quant Researcher / Evidence",
+      "issue": "#1113",
+      "test": "research create/submit/decide tests and the run-contract validator",
+      "evidence": [
+        "docs/workflows/run-contract.md",
+        "docs/workflows/improvement-workflow.md",
+        "crates/quantrule-evidence-service/src/research",
+        "crates/quantrule-shell/tests/support/research.rs"
+      ],
+      "status": "Current",
+      "tier": "Fast",
+      "boundary": "The contract and validators are current; no tiered run has used v3 yet, so the first live pre-registration remains a research action, not evidence of an edge.",
+      "recorded_on": "2026-11-25",
+      "notes": "holdout_access is none except final for portfolio_holdout; a public create is immutable."
+    },
+    {
+      "id": "RR-03",
+      "claim": "A significance claim carries a pre-registered correction and primary-cell count, and the qualification evidence records it.",
+      "owner": "Quant Validator",
+      "issue": "#1113",
+      "test": "quantrule-research evaluation tests and qualification fixtures",
+      "evidence": [
+        "docs/config/2026-11-06/engine-artifacts.md",
+        "docs/workflows/run-contract.md",
+        "crates/quantrule-shell/tests/fixtures/qualification",
+        "docs/improvement/2026-11-08/MR7-POWER.md"
+      ],
+      "status": "Current",
+      "tier": "Fast",
+      "boundary": "The correction is recorded in the evidence; it is not a promise that a future program will find an edge.",
+      "recorded_on": "2026-11-25",
+      "notes": "The multiple_testing declaration carries the family alpha, correction, primary cells and trials."
+    },
+    {
+      "id": "RR-04",
+      "claim": "A worker or evidence-leader failure leaves no succeeded run without a digest and reproduces the same canonical digest after retry.",
+      "owner": "Test Engineer / Evidence",
+      "issue": "#1113",
+      "test": "deploy/v3/test.sh --chaos --confirm; HA-18..HA-21",
+      "evidence": [
+        "docs/reports/2026-11-25/ha-014/HA-18.json",
+        "docs/reports/2026-11-25/ha-014/HA-19.json",
+        "docs/reports/2026-11-25/ha-014/HA-20.json",
+        "docs/reports/2026-11-25/ha-014/HA-21.json",
+        "docs/config/2026-11-24/chaos-matrix.json"
+      ],
+      "status": "Simulated HA",
+      "tier": "Simulated HA",
+      "boundary": "Single physical host; it does not prove host power loss, AZ loss, or a true network partition.",
+      "recorded_on": "2026-11-25",
+      "notes": "Digest parity after worker and leader SIGKILL; the recorded RTO is 70 s and 36 s."
+    },
+    {
+      "id": "RR-05",
+      "claim": "A point-in-time restore reproduces the same canonical digest or fails cleanly.",
+      "owner": "Test Engineer / Data Steward",
+      "issue": "#1113",
+      "test": "deploy/v3/dr.sh --in-place --confirm; DR evidence",
+      "evidence": [
+        "docs/reports/2026-11-25/ha-014/dr.json",
+        "docs/config/2026-11-24/backup-restore.md"
+      ],
+      "status": "Simulated HA",
+      "tier": "Simulated HA",
+      "boundary": "In-place lab restore; it does not prove a production PITR, a second site, or a real-host RTO.",
+      "recorded_on": "2026-11-25",
+      "notes": "RPO 2 s, total 219 s, expected and observed digest match in the 2026-11-25 lab."
+    },
+    {
+      "id": "RR-06",
+      "claim": "A referenced pack or signal is never collected; an unreferenced artifact is collected only after 30 days with a tombstone.",
+      "owner": "Data Steward / Evidence",
+      "issue": "#1113",
+      "test": "artifact retention tests in the data and evidence services",
+      "evidence": [
+        "docs/architecture/research-artifacts.md",
+        "docs/config/2026-11-22/research-artifact-packs.md",
+        "docs/config/2026-11-22/signal-artifact.md",
+        "crates/quantrule-data-service/src/artifacts",
+        "crates/quantrule-evidence-service/src"
+      ],
+      "status": "Current",
+      "tier": "Fast",
+      "boundary": "The 30-day window and tombstone are tested; a live MinIO retention sweep is not run here.",
+      "recorded_on": "2026-11-25",
+      "notes": "A registered reference protects an artifact; a new signal may stay unreferenced for 30 days."
+    },
+    {
+      "id": "RR-07",
+      "claim": "The browser and CLI reach the gateway over HTTPS with the bearer token and no certificate bypass, and a lost client reconnects with a bounded retry.",
+      "owner": "Security / Release",
+      "issue": "#1113",
+      "test": "deploy/v3/lab.sh --remote; the lab-gated Playwright suite",
+      "evidence": [
+        "docs/reports/2026-11-25/ha-014/lab.md",
+        "docs/manual/13-client-access.md",
+        "docs/architecture/security.md",
+        "docs/config/2026-11-23/ingress.md"
+      ],
+      "status": "Simulated HA",
+      "tier": "Simulated HA",
+      "boundary": "The lab exercises the remote client path from the lab host; it is not a separate physical machine or a public CA.",
+      "recorded_on": "2026-11-25",
+      "notes": "Only 443 is public; the token is required; the private CA is used without a certificate bypass."
+    },
+    {
+      "id": "RR-08",
+      "claim": "A broker or worker loss does not lose an acknowledged run, the queue drains, and a failed worker leaves one digest.",
+      "owner": "Release / Operations",
+      "issue": "#1113",
+      "test": "deploy/v3/test.sh --confirm; queue loss, worker kill, queue-depth metrics and verify",
+      "evidence": [
+        "docs/reports/2026-11-25/ha-014/queue.json",
+        "docs/reports/2026-11-25/ha-014/HA-18.json",
+        "docs/config/2026-11-23/observability.md",
+        "docs/architecture/operations.md"
+      ],
+      "status": "Simulated HA",
+      "tier": "Simulated HA",
+      "boundary": "The lab proves one-broker loss and a worker kill; it does not prove a 72-hour soak or production capacity.",
+      "recorded_on": "2026-11-25",
+      "notes": "A new quorum leader was elected in 7 s; queue depth and worker counts are metrics; the 72-hour soak is the separate V20 gate."
+    }
+  ],
+  "accepted_risks": [
+    {
+      "id": "AR-RESEARCH-SIMULATED-LAB",
+      "risk": "RR-04, RR-05, RR-07 and RR-08 are proven on the three-VM single-host lab, not on separate physical hosts or a separate remote client machine.",
+      "impact": "Host power loss, AZ loss, a true network partition, and a real public-CA remote client remain unproven.",
+      "accepted_by": "human",
+      "accepted_on": "2026-11-25",
+      "residual_risk": "The research readiness claim is Simulated HA; Real HA remains HA-22/HA-23 and a separate remote client run.",
+      "next_action": "HA-22/HA-23 real-host gate and QA-009 remote client parity; the release note states the boundary.",
+      "links": [
+        "docs/reports/2026-11-25/ha-014/lab.md",
+        "docs/execution-plans/2026-11-22/1082-v1.6.0-ra-ha.md"
+      ]
+    }
+  ]
+}
