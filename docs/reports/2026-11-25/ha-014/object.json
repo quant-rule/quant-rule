@@ -2,7 +2,7 @@
   "evidence": "Simulated HA",
   "scope": "object_store",
   "profile": "lab-single-host",
-  "recorded_at": "2026-11-25T03:56:36Z",
+  "recorded_at": "2026-11-25T11:27:06Z",
   "layout": {
     "nodes": [
       "lab-1",
@@ -26,7 +26,7 @@
     "drives_offline": 2,
     "drives_healing": 0,
     "write_quorum_survived": true,
-    "rto_seconds": 39
+    "rto_seconds": 29
   },
   "probe": {
     "bucket": "quantrule",

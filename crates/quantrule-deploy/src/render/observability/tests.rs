@@ -38,8 +38,8 @@ fn prometheus_scrapes_every_approved_target_on_the_overlay() {
         "node-infra-1:9100",
         "promtail-infra-1:9080",
         "blackbox:9115",
-        "https://quantrule.dev/health",
-        "https://quantrule.dev/ready",
+        "https://203.0.113.20/health",
+        "https://203.0.113.20/ready",
         "check: \"health\"",
         "check: \"ready\"",
         "alertmanager:9093",
@@ -217,6 +217,7 @@ fn blackbox_probes_health_and_ready_through_the_private_ca() {
         "preferred_ip_protocol: \"ip4\"",
         "ca_file: \"/etc/quantrule/pki/ca.crt\"",
         "server_name: \"quantrule.dev\"",
+        "Host: \"quantrule.dev\"",
         "valid_status_codes",
         "200",
     ] {

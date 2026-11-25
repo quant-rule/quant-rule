@@ -333,13 +333,13 @@ scrape_configs:
           check: "health"
         targets:
           -
-            "https://quantrule.dev/health"
+            "https://203.0.113.20/health"
       -
         labels:
           check: "ready"
         targets:
           -
-            "https://quantrule.dev/ready"
+            "https://203.0.113.20/ready"
   -
     job_name: "prometheus"
     metrics_path: "/metrics"

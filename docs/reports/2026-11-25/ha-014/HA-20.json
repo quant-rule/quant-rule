@@ -1,0 +1,16 @@
+{
+  "schema": "quantrule.ha-evidence/v1",
+  "row": "HA-20",
+  "status": "Simulated HA",
+  "case": "no-partial-publish-leader",
+  "profile": "lab-single-host",
+  "recorded_at": "2026-11-25T11:29:17Z",
+  "rto_seconds": 36,
+  "digest": "sha256:a0372f02db7bc65460906eba3242943da8c56f26c46fde470726cee856bc4cea",
+  "note": "the leader-killed run exposed no succeeded-without-digest row and every referenced artifact fetched 200",
+  "real_ha": "not claimed by this script",
+  "details": {
+    "one_finalisation": true,
+    "referenced_artifacts_fetched": true
+  }
+}

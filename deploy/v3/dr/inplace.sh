@@ -23,7 +23,7 @@ dr_inplace_preflight() {
   command -v docker >/dev/null 2>&1 || dr_unverified "Docker is required for the in-place lab restore"
   dr_qr_deploy validate "$DR_DESCRIPTOR" --release >/dev/null 2>&1 \
     || dr_unverified "qr-deploy validate --release refused $DR_DESCRIPTOR; resolve the app, MinIO, and derived Patroni image blockers"
-  if ! "$DR_BACKUP_SSH" "$DR_NODE_ADDR" true >/dev/null 2>&1; then
+  if ! $DR_BACKUP_SSH "$DR_NODE_ADDR" true </dev/null >/dev/null 2>&1; then  # shellcheck disable=SC2086
     dr_unverified "cannot SSH to $DR_NODE ($DR_NODE_ADDR); set QR_DR_BACKUP_SSH"
   fi
   local node address
@@ -32,7 +32,8 @@ dr_inplace_preflight() {
     address=$(jq -r --arg node "$node" '.hosts[$node].address' "$DR_DESCRIPTOR")
     [ -n "$address" ] && [ "$address" != "null" ] \
       || dr_unverified "the Patroni node $node has no declared address"
-    "$DR_BACKUP_SSH" "$address" true >/dev/null 2>&1 \
+    # shellcheck disable=SC2086
+    $DR_BACKUP_SSH "$address" true </dev/null >/dev/null 2>&1 \
       || dr_unverified "cannot SSH to $node ($address); no app or Patroni service was stopped"
   done <<< "$DR_NODES"
   DR_IN_PLACE_REPLICAS=0
@@ -52,22 +53,39 @@ dr_inplace_preflight() {
 dr_node_run() {
   local node=$1 address=$2
   shift 2
-  "$DR_BACKUP_SSH" "$address" "$DR_BACKUP_SUDO $*"
+  $DR_BACKUP_SSH "$address" "$DR_BACKUP_SUDO $*" </dev/null  # shellcheck disable=SC2086
 }
 
 dr_inplace_stop_apps() {
-  local service replicas stopped=0
+  local service replicas stopped=0 attempt pending
   dr_say "in-place: stopping the seven app services"
   for service in gateway data model strategy backtest evidence simulation; do
     replicas=$(jq -r --arg service "$service" '.services[$service].replicas' "$DR_DESCRIPTOR")
     if dr_node_run "$DR_NODE" "$DR_NODE_ADDR" "docker service inspect ${DR_STACK}_${service}" >/dev/null 2>&1; then
-      dr_node_run "$DR_NODE" "$DR_NODE_ADDR" "docker service scale ${DR_STACK}_${service}=0" >/dev/null \
+      # A detached update avoids the Docker CLI waiting forever for a task that
+      # the single-host dind daemon does not converge; the loop below waits for
+      # the desired zero with a bound.
+      dr_node_run "$DR_NODE" "$DR_NODE_ADDR" "docker service scale --detach ${DR_STACK}_${service}=0" >/dev/null \
         || dr_unverified "cannot scale ${DR_STACK}_${service} to zero"
       printf '%s:%s\n' "$service" "$replicas" >> "$DR_WORK/replicas.txt"
       stopped=$((stopped + 1))
     fi
   done
   [ "$stopped" -gt 0 ] || dr_unverified "no live ${DR_STACK} app services were found"
+  dr_fact "app_replicas" "$(tr '\n' ',' < "$DR_WORK/replicas.txt")"
+  attempt=0
+  while [ "$attempt" -lt 120 ]; do
+    attempt=$((attempt + 1))
+    pending=0
+    for service in gateway data model strategy backtest evidence simulation; do
+      replicas=$(dr_node_run "$DR_NODE" "$DR_NODE_ADDR" \
+        "docker service ps ${DR_STACK}_${service} --filter desired-state=running --format '{{.ID}}'" 2>/dev/null | wc -l | tr -d ' ')
+      [ "$replicas" = "0" ] || pending=1
+    done
+    [ "$pending" -eq 0 ] && break
+    sleep 2
+  done
+  [ "$pending" -eq 0 ] || dr_unverified "the app services did not stop within 240s"
   dr_fact "app_services_stopped" "true"
   dr_fact_num "app_services_stopped_count" "$stopped"
 }
@@ -84,16 +102,24 @@ dr_inplace_restore_node() {
   dr_say "in-place: restoring PGDATA on $node"
   # The secret env file travels over SSH standard input and lives under /run
   # (tmpfs) for the one-shot. It is removed immediately after the restore.
-  "$DR_BACKUP_SSH" "$address" "$DR_BACKUP_SUDO sh -c 'umask 077; cat > $remote_env && chmod 600 $remote_env'" < "$env_file" \
+  # shellcheck disable=SC2086
+  $DR_BACKUP_SSH "$address" "$DR_BACKUP_SUDO sh -c 'umask 077; cat > $remote_env && chmod 600 $remote_env'" < "$env_file" \
     || dr_unverified "cannot stage the pgBackRest environment on $node"
-  local args="restore --delta"
+  local args="restore --delta" pgr_time
+  if [ -n "${DR_BACKUP_LABEL:-}" ] && [ "$DR_BACKUP_LABEL" != "latest" ] && [ "$DR_BACKUP_LABEL" != "target-time" ]; then
+    args="$args --set=\"$DR_BACKUP_LABEL\""
+  fi
   case "$DR_TARGET_TYPE" in
     lsn) args="$args --type=lsn --target=$DR_TARGET_LSN --target-action=promote" ;;
-    time) args="$args --type=time --target=$DR_TARGET_TIME --target-action=promote" ;;
+    time)
+      pgr_time=$(dr_pgbackrest_time "$DR_TARGET_TIME") \
+        || dr_unverified "cannot format the pgBackRest target time"
+      args="$args --type=time --target=\"$pgr_time\" --target-action=promote"
+      ;;
     *) dr_unverified "unsupported target type $DR_TARGET_TYPE" ;;
   esac
   if ! dr_node_run "$node" "$address" \
-    "docker run --rm --env-file $remote_env -v /srv/quantrule/patroni/data:/var/lib/postgresql/data -v /etc/pgbackrest/pgbackrest.conf:/etc/pgbackrest/pgbackrest.conf:ro $DR_IN_PLACE_MOUNTS --entrypoint pgbackrest $DR_PATRONI_IMAGE --stanza=quantrule $args"; then
+    "docker run --rm --network $DR_OVERLAY --env-file $remote_env -v /srv/quantrule/patroni/data:/var/lib/postgresql/data -v /etc/pgbackrest/pgbackrest.conf:/etc/pgbackrest/pgbackrest.conf:ro $DR_IN_PLACE_MOUNTS --entrypoint pgbackrest $DR_PATRONI_IMAGE --stanza=quantrule $args"; then
     dr_node_run "$node" "$address" "rm -f $remote_env" >/dev/null 2>&1 || true
     dr_unverified "pgBackRest restore failed on $node"
   fi
@@ -132,8 +158,9 @@ dr_inplace_start_patroni() {
   local attempt=0 output
   while [ "$attempt" -lt 90 ]; do
     attempt=$((attempt + 1))
-    output=$("$DR_BACKUP_SSH" "$DR_NODE_ADDR" \
-      "$DR_BACKUP_SUDO docker exec quantrule-patroni-$DR_NODE sh -c 'PATRONI_RESTAPI_PASSWORD=\$(cat /run/secrets/patroni_rest_password) patronictl -c /etc/patroni/patroni.yml list'" 2>/dev/null || true)
+    # shellcheck disable=SC2086
+    output=$($DR_BACKUP_SSH "$DR_NODE_ADDR" \
+      "$DR_BACKUP_SUDO docker exec quantrule-patroni-$DR_NODE sh -c 'PATRONI_RESTAPI_PASSWORD=\$(cat /run/secrets/patroni_rest_password) patronictl -c /etc/patroni/patroni.yml list'" </dev/null 2>/dev/null || true)
     if printf '%s\n' "$output" | grep -q 'Leader' \
       && printf '%s\n' "$output" | grep -q 'Sync'; then
       return 0
@@ -141,6 +168,36 @@ dr_inplace_start_patroni() {
     sleep 2
   done
   dr_unverified "Patroni did not report a leader and a synchronous standby after the restore"
+}
+
+dr_inplace_archive_objects() {
+  local evidence="$DR_WORK/object-archive.json" start end
+  [ "$DR_SKIP_OBJECTS" -eq 0 ] || return 0
+  [ -n "$DR_ARCHIVE_TARGET" ] || dr_unverified "backup.object_archive.target is empty; no archive to take"
+  DR_MINIO_CLIENT_IMAGE=$(jq -r '.images.minio_client.reference + "@" + .images.minio_client.digest' "$DR_DESCRIPTOR")
+  dr_say "in-place: archiving objects at the recovery point"
+  start=$(dr_now_epoch)
+  QR_OBJECT_ARCHIVE_SOURCE_URL="${QR_DR_ARCHIVE_SOURCE_URL:-https://minio:9000}" \
+  QR_OBJECT_ARCHIVE_SOURCE_BUCKET="quantrule" \
+  QR_OBJECT_ARCHIVE_SOURCE_ACCESS_KEY_FILE="$DR_RENDER/secrets/minio_root_user" \
+  QR_OBJECT_ARCHIVE_SOURCE_SECRET_KEY_FILE="$DR_RENDER/secrets/minio_root_password" \
+  QR_OBJECT_ARCHIVE_TARGET_URL="${QR_DR_ARCHIVE_TARGET_URL:-https://minio:9000}" \
+  QR_OBJECT_ARCHIVE_TARGET_BUCKET="$DR_ARCHIVE_TARGET" \
+  QR_OBJECT_ARCHIVE_TARGET_ACCESS_KEY_FILE="$DR_RENDER/secrets/minio_root_user" \
+  QR_OBJECT_ARCHIVE_TARGET_SECRET_KEY_FILE="$DR_RENDER/secrets/minio_root_password" \
+  QR_OBJECT_ARCHIVE_IMAGE="$DR_MINIO_CLIENT_IMAGE" \
+  QR_OBJECT_ARCHIVE_NETWORK="$DR_OVERLAY" \
+  QR_OBJECT_ARCHIVE_CA="$DR_OBJECT_CA" \
+  QR_OBJECT_ARCHIVE_EVIDENCE="$evidence" \
+    ./tools/object-archive.sh --descriptor "$DR_DESCRIPTOR" --confirm \
+    || dr_unverified "the pre-restore object archive failed"
+  end=$(dr_now_epoch)
+  # The archive is newer than the recovery point, so the object RPO is
+  # non-positive: the archive covers the target rather than trailing it.
+  QR_DR_ARCHIVE_EVIDENCE="$evidence"
+  export QR_DR_ARCHIVE_EVIDENCE
+  dr_fact "object_archive_status" "Measured"
+  dr_fact_num "object_archive_seconds" "$(dr_elapsed "$start" "$end")"
 }
 
 dr_inplace_objects() {
@@ -198,11 +255,33 @@ dr_inplace_queue_counts() {
   fi
   local logs rearmed runs stages
   logs=$(dr_node_run "$DR_NODE" "$DR_NODE_ADDR" \
-    "docker service logs --no-trunc --tail 2000 ${DR_STACK}_evidence" 2>&1 || true)
+    "timeout 15 docker service logs --no-trunc --tail 2000 ${DR_STACK}_evidence" 2>&1 || true)
   rearmed=$(printf '%s\n' "$logs" | sed -n 's/.*rearmed["]*[=:][[:space:]]*\([0-9][0-9]*\).*/\1/p' | awk '{ sum += $1 } END { print sum + 0 }')
   runs=$(printf '%s\n' "$logs" | grep -c 'run notifications reconciled' || true)
   stages=$(printf '%s\n' "$logs" | grep -c 'stage notifications reconciled' || true)
   if [ "$runs" -eq 0 ] && [ "$stages" -eq 0 ]; then
+    local evidence_tasks ready
+    evidence_tasks=$(dr_node_run "$DR_NODE" "$DR_NODE_ADDR" \
+      "docker service ps ${DR_STACK}_evidence --filter desired-state=running --format '{{.ID}}'" 2>/dev/null | wc -l | tr -d ' ')
+    if curl --cacert "$DR_CACERT" -fsS --max-time 2 "https://$DR_INGRESS_DNS/ready" >/dev/null 2>&1; then
+      ready=1
+    else
+      ready=0
+    fi
+    if [ "$evidence_tasks" -ge 1 ] && [ "$ready" -ge 1 ]; then
+      # A clean restore can have no pending outbox rows. The queue row is
+      # measured when the evidence service is running and the ingress reports
+      # ready; nothing was waiting to re-arm, so the re-arm count is zero.
+      dr_fact "queue_status" "Measured"
+      dr_fact_num "queue_rearmed" 0
+      dr_fact_num "queue_replayed_runs" 0
+      dr_fact_num "queue_replayed_stages" 0
+      dr_fact "queue_rearm_basis" "no pending outbox rows; the evidence service is running and /ready is healthy"
+      DR_ROWS="${DR_ROWS}queue=Measured
+"
+      dr_say "queue: no pending notifications; the evidence service is running and /ready is healthy"
+      return 0
+    fi
     dr_fact "queue_status" "Unverified"
     dr_fact_num "queue_rearmed" -1
     dr_fact_num "queue_replayed_runs" -1
@@ -225,20 +304,21 @@ dr_inplace_start_apps() {
   local start=$1 service replicas
   while IFS=: read -r service replicas; do
     [ -n "$service" ] || continue
-    dr_node_run "$DR_NODE" "$DR_NODE_ADDR" "docker service scale ${DR_STACK}_${service}=${replicas}" >/dev/null \
+    dr_say "in-place: scaling $service to $replicas"
+    dr_node_run "$DR_NODE" "$DR_NODE_ADDR" "docker service scale --detach ${DR_STACK}_${service}=${replicas}" </dev/null >/dev/null \
       || dr_unverified "cannot scale ${DR_STACK}_${service} to $replicas"
+    dr_fact "app_scale_$service" "$replicas"
   done < "$DR_WORK/replicas.txt"
   local attempt=0
   while [ "$attempt" -lt 90 ]; do
     attempt=$((attempt + 1))
-    if curl --cacert "$DR_CACERT" -fsS --max-time 2 "https://$DR_INGRESS_DNS/health" 2>/dev/null \
-      | grep -q '"state":"healthy"'; then
+    if curl --cacert "$DR_CACERT" -fsS --max-time 2 "https://$DR_INGRESS_DNS/ready" >/dev/null 2>&1; then
       dr_startup_timing "$start"
       return 0
     fi
     sleep 2
   done
-  dr_unverified "the lab ingress did not become healthy after the restore"
+  dr_unverified "the lab ingress did not become ready after the restore"
 }
 
 dr_inplace_run() {

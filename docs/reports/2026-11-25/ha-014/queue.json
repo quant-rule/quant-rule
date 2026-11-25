@@ -2,7 +2,7 @@
   "evidence": "Simulated HA",
   "scope": "queue",
   "profile": "lab-single-host",
-  "recorded_at": "2026-11-25T03:31:05Z",
+  "recorded_at": "2026-11-25T11:25:47Z",
   "generation": 1,
   "queues": [
     "runs.backtest.g1",
@@ -13,7 +13,7 @@
   "broker_loss": {
     "stopped": "lab-2",
     "leader_before": "rabbit@rabbitmq-lab-2",
-    "leader_after": "rabbit@rabbitmq-lab-3",
+    "leader_after": "rabbit@rabbitmq-lab-1",
     "running_nodes_after_loss": 2,
     "all_queues_have_quorum": true,
     "alarms": 0,

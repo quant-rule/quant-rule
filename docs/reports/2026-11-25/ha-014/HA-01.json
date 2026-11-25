@@ -1,0 +1,16 @@
+{
+  "schema": "quantrule.ha-evidence/v1",
+  "row": "HA-01",
+  "status": "Simulated HA",
+  "case": "gateway-sigkill",
+  "profile": "lab-single-host",
+  "recorded_at": "2026-11-25T11:29:29Z",
+  "rto_seconds": 12,
+  "digest": "sha256:a0372f02db7bc65460906eba3242943da8c56f26c46fde470726cee856bc4cea",
+  "note": "the non-VIP gateway task was SIGKILLed; ingress stayed healthy and the task restarted",
+  "real_ha": "not claimed by this script",
+  "details": {
+    "non_vip_host": true,
+    "gateway_restarted": true
+  }
+}

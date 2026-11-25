@@ -7,12 +7,14 @@
 chaos=${chaos:-0}
 skip_chaos=${skip_chaos:-1}
 chaos_status="Unverified"
+chaos_profile=${QR_CHAOS_PROFILE:-default}
 chaos_digest=""
 chaos_work=""
 chaos_stopped=()
 chaos_shell_bin=""
 chaos_data_version=""
 chaos_config_id=""
+chaos_config_seq=0
 
 chaos_say() {
   printf 'ha: chaos: %s\n' "$*"
@@ -110,7 +112,7 @@ chaos_curl() {
 
 chaos_dataset() {
   local output
-  output=$("$chaos_shell_bin" --profile "$profile" dataset upload \
+  output=$("$chaos_shell_bin" --profile "$chaos_profile" dataset upload \
     config/examples/verify-mini/candles.csv --name candles.csv) \
     || chaos_fail "the dataset upload failed"
   chaos_data_version=$(printf '%s\n' "$output" | sed -n 's/^data_version: //p')
@@ -118,9 +120,22 @@ chaos_dataset() {
 }
 
 chaos_config() {
-  local directory=config/examples/verify-mini body response status names name
+  local directory=config/examples/verify-mini body response status names name source
+  if [ -n "${chaos_work:-}" ]; then
+    rm -rf "$chaos_work"
+  fi
   chaos_work=$(mktemp -d "${TMPDIR:-/tmp}/quantrule-chaos.XXXXXX")
   body="$chaos_work/bundle.json"
+  # A run identity is derived from the data version and the config hash, so the
+  # fixed verify-mini config is idempotent: a second submit returns the run
+  # that already succeeded. Name every chaos run uniquely so the kill case gets
+  # a fresh, in-flight run. The name is recorded in provenance and the manifest,
+  # both outside the canonical digest; the computed artifacts are unchanged.
+  chaos_config_seq=$((chaos_config_seq + 1))
+  chaos_run_name="chaos-kill-$(date -u +%Y%m%dT%H%M%SZ)-$chaos_config_seq"
+  jq --arg name "$chaos_run_name" '.name = $name' "$directory/run.json" \
+    > "$chaos_work/run.json" \
+    || chaos_fail "cannot name the chaos run"
   names=$(jq -er '
     ["run.json"] + ([.data, .model, .execution, .portfolio, .strategy]
       | map(select(. != null))) | unique | .[]
@@ -128,13 +143,18 @@ chaos_config() {
   jq -n '{name: "chaos-kill", files: {}}' > "$body"
   while IFS= read -r name; do
     [ -n "$name" ] || continue
-    jq --arg name "$name" --rawfile content "$directory/$name" \
+    if [ "$name" = "run.json" ]; then
+      source="$chaos_work/run.json"
+    else
+      source="$directory/$name"
+    fi
+    jq --arg name "$name" --rawfile content "$source" \
       '.files[$name] = $content' "$body" > "$body.next"
     mv "$body.next" "$body"
   done <<< "$names"
   response="$chaos_work/config.json"
   status=$(chaos_curl -sS -o "$response" -w '%{http_code}' \
-    -X POST -H "X-QuantRule-Profile: $profile" \
+    -X POST -H "X-QuantRule-Profile: $chaos_profile" \
     -H 'content-type: application/json' \
     --data-binary @"$body" "$api_url/catalog/configs") \
     || chaos_fail "the gateway refused the config upload"
@@ -145,7 +165,7 @@ chaos_config() {
 
 chaos_submit() {
   local output run_id
-  output=$("$chaos_shell_bin" --profile "$profile" run submit \
+  output=$("$chaos_shell_bin" --profile "$chaos_profile" run submit \
     "$chaos_data_version" "$chaos_config_id") \
     || chaos_fail "the run submission failed"
   run_id=$(printf '%s\n' "$output" | sed -n 's/^run_id: //p')
@@ -154,7 +174,7 @@ chaos_submit() {
 }
 
 chaos_detail() {
-  "$chaos_shell_bin" --profile "$profile" run status "$1"
+  "$chaos_shell_bin" --profile "$chaos_profile" run status "$1"
 }
 
 chaos_field() {
@@ -186,7 +206,7 @@ chaos_assert_no_partial() {
   while IFS= read -r name; do
     [ -n "$name" ] || continue
     code=$(chaos_curl -sS -o /dev/null -w '%{http_code}' \
-      -H "X-QuantRule-Profile: $profile" \
+      -H "X-QuantRule-Profile: $chaos_profile" \
       "$api_url/runs/${run_id//:/%3A}/artifacts/$name") \
       || chaos_fail "cannot reach the gateway for artifact $name"
     [ "$code" = "200" ] || chaos_fail "referenced artifact $name returned HTTP $code"
@@ -230,5 +250,7 @@ chaos_kill_on_host() {
 }
 
 chaos_leader_term() {
-  db_psql_local "$chaos_pg_host" 'SELECT term FROM runs.leader_lease WHERE singleton;' | tr -d '[:space:]'
+  remote "$chaos_pg_host" \
+    "$docker_bin exec -u postgres quantrule-patroni-$chaos_pg_host psql -d qr_evidence -tAc \"SELECT term FROM runs.leader_lease WHERE singleton;\"" \
+    | tr -d '[:space:]'
 }

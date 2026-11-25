@@ -227,6 +227,7 @@ for url in "$source_url" "$target_url"; do
 done
 
 work=$(mktemp -d "${TMPDIR:-/tmp}/quantrule-object-archive.XXXXXX")
+mc_run_seq=0
 cleanup() {
   find "$work" -type f -delete 2>/dev/null || true
   find "$work" -depth -type d -empty -delete 2>/dev/null || true
@@ -248,15 +249,31 @@ chmod 600 "$work/mc/config.json"
 
 mc_run() {
   if [ -n "$mc_image" ]; then
-    local network_args=()
+    local network_args=() name status
     [ -n "$network" ] && network_args=(--network "$network")
-    docker run --rm "${network_args[@]}" \
-      -v "$work/mc:/mc:ro" -v "$ca:/certs/ca.crt:ro" \
-      -e SSL_CERT_FILE=/certs/ca.crt "$mc_image" \
-      mc --config-dir /mc "$@"
-  else
-    SSL_CERT_FILE=$ca "$mc_bin" --config-dir "$work/mc" "$@"
+    # The Docker daemon may be remote (the lab driver uses DOCKER_HOST over
+    # SSH). A bind mount would resolve on the daemon host, where the temporary
+    # mc config does not exist. Copy the config and CA into a one-shot
+    # container instead, which streams over the Docker API.
+    name="qr-object-archive-$$-$mc_run_seq"
+    mc_run_seq=$((mc_run_seq + 1))
+    docker create --name "$name" "${network_args[@]}" \
+      -e SSL_CERT_FILE=/mc/ca.crt --entrypoint mc "$mc_image" \
+      --config-dir /mc "$@" >/dev/null || return 1
+    docker cp "$work/mc/." "$name:/mc" >/dev/null || {
+      docker rm -f "$name" >/dev/null 2>&1 || true
+      return 1
+    }
+    docker cp "$ca" "$name:/mc/ca.crt" >/dev/null || {
+      docker rm -f "$name" >/dev/null 2>&1 || true
+      return 1
+    }
+    docker start -a "$name"
+    status=$?
+    docker rm -f "$name" >/dev/null 2>&1 || true
+    return "$status"
   fi
+  SSL_CERT_FILE=$ca "$mc_bin" --config-dir "$work/mc" "$@"
 }
 
 started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)

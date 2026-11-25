@@ -1,6 +1,8 @@
 modules:
   https_2xx:
     http:
+      headers:
+        Host: "quantrule.dev"
       preferred_ip_protocol: "ip4"
       tls_config:
         ca_file: "/etc/quantrule/pki/ca.crt"

@@ -1,0 +1,16 @@
+{
+  "schema": "quantrule.ha-evidence/v1",
+  "row": "HA-11",
+  "status": "Simulated HA",
+  "case": "etcd-member-stop",
+  "profile": "lab-single-host",
+  "recorded_at": "2026-11-25T11:29:33Z",
+  "rto_seconds": 4,
+  "digest": "sha256:a0372f02db7bc65460906eba3242943da8c56f26c46fde470726cee856bc4cea",
+  "note": "one etcd member stopped; two remained healthy and the member rejoined",
+  "real_ha": "not claimed by this script",
+  "details": {
+    "surviving_members": 2,
+    "rejoined": true
+  }
+}

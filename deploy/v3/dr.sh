@@ -345,6 +345,10 @@ else
 fi
 dr_resolve_target
 
+if [ "$mode" = "in-place" ]; then
+  dr_inplace_archive_objects
+fi
+
 if dr_check_archive_time "$DR_TARGET_EPOCH"; then
   :
 else
