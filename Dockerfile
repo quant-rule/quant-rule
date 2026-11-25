@@ -51,7 +51,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     && awk -F'"' '/^version = /{print $2; exit}' Cargo.toml > /out/version
 
 # --- Bun: the static client -----------------------------------------------
-FROM oven/bun:1.4.2 AS web-builder
+FROM oven/bun:1.4.2@sha256:9114c058aeae42162ee16dd5084b95fe9473970bb6bcb5b232ab1630f0546895 AS web-builder
 
 WORKDIR /web
 
@@ -62,22 +62,19 @@ COPY apps/web ./
 RUN bun run build
 
 # --- Runtime: Debian slim, no Python, no Bun ------------------------------
-FROM debian:trixie-slim AS runtime
+FROM debian:trixie-slim@sha256:8aa5a7bf5a1955bddbe7d74fcdd0b91ab30e74362a8b73af672b0481b35b44a0 AS runtime
 
 LABEL org.opencontainers.image.title="quantrule-server" \
       org.opencontainers.image.description="The QuantRule service runtime and browser client" \
       org.opencontainers.image.source="https://github.com/quant-rule/quant-rule" \
       org.opencontainers.image.licenses="MIT OR Apache-2.0"
 
-# curl serves the Compose health probes; ca-certificates is required for any
-# outbound TLS. Neither pulls an interpreter.
-# libstdc++ and gdb ship Python pretty-printer scripts. The image has no
+# The health probe is the gateway binary's `--healthcheck` mode and the private
+# CA is mounted at /run/pki, so the runtime needs neither curl nor a system CA
+# bundle. libstdc++ and gdb ship Python pretty-printer scripts. The image has no
 # interpreter and the constraint is no `.py` file, so the debugger helpers are
 # removed rather than left as dead weight.
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl util-linux \
-    && rm -rf /var/lib/apt/lists/* \
-    && groupadd --system --gid 10001 quantrule \
+RUN groupadd --system --gid 10001 quantrule \
     && useradd --system --uid 10001 --gid quantrule \
         --home-dir /srv/quantrule --shell /usr/sbin/nologin quantrule \
     && install -d -o quantrule -g quantrule /srv/static /srv/config /srv/quantrule \

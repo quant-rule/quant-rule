@@ -27,11 +27,11 @@ The seven binaries come from seven packages, one per service:
 `quantrule-evidence-service`, `quantrule-simulation-service`, and
 `quantrule-strategy-service`.
 
-The runtime is Debian slim with `ca-certificates`, `curl` and `setpriv`. The
-entrypoint starts as root only to stage mode-600 file secrets for the service
-user, then every service binary runs as UID 10001. The internal TLS CA bundles
-are public files mounted at `/run/pki`; they do not pass through the entrypoint.
-The image carries no Python interpreter, Bun runtime, Rust toolchain or `tools/`
+The runtime is Debian slim with `setpriv` and the gateway's `--healthcheck`
+probe. It carries no `curl` and no system CA bundle; the internal TLS CA is
+mounted at `/run/pki`. The entrypoint starts as root only to stage mode-600 file
+secrets for the service user, then every service binary runs as UID 10001. The
+image carries no Python interpreter, Bun runtime, Rust toolchain or `tools/`
 directory.
 
 ## 2. Build and run

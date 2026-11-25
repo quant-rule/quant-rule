@@ -422,8 +422,9 @@ Without it the stateful rows render in memory and read the certificate leaves
 under the descriptor CA's parent. --remote docker and --overlay are explicit
 read-only Docker opt-ins; set QR_DEPLOY_DOCKER to override the docker executable.
 --runtime (with --remote docker) runs only the all-service digest probe: it runs
-the descriptor image's curl on the overlay against /version (six services) and
-backtest:/health, and compares every image_digest with the descriptor. A
+the descriptor image's `qr-gateway --healthcheck --print` mode on the overlay
+against /version (six services) and backtest:/health, and compares every
+image_digest with the descriptor. A
 lab-single-host profile reports Simulated HA, never Real HA.
 
 Exit codes: 0 success, 1 validation or check failure, 2 usage error."

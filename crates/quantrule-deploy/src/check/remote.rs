@@ -4,9 +4,11 @@
 //! `--overlay`, and `--runtime` are explicit opt-ins. The inspectors read
 //! Docker's own read-only inspect output through a [`DockerQuery`] seam; the
 //! production adapter shells out to the Docker CLI, and tests inject a fixture.
-//! `--runtime` additionally runs one short `curl` container from the pinned
-//! product image on the overlay. No inspector prints an environment value, a
-//! secret or config payload, a token, or a full inspect body.
+//! `--runtime` additionally runs one short health-probe container from the pinned
+//! product image on the overlay. The probe is the image's own
+//! `qr-gateway --healthcheck --print` mode; the image carries no curl. No
+//! inspector prints an environment value, a secret or config payload, a token,
+//! or a full inspect body.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::process::Command;
@@ -38,7 +40,7 @@ pub trait DockerQuery {
     fn service_inspect(&self, name: &str) -> Result<String, String>;
     /// List one service's desired-running tasks as JSON lines.
     fn service_tasks(&self, name: &str) -> Result<String, String>;
-    /// Run the pinned product image's `curl` on the overlay and return the body.
+    /// Run the pinned product image's health probe on the overlay and return the body.
     fn runtime_probe(&self, network: &str, image: &str, url: &str) -> Result<String, String>;
 }
 
@@ -128,10 +130,11 @@ impl DockerQuery for CommandDocker {
             "--network",
             network,
             "--entrypoint",
-            "curl",
+            "qr-gateway",
             image,
-            "-fsS",
+            "--healthcheck",
             url,
+            "--print",
         ])
     }
 }

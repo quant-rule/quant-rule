@@ -294,8 +294,9 @@ receiver, Loki/promtail, Grafana, manifest, logging, and internal metrics; the 1
 Docker-free, no row prints a secret or inspect body, and a missing object or
 command is a failed row. `--remote docker` compares every running task image
 with the descriptor (a stopped task is ignored); `--runtime` runs only the
-all-service probe: the image's `curl` reads `/version` (six services) and
-backtest:9100 `/health`, and all seven `image_digest` values must match.
+all-service probe: the image's `qr-gateway --healthcheck --print` reads
+`/version` (six services) and backtest:9100 `/health`, and all seven
+`image_digest` values must match.
 
 ## 7. Token rotation, commands, and compatibility
 

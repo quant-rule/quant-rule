@@ -24,6 +24,11 @@ use quantrule_runtime::{
 
 #[tokio::main]
 async fn main() -> Result<(), RuntimeError> {
+    if std::env::args().nth(1).as_deref() == Some("--healthcheck") {
+        std::process::exit(quantrule_gateway::healthcheck::run(
+            std::env::args().skip(2),
+        ));
+    }
     let config = Config::from_env()?;
     logging::init("gateway", config.image_digest.as_ref())?;
 

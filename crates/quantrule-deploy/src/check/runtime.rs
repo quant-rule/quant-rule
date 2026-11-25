@@ -1,11 +1,12 @@
 //! The opt-in all-service runtime digest probe.
 //!
-//! `qr-deploy check --remote docker --runtime` runs the descriptor image's
-//! `curl` on the descriptor overlay against each service endpoint and compares
-//! the reported `image_digest` with the descriptor. This is the one check that
-//! starts a short-lived container; it is never reached by the default check or
-//! by `--remote docker` alone. Rows name the service and digest, never a
-//! secret, an environment value, or a full response body.
+//! `qr-deploy check --remote docker --runtime` runs the descriptor image's own
+//! `qr-gateway --healthcheck --print` mode on the descriptor overlay against
+//! each service endpoint and compares the reported `image_digest` with the
+//! descriptor. This is the one check that starts a short-lived container; it is
+//! never reached by the default check or by `--remote docker` alone. Rows name
+//! the service and digest, never a secret, an environment value, or a full
+//! response body.
 
 use serde::Deserialize;
 

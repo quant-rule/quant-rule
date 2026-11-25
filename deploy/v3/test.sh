@@ -523,9 +523,10 @@ verify_run() {
 }
 
 # Prove every service reports the descriptor digest through its own endpoint.
-# The product image supplies curl; the probe uses the descriptor overlay and
-# image, never a lab-specific network or a second image pin. Only the service
-# name and digest are printed; a wrong or missing digest fails closed.
+# The product image supplies the `qr-gateway --healthcheck` probe; the probe uses
+# the descriptor overlay and image, never a lab-specific network or a second
+# image pin. Only the service name and digest are printed; a wrong or missing
+# digest fails closed.
 digest_all() {
   local phase=$1 expected output service digest seen=0
   expected=$(jq -r '.image.digest' "$descriptor" 2>/dev/null || true)
