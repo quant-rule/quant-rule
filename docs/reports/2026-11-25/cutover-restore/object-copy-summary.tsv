@@ -1,0 +1,9 @@
+object_copy_objects	92
+object_copy_bytes	36834093
+key_size_etag_match	yes
+hash_mismatches	0
+source_manifest_sha256	be7d92056fd90ba6cbd129faab99b73635c8b8a462885932740648907224d545
+copy_manifest_sha256	be7d92056fd90ba6cbd129faab99b73635c8b8a462885932740648907224d545
+artifact_objects	45
+referenced_artifact_hashes	45
+orphan_artifact_objects	0
