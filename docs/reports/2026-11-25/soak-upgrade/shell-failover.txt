@@ -1,0 +1,14 @@
+poll=1 status=0 first=api: quantrule.api/v1
+poll=2 status=0 first=api: quantrule.api/v1
+poll=3 status=0 first=api: quantrule.api/v1
+poll=4 status=1 first=error: cannot reach the gateway after 3 attempts
+poll=5 status=1 first=error: cannot reach the gateway after 3 attempts
+poll=6 status=0 first=api: quantrule.api/v1
+poll=7 status=0 first=api: quantrule.api/v1
+poll=8 status=0 first=api: quantrule.api/v1
+poll=9 status=0 first=api: quantrule.api/v1
+poll=10 status=0 first=api: quantrule.api/v1
+poll=11 status=0 first=api: quantrule.api/v1
+poll=12 status=0 first=api: quantrule.api/v1
+poll=13 status=0 first=api: quantrule.api/v1
+poll=14 status=0 first=api: quantrule.api/v1

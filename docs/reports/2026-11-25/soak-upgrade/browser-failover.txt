@@ -1,0 +1,8 @@
+Live browser check (Playwright chromium, 2026-11-25 UTC)
+
+1. page.goto("http://127.0.0.1:8080/") -> health-report visible, healthy,
+   no reconnect banner.
+2. gateway stopped; nav to Profiles -> reconnect-banner visible.
+3. gateway started; page.reload() -> health-report visible, healthy,
+   no reconnect banner.
+Result: 1 passed (9.3s).
