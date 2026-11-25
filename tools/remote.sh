@@ -29,6 +29,8 @@
 #   QR_BEARER_TOKEN  reuse a token instead of generating one (32+ characters)
 #   QR_SECRETS_DIR   secret directory (default <root>/secrets)
 #   QR_URL           URL to probe and print (default http://localhost:8080)
+#   QR_GATEWAY_BIND  host address for :8080 (default 0.0.0.0; the local
+#                    `make up` profile binds 127.0.0.1)
 #   COMPOSE          Compose command (default "docker compose")
 set -euo pipefail
 umask 077
@@ -60,7 +62,10 @@ read -r -a compose_command <<< "${COMPOSE:-docker compose}"
 secrets_dir="${QR_SECRETS_DIR:-$root/secrets}"
 pki_dir="${QR_PKI_DIR:-$root/pki}"
 compose() {
-  QR_SECRETS_DIR="$secrets_dir" QR_PKI_DIR="$pki_dir" "${compose_command[@]}" \
+  # The local profile binds loopback. A remote stack must bind an interface a
+  # client can reach; QR_GATEWAY_BIND may narrow it to one address deliberately.
+  QR_GATEWAY_BIND="${QR_GATEWAY_BIND:-0.0.0.0}" \
+    QR_SECRETS_DIR="$secrets_dir" QR_PKI_DIR="$pki_dir" "${compose_command[@]}" \
     --env-file "$secrets_dir/compose.env" \
     -f compose.yaml -f compose.remote.yaml "$@"
 }

@@ -1,0 +1,63 @@
+== published ports
+qr-lab-driver	
+qr-lab-registry	127.0.0.1:5000->5000/tcp
+quantrule-backtest-1	8080/tcp
+quantrule-data-1	8080/tcp
+quantrule-evidence-1	8080/tcp
+quantrule-gateway-1	127.0.0.1:8080->8080/tcp
+quantrule-minio-1	9000-9001/tcp
+quantrule-model-1	8080/tcp
+quantrule-postgres-1	5432/tcp
+quantrule-rabbitmq-1	4369/tcp, 5671-5672/tcp, 15671-15672/tcp, 15691-15692/tcp, 25672/tcp
+quantrule-simulation-1	8080/tcp
+quantrule-strategy-1	8080/tcp
+== host listeners
+LISTEN 0      4096       127.0.0.1:8080       0.0.0.0:*                                       
+== secret modes
+600 secrets/bearer_token
+600 secrets/compose.env
+600 secrets/object_store_access_key
+600 secrets/object_store_secret_key
+600 secrets/qr_catalog_database_url
+600 secrets/qr_catalog_owner_database_url
+600 secrets/qr_evidence_database_url
+600 secrets/qr_evidence_owner_database_url
+600 secrets/qr_gateway_database_url
+600 secrets/qr_gateway_owner_database_url
+600 secrets/qr_simulation_database_url
+600 secrets/qr_simulation_owner_database_url
+600 secrets/queue_url
+700 secrets (target; the worktree path is a symlink)
+== app container env secrets
+-- quantrule-gateway-1
+QR_DATABASE_URL_FILE=/run/secrets/qr_gateway_database_url
+user=0:0
+-- quantrule-data-1
+QR_DATABASE_URL_FILE=/run/secrets/qr_catalog_database_url
+QR_OBJECT_STORE_ACCESS_KEY_FILE=/run/secrets/object_store_access_key
+QR_OBJECT_STORE_SECRET_KEY_FILE=/run/secrets/object_store_secret_key
+user=0:0
+-- quantrule-model-1
+QR_OBJECT_STORE_ACCESS_KEY_FILE=/run/secrets/object_store_access_key
+QR_OBJECT_STORE_SECRET_KEY_FILE=/run/secrets/object_store_secret_key
+user=0:0
+-- quantrule-backtest-1
+QR_OBJECT_STORE_ACCESS_KEY_FILE=/run/secrets/object_store_access_key
+QR_OBJECT_STORE_SECRET_KEY_FILE=/run/secrets/object_store_secret_key
+QR_QUEUE_URL_FILE=/run/secrets/queue_url
+user=0:0
+-- quantrule-evidence-1
+QR_DATABASE_URL_FILE=/run/secrets/qr_evidence_database_url
+QR_OBJECT_STORE_ACCESS_KEY_FILE=/run/secrets/object_store_access_key
+QR_OBJECT_STORE_SECRET_KEY_FILE=/run/secrets/object_store_secret_key
+QR_QUEUE_URL_FILE=/run/secrets/queue_url
+user=0:0
+-- quantrule-simulation-1
+QR_DATABASE_URL_FILE=/run/secrets/qr_simulation_database_url
+QR_OBJECT_STORE_ACCESS_KEY_FILE=/run/secrets/object_store_access_key
+QR_OBJECT_STORE_SECRET_KEY_FILE=/run/secrets/object_store_secret_key
+user=0:0
+-- quantrule-strategy-1
+QR_OBJECT_STORE_ACCESS_KEY_FILE=/run/secrets/object_store_access_key
+QR_OBJECT_STORE_SECRET_KEY_FILE=/run/secrets/object_store_secret_key
+user=0:0

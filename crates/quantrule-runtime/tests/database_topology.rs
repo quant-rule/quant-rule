@@ -373,3 +373,22 @@ fn the_bootstrap_creates_four_databases_and_isolated_roles() {
         }
     }
 }
+
+#[test]
+fn the_local_gateway_binds_loopback_and_remote_opens_the_interface() {
+    let compose = read("compose.yaml");
+    assert!(
+        compose.contains("${QR_GATEWAY_BIND:-127.0.0.1}:8080:8080"),
+        "the unauthenticated local profile does not bind loopback"
+    );
+    let remote = read("tools/remote.sh");
+    assert!(
+        remote.contains("QR_GATEWAY_BIND:-0.0.0.0"),
+        "the remote profile does not open an interface by default"
+    );
+    let override_file = read("compose.remote.yaml");
+    assert!(
+        override_file.contains("QR_GATEWAY_BIND=0.0.0.0"),
+        "the remote override does not document the interface bind"
+    );
+}
