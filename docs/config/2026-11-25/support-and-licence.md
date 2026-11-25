@@ -1,7 +1,7 @@
 # Support Matrix and Licence Boundary
 
 - Date: 2026-11-25 (UTC)
-- Status: Current for v1.6.0; the support boundary is technical, the licence boundary is commercial and human-owned
+- Status: Current for v1.6.0; the software licence is MIT OR Apache-2.0, support terms are separate
 - Issue: [#1130](https://github.com/quant-rule/quant-rule/issues/1130) (DOC-003)
 - Claim type: Behaviour Claim
 - Related: [reference topologies](../2026-11-24/reference-topologies.md), [registry and supply chain](../2026-11-24/registry.md), [deployment v3](../2026-11-22/deploy-v3.md), [manual 15](../../manual/15-ha-deployment.md)
@@ -69,16 +69,13 @@ refuses them.
 
 ## 5. Licence boundary
 
-This section is a boundary statement, not the commercial licence text.
-
-- The QuantRule repository and product are proprietary. No open-source licence
-  is granted by this repository; all rights are reserved by the owner.
-- The commercial licence terms, fees, support commitments, and any redistribution
-  or hosted-service right are a separate human-approved document. Until that
-  document exists, no such right is granted.
-- The operator may run the product on their own machine or internal host for
-  their own research. Redistribution, sublicensing, or offering it as a service
-  to a third party requires the separate written terms.
+- The QuantRule software is dual-licensed under **MIT OR Apache-2.0**. Every
+  crate manifest and both container image labels declare the same expression;
+  the full texts are [`LICENSE-MIT`](../../../LICENSE-MIT) and
+  [`LICENSE-APACHE`](../../../LICENSE-APACHE).
+- Commercial support, fees, uptime commitments, and any hosted-service offering
+  are a separate human-approved document. The open-source licence grants the
+  software rights, not a support contract or an SLA.
 - Third-party components keep their own licences. The MinIO image reports
   `GNU AGPLv3`; Grafana, Prometheus, RabbitMQ, PostgreSQL, Traefik, HAProxy,
   etcd, and the observability images carry their upstream licences. The operator
@@ -93,5 +90,5 @@ This section is a boundary statement, not the commercial licence text.
 | Platform matrix | Matches `deploy/v3/reference/sizing.json` and the reference host roles |
 | Image versions | Read from the running Compose containers and the descriptor pins on 2026-11-25 |
 | Unsupported list | Matches the reference-topologies unsupported list |
-| Licence boundary | Proprietary/all-rights-reserved; commercial text remains a human decision |
+| Licence boundary | MIT OR Apache-2.0; LICENSE-MIT and LICENSE-APACHE present |
 | `qr-governance check --all` | Pass |
