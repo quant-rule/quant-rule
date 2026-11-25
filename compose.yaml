@@ -379,7 +379,6 @@ services:
       QR_DATABASE_OWNER_URL_FILE: /run/secrets/qr_gateway_owner_database_url
       QR_MIGRATE: "0"
       QR_DATABASE_TLS_CA_PATH: /run/pki/ca.crt
-      QR_OBJECT_STORE_TLS_CA_PATH: /run/pki/ca.crt
     secrets:
       - qr_gateway_owner_database_url
     volumes:
@@ -398,7 +397,6 @@ services:
       QR_DATABASE_OWNER_URL_FILE: /run/secrets/qr_catalog_owner_database_url
       QR_MIGRATE: "0"
       QR_DATABASE_TLS_CA_PATH: /run/pki/ca.crt
-      QR_OBJECT_STORE_TLS_CA_PATH: /run/pki/ca.crt
     secrets:
       - qr_catalog_owner_database_url
     volumes:
@@ -417,7 +415,6 @@ services:
       QR_DATABASE_OWNER_URL_FILE: /run/secrets/qr_evidence_owner_database_url
       QR_MIGRATE: "0"
       QR_DATABASE_TLS_CA_PATH: /run/pki/ca.crt
-      QR_OBJECT_STORE_TLS_CA_PATH: /run/pki/ca.crt
     secrets:
       - qr_evidence_owner_database_url
     volumes:
@@ -436,7 +433,6 @@ services:
       QR_DATABASE_OWNER_URL_FILE: /run/secrets/qr_simulation_owner_database_url
       QR_MIGRATE: "0"
       QR_DATABASE_TLS_CA_PATH: /run/pki/ca.crt
-      QR_OBJECT_STORE_TLS_CA_PATH: /run/pki/ca.crt
     secrets:
       - qr_simulation_owner_database_url
     volumes:

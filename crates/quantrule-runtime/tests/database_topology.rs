@@ -102,6 +102,10 @@ fn services_hold_only_the_app_url_and_migration_jobs_only_the_owner_url() {
             "{service}-migrate carries the application URL"
         );
         assert!(
+            !migrate.contains("QR_OBJECT_STORE_TLS_CA_PATH"),
+            "{service}-migrate carries an object-store CA without an object-store URL"
+        );
+        assert!(
             block.contains(&format!(
                 "{service}-migrate:\n        condition: service_completed_successfully"
             )),
