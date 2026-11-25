@@ -62,7 +62,13 @@ q_leader_host() {
 q_quorum_status() {
   local host=$1 queue=$2
   # shellcheck disable=SC2086
-  remote "$host" "$docker_bin exec -u rabbitmq $(q_container "$host") rabbitmq-queues quorum_status $queue"
+  remote "$host" "$docker_bin exec -u rabbitmq $(q_container "$host") rabbitmq-queues quorum_status $queue --formatter json"
+}
+
+# RabbitMQ 4.4 prints the leader as a table row, not a `Leader:` line; the JSON
+# formatter keeps one parse across both layouts.
+q_quorum_leader() {
+  jq -r '.[] | select(."Raft State" == "leader") | ."Node Name"' 2>/dev/null | head -n 1
 }
 
 q_eval() {
@@ -81,19 +87,27 @@ q_alarm_count() {
 }
 
 q_all_queues_have_quorum() {
-  local host=$1
-  # shellcheck disable=SC2086
-  remote "$host" "$docker_bin exec -u rabbitmq $(q_container "$host") rabbitmq-diagnostics -q check_if_all_queues_have_quorum" \
-    >/dev/null 2>&1
+  local host=$1 queue json leaders
+  # RabbitMQ 4.4 removed `check_if_all_queues_have_quorum`; a queue's elected
+  # Raft leader is the direct evidence that a voter quorum is available.
+  for queue in $q_queues; do
+    json=$(q_quorum_status "$host" "$queue" 2>/dev/null) || return 1
+    leaders=$(printf '%s' "$json" \
+      | jq -r '[.[] | select(."Raft State" == "leader")] | length' 2>/dev/null) \
+      || return 1
+    [ "$leaders" -eq 1 ] || return 1
+  done
 }
 
 q_probe_binary() {
   if [ -n "${QR_QUEUE_PROBE_BIN:-}" ]; then
     q_probe_bin=$QR_QUEUE_PROBE_BIN
   else
-    cargo build --quiet -p quantrule-runtime --example queue_probe >/dev/null 2>&1 \
-      || q_fail "cannot build the queue probe example; set QR_QUEUE_PROBE_BIN"
     q_probe_bin="${CARGO_TARGET_DIR:-$root/target}/debug/examples/queue_probe"
+    if [ ! -x "$q_probe_bin" ]; then
+      cargo build --quiet -p quantrule-runtime --example queue_probe >/dev/null 2>&1 \
+        || q_fail "cannot build the queue probe example; set QR_QUEUE_PROBE_BIN"
+    fi
   fi
   [ -x "$q_probe_bin" ] || q_fail "the queue probe $q_probe_bin is not executable"
 }
@@ -128,7 +142,9 @@ q_probe_retry() {
 # before declaring the queue loss a failure.
 q_targeted_retry() {
   local phase=$1 attempt
-  for attempt in $(seq 1 30); do
+  # targeted_check waits for a rescheduled ingress task; three rounds bound the
+  # recovery at about three minutes without multiplying that wait.
+  for attempt in $(seq 1 3); do
     if ( targeted_check "$phase" ) >/dev/null 2>&1; then
       return 0
     fi
@@ -197,11 +213,13 @@ queue_preflight() {
     || q_fail "HAProxy on $haproxy has no rabbitmq frontend"
   printf '%s\n' "$haproxy_config" | grep -Fq "bind *:5671" \
     || q_fail "HAProxy on $haproxy does not bind 5671"
-  remote "$haproxy" "$docker_bin exec $q_haproxy_container sh -c 'nc -z -w 5 rabbitmq 5671'" \
+  remote "$haproxy" "$docker_bin run --rm --network $(jq -r '.network.overlay' "$descriptor") \
+    --entrypoint sh $(jq -r '.image.reference + "@" + .image.digest' "$descriptor") \
+    -c 'curl -sS --connect-timeout 5 telnet://rabbitmq:5671 </dev/null'" \
     >/dev/null 2>&1 || q_fail "the HAProxy rabbitmq:5671 front door does not answer"
   q_probe_environment
   q_leader=$(q_quorum_status "$q_first_broker" "runs.backtest.g$q_generation" \
-    | sed -n 's/.*Leader:[[:space:]]*\(rabbit@[^[:space:]]*\).*/\1/p' | head -n 1)
+    | q_quorum_leader)
   [ -n "$q_leader" ] || q_fail "no quorum leader for runs.backtest.g$q_generation"
   q_leader_host=${q_leader#rabbit@rabbitmq-}
   q_say "preflight: $q_leader leads runs.backtest.g$q_generation; $q_definitions_verified definitions verified; HAProxy $haproxy answers rabbitmq:5671"
@@ -262,7 +280,7 @@ queue_loss() {
     alarms=$(q_alarm_count "$survivor" 2>/dev/null || true)
     leader=$(q_quorum_status "$survivor" "runs.backtest.g$q_generation" 2>/dev/null || true)
     new_leader=$(printf '%s\n' "$leader" \
-      | sed -n 's/.*Leader:[[:space:]]*\(rabbit@[^[:space:]]*\).*/\1/p' | head -n 1)
+      | q_quorum_leader)
     if [ "$running" = "2" ] && [ "$alarms" = "0" ] \
       && [ -n "$new_leader" ] && [ "$new_leader" != "$old_leader" ]; then
       if q_all_queues_have_quorum "$survivor"; then

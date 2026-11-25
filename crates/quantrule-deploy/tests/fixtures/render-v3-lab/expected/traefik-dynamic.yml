@@ -4,13 +4,14 @@ http:
       buffering:
         maxRequestBodyBytes: 536870912
     security-headers:
-      contentTypeNosniff: true
-      customResponseHeaders:
-        Server: ""
-      referrerPolicy: "no-referrer"
-      stsIncludeSubdomains: true
-      stsPreload: false
-      stsSeconds: 31536000
+      headers:
+        contentTypeNosniff: true
+        customResponseHeaders:
+          Server: ""
+        referrerPolicy: "no-referrer"
+        stsIncludeSubdomains: true
+        stsPreload: false
+        stsSeconds: 31536000
   routers:
     gateway:
       entryPoints:
@@ -30,3 +31,12 @@ http:
         servers:
           -
             url: "http://quantrule-lab_gateway:8080"
+tls:
+  options:
+    default:
+      minVersion: "VersionTLS12"
+  stores:
+    default:
+      defaultCertificate:
+        certFile: "/etc/traefik/certs/ingress.crt"
+        keyFile: "/etc/traefik/certs/ingress.key"

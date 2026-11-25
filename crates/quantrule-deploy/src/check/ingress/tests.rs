@@ -437,6 +437,39 @@ fn the_four_ingress_objects_must_be_mounted_at_the_documented_targets() {
 }
 
 #[test]
+fn a_versioned_dynamic_config_name_is_accepted_at_the_target() {
+    let descriptor = descriptor();
+    let configs = serde_json::json!([
+        mounted(TRAEFIK_CONFIG, "/etc/traefik/traefik.yml", "config"),
+        mounted(
+            "quantrule_traefik_dynamic_v4",
+            "/etc/traefik/dynamic/dynamic.yml",
+            "config"
+        ),
+        mounted(
+            INGRESS_CERT_CONFIG,
+            "/etc/traefik/certs/ingress.crt",
+            "config"
+        )
+    ]);
+    let secrets = serde_json::json!([mounted(
+        INGRESS_KEY_SECRET,
+        "/etc/traefik/certs/ingress.key",
+        "secret"
+    )]);
+    let fake = FakeDocker {
+        service: Some(Ok(ingress_service(configs, secrets))),
+    };
+    let rows = remote_rows(&descriptor, &fake);
+    let row = rows
+        .iter()
+        .find(|row| row.subject == "service mounts")
+        .expect("mount row");
+    assert!(!row.is_failure(), "{row:?}");
+    assert_eq!(row.state, "mounted");
+}
+
+#[test]
 fn a_missing_or_wrong_mount_is_a_failed_row() {
     let descriptor = descriptor();
     let configs = serde_json::json!([mounted(

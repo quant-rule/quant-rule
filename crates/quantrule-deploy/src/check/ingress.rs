@@ -192,14 +192,11 @@ fn static_issues(text: &str) -> Vec<String> {
     for expected in [
         "dashboard: false",
         "insecure: false",
-        "minVersion: VersionTLS12",
         "readTimeout: 900s",
         "writeTimeout: 900s",
         "idleTimeout: 900s",
         "format: json",
         "Authorization: drop",
-        "certFile: /etc/traefik/certs/ingress.crt",
-        "keyFile: /etc/traefik/certs/ingress.key",
         "metrics:",
         "address: \":8082\"",
         "entryPoint: metrics",
@@ -248,6 +245,9 @@ fn dynamic_issues(text: &str, descriptor: &Descriptor) -> Vec<String> {
         "referrerPolicy: \"no-referrer\"".to_owned(),
         "Server: \"\"".to_owned(),
         "maxRequestBodyBytes: 536870912".to_owned(),
+        "minVersion: \"VersionTLS12\"".to_owned(),
+        "certFile: \"/etc/traefik/certs/ingress.crt\"".to_owned(),
+        "keyFile: \"/etc/traefik/certs/ingress.key\"".to_owned(),
     ] {
         if !text.contains(&expected) {
             issues.push(format!("missing dynamic configuration {expected:?}"));
@@ -705,13 +705,22 @@ fn mounts_row(descriptor: &Descriptor, text: &str) -> CheckRow {
     }
     let mut issues = Vec::new();
     for (source, target) in &expected {
-        let actual = config_map.get(*source).or_else(|| secret_map.get(*source));
-        match actual {
-            Some(found) if found == target => {}
+        let exact = config_map.get(*source).or_else(|| secret_map.get(*source));
+        if exact.map(String::as_str) == Some(*target) {
+            continue;
+        }
+        // The external config name can be versioned (`_v4`) because Swarm
+        // configs are immutable; the mounted target is the contract.
+        let at_target = config_map.values().any(|found| found.as_str() == *target)
+            || secret_map.values().any(|found| found.as_str() == *target);
+        if at_target {
+            continue;
+        }
+        match exact {
             Some(found) => {
                 issues.push(format!("{source} is mounted at {found}, expected {target}"))
             }
-            None => issues.push(format!("{source} is not mounted")),
+            None => issues.push(format!("{source} is not mounted at {target}")),
         }
     }
     if issues.is_empty() {

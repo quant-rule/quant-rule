@@ -194,7 +194,7 @@ ha: descriptor: $descriptor
 ha: 1. preflight: docker info, active Swarm manager, 3 odd managers, descriptor hosts resolve, VIP and CA present
 ha: 2. deploy: tools/swarm.sh --allow-unverified bootstrap (render, labels, jobs, stack; Unverified)
 ha: 3. check: qr-deploy check --remote docker --overlay; ingress /health /ready /version over the private CA
-ha: 3a. runtime digest after deploy and after restore: docker run the descriptor image on the overlay; /version for gateway/data/model/strategy/evidence/simulation, /health for backtest:9090; every image_digest must equal the descriptor
+ha: 3a. runtime digest after deploy and after restore: docker run the descriptor image on the overlay; /version for gateway/data/model/strategy/evidence/simulation, /health for backtest on its metrics listener; every image_digest must equal the descriptor
 ha: 3b. the all-service digest row is Measured only when all seven match; a wrong or missing digest fails closed, an unavailable probe is Unverified
 ha: 4. ingress baseline: VIP holder, 2/2 ingress, targeted check and tools/verify.sh digest
 ha: 5. ingress loss: drain the VIP holder; bounded 1 Hz HTTPS /health loop; the VIP moves to the survivor
@@ -341,21 +341,36 @@ stateful_containers() {
 }
 
 stateful_check_host() {
-  local host=$1 expected container running mounts_json source
+  local host=$1 expected container running mounts_json type source
   while IFS=$'\t' read -r expected container; do
     [ -n "$container" ] || continue
     [ "$expected" = "$host" ] || continue
-    running=$(remote "$host" "$docker_bin inspect --format '{{.State.Running}}' $container" 2>/dev/null || true)
+    running=""
+    for attempt in $(seq 1 30); do
+      running=$(remote "$host" "$docker_bin inspect --format '{{.State.Running}}' $container" 2>/dev/null || true)
+      [ "$running" = "true" ] && break
+      sleep 2
+    done
     [ "$running" = "true" ] || unverified "stateful container $container is not running on $host"
     mounts_json=$(remote "$host" "$docker_bin inspect --format '{{json .Mounts}}' $container" 2>/dev/null || true)
     [ -n "$mounts_json" ] || unverified "cannot read the mounts of $container on $host"
-    printf '%s' "$mounts_json" | jq -e 'all(.[]; .Type == "bind" and (.Source | length > 0))' >/dev/null \
-      || unverified "stateful container $container on $host has a non-bind or empty mount"
-    while IFS= read -r source; do
+    printf '%s' "$mounts_json" | jq -e 'all(.[]; (.Type == "bind" or .Type == "volume") and (.Source | length > 0))' >/dev/null \
+      || unverified "stateful container $container on $host has an unsupported or empty mount"
+    while IFS=$'\t' read -r type source; do
       [ -n "$source" ] || continue
-      remote "$host" "test -d '$source'" >/dev/null 2>&1 \
-        || unverified "bind mount $source is missing on $host"
-    done <<< "$(printf '%s' "$mounts_json" | jq -r '.[].Source')"
+      case "$type" in
+        bind)
+          remote "$host" "test -e '$source'" >/dev/null 2>&1 \
+            || unverified "bind mount $source is missing on $host"
+          ;;
+        volume)
+          # An image-declared Docker volume is allowed only while it is empty:
+          # state that must survive belongs on a host bind mount.
+          remote "$host" "test -d '$source' && [ -z \"\$(ls -A '$source')\" ]" >/dev/null 2>&1 \
+            || unverified "docker volume $source holds data or is missing on $host"
+          ;;
+      esac
+    done <<< "$(printf '%s' "$mounts_json" | jq -r '.[] | [.Type, .Source] | @tsv')"
   done <<< "$(stateful_containers)"
 }
 
@@ -417,14 +432,24 @@ wait_manager_down() {
 
 wait_converged() {
   local attempt rows
-  for attempt in $(seq 1 120); do
-    rows=$("$docker_bin" service ls --filter "label=com.docker.stack.namespace=$stack" --format '{{.Replicas}}')
+  for attempt in $(seq 1 240); do
+    rows=$("$docker_bin" service ls --filter "label=com.docker.stack.namespace=$stack" --format '{{.Replicas}}' | sed 's/ (.*//')
     if [ -n "$rows" ] && printf '%s\n' "$rows" | awk -F/ '$1 != $2 { bad=1 } END { exit bad }'; then
       return 0
     fi
     sleep 2
   done
   unverified "the stack did not converge after the node was restored"
+}
+
+wait_service_running() {
+  local service=$1 attempt actual
+  for attempt in $(seq 1 60); do
+    actual=$("$docker_bin" service ps "$service" --filter desired-state=running --format '{{.CurrentState}}' 2>/dev/null | grep -c '^Running' || true)
+    [ "${actual:-0}" -ge 1 ] && return 0
+    sleep 2
+  done
+  return 1
 }
 
 targeted_check() {
@@ -435,8 +460,8 @@ targeted_check() {
   esac
   expected_image="$expected_reference@$(jq -r '.image.digest' "$descriptor")"
   for service in gateway ingress; do
-    actual=$("$docker_bin" service inspect --format '{{.ServiceStatus.RunningTasks}}' "${stack}_$service" 2>/dev/null || true)
-    [ "${actual:-0}" -ge 1 ] || unverified "$phase: $service has no running task"
+    wait_service_running "${stack}_$service" \
+      || unverified "$phase: $service has no running task"
   done
   actual=$("$docker_bin" service inspect --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}' "${stack}_gateway")
   [ "$actual" = "$expected_image" ] \
@@ -457,20 +482,31 @@ targeted_check() {
       *) unverified "$phase: $service publishes a port" ;;
     esac
   done
-  for path in health ready version; do
-    body=$(curl_ingress -fsS --max-time 10 "https://$dns/$path" 2>/dev/null) \
-      || unverified "$phase: ingress /$path is unreachable"
-    case "$path" in
-      version)
-        printf '%s' "$body" | grep -Eq '"image_digest"[[:space:]]*:[[:space:]]*"'"$(jq -r '.image.digest' "$descriptor")"'"' \
-          || unverified "$phase: /version does not report the pinned digest"
-        ;;
-      *)
-        printf '%s' "$body" | grep -Fq '"state":"healthy"' \
-          || unverified "$phase: /$path is not healthy"
-        ;;
-    esac
+  local attempt ingress_ok failure
+  ingress_ok=0
+  for attempt in $(seq 1 90); do
+    failure=""
+    for path in health ready version; do
+      body=$(curl_ingress -fsS --max-time 10 "https://$dns/$path" 2>/dev/null) \
+        || { failure="/$path is unreachable"; break; }
+      case "$path" in
+        version)
+          printf '%s' "$body" | grep -Eq '"image_digest"[[:space:]]*:[[:space:]]*"'"$(jq -r '.image.digest' "$descriptor")"'"' \
+            || { failure="/version does not report the pinned digest"; break; }
+          ;;
+        *)
+          printf '%s' "$body" | grep -Fq '"state":"healthy"' \
+            || { failure="/$path is not healthy"; break; }
+          ;;
+      esac
+    done
+    if [ -z "$failure" ]; then
+      ingress_ok=1
+      break
+    fi
+    sleep 2
   done
+  [ "$ingress_ok" -eq 1 ] || unverified "$phase: ingress $failure"
 }
 
 verify_run() {
@@ -552,8 +588,7 @@ ingress_preflight() {
   [ "$count" -eq 1 ] \
     || unverified "the VIP $vip is held by $count ingress hosts; expected exactly one"
   expected=$(jq -r '.ingress.replicas' "$descriptor")
-  replicas=$("$docker_bin" service inspect --format \
-    '{{.ServiceStatus.RunningTasks}}/{{.ServiceStatus.DesiredTasks}}' "${stack}_ingress" 2>/dev/null || true)
+  replicas=$("$docker_bin" service ls --filter "name=${stack}_ingress" --format '{{.Replicas}}' 2>/dev/null | sed 's/ (.*//' || true)
   [ "$replicas" = "$expected/$expected" ] \
     || unverified "the ingress is $replicas; expected $expected/$expected"
   vip_holder=$holder
@@ -728,9 +763,9 @@ preflight() {
     || unverified "ingress.vip is missing; the ingress-loss phase needs the floating VIP"
   ingress_iface=$(jq -r '.ingress.interface // "eth0"' "$descriptor") \
     || unverified "cannot read the ingress interface"
-  nodes=$("$docker_bin" node ls --format '{{.ID}} {{.Hostname}} {{.Role}} {{.Availability}} {{.ManagerStatus}}' 2>/dev/null) \
+  nodes=$("$docker_bin" node ls --format '{{.ID}} {{.Hostname}} {{.Availability}} {{.ManagerStatus}}' 2>/dev/null) \
     || unverified "cannot list Swarm nodes"
-  manager_count=$(printf '%s\n' "$nodes" | awk '$3 == "manager" { count++ } END { print count+0 }')
+  manager_count=$(printf '%s\n' "$nodes" | awk '$4 != "" { count++ } END { print count+0 }')
   [ "$manager_count" -ge 3 ] \
     || unverified "manager count $manager_count; three odd managers are required"
   [ $((manager_count % 2)) -eq 1 ] \

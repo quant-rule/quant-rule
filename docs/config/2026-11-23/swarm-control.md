@@ -143,7 +143,7 @@ slot that cannot exist. A brief stop is accepted; the previous task is removed
 before the new one starts.
 
 Every HTTP service has a `/health` check on its own internal port (`8080`; the
-backtest internal listener is `9090`). `interval: 15s`, `timeout: 5s`,
+backtest worker serves it on its metrics listener `9100`). `interval: 15s`, `timeout: 5s`,
 `retries: 6`, and `start_period: 60s` fit inside the 180 s update monitor. A task
 that never becomes healthy is a failed update and triggers the rollback policy.
 

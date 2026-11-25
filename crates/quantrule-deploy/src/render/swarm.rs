@@ -159,6 +159,7 @@ struct Mount {
     source: String,
     target: String,
     mode: u64,
+    owner: Option<u32>,
 }
 
 struct Plan {
@@ -424,6 +425,7 @@ fn secret(source: &str, target: &str) -> Mount {
         source: source.to_owned(),
         target: target.to_owned(),
         mode: 0o400,
+        owner: Some(10001),
     }
 }
 
@@ -432,6 +434,7 @@ fn config(source: &str, target: &str) -> Mount {
         source: source.to_owned(),
         target: target.to_owned(),
         mode: 0o444,
+        owner: None,
     }
 }
 
@@ -465,7 +468,14 @@ fn service_yaml(descriptor: &Descriptor, plan: &Plan) -> Yaml {
             ),
         )
         .with("stop_grace_period", Yaml::string("40s"))
-        .with("healthcheck", healthcheck(plan.port))
+        .with(
+            "healthcheck",
+            healthcheck(if plan.kind == "backtest" {
+                METRICS_PORT
+            } else {
+                plan.port
+            }),
+        )
         .with("logging", logging());
     if !plan.secrets.is_empty() {
         service = service.with("secrets", Yaml::list(plan.secrets.iter().map(mount_yaml)));
@@ -477,10 +487,16 @@ fn service_yaml(descriptor: &Descriptor, plan: &Plan) -> Yaml {
 }
 
 fn mount_yaml(mount: &Mount) -> Yaml {
-    Yaml::map()
+    let mut yaml = Yaml::map()
         .with("source", Yaml::string(mount.source.as_str()))
         .with("target", Yaml::string(mount.target.as_str()))
-        .with("mode", Yaml::number(mount.mode))
+        .with("mode", Yaml::number(mount.mode));
+    if let Some(owner) = mount.owner {
+        yaml = yaml
+            .with("uid", Yaml::string(owner.to_string()))
+            .with("gid", Yaml::string(owner.to_string()));
+    }
+    yaml
 }
 
 fn ingress_yaml(descriptor: &Descriptor) -> Yaml {
@@ -656,7 +672,7 @@ fn healthcheck(port: u16) -> Yaml {
             Yaml::list([
                 Yaml::string("CMD-SHELL"),
                 Yaml::string(format!(
-                    "curl -fsS http://127.0.0.1:{port}/health | grep -q '\"state\":\"healthy\"'"
+                    "curl -fsS http://$$(hostname -i):{port}/health | grep -q '\"state\":\"healthy\"'"
                 )),
             ]),
         )
@@ -750,17 +766,25 @@ mod tests {
     }
 
     #[test]
+    fn secrets_are_mounted_for_the_runtime_user() {
+        let text = stack_yaml(&descriptor()).expect("stack");
+        assert!(text.contains("mode: 256"), "{text}");
+        assert!(text.contains("uid: \"10001\""), "{text}");
+        assert!(text.contains("gid: \"10001\""), "{text}");
+    }
+
+    #[test]
     fn every_http_service_has_a_healthcheck_on_its_own_listener() {
         let text = stack_yaml(&descriptor()).expect("stack");
         assert_eq!(text.matches("healthcheck:").count(), 7, "{text}");
         assert_eq!(
-            text.matches("curl -fsS http://127.0.0.1:8080/health")
+            text.matches("curl -fsS http://$$(hostname -i):8080/health")
                 .count(),
             6,
             "{text}"
         );
         assert_eq!(
-            text.matches("curl -fsS http://127.0.0.1:9090/health")
+            text.matches("curl -fsS http://$$(hostname -i):9100/health")
                 .count(),
             1,
             "{text}"

@@ -110,11 +110,34 @@ pub(crate) fn dynamic_yaml(descriptor: &Descriptor) -> String {
             "middlewares",
             Yaml::map()
                 .with("request-body", body)
-                .with("security-headers", headers),
+                .with("security-headers", Yaml::map().with("headers", headers)),
         )
         .with("routers", Yaml::map().with("gateway", router))
         .with("services", Yaml::map().with("gateway", service));
-    Yaml::map().with("http", http).render()
+    // Traefik reads the default certificate store from dynamic configuration;
+    // a `tls` block in the static file is ignored and silently falls back to
+    // the self-signed default certificate.
+    let tls = Yaml::map()
+        .with(
+            "stores",
+            Yaml::map().with(
+                "default",
+                Yaml::map().with(
+                    "defaultCertificate",
+                    Yaml::map()
+                        .with("certFile", Yaml::string("/etc/traefik/certs/ingress.crt"))
+                        .with("keyFile", Yaml::string("/etc/traefik/certs/ingress.key")),
+                ),
+            ),
+        )
+        .with(
+            "options",
+            Yaml::map().with(
+                "default",
+                Yaml::map().with("minVersion", Yaml::string("VersionTLS12")),
+            ),
+        );
+    Yaml::map().with("http", http).with("tls", tls).render()
 }
 
 /// Build one edge host's keepalived configuration.
@@ -228,11 +251,8 @@ mod tests {
             "idleTimeout: 900s",
             "dashboard: false",
             "insecure: false",
-            "minVersion: VersionTLS12",
             "format: json",
             "Authorization: drop",
-            "certFile: /etc/traefik/certs/ingress.crt",
-            "keyFile: /etc/traefik/certs/ingress.key",
             "metrics:",
             "address: \":8082\"",
             "entryPoint: metrics",
@@ -259,6 +279,9 @@ mod tests {
             "http://quantrule-ha_gateway:8080",
             "security-headers",
             "request-body",
+            "minVersion: \"VersionTLS12\"",
+            "certFile: \"/etc/traefik/certs/ingress.crt\"",
+            "keyFile: \"/etc/traefik/certs/ingress.key\"",
             "stsSeconds: 31536000",
             "stsIncludeSubdomains: true",
             "stsPreload: false",

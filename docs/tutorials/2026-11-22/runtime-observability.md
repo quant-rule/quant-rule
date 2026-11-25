@@ -39,11 +39,11 @@ quantrule_http_requests_total{method="GET",route="/health",status="200"} 1
 Fetch a worker registry:
 
 ```bash
-docker compose exec -T backtest curl -fsS http://127.0.0.1:9090/metrics
+docker compose exec -T backtest curl -fsS http://127.0.0.1:9100/metrics
 ```
 
-The backtest worker serves only this internal listener. It has no public
-`/health`, `/ready` or drain endpoint; those belong to slice 2.
+The backtest worker serves no public API. Its internal metrics listener also
+carries `/health` and `/ready`.
 
 Other methods are refused:
 

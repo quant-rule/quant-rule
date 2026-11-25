@@ -115,7 +115,7 @@ other blocks; the sample lists every pin.
 }
 ```
 
-The sample has eleven hosts: two edge (ingress, gateway, keepalived), two core (data, evidence, simulation), three compute (model, strategy, backtest), and four infrastructure hosts (PostgreSQL, etcd, HAProxy on the edge pair, RabbitMQ, MinIO, observability). Compute hosts span `az1`..`az3`; the four infrastructure hosts span `az1`..`az4`, so four MinIO nodes each contribute one drive in a distinct failure domain with EC:2. The lab uses three VMs, two drives each, EC:3, so one node loss keeps the write quorum. The two reference descriptors keep the same eleven host names: `reference/three-az.json` puts four racks across three AZs with the edge pair on one L2/AZ, and `reference/single-az.json` puts four racks in one AZ. The six HTTP services use `8080`; backtest uses `9090`; no service port is published.
+The sample has eleven hosts: two edge (ingress, gateway, keepalived), two core (data, evidence, simulation), three compute (model, strategy, backtest), and four infrastructure hosts (PostgreSQL, etcd, HAProxy on the edge pair, RabbitMQ, MinIO, observability). Compute hosts span `az1`..`az3`; the four infrastructure hosts span `az1`..`az4`, so four MinIO nodes each contribute one drive in a distinct failure domain with EC:2. The lab uses three VMs, two drives each, EC:3, so one node loss keeps the write quorum. The two reference descriptors keep the same eleven host names: `reference/three-az.json` puts four racks across three AZs with the edge pair on one L2/AZ, and `reference/single-az.json` puts four racks in one AZ. The six HTTP services use `8080`; the backtest worker has no public API and its `/health` is on the internal metrics listener `9100`; no service port is published.
 
 ## 3. Fields
 
@@ -226,7 +226,8 @@ dynamic Traefik configs, the certificate config, and the key secret at the paths
 in [ingress](../2026-11-23/ingress.md). Placement uses the
 host/domain/deployment labels, `max_replicas_per_node: 1` (except the lab), a
 domain spread preference, `stop_grace_period: 40s`, and a bounded restart
-policy. Each HTTP service has a `/health` check (`8080`; backtest `9090`); a
+policy. Each HTTP service has a `/health` check on its task address (`8080`; the
+backtest worker on its metrics listener `9100`); a
 spare slot selects `start-first`, otherwise `stop-first` with `monitor: 180s`
 and `max_failure_ratio: 0`. `backtest` and `evidence` use `restart_policy: any`
 without a max attempt because they consume the queue; the other services keep
@@ -294,7 +295,7 @@ Docker-free, no row prints a secret or inspect body, and a missing object or
 command is a failed row. `--remote docker` compares every running task image
 with the descriptor (a stopped task is ignored); `--runtime` runs only the
 all-service probe: the image's `curl` reads `/version` (six services) and
-backtest:9090 `/health`, and all seven `image_digest` values must match.
+backtest:9100 `/health`, and all seven `image_digest` values must match.
 
 ## 7. Token rotation, commands, and compatibility
 

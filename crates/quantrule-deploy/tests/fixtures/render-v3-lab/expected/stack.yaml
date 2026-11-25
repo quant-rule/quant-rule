@@ -138,7 +138,7 @@ services:
         -
           "CMD-SHELL"
         -
-          "curl -fsS http://127.0.0.1:9090/health | grep -q '\"state\":\"healthy\"'"
+          "curl -fsS http://$$(hostname -i):9100/health | grep -q '\"state\":\"healthy\"'"
       timeout: "5s"
     image: "ghcr.io/quant-rule/quantrule-platform@sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
     logging:
@@ -151,17 +151,23 @@ services:
         "quantrule"
     secrets:
       -
+        gid: "10001"
         mode: 256
         source: "object_store_access_key"
         target: "object_store_access_key"
+        uid: "10001"
       -
+        gid: "10001"
         mode: 256
         source: "object_store_secret_key"
         target: "object_store_secret_key"
+        uid: "10001"
       -
+        gid: "10001"
         mode: 256
         source: "queue_url"
         target: "queue_url"
+        uid: "10001"
     stop_grace_period: "40s"
   data:
     command:
@@ -238,7 +244,7 @@ services:
         -
           "CMD-SHELL"
         -
-          "curl -fsS http://127.0.0.1:8080/health | grep -q '\"state\":\"healthy\"'"
+          "curl -fsS http://$$(hostname -i):8080/health | grep -q '\"state\":\"healthy\"'"
       timeout: "5s"
     image: "ghcr.io/quant-rule/quantrule-platform@sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
     logging:
@@ -251,17 +257,23 @@ services:
         "quantrule"
     secrets:
       -
+        gid: "10001"
         mode: 256
         source: "object_store_access_key"
         target: "object_store_access_key"
+        uid: "10001"
       -
+        gid: "10001"
         mode: 256
         source: "object_store_secret_key"
         target: "object_store_secret_key"
+        uid: "10001"
       -
+        gid: "10001"
         mode: 256
         source: "data_database_url"
         target: "data_database_url"
+        uid: "10001"
     stop_grace_period: "40s"
   evidence:
     command:
@@ -343,7 +355,7 @@ services:
         -
           "CMD-SHELL"
         -
-          "curl -fsS http://127.0.0.1:8080/health | grep -q '\"state\":\"healthy\"'"
+          "curl -fsS http://$$(hostname -i):8080/health | grep -q '\"state\":\"healthy\"'"
       timeout: "5s"
     image: "ghcr.io/quant-rule/quantrule-platform@sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
     logging:
@@ -356,21 +368,29 @@ services:
         "quantrule"
     secrets:
       -
+        gid: "10001"
         mode: 256
         source: "object_store_access_key"
         target: "object_store_access_key"
+        uid: "10001"
       -
+        gid: "10001"
         mode: 256
         source: "object_store_secret_key"
         target: "object_store_secret_key"
+        uid: "10001"
       -
+        gid: "10001"
         mode: 256
         source: "evidence_database_url"
         target: "evidence_database_url"
+        uid: "10001"
       -
+        gid: "10001"
         mode: 256
         source: "queue_url"
         target: "queue_url"
+        uid: "10001"
     stop_grace_period: "40s"
   gateway:
     command:
@@ -447,7 +467,7 @@ services:
         -
           "CMD-SHELL"
         -
-          "curl -fsS http://127.0.0.1:8080/health | grep -q '\"state\":\"healthy\"'"
+          "curl -fsS http://$$(hostname -i):8080/health | grep -q '\"state\":\"healthy\"'"
       timeout: "5s"
     image: "ghcr.io/quant-rule/quantrule-platform@sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
     logging:
@@ -460,13 +480,17 @@ services:
         "quantrule"
     secrets:
       -
+        gid: "10001"
         mode: 256
         source: "gateway_database_url"
         target: "gateway_database_url"
+        uid: "10001"
       -
+        gid: "10001"
         mode: 256
         source: "gateway_token"
         target: "gateway_token"
+        uid: "10001"
     stop_grace_period: "40s"
   ingress:
     configs:
@@ -536,9 +560,11 @@ services:
         target: 443
     secrets:
       -
+        gid: "10001"
         mode: 256
         source: "quantrule_ingress_key"
         target: "/etc/traefik/certs/ingress.key"
+        uid: "10001"
     stop_grace_period: "40s"
   model:
     command:
@@ -609,7 +635,7 @@ services:
         -
           "CMD-SHELL"
         -
-          "curl -fsS http://127.0.0.1:8080/health | grep -q '\"state\":\"healthy\"'"
+          "curl -fsS http://$$(hostname -i):8080/health | grep -q '\"state\":\"healthy\"'"
       timeout: "5s"
     image: "ghcr.io/quant-rule/quantrule-platform@sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
     logging:
@@ -622,13 +648,17 @@ services:
         "quantrule"
     secrets:
       -
+        gid: "10001"
         mode: 256
         source: "object_store_access_key"
         target: "object_store_access_key"
+        uid: "10001"
       -
+        gid: "10001"
         mode: 256
         source: "object_store_secret_key"
         target: "object_store_secret_key"
+        uid: "10001"
     stop_grace_period: "40s"
   simulation:
     command:
@@ -704,7 +734,7 @@ services:
         -
           "CMD-SHELL"
         -
-          "curl -fsS http://127.0.0.1:8080/health | grep -q '\"state\":\"healthy\"'"
+          "curl -fsS http://$$(hostname -i):8080/health | grep -q '\"state\":\"healthy\"'"
       timeout: "5s"
     image: "ghcr.io/quant-rule/quantrule-platform@sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
     logging:
@@ -717,17 +747,23 @@ services:
         "quantrule"
     secrets:
       -
+        gid: "10001"
         mode: 256
         source: "object_store_access_key"
         target: "object_store_access_key"
+        uid: "10001"
       -
+        gid: "10001"
         mode: 256
         source: "object_store_secret_key"
         target: "object_store_secret_key"
+        uid: "10001"
       -
+        gid: "10001"
         mode: 256
         source: "simulation_database_url"
         target: "simulation_database_url"
+        uid: "10001"
     stop_grace_period: "40s"
   strategy:
     command:
@@ -799,7 +835,7 @@ services:
         -
           "CMD-SHELL"
         -
-          "curl -fsS http://127.0.0.1:8080/health | grep -q '\"state\":\"healthy\"'"
+          "curl -fsS http://$$(hostname -i):8080/health | grep -q '\"state\":\"healthy\"'"
       timeout: "5s"
     image: "ghcr.io/quant-rule/quantrule-platform@sha256:cdace4a996c06cd6142fb63eb23a52136c071d9450fe0e07f5556fc26b9edabe"
     logging:
@@ -812,13 +848,17 @@ services:
         "quantrule"
     secrets:
       -
+        gid: "10001"
         mode: 256
         source: "object_store_access_key"
         target: "object_store_access_key"
+        uid: "10001"
       -
+        gid: "10001"
         mode: 256
         source: "object_store_secret_key"
         target: "object_store_secret_key"
+        uid: "10001"
     stop_grace_period: "40s"
 x-quantrule:
   evidence: "Simulated HA"
