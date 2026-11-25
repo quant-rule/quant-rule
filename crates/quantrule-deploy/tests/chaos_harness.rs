@@ -182,11 +182,11 @@ fn the_matrix_covers_all_23_rows_and_the_live_claims_are_scoped() {
     }
     for row in rows.iter().skip(1) {
         if let Some(id) = row["id"].as_str() {
-            if id >= "HA-18" && id <= "HA-21" {
+            if matches!(id, "HA-18" | "HA-19" | "HA-20" | "HA-21") {
                 assert_eq!(row["status"], json!("Simulated HA"), "{id}");
                 assert_eq!(row["live_evidence"], json!("Simulated HA"), "{id}");
             }
-            if id >= "HA-22" {
+            if matches!(id, "HA-22" | "HA-23") {
                 assert_eq!(row["status"], json!("Unverified"), "{id}");
                 assert_eq!(row["live_evidence"], json!("Unverified"), "{id}");
             }
