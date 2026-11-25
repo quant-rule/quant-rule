@@ -42,7 +42,11 @@ ENV QR_STATIC_DIR=/srv/static \
     QR_CONFIG_ROOT=/srv/config \
     QR_BIND=0.0.0.0:8080
 
-USER 10001:10001
+# The entrypoint starts as root only to stage the file-backed secrets into a
+# UID-10001 directory, then drops to 10001 before exec. Starting as 10001
+# directly leaves the mounted secrets unreadable, and every migration job
+# fails with "cannot be read". The local Dockerfile uses the same split.
+USER 0:0
 WORKDIR /srv/quantrule
 EXPOSE 8080
 

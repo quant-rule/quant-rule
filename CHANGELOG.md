@@ -178,6 +178,7 @@ history is in Git and the pull requests.
 
 ### Fixed
 
+- The release image now starts as root like the local image, so `quantrule-entry` can stage the file-backed secrets for UID 10001 and then drop privileges; the previous `USER 10001` left every migration job unable to read its owner URL.
 - The release workflow now runs `tools/pki.sh` before the composed suite, so `pki-init` has the PostgreSQL, RabbitMQ, and MinIO certificates it stages and the snapshot/release image gate can complete.
 - `tools/release.sh install-tools` no longer fails at exit with `temporary: unbound variable`; the EXIT trap now expands the temporary directory path before the function's local scope ends, so the release workflow can install cosign, syft, and grype.
 - A Compose restore now keeps the dump's owner and ACL entries, so the four `qr_*_owner` roles still own the restored tables and the app roles keep their DML grants; the migration jobs and services can use the restored rows instead of failing with `permission denied`. `pg_restore --clean --if-exists` also replaces the empty schemas a fresh `db-bootstrap` leaves, so a restore into a freshly bootstrapped stack no longer fails on `schema already exists`.
