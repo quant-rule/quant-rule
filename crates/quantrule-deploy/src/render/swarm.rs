@@ -672,7 +672,7 @@ fn healthcheck(port: u16) -> Yaml {
             Yaml::list([
                 Yaml::string("CMD-SHELL"),
                 Yaml::string(format!(
-                    "curl -fsS http://$$(hostname -i):{port}/health | grep -q '\"state\":\"healthy\"'"
+                    "qr-gateway --healthcheck \"http://$$(hostname -i):{port}/health\" '\"state\":\"healthy\"'"
                 )),
             ]),
         )
@@ -778,13 +778,13 @@ mod tests {
         let text = stack_yaml(&descriptor()).expect("stack");
         assert_eq!(text.matches("healthcheck:").count(), 7, "{text}");
         assert_eq!(
-            text.matches("curl -fsS http://$$(hostname -i):8080/health")
+            text.matches(r#"qr-gateway --healthcheck \"http://$$(hostname -i):8080/health\""#)
                 .count(),
             6,
             "{text}"
         );
         assert_eq!(
-            text.matches("curl -fsS http://$$(hostname -i):9100/health")
+            text.matches(r#"qr-gateway --healthcheck \"http://$$(hostname -i):9100/health\""#)
                 .count(),
             1,
             "{text}"

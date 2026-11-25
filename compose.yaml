@@ -90,8 +90,11 @@ x-server: &server
 # here; their internal metrics listener is not a liveness probe.
 x-gateway-healthcheck: &gateway-healthcheck
   test:
-    - CMD-SHELL
-    - curl -fsS http://127.0.0.1:8080/ready | grep -q '"state":"healthy"'
+    - CMD
+    - qr-gateway
+    - --healthcheck
+    - http://127.0.0.1:8080/ready
+    - '"state":"healthy"'
   interval: 10s
   timeout: 5s
   retries: 6
@@ -99,8 +102,11 @@ x-gateway-healthcheck: &gateway-healthcheck
 
 x-healthcheck: &http-healthcheck
   test:
-    - CMD-SHELL
-    - curl -fsS http://127.0.0.1:8080/health | grep -q '"state":"healthy"'
+    - CMD
+    - qr-gateway
+    - --healthcheck
+    - http://127.0.0.1:8080/health
+    - '"state":"healthy"'
   interval: 10s
   timeout: 5s
   retries: 6
@@ -276,8 +282,11 @@ services:
     # report, not just whether the process is running.
     healthcheck:
       test:
-        - CMD-SHELL
-        - curl -fsS http://127.0.0.1:9090/health | grep -q '"state":"healthy"'
+        - CMD
+        - qr-gateway
+        - --healthcheck
+        - http://127.0.0.1:9090/health
+        - '"state":"healthy"'
       interval: 10s
       timeout: 5s
       retries: 6

@@ -16,6 +16,7 @@
 
 pub mod adapters;
 mod auth;
+pub mod healthcheck;
 pub mod migrations;
 pub mod profile;
 pub mod server;

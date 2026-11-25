@@ -140,11 +140,11 @@ not weaken a production profile.
 files, placement, and (with `--remote docker`) every running task image against
 the descriptor; a stopped task is ignored, and a running task with a foreign
 image or no running task fails. `--remote docker --runtime` runs the all-service
-digest probe: the descriptor image's `curl` on the overlay reads `/version` for
-six services and `/health` for backtest, and all seven `image_digest` values must
-equal the descriptor digest. The probe fails closed and is `Unverified` when
-Docker, the image, or the overlay is unavailable; `ha` runs it after deploy and
-after restore.
+digest probe: the descriptor image's `qr-gateway --healthcheck --print` on the
+overlay reads `/version` for six services and `/health` for backtest, and all
+seven `image_digest` values must equal the descriptor digest. The probe fails
+closed and is `Unverified` when Docker, the image, or the overlay is unavailable;
+`ha` runs it after deploy and after restore.
 
 ## 6. SBOM
 

@@ -279,7 +279,10 @@ case "$1" in
         ;;
     run)
         url=""
-        for argument in "$@"; do url=$argument; done
+        for argument in "$@"; do
+            if [ "${argument#http://}" != "$argument" ]; then url=$argument; fi
+        done
+        [ -n "$url" ] || { echo "no runtime URL" >&2; exit 2; }
         name=${url#http://}
         name=${name%%:*}
         cat "$dir/runtime-$name.json"

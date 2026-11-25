@@ -48,7 +48,7 @@ reason. Application secrets are staged from mode-600 mounts for UID 10001; see
 [file-backed secrets](../config/2026-11-23/secret-files.md).
 
 ```bash
-docker compose exec -T gateway curl -fsS http://127.0.0.1:9090/metrics
+docker compose exec -T gateway qr-gateway --healthcheck http://127.0.0.1:9090/metrics --print
 docker compose logs --tail 20 gateway
 ```
 

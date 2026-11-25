@@ -271,7 +271,7 @@ probe_ready() {
   esac
   image=$(jq -r '.image.reference + "@" + .image.digest' "$descriptor")
   # shellcheck disable=SC2086
-  $ssh_bin "$host" "$sudo_bin $docker_bin run --rm --network container:$(container_name "$service") --entrypoint curl $image -fsS http://127.0.0.1:$port$path" >/dev/null
+  $ssh_bin "$host" "$sudo_bin $docker_bin run --rm --network container:$(container_name "$service") --entrypoint qr-gateway $image --healthcheck http://127.0.0.1:$port$path" >/dev/null
 }
 
 wait_ready() {

@@ -149,7 +149,7 @@ Each service starts an internal Prometheus listener when `QR_METRICS_BIND` is
 set; the default Compose stack sets `0.0.0.0:9090` inside the container network
 and publishes no metrics port. The gateway does not proxy `/metrics`.
 
-`docker compose exec -T gateway curl -fsS http://127.0.0.1:9090/metrics` reads one.
+`docker compose exec -T gateway qr-gateway --healthcheck http://127.0.0.1:9090/metrics --print` reads one.
 
 The common families cover build, process start, readiness, draining, dependency,
 HTTP counts/duration/in-flight, queue depth, workers, run/stage outcomes,

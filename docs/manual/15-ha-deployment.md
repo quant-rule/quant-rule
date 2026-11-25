@@ -118,8 +118,8 @@ HAProxy `/primary`, the manifest, and the Postgres/etcd SANs.
 `--out`/`QR_DEPLOY_OUT` reads the rendered tree; the remote rows cover
 Swarm/managers, labels, overlay encryption, replicas, spec and running task
 images, 443-only ports, task errors, a limited health row, and ingress mounts.
-`--remote docker --runtime` runs the descriptor image's `curl` (`/version` six
-times, `/health` for backtest on its metrics listener `9100`) and requires all seven `image_digest` values
+`--remote docker --runtime` runs the descriptor image's
+`qr-gateway --healthcheck --print` (`/version` six times, `/health` for backtest on its metrics listener `9100`) and requires all seven `image_digest` values
 to equal the descriptor. A missing `openssl` is a failed `limited` row; no row
 prints a secret, token, key, or inspect body. The MinIO rows add config/quorum,
 unit/alias, HAProxy 9000, manifest, app, and leaf SAN/expiry.
