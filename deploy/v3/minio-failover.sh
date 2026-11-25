@@ -233,7 +233,8 @@ o_admin_info() {
 o_drive_count() {
   local text=$1 state=$2 count
   count=$(printf '%s\n' "$text" \
-    | sed -n "s/.* \([0-9][0-9]*\) drives $state.*/\1/p" \
+    | grep -oE "[0-9]+ drives $state" \
+    | awk '{print $1}' \
     | tail -n 1)
   if [ -z "$count" ] && [ "$state" = "healing" ]; then
     count=0
