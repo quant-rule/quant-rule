@@ -41,6 +41,17 @@ change the TLS policy, any signal computation, or a migration.
 - A live `make up` is a stronger contract check than the fast gate for the
   Compose secret/TLS wiring.
 
+## Follow-up — object-store CA on migration jobs
+
+- The rebuilt live stack then failed in `simulation-migrate` because the four
+  owner migration jobs received `QR_OBJECT_STORE_TLS_CA_PATH` but no
+  object-store URL; the runtime correctly refused the default `http://` URL.
+- The fix removes that CA path from the four migration jobs. A migration job
+  uses only its owner database URL; the object-store settings belong to the
+  long-running services.
+- No runtime code changed in the follow-up; `docker compose config` and the
+  live `make up` are the applicable checks.
+
 ## Residual risk
 
 - The fix is small and covered by a regression test, but the full live
