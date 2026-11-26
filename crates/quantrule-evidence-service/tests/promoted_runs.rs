@@ -64,6 +64,7 @@ fn dataset(version: &Digest) -> DatasetObject {
 fn bundle(config_id: &str, hash_seed: &[u8], model: &str) -> ConfigBundle {
     ConfigBundle {
         config_id: config_id.to_owned(),
+        references: Vec::new(),
         files: BTreeMap::from([(
             "run.json".to_owned(),
             format!(r#"{{"schema":"quantrule.run/v4","model_id":"{model}"}}"#),
@@ -77,6 +78,7 @@ fn bundle(config_id: &str, hash_seed: &[u8], model: &str) -> ConfigBundle {
 fn v3_bundle() -> ConfigBundle {
     ConfigBundle {
         config_id: "cfg_v3".to_owned(),
+        references: Vec::new(),
         files: BTreeMap::from([(
             "run.json".to_owned(),
             r#"{"schema":"quantrule.run/v3","model_id":"M1.0"}"#.to_owned(),

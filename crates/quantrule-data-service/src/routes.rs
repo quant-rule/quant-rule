@@ -382,6 +382,7 @@ async fn internal_config(
     })?;
     Ok(Json(ConfigBundle {
         config_id: record.config_id,
+        references: Vec::new(),
         files: record.files,
         valid: record.valid,
         message: record.message,

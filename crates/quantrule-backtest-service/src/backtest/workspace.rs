@@ -291,6 +291,7 @@ mod tests {
         (
             ConfigBundle {
                 config_id: "cfg_test".to_owned(),
+                references: Vec::new(),
                 files,
                 valid: true,
                 message: None,

@@ -69,6 +69,7 @@ fn dataset(version: &Digest) -> DatasetObject {
 fn bundle(config_id: &str, hash_seed: &[u8], model: &str) -> ConfigBundle {
     ConfigBundle {
         config_id: config_id.to_owned(),
+        references: Vec::new(),
         files: BTreeMap::from([(
             "run.json".to_owned(),
             format!(r#"{{"model_id":"{model}"}}"#),
@@ -82,6 +83,7 @@ fn bundle(config_id: &str, hash_seed: &[u8], model: &str) -> ConfigBundle {
 fn invalid_bundle() -> ConfigBundle {
     ConfigBundle {
         config_id: "cfg_invalid".to_owned(),
+        references: Vec::new(),
         files: BTreeMap::from([("run.json".to_owned(), "{}".to_owned())]),
         valid: false,
         message: Some("the bundle is invalid".to_owned()),
