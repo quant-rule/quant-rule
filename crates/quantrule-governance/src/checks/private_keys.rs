@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 
 use crate::report::Diagnostic;
 
-const SKIP: [&str; 8] = [
+const SKIP: [&str; 9] = [
     ".git",
     "target",
     "node_modules",
@@ -19,6 +19,9 @@ const SKIP: [&str; 8] = [
     "playwright-report",
     "blob-report",
     "__pycache__",
+    // The local operator PKI is generated under the ignored `pki/` directory by
+    // `tools/pki.sh`; it is private runtime material, not a committed file.
+    "pki",
 ];
 
 /// Scan the repository for private-key file types and PEM blocks.
@@ -98,26 +101,37 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_committed_key_or_pem_block_is_reported() {
+    fn a_committed_key_or_pem_block_is_reported_but_the_local_pki_is_ignored() {
         let root = std::env::temp_dir().join(format!("qr-private-keys-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        fs::create_dir_all(root.join("pki")).expect("tree");
-        fs::write(root.join("pki/server.key"), "not a real key").expect("key");
+        fs::create_dir_all(root.join("pki")).expect("pki");
+        fs::write(root.join("pki/server.key"), "not a real key").expect("pki key");
+        fs::create_dir_all(root.join("fixtures")).expect("fixtures");
+        fs::write(root.join("fixtures/server.key"), "not a real key").expect("fixture key");
         fs::write(
             root.join("notes.txt"),
             format!("-----BEGIN {}PRIVATE KEY-----\nfixture\n", ""),
         )
         .expect("pem");
-        let messages: Vec<_> = check(&root)
-            .into_iter()
-            .map(|diagnostic| diagnostic.message)
-            .collect();
+        let diagnostics = check(&root);
         assert!(
-            messages
+            diagnostics
                 .iter()
-                .any(|message| message.contains("private-key file"))
+                .any(|diagnostic| diagnostic.path == "fixtures/server.key"),
+            "{diagnostics:?}"
         );
-        assert!(messages.iter().any(|message| message.contains("PEM")));
+        assert!(
+            !diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.path.starts_with("pki/")),
+            "{diagnostics:?}"
+        );
+        assert!(
+            diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.message.contains("PEM")),
+            "{diagnostics:?}"
+        );
         fs::remove_dir_all(&root).expect("cleanup");
     }
 }
