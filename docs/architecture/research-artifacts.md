@@ -77,8 +77,10 @@ canonical digest remains over result artifacts only; provenance and inputs are
 excluded. v3 and v4 configs remain readable and keep their config hash.
 
 The signal artifact must exist before `run submit`; otherwise the run identity
-cannot be known at submission. A v5 config is loaded with a supplied reference
-resolver; the catalog scan and worker do not yet resolve one.
+cannot be known at submission. The data service resolves every data-owned
+reference at upload, the model service resolves the set before a full model
+compute, and the backtest worker resolves it once before the fold. Each reader
+verifies the id and hash; no stage resolves a reference per bar.
 
 ## 6. Services and flow
 

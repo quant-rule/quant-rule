@@ -45,15 +45,14 @@ pub fn run(request: &BacktestFromModelRequest<'_>) -> Result<BacktestOutcome, Ba
         &strategy_config_id,
         request.model,
         request.out,
-        request.config,
     )
 }
 
 /// Runs the staged backtest from an already-resolved run and strategy.
 ///
 /// The v5 worker resolves the pack and artifact references once, then calls
-/// this seam. The config path is the materialized workspace run file; it is
-/// recorded in provenance, not re-read.
+/// this seam. The resolved config is threaded through every stage, so no stage
+/// re-reads the run file and loses the references it cannot resolve.
 ///
 /// # Errors
 ///
@@ -65,7 +64,6 @@ pub fn run_resolved(
     strategy_config_id: &str,
     model: &Path,
     out: Option<&Path>,
-    config_path: &Path,
 ) -> Result<BacktestOutcome, BacktestRunError> {
     let out = out.map_or_else(|| config.output_root.clone(), Path::to_path_buf);
     let root = out.join("backtest");
@@ -85,14 +83,7 @@ pub fn run_resolved(
     }
     copy_bundle(model, &root.join("model"))?;
     let feed = BundleFeed::new(&bundle, execution);
-    run_stages(
-        config,
-        strategy_config,
-        strategy_config_id,
-        &feed,
-        &root,
-        config_path,
-    )
+    run_stages(config, strategy_config, strategy_config_id, &feed, &root)
 }
 
 /// Copy a flat model bundle into the run bundle without changing a byte.

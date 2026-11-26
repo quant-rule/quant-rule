@@ -158,7 +158,25 @@ pub struct PortfolioOutcome {
 /// ledger rule, or output target fails.
 pub fn replay(request: &PortfolioRequest<'_>) -> Result<PortfolioOutcome, PortfolioRunError> {
     let config = RunConfig::load(request.config).map_err(PortfolioRunError::Config)?;
-    let fills = FillsBundle::load(request.fills).map_err(PortfolioRunError::Fills)?;
+    replay_resolved(&config, request.fills, request.out)
+}
+
+/// Replays one fills bundle through an already-resolved run configuration.
+///
+/// The v5 worker resolves pack and artifact references once before the fold.
+/// Re-reading the run file here would lose them, so the stage loop passes the
+/// resolved config instead of a path.
+///
+/// # Errors
+///
+/// Returns [`PortfolioRunError`] when a fill artifact, candle series, ledger
+/// rule, or output target fails.
+pub fn replay_resolved(
+    config: &RunConfig,
+    fills_path: &Path,
+    out: Option<&Path>,
+) -> Result<PortfolioOutcome, PortfolioRunError> {
+    let fills = FillsBundle::load(fills_path).map_err(PortfolioRunError::Fills)?;
     if fills.data_version != config.data.data_version {
         return Err(PortfolioRunError::DataVersionMismatch {
             fills: fills.data_version,
@@ -219,12 +237,10 @@ pub fn replay(request: &PortfolioRequest<'_>) -> Result<PortfolioOutcome, Portfo
     }
 
     let metrics = ledger.metrics();
-    let root = request
-        .out
+    let root = out
         .map_or_else(
             || {
-                request
-                    .fills
+                fills_path
                     .parent()
                     .map(Path::to_path_buf)
                     .unwrap_or_else(|| PathBuf::from("."))
@@ -235,13 +251,13 @@ pub fn replay(request: &PortfolioRequest<'_>) -> Result<PortfolioOutcome, Portfo
     render_report::ensure_available(&root).map_err(PortfolioRunError::Bundle)?;
 
     let summary = summary_bytes(
-        &config,
+        config,
         &fills,
         fill_timeframe.code(),
         candles.len(),
         &metrics,
     );
-    let provenance = provenance_bytes(&config, &fills, fill_timeframe.code())?;
+    let provenance = provenance_bytes(config, &fills, fill_timeframe.code())?;
     let artifacts = [
         ("trades.csv", trades_csv(ledger.trades()).into_bytes()),
         (

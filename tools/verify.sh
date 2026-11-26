@@ -61,7 +61,10 @@ run name. The data defaults to candles.csv next to the first config.
   --self-test    Compare a fixed artifact list; no gateway is contacted.
 
 The strategy is part of the run config; the old --strategy flag is gone.
-Run "make up" first, or point --api-url at a healthy stack.
+A v5 config directory carries packs/strategy.json, packs/execution.json and
+packs/portfolio.json; the script registers them and rewrites the run references
+before it uploads the config. Run "make up" first, or point --api-url at a
+healthy stack.
 
 The host needs jq to build the config bundle; the product image carries no
 interpreter.
@@ -301,6 +304,34 @@ bundle_json() {
   cat "$bundle"
 }
 
+# Register the three packs a v5 fixture names and rewrite its references.
+#
+# The pack identity is the SHA-256 of the server's canonical bytes, so the
+# fixture carries placeholders. The data service validates the rewritten run
+# against the registered packs when the config is uploaded.
+prepare_v5() {
+  local source="$1" target="$2" packs strategy execution portfolio
+  packs="$source/packs"
+  [ -d "$packs" ] || fail "the v5 config $source has no packs directory"
+  mkdir -p "$target"
+  cp -R "$source/." "$target/"
+  create_pack() {
+    local file="$1" record
+    record="$("$shell" --profile "$profile" --json pack create "$file")" \
+      || fail "the pack $file was refused"
+    printf '%s' "$record" | jq -er '.summary.pack_id'
+  }
+  strategy="$(create_pack "$packs/strategy.json")" || exit 1
+  execution="$(create_pack "$packs/execution.json")" || exit 1
+  portfolio="$(create_pack "$packs/portfolio.json")" || exit 1
+  jq --arg strategy "$strategy" --arg execution "$execution" --arg portfolio "$portfolio" \
+    '.strategy_pack = {id: $strategy, hash: $strategy}
+     | .portfolio_policy = {id: $portfolio, hash: $portfolio}
+     | .execution_model = {id: $execution, hash: $execution}' \
+    "$target/run.json" > "$target/run.json.next"
+  mv "$target/run.json.next" "$target/run.json"
+}
+
 upload_config() {
   local run_path="$1"
   local directory label body response status config_id valid message
@@ -438,6 +469,18 @@ run_digest() {
 }
 
 require_stack
+
+if [ "$(jq -r '.schema // empty' "$config")" = "quantrule.run/v5" ]; then
+  [ "$(jq -r '.schema // empty' "$replica")" = "quantrule.run/v5" ] \
+    || fail "the replica $replica is not a v5 run"
+  config_source="$(dirname "$config")"
+  replica_source="$(dirname "$replica")"
+  prepare_v5 "$config_source" "$work/config" || exit 1
+  prepare_v5 "$replica_source" "$work/replica" || exit 1
+  config="$work/config/run.json"
+  replica="$work/replica/run.json"
+  say "v5 packs registered; references rewritten"
+fi
 
 data_version="$(upload_dataset)" || exit 1
 config_id="$(upload_config "$config")" || exit 1

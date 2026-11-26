@@ -1,0 +1,14 @@
+{
+  "schema": "quantrule.pack/v1",
+  "kind": "portfolio",
+  "version": "1.0.0",
+  "name": "verify-single-position",
+  "owner": "operator",
+  "payload": {
+    "sizing": {"mode": "equity_fraction", "fraction": 0.05, "quantity_step": 0.0001},
+    "risk": {"per_trade_risk": 0.01, "max_exposure": 1.0, "max_open_positions": 1},
+    "drawdown": {"limit": 0.15, "action": "halt"},
+    "rebalance": "none",
+    "constraints": []
+  }
+}

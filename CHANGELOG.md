@@ -29,6 +29,7 @@ history is in Git and the pull requests.
 
 ### Fixed
 
+- A full `quantrule.run/v5` run without a promoted model artifact now computes its model: the model service resolves the bundle's pack and signal references once before loading the run, instead of calling the v5-rejecting legacy loader. The staged portfolio replay now receives the already-resolved run config, so no stage re-reads `run.json` and loses the v5 references.
 - `qr-governance check --all` now skips the ignored local `pki/` directory, so `make up` no longer makes the private-keys checker fail on the operator's generated CA and server keys.
 - The release body's distribution boundary now says that the image push, SBOM, and CVE scan are published tag artifacts; only the manual image signature and the three-VM lab remain `Unverified`. The previous line called all five unverified, which was false for the tag run.
 

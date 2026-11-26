@@ -247,17 +247,14 @@ The config hash covers the run, data and model files and each reference tag and
 hash, so a pack or signal change changes the run identity; v3 and v4 keep their
 hash and the canonical digest still covers result artifacts only.
 
-A v5 config is validated through a supplied reference resolver
-(`RunConfig::load_with`, `AppService::load_run_with`). The pack registry now
-stores and serves the pack bytes, RA-007 provides the pure signal computation,
-and the RA-008 strategy service writes the signal artifact and registers its
-catalog row. Run submission, the catalog scan and the worker do not yet resolve
-a v5 config or add the run lineage and `run:<id>` reference. Those integrations
-are later work items; RA-009 adds the client surface that reads the registry,
-signals and recorded lineage, not the run-v5 submission path. The current fold
-materializes strategy, execution, commission, funding, sizing, drawdown and
-position limits; `per_trade_risk`, `max_exposure`, `rebalance` and `constraints`
-are retained in `RunV5` but not applied yet.
+A v5 config is validated through the reference resolver at upload
+(`RunConfig::load_with`); the data service verifies the pack and signal bytes,
+the model service resolves the same set before a full model compute, and the
+worker resolves it once before the fold. Run submission records the reference
+set and the `run:<id>` lineage atomically with the run row, and `run lineage`
+reads it back. The fold materializes strategy, execution, commission, funding,
+sizing, drawdown and position limits; `per_trade_risk`, `max_exposure`,
+`rebalance` and `constraints` are retained in `RunV5` but not applied yet.
 
 ## 8. Lifecycle and validation
 

@@ -1,0 +1,18 @@
+{
+  "schema": "quantrule.pack/v1",
+  "kind": "execution",
+  "version": "1.0.0",
+  "name": "verify-conservative-fills",
+  "owner": "operator",
+  "payload": {
+    "fill_timeframe": "5m",
+    "order_type": "market_next_open",
+    "tie_break": "stop_first",
+    "fee_rate": 0.0,
+    "slippage_bps": 2.0,
+    "commission": {"rate": 0.001, "base": "equity", "per": "operation"},
+    "funding": {"rate": 0.0001, "interval_hours": 8},
+    "zero_volume": "reject",
+    "end_of_data": "leave_open"
+  }
+}

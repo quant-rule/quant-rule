@@ -11,16 +11,17 @@ interchangeable, and only the first kind is a current run config.
 | Path | Holds |
 |---|---|
 | `config/defaults/` | Default portfolio and model files |
-| `config/examples/` | Current example runs, including `run.json`, the four engine files, and the strategy for v4 |
+| `config/examples/` | Current example runs: v4 runs carry `run.json`, the four engine files, and the strategy; `verify-v5/` carries a v5 `run.json`, its two engine files, and `packs/` |
 
 A file-based current `run.json` uses `quantrule.run/v4` and names five files:
 `data`, `model`, `execution`, `portfolio`, and `strategy`, plus `output_root` and
 the optional identity fields. `quantrule.run/v3` remains accepted for a
 model-only run and must not carry a `strategy` field. `quantrule.run/v5` is
 additive: it names the strategy, portfolio and execution packs and the optional
-model and signal artifacts by content hash, and it is loaded with a supplied
-reference resolver until the persistent registry lands. `analytics` is still
-rejected. The qualification criteria are explicit command arguments, not run
+model and signal artifacts by content hash. The data service validates the
+references at upload, the model service resolves them before a full model
+compute, and the backtest worker resolves them once before the fold. `analytics`
+is still rejected. The qualification criteria are explicit command arguments, not run
 fields. The current model schema is `quantrule.model/v4`; model schemas 1–3 are
 rejected.
 
