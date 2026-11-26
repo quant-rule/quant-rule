@@ -98,8 +98,8 @@ resolves an unspecified `QR_BIND`/`QR_METRICS_BIND` to the Swarm task address
 and fails closed when none resolves. The overlay is the security boundary; a
 published internal port is a defect, not a workaround. Postgres, MinIO, and
 RabbitMQ bind only to the private overlay, use non-default credentials, and
-require TLS; RabbitMQ has no plaintext listener, its Erlang cookie is copied
-only to the three brokers, and definitions are stripped of users/permissions.
+require TLS; RabbitMQ's AMQP listener is TLS-only; its management/Prometheus
+HTTP listeners stay on the overlay, its Erlang cookie is copied only to the three brokers, and definitions are stripped of users/permissions.
 MinIO keeps root files on MinIO hosts only, gives the app a least-privilege
 `qr_app` policy, never mounts root into an app, and is checked at the app path,
 manifest hosts, and leaf; the lab proves one node loss keeps writes. The
