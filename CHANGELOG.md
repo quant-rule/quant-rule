@@ -20,6 +20,7 @@ history is in Git and the pull requests.
 
 ### Fixed
 
+- `qr-governance check --all` now skips the ignored local `pki/` directory, so `make up` no longer makes the private-keys checker fail on the operator's generated CA and server keys.
 - The release body's distribution boundary now says that the image push, SBOM, and CVE scan are published tag artifacts; only the manual image signature and the three-VM lab remain `Unverified`. The previous line called all five unverified, which was false for the tag run.
 
 ## [1.6.0] - 2026-11-26
