@@ -44,6 +44,10 @@ usage drifts from the registry.
 | `run fetch` | `run fetch <run_id> <directory>` | run id, directory | — | Run id, directory, one line per verified artifact | `run.not_found`, `run.invalid`, `internal` | Run detail → Download | `quantrule run fetch <run_id> ./bundle` |
 | `run cancel` | `run cancel <run_id>` | run id | — | Run detail after the transition | `run.not_found`, `run.conflict` | Runs → Cancel | `quantrule run cancel <run_id>` |
 
+A `quantrule.run/v5` config names packs and artifacts by id and hash. `run submit`
+resolves them before the run row; a missing or mismatched pack, signal or model
+artifact is refused. `run lineage` prints the recorded set.
+
 ## Stage
 
 | Command | Usage | Required | Optional | Output | Stable errors | Browser | Example |

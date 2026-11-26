@@ -168,7 +168,10 @@ HA-014 adds `deploy/v3/chaos.sh`: `--chaos` requires `--confirm` and runs the HA
 placement, one 443-only ingress, certificate SAN/expiry, headers, port-80
 closure, mounts, and live digest/health; `--remote docker --overlay` adds Swarm,
 labels, encryption, replicas, task images, ports, and task state; `--runtime`
-proves all seven service digests. The fast tier is static/golden/fake-probe; the lab proves simulated failure only; the chaos cases are `Simulated HA` at most, and `Real HA` is the operator-only gate.
+proves all seven service digests. After the stack is up, `tools/verify.sh`
+submits a v4 and a v5 config; each replica pair must produce one canonical
+digest, and the v5 pair proves pack resolution through the deployed services.
+Read the recorded set with `run lineage <run_id>`. The fast tier is static/golden/fake-probe; the lab proves simulated failure only; the chaos cases are `Simulated HA` at most, and `Real HA` is the operator-only gate.
 
 ## Failure
 

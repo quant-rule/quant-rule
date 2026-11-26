@@ -1,6 +1,6 @@
 # Research Artifacts
 
-- Status: The strategy, portfolio and execution-simulation packs (RA-002–RA-004), run-v5 reference and identity (RA-005), pack registry, lineage and retention (RA-006), signal artifact and reference computation (RA-007), seventh strategy service (RA-008), and the additive pack/signal client surface (RA-009) are current; accepted by [ADR-RA](../adr/2026-11-22/1082-research-artifact-layer.md)
+- Status: The strategy, portfolio and execution-simulation packs (RA-002–RA-004), run-v5 reference, identity and reachability (RA-004/RA-005), pack registry, lineage and retention (RA-006), signal artifact and reference computation (RA-007), seventh strategy service (RA-008), and the additive pack/signal client surface (RA-009) are current; accepted by [ADR-RA](../adr/2026-11-22/1082-research-artifact-layer.md)
 - Part of: [`README.md`](README.md)
 - Claim type: Behaviour Claim
 
@@ -77,10 +77,12 @@ canonical digest remains over result artifacts only; provenance and inputs are
 excluded. v3 and v4 configs remain readable and keep their config hash.
 
 The signal artifact must exist before `run submit`; otherwise the run identity
-cannot be known at submission. The data service resolves every data-owned
-reference at upload, the model service resolves the set before a full model
-compute, and the backtest worker resolves it once before the fold. Each reader
-verifies the id and hash; no stage resolves a reference per bar.
+cannot be known at submission. A fold-mode run without a model artifact computes
+the model; a run that cites one reuses the succeeded model stage byte for byte.
+The data service resolves every data-owned reference at upload, the model service
+resolves the set before a full model compute, and the backtest worker resolves it
+once before the fold. Each reader verifies the id and hash; no stage resolves a
+reference per bar.
 
 ## 6. Services and flow
 

@@ -1,7 +1,7 @@
 # Signal Artifact and Reference Position
 
 - Date: 2026-11-22 (UTC)
-- Status: Signal artifact contract, pure reference computation and the stateless strategy service implemented (RA-007, RA-008); the additive public signal surface and clients implemented (RA-009); run-v5 catalog/worker reachability remains later work; accepted by [ADR-RA](../../adr/2026-11-22/1082-research-artifact-layer.md)
+- Status: Signal artifact contract, pure reference computation and the stateless strategy service implemented (RA-007, RA-008); the additive public signal surface and clients implemented (RA-009); run-v5 catalog/worker reachability implemented (RA-004/RA-005); accepted by [ADR-RA](../../adr/2026-11-22/1082-research-artifact-layer.md)
 - Claim type: Behaviour Claim
 - Related: [Research packs and run v5](research-artifact-packs.md), [Research artifacts](../../architecture/research-artifacts.md)
 

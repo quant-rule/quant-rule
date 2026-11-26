@@ -1,7 +1,7 @@
 # Research Artifact Packs and Run v5
 
 - Date: 2026-11-22 (UTC)
-- Status: Strategy, portfolio policy and execution-simulation pack schemas implemented (RA-002, RA-003, RA-004); the run-v5 reference contract and config identity implemented (RA-005); the persistent pack registry, run lineage and artifact retention implemented (RA-006); the signal artifact contract and pure reference computation implemented (RA-007); the stateless strategy service and metadata-only registration implemented (RA-008); the additive pack/signal client surface implemented (RA-009); run-v5 catalog/worker reachability remains later work; accepted by [ADR-RA](../../adr/2026-11-22/1082-research-artifact-layer.md)
+- Status: Strategy, portfolio policy and execution-simulation pack schemas implemented (RA-002, RA-003, RA-004); the run-v5 reference contract, config identity and catalog/worker reachability implemented (RA-004/RA-005); the persistent pack registry, run lineage and artifact retention implemented (RA-006); the signal artifact contract and pure reference computation implemented (RA-007); the stateless strategy service and metadata-only registration implemented (RA-008); the additive pack/signal client surface implemented (RA-009); accepted by [ADR-RA](../../adr/2026-11-22/1082-research-artifact-layer.md)
 - Claim type: Behaviour Claim
 - Related: [Research artifacts](../../architecture/research-artifacts.md), [Run v4](../2026-11-13/run-v4-strategy.md)
 
@@ -304,8 +304,8 @@ profile header and an identifier, never a client path.
 Evidence adds `runs.run_lineage` and `runs.run_lineage_references` (migration
 20): a run's references by id and hash with pack provenance. The set is immutable;
 `PUT`/`GET /internal/v1/runs/{id}/lineage` is the write seam and
-`GET /runs/{id}/lineage` the public read. Run submission and the worker do not
-record lineage yet.
+`GET /runs/{id}/lineage` the public read. Submission writes the set atomically
+with the run row; the worker reads it and resolves the references once.
 
 The data service adds `catalog.artifacts` and `catalog.artifact_references`
 (migration 8) as the signal-artifact seam. The catalog row is the pre-run signal
