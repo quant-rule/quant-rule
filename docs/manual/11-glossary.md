@@ -15,7 +15,7 @@ is the point.
 | Stage artifact | The content-addressed file bundle a stage publishes, with no canonical digest. |
 | Run | One coupled execution of data, model, strategy, execution, portfolio, and evidence. |
 | Run id | The content identity of a run, derived from data, config, model version, and image digest, plus the frozen model artifact id for a promoted run. |
-| Canonical digest | The SHA-256 over the sorted `(path, sha256)` list for `results.json`, `*.csv`, and `*.ndjson`. |
+| Canonical digest | The SHA-256 over the sorted `(path, sha256)` list for `results.json`, `*.csv`, every `metrics.json`, and `*.ndjson`. |
 | Canonical artifact set | The result files a canonical digest covers, excluding provenance, manifests, logs, and timestamps. |
 | Evidence | A succeeded coupled run whose artifacts and canonical digest are intact. |
 | Diagnostic | A stage artifact or read-only inspection used for diagnosis, never evidence. |

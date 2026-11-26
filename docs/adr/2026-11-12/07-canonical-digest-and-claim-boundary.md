@@ -56,6 +56,12 @@ it is testable on one machine.
 - The reviewer runs four commands and compares one line.
 - `make verify` prints the canonical digest and nothing else that could differ.
 
+## Addendum (2026-11-26)
+
+The canonical set includes every `metrics.json` (basename match), alongside
+`results.json`, `*.csv`, and `*.ndjson`. This records audit finding
+`AUD-2026-11-17-22` and its fix (#890); the rest of the decision is unchanged.
+
 ## Revisit trigger
 
 Revisit when a second architecture is in routine use, or when a run must be

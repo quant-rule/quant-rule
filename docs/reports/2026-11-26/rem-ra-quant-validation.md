@@ -238,7 +238,7 @@ possible run.
 |---|---|---|---|
 | D1 | Major | A new run may cite a `draft`, `validated`, or `retired` pack; the frozen-pack new-run gate is not enforced. | Fixed by #1239 |
 | D2 | Moderate | The docs and ADR say the data service validates every v5 reference at upload; the code marks a v5 config valid without resolving packs/signal and resolves them later at submission. | Fixed by #1239 |
-| D3 | Moderate | The manual's canonical digest set omits every `metrics.json`; the service includes them, and the checked-in golden depends on one. | Open; #1240 |
+| D3 | Moderate | The manual's canonical digest set omits every `metrics.json`; the service includes them, and the checked-in golden depends on one. | Fixed by #1240 |
 | G1 | Gap | No fast test exercises the production data-service `config_references` missing/mismatch path at submission; no composed stack or live Postgres. | Open |
 | G2 | Gap | No signal-mode v5 end-to-end execution and no v5 promoted-model worker end-to-end test; the fast v5 folds are fold mode. | Open |
 | G3 | Gap | No five-reference lineage route round-trip; the route tests use two and four references. | Open |
@@ -388,7 +388,9 @@ change. This is a human-owned contract edit.
   `allows_new_runs`; the composed v5 fixture validates and freezes its packs.
   Regression tests cover draft, validated and retired packs, a missing pack, a
   missing pack object, and the no-run-row result.
-- D3 remains assigned to #1240.
+- D3 is fixed by #1240: `AGENTS.md` section 12, the manual chapter 6 table and
+  prose, the glossary, and the ADR addendum now include every `metrics.json`.
+  The code and the checked-in golden are unchanged.
 - The verdict below remains the historical result for commit `d19e6047`. A fresh
   independent pass is required before `V-RA-07` moves to `Pass`.
 
