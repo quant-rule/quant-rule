@@ -40,6 +40,41 @@ impl crate::runs::RunStore for PgRunStore {
             .await
             .map_err(|error| crate::runs::RunStoreError(error.to_string()))?;
             let created = inserted.rows_affected() == 1;
+            let lineage = crate::lineage::normalize(run.lineage.clone())
+                .map_err(|error| crate::runs::RunStoreError(error.to_string()))?;
+            if created && !lineage.is_empty() {
+                sqlx::query(
+                    "INSERT INTO runs.run_lineage (run_id, recorded_at)
+                     VALUES ($1, $2::timestamptz) ON CONFLICT DO NOTHING",
+                )
+                .bind(run.run_id.to_string())
+                .bind(&run.submitted_at)
+                .execute(&mut *transaction)
+                .await
+                .map_err(|error| crate::runs::RunStoreError(error.to_string()))?;
+                for reference in &lineage {
+                    let pack = reference
+                        .pack
+                        .as_ref()
+                        .map(serde_json::to_string)
+                        .transpose()
+                        .map_err(|error| crate::runs::RunStoreError(error.to_string()))?;
+                    sqlx::query(
+                        "INSERT INTO runs.run_lineage_references
+                             (run_id, reference_kind, reference_id, reference_hash, pack)
+                         VALUES ($1, $2, $3, $4, $5::jsonb)
+                         ON CONFLICT DO NOTHING",
+                    )
+                    .bind(run.run_id.to_string())
+                    .bind(reference.kind.code())
+                    .bind(reference.id.to_string())
+                    .bind(reference.hash.to_string())
+                    .bind(pack)
+                    .execute(&mut *transaction)
+                    .await
+                    .map_err(|error| crate::runs::RunStoreError(error.to_string()))?;
+                }
+            }
             if created {
                 for name in ["data", "model", "backtest", "evidence"] {
                     sqlx::query(

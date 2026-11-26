@@ -46,6 +46,7 @@ fn new_run(seed: &[u8]) -> NewRun {
     let image_digest = Digest::sha256(seed);
     NewRun {
         run_id: derive(&data_version, &config_hash, "M1.0", &image_digest),
+        lineage: Vec::new(),
         config_id: "cfg_leader".to_owned(),
         data_version,
         config_hash,

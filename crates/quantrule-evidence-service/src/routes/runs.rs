@@ -270,6 +270,7 @@ pub(crate) async fn submit_validated_pipeline(
                     model_version,
                     image_digest,
                     model_artifact_id,
+                    lineage: config.references.clone(),
                     owner: profile.as_str().to_owned(),
                     submitted_at: clock::now_utc()
                         .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?,

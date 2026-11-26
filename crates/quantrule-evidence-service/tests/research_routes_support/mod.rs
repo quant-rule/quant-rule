@@ -250,6 +250,7 @@ fn new_run(harness: &Harness, seed: &[u8]) -> NewRun {
     let _ = seed;
     NewRun {
         run_id,
+        lineage: Vec::new(),
         config_id: "cfg_full".to_owned(),
         data_version,
         config_hash,
@@ -349,6 +350,7 @@ pub async fn succeed_seeded(
     let run_id = derive(&data_version, &config_hash, "M1.0", &harness.image_digest);
     let run = NewRun {
         run_id,
+        lineage: Vec::new(),
         config_id: "cfg_full".to_owned(),
         data_version,
         config_hash,

@@ -7,8 +7,8 @@ use axum::http::{Request, StatusCode};
 use common::body_bytes;
 use quantrule_api::{
     ArtifactRef, Digest, ErrorCode, ErrorEnvelope, PROFILE_HEADER, PackKind, PackProvenance,
-    PackState, ReferenceKind, RunArtifactReference, RunDetail, StageArtifact, StageKind,
-    StageProvenance, StageState, SubmitRunResponse,
+    PackState, ReferenceKind, RunArtifactReference, RunDetail, RunLineage, StageArtifact,
+    StageKind, StageProvenance, StageState, SubmitRunResponse,
 };
 use quantrule_evidence_service::runs::MemoryRuns;
 use quantrule_evidence_service::stage::{MemoryStages, NewStageRun, StageClaimOutcome, StageStore};
@@ -171,6 +171,7 @@ async fn harness() -> Arc<EvidenceState> {
         ..Config::default()
     };
     let runs = Arc::new(MemoryRuns::default());
+    let lineage = runs.lineage();
     Arc::new(EvidenceState::with_services(
         &config,
         HealthRegistry::new(),
@@ -179,6 +180,7 @@ async fn harness() -> Arc<EvidenceState> {
             runs: Some(runs.clone()),
             outbox: Some(runs.clone()),
             releases: Some(runs),
+            lineage: Some(Arc::new(lineage)),
             stages: Some(Arc::new(stages)),
             queue: Some(Arc::new(queue)),
             ..EvidenceServices::default()
@@ -404,6 +406,18 @@ async fn a_v5_bundle_accepts_the_matching_model_artifact() {
     assert_eq!(response.status(), StatusCode::ACCEPTED);
     let created: SubmitRunResponse = decode(response).await;
     assert!(created.created);
+    let response = router(state)
+        .oneshot(
+            Request::get(format!("/runs/{}/lineage", created.run_id))
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let lineage: RunLineage = decode(response).await;
+    assert_eq!(lineage.references.len(), 4);
 }
 
 #[tokio::test]

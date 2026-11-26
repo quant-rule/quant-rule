@@ -221,6 +221,7 @@ mod tests {
                 owner.clone(),
                 NewRun {
                     run_id: RunId(Digest::sha256(b"reconcile-run")),
+                    lineage: Vec::new(),
                     config_id: "cfg".to_owned(),
                     data_version: data_version.clone(),
                     config_hash: Digest::sha256(b"config"),

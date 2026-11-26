@@ -29,6 +29,7 @@ use tower::ServiceExt;
 fn run(seed: &[u8]) -> NewRun {
     NewRun {
         run_id: RunId(Digest::sha256(seed)),
+        lineage: Vec::new(),
         config_id: "config".to_owned(),
         data_version: Digest::sha256(b"data"),
         config_hash: Digest::sha256(b"config"),
@@ -195,6 +196,32 @@ async fn a_runs_lineage_is_recorded_read_and_kept_immutable() {
         read_error(&body_bytes(response).await).error.code,
         ErrorCode::RunConflict
     );
+}
+
+#[tokio::test]
+async fn a_submission_writes_the_lineage_it_reads_back() {
+    let runs = MemoryRuns::default();
+    let lineage = runs.lineage();
+    let mut submitted = run(b"submission-lineage");
+    submitted.lineage = vec![strategy(b"pack")];
+    runs.submit(profile("default"), submitted.clone())
+        .await
+        .expect("the run");
+    let state = state(runs, lineage).await;
+    let id = submitted.run_id.to_string();
+
+    let response = router(state)
+        .oneshot(
+            Request::get(format!("/runs/{id}/lineage"))
+                .header(PROFILE_HEADER, "default")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let read: RunLineage = serde_json::from_slice(&body_bytes(response).await).expect("lineage");
+    assert_eq!(read.references, submitted.lineage);
 }
 
 #[tokio::test]

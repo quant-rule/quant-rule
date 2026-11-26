@@ -142,6 +142,7 @@ fn profile(name: &str) -> ProfileId {
 fn run(seed: &[u8]) -> NewRun {
     NewRun {
         run_id: quantrule_api::RunId(Digest::sha256(seed)),
+        lineage: Vec::new(),
         config_id: "cfg_conformance".to_owned(),
         data_version: Digest::sha256(b"conformance-data"),
         config_hash: Digest::sha256(b"conformance-config"),
