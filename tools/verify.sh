@@ -316,10 +316,25 @@ prepare_v5() {
   mkdir -p "$target"
   cp -R "$source/." "$target/"
   create_pack() {
-    local file="$1" record
+    local file="$1" record id state
     record="$("$shell" --profile "$profile" --json pack create "$file")" \
       || fail "the pack $file was refused"
-    printf '%s' "$record" | jq -er '.summary.pack_id'
+    id="$(printf '%s' "$record" | jq -er '.summary.pack_id')" || exit 1
+    state="$(printf '%s' "$record" | jq -er '.summary.state')" || exit 1
+    case "$state" in
+      frozen) ;;
+      validated)
+        "$shell" --profile "$profile" pack freeze "$id" >/dev/null \
+          || fail "the pack $id was not frozen"
+        ;;
+      *)
+        "$shell" --profile "$profile" pack validate "$id" >/dev/null \
+          || fail "the pack $id was not validated"
+        "$shell" --profile "$profile" pack freeze "$id" >/dev/null \
+          || fail "the pack $id was not frozen"
+        ;;
+    esac
+    printf '%s' "$id"
   }
   strategy="$(create_pack "$packs/strategy.json")" || exit 1
   execution="$(create_pack "$packs/execution.json")" || exit 1

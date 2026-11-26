@@ -79,7 +79,9 @@ excluded. v3 and v4 configs remain readable and keep their config hash.
 The signal artifact must exist before `run submit`; otherwise the run identity
 cannot be known at submission. A fold-mode run without a model artifact computes
 the model; a run that cites one reuses the succeeded model stage byte for byte.
-The data service resolves every data-owned reference at upload, the model service
+A new run may cite only a frozen pack: upload and submission refuse a draft,
+validated, or retired pack, while an existing run's lineage stays readable. The
+data service resolves every data-owned reference at upload, the model service
 resolves the set before a full model compute, and the backtest worker resolves it
 once before the fold. Each reader verifies the id and hash; no stage resolves a
 reference per bar.

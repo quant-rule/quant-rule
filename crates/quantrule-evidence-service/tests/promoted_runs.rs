@@ -7,8 +7,8 @@ use axum::http::{Request, StatusCode};
 use common::body_bytes;
 use quantrule_api::{
     ArtifactRef, Digest, ErrorCode, ErrorEnvelope, PROFILE_HEADER, PackKind, PackProvenance,
-    PackState, ReferenceKind, RunArtifactReference, RunDetail, RunLineage, StageArtifact,
-    StageKind, StageProvenance, StageState, SubmitRunResponse,
+    PackState, ReferenceKind, RunArtifactReference, RunDetail, RunLineage, RunSummary,
+    StageArtifact, StageKind, StageProvenance, StageState, SubmitRunResponse,
 };
 use quantrule_evidence_service::runs::MemoryRuns;
 use quantrule_evidence_service::stage::{MemoryStages, NewStageRun, StageClaimOutcome, StageStore};
@@ -116,6 +116,18 @@ fn v5_bundle_without_model() -> ConfigBundle {
     bundle
 }
 
+fn v5_bundle_in_state(state: PackState) -> ConfigBundle {
+    let mut bundle = v5_bundle_without_model();
+    bundle.config_id = format!("cfg_v5_{}", state.code());
+    bundle.config_hash = Some(digest(format!("v5-{}", state.code()).as_bytes()));
+    for reference in &mut bundle.references {
+        if let Some(pack) = &mut reference.pack {
+            pack.state = state;
+        }
+    }
+    bundle
+}
+
 fn v5_bundle(model: Digest) -> ConfigBundle {
     ConfigBundle {
         config_id: "cfg_v5".to_owned(),
@@ -164,6 +176,9 @@ async fn harness() -> Arc<EvidenceState> {
         data.add_config(profile, v3_bundle());
         data.add_config(profile, v5_bundle(v5_model.clone()));
         data.add_config(profile, v5_bundle_without_model());
+        for state in [PackState::Draft, PackState::Validated, PackState::Retired] {
+            data.add_config(profile, v5_bundle_in_state(state));
+        }
     }
     seed_stages(&stages).await;
     let config = Config {
@@ -389,6 +404,57 @@ async fn a_promoted_run_reuses_a_succeeded_model_stage() {
     let again: SubmitRunResponse = decode(response).await;
     assert_eq!(again.run_id, created.run_id);
     assert!(!again.created);
+}
+
+#[tokio::test]
+async fn a_v5_run_refuses_a_non_frozen_pack() {
+    for (config_id, pack_state) in [
+        ("cfg_v5_draft", PackState::Draft),
+        ("cfg_v5_validated", PackState::Validated),
+        ("cfg_v5_retired", PackState::Retired),
+    ] {
+        let state = harness().await;
+        let response = router(Arc::clone(&state))
+            .oneshot(
+                Request::post("/runs")
+                    .header(PROFILE_HEADER, "default")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({
+                            "data_version": digest(b"candles-a"),
+                            "config_id": config_id,
+                        })
+                        .to_string(),
+                    ))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST, "{config_id}");
+        let envelope: ErrorEnvelope = decode(response).await;
+        assert_eq!(envelope.error.code, ErrorCode::PackInvalid, "{config_id}");
+        assert!(
+            envelope.error.message.contains(pack_state.code()),
+            "{config_id}: {envelope:?}"
+        );
+
+        let response = router(state)
+            .oneshot(
+                Request::get("/runs")
+                    .header(PROFILE_HEADER, "default")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::OK);
+        let runs: Vec<RunSummary> =
+            serde_json::from_slice(&body_bytes(response).await).expect("runs");
+        assert!(
+            runs.is_empty(),
+            "{config_id}: a refused submission wrote a run row"
+        );
+    }
 }
 
 #[tokio::test]

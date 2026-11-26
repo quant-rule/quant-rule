@@ -306,6 +306,27 @@ async fn upload_config(
             .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?
             .map_err(|error| failure(ErrorCode::ConfigInvalid, error.0))?;
 
+    // A v5 config is usable only when every data-owned reference resolves now
+    // and every pack is frozen. The check runs before the idempotent lookup so
+    // a config uploaded before a pack was retired cannot be returned as valid.
+    if record.valid {
+        let references = config_references(&state, &profile, &record.body).await?;
+        for reference in &references {
+            let Some(pack) = &reference.pack else {
+                continue;
+            };
+            if !pack.state.allows_new_runs() {
+                return Err(failure(
+                    ErrorCode::PackInvalid,
+                    format!(
+                        "pack {} is {}; a new run requires a frozen pack",
+                        reference.id, pack.state
+                    ),
+                ));
+            }
+        }
+    }
+
     if let Some(existing) = store
         .get(profile.clone(), record.config_id.clone())
         .await

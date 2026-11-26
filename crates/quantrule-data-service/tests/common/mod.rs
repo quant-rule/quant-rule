@@ -79,6 +79,28 @@ pub async fn state_with_research_artifacts() -> (
     (state, objects, packs, artifacts)
 }
 
+pub async fn state_with_configs_and_artifacts() -> (Arc<DataState>, MemoryObjects, Arc<MemoryPacks>)
+{
+    let objects = MemoryObjects::default();
+    let packs = Arc::new(MemoryPacks::default());
+    let artifacts = Arc::new(MemoryArtifacts::default());
+    let config = Config {
+        config_root: Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config"),
+        ..Config::default()
+    };
+    let state = state(
+        &config,
+        DataServices {
+            configs: Some(Arc::new(MemoryConfigs::default())),
+            packs: Some(packs.clone()),
+            artifacts: Some(artifacts),
+            objects: Some(Arc::new(objects.clone())),
+            ..DataServices::default()
+        },
+    );
+    (state, objects, packs)
+}
+
 pub async fn state_with_configs() -> Arc<DataState> {
     let config = Config {
         config_root: Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config"),

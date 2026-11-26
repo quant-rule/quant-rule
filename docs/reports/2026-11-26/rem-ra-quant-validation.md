@@ -236,9 +236,9 @@ possible run.
 
 | ID | Severity | Finding | Status |
 |---|---|---|---|
-| D1 | Major | A new run may cite a `draft`, `validated`, or `retired` pack; the frozen-pack new-run gate is not enforced. | Open |
-| D2 | Moderate | The docs and ADR say the data service validates every v5 reference at upload; the code marks a v5 config valid without resolving packs/signal and resolves them later at submission. | Open |
-| D3 | Moderate | The manual's canonical digest set omits every `metrics.json`; the service includes them, and the checked-in golden depends on one. | Open |
+| D1 | Major | A new run may cite a `draft`, `validated`, or `retired` pack; the frozen-pack new-run gate is not enforced. | Fixed by #1239 |
+| D2 | Moderate | The docs and ADR say the data service validates every v5 reference at upload; the code marks a v5 config valid without resolving packs/signal and resolves them later at submission. | Fixed by #1239 |
+| D3 | Moderate | The manual's canonical digest set omits every `metrics.json`; the service includes them, and the checked-in golden depends on one. | Open; #1240 |
 | G1 | Gap | No fast test exercises the production data-service `config_references` missing/mismatch path at submission; no composed stack or live Postgres. | Open |
 | G2 | Gap | No signal-mode v5 end-to-end execution and no v5 promoted-model worker end-to-end test; the fast v5 folds are fold mode. | Open |
 | G3 | Gap | No five-reference lineage route round-trip; the route tests use two and four references. | Open |
@@ -381,7 +381,18 @@ change. This is a human-owned contract edit.
   suites are the 13 lib tests plus the four integration targets listed in
   section 3.
 
-## 6. Verdict
+## 6. Remediation update (2026-11-26)
+
+- D1 and D2 are fixed by #1239: the data service resolves every data-owned
+  reference at upload and refuses a non-frozen pack; run submission re-checks
+  `allows_new_runs`; the composed v5 fixture validates and freezes its packs.
+  Regression tests cover draft, validated and retired packs, a missing pack, a
+  missing pack object, and the no-run-row result.
+- D3 remains assigned to #1240.
+- The verdict below remains the historical result for commit `d19e6047`. A fresh
+  independent pass is required before `V-RA-07` moves to `Pass`.
+
+## 7. Verdict
 
 **Fail — remediation required before `V-RA-07` can be marked `Pass`.** The
 core run-v5 mechanics hold in the fast evidence: pack canonical identity,

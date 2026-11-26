@@ -239,8 +239,9 @@ strategy-only change leaves the model artifact bytes and id unchanged.
 
 The loader verifies every content hash, rejects a wrong-kind pack, and checks the
 signal artifact's `strategy_pack_id`, `model_artifact_id` and `timeframe`. Fold
-mode omits `signal_artifact`; signal mode requires it before submission. v3 and
-v4 configs remain readable; a v5 config is new.
+mode omits `signal_artifact`; signal mode requires it before submission. A new
+run may cite only a frozen pack; upload and submission refuse a draft, validated,
+or retired pack. v3 and v4 configs remain readable; a v5 config is new.
 
 `RunId` remains `data_version ‖ config_hash ‖ model_version ‖ image_digest`.
 The config hash covers the run, data and model files and each reference tag and
