@@ -45,8 +45,9 @@ usage drifts from the registry.
 | `run cancel` | `run cancel <run_id>` | run id | — | Run detail after the transition | `run.not_found`, `run.conflict` | Runs → Cancel | `quantrule run cancel <run_id>` |
 
 A `quantrule.run/v5` config names packs and artifacts by id and hash. `run submit`
-resolves them before the run row; a missing or mismatched pack, signal or model
-artifact is refused. `run lineage` prints the recorded set.
+resolves them before the run row; a missing, mismatched or non-frozen pack, or a
+missing signal or model artifact, is refused. `run lineage` prints the recorded
+set.
 
 ## Stage
 

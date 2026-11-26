@@ -38,6 +38,34 @@ pub(crate) struct RunListQuery {
     include_archived: Option<bool>,
 }
 
+/// Refuse a new run that cites a pack the lifecycle does not allow.
+///
+/// The check is on submission only. A run that already recorded the reference
+/// keeps its lineage readable after the pack is retired.
+fn require_frozen_packs(config: &ConfigBundle) -> Result<(), ApiFailure> {
+    for reference in &config.references {
+        if reference.kind.pack_kind().is_none() {
+            continue;
+        }
+        let Some(pack) = &reference.pack else {
+            return Err(failure(
+                ErrorCode::PackInvalid,
+                format!("pack {} has no lifecycle provenance", reference.id),
+            ));
+        };
+        if !pack.state.allows_new_runs() {
+            return Err(failure(
+                ErrorCode::PackInvalid,
+                format!(
+                    "pack {} is {}; a new run requires a frozen pack",
+                    reference.id, pack.state
+                ),
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// The model identity recorded in a run config, or `none` when absent.
 pub(crate) fn model_version(body: &str) -> String {
     serde_json::from_str::<serde_json::Value>(body)
@@ -145,6 +173,7 @@ pub(crate) async fn submit_validated_pipeline(
         ));
     };
     if !config.references.is_empty() {
+        require_frozen_packs(&config)?;
         let v5_model = config
             .references
             .iter()

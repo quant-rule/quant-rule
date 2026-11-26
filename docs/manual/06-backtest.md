@@ -50,9 +50,10 @@ the same inputs. A mismatch is `run.model_artifact_invalid`, not a warning.
 
 A `quantrule.run/v5` config names its strategy, portfolio and execution packs by
 content hash; a fold-mode run omits the signal artifact, and a signal-mode run
-requires both the signal and model artifacts. `run submit` resolves every
-reference before it writes the run row, so a missing or mismatched reference is
-refused with no run to cancel.
+requires both the signal and model artifacts. A new run may cite only a frozen
+pack; upload and `run submit` refuse a draft, validated, or retired pack.
+`run submit` resolves every reference before it writes the run row, so a missing
+or mismatched reference is refused with no run to cancel.
 
 | Submission | Model | Strategy | Execution | Portfolio |
 |---|---|---|---|---|
