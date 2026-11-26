@@ -162,10 +162,13 @@ ssl_options.versions.2 = tlsv1.3
 
 The v3 unit copies the leaf from `/etc/quantrule/pki/rabbitmq` into
 `/var/lib/rabbitmq/pki` with the broker owner before it starts. There is no
-plaintext listener, no management listener, and no published port. The leaf
-covers `rabbitmq` plus every `rabbitmq-<host>`; `PKI_EXTRA_SANS` supplies the
-unique broker names. The Erlang distribution between brokers is not TLS in
-v1.6.0: it uses the encrypted overlay and is a separate issue. The queue check
+plaintext AMQP listener and no published port. The management plugin (`15672`)
+and the Prometheus exporter (`15692`) are enabled on the container network; both
+are HTTP on the private overlay, have no host port, and are covered by the S-05
+accepted risk. The leaf covers `rabbitmq` plus every `rabbitmq-<host>`;
+`PKI_EXTRA_SANS` supplies the unique broker names. The Erlang distribution
+between brokers is not TLS in v1.6.0: it uses the encrypted overlay and is a
+separate issue. The queue check
 rows verify this listener, the broker leaf SAN/expiry, and the HAProxy
 `rabbitmq:5671` front door; `tools/queue-definitions.sh` strips users and
 permissions before storing topology.
@@ -216,7 +219,7 @@ Client:
 | URL | `https://minio:9000` with no userinfo |
 | CA | `QR_OBJECT_STORE_TLS_CA_PATH`, absolute |
 | Trust store | explicit Smithy `TrustStore::empty()` plus the bundle; platform roots are not used for the private endpoint |
-| Credentials | `qr_app` and its app secret from the two `_FILE` values; no root, no `aws-config`, no AWS default chain |
+| Credentials | Compose/v2: the app uses the MinIO root user and password from the two `_FILE` values (accepted S-06). v3: least-privilege `qr_app` and its app secret from the two `_FILE` values, never root. No `aws-config`, no AWS default chain |
 | Addressing | path style, region `us-east-1` |
 | Bucket | `quantrule`, content-addressed, versioning enabled, least-privilege policy |
 | Stateful `mc` | mounts `CAs/ca.crt` at `/certs/ca.crt` and sets `SSL_CERT_FILE`; no `--insecure` |

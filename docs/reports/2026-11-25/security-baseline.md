@@ -35,7 +35,7 @@ sequential role pass by one agent, not an independent security review.
 | ID | Severity | Area | Finding | Evidence | Impact | Options | Recommended | Verification | Status | Links |
 |---|---|---|---|---|---|---|---|---|---|---|
 | S-01 | Major | Remote exposure | The unauthenticated local profile bound `0.0.0.0:8080`, so a laptop on a shared LAN could expose the API without the bearer gate. | [`bind-before-after.txt`](security-baseline/bind-before-after.txt) | Unauthenticated reads/writes by any reachable host | (a) bind loopback locally and open an interface only in the remote profile; (b) force the bearer token on every profile; (c) document-only | (a) | `docker port`, `ss`, token matrix, topology test | Fixed | Compose, `tools/remote.sh`, README, security.md |
-| S-02 | Major | Supply chain | No signed image, SBOM, or CVE report was produced locally; the release workflow owns that gate and no release image exists. | `tools/release.sh`, `.github/workflows/release.yml`, no tag | A published image would lack local evidence if the release workflow were bypassed | (a) keep the release workflow as the only publish path and require its artifacts in the release PR; (b) run a staging scan locally before the tag; (c) accept the gap | (a), with the v1.6.0 release note carrying the hashes | Release PR review | Open — release gate | [registry.md](../../config/2026-11-24/registry.md) |
+| S-02 | Major | Supply chain | No signed image, SBOM, or CVE report was produced locally; the release workflow owns that gate and no release image exists. | `tools/release.sh`, `.github/workflows/release.yml`, no tag | A published image would lack local evidence if the release workflow were bypassed | (a) keep the release workflow as the only publish path and require its artifacts in the release PR; (b) run a staging scan locally before the tag; (c) accept the gap | (a), with the v1.6.0 release note carrying the hashes | Release PR review | Closed (local-only) — signature residual REL-002; see §8 | [registry.md](../../config/2026-11-24/registry.md), [REM-HA-007](../2026-11-26/rem-security.md) |
 | S-03 | Minor | Client token | `--token` is visible in the shell's process list. | `docs/architecture/security.md` | A local process can read the token | (a) prefer `QUANTRULE_TOKEN_FILE`; (b) keep the flag and document it | (a), already documented | Documentation | Accepted | [security.md](../../architecture/security.md) |
 | S-04 | Minor | Endpoints | `/ready` and `/metrics` are unauthenticated. | `docs/architecture/security.md` | Reconnaissance from the pod/host network | (a) network-gate only; (b) add a token gate | (a), already documented | Lab overlay check | Accepted | [security.md](../../architecture/security.md) |
 | S-05 | Minor | Internal HTTP | RabbitMQ management/Prometheus and internal HTTP are plaintext on the overlay. | `data-path.txt` | A compromised overlay host can read them | (a) encrypted overlay (current); (b) service TLS | (a), with no published port | Lab overlay check | Accepted | [security.md](../../architecture/security.md) |
@@ -106,3 +106,13 @@ tag exists. It is a gate for the human release authorization.
 The review finds no open Critical issue. QA-005's done condition is met. The
 local-profile exposure is fixed and verified; the supply-chain evidence remains
 a release gate, and the v1.6.0 release note must carry it before the tag.
+
+## 8. Addendum — S-02 closure (2026-11-26)
+
+REM-HA-007 reviewed the v1.6.1 local candidate. The local SBOM
+(`83d5160d…`) and refreshed CVE report (`9a8be595…`) satisfy the evidence
+elements of S-02; the unsigned-image residual is the human-accepted REL-002
+risk, and no image is published or tagged. S-02 is therefore closed for the
+local-only candidate with the signature transferred to REL-002. The closure
+conditions and the S-08/S-09 contract corrections are recorded in
+[`rem-security.md`](../2026-11-26/rem-security.md).
