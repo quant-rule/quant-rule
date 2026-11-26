@@ -27,7 +27,7 @@ use crate::pipeline::{self, PipelineError};
 use crate::stages::execution::{
     ExecutionArtifactMeta, ExecutionRunError, write_bundle as write_execution,
 };
-use crate::stages::portfolio::{self, PortfolioRequest, PortfolioRunError};
+use crate::stages::portfolio::{self, PortfolioRunError};
 use crate::stages::strategy::{
     BarRow, DecisionCounts, ModelBundle, StrategyArtifactMeta, StrategyContextError, artifacts,
     decision_record, validate_context,
@@ -189,14 +189,7 @@ pub fn run(request: &BacktestRequest<'_>) -> Result<BacktestOutcome, BacktestRun
         timeframe,
         execution,
     };
-    run_stages(
-        &config,
-        &strategy_config,
-        &strategy_config_id,
-        &feed,
-        &root,
-        request.config,
-    )
+    run_stages(&config, &strategy_config, &strategy_config_id, &feed, &root)
 }
 
 /// The model values the shared stage loop reads.
@@ -329,7 +322,6 @@ pub(super) fn run_stages(
     strategy_config_id: &str,
     feed: &dyn BacktestFeed,
     root: &Path,
-    config_path: &Path,
 ) -> Result<BacktestOutcome, BacktestRunError> {
     let fill_timeframe = config.execution.fill_timeframe;
     let execution = u64::from(fill_timeframe.seconds());
@@ -514,12 +506,8 @@ pub(super) fn run_stages(
     .map_err(BacktestRunError::ExecutionBundle)?;
 
     let execution_root = root.join("execution");
-    let portfolio_request = PortfolioRequest {
-        config: config_path,
-        fills: &execution_root,
-        out: Some(root),
-    };
-    portfolio::replay(&portfolio_request).map_err(BacktestRunError::Portfolio)?;
+    portfolio::replay_resolved(config, &execution_root, Some(root))
+        .map_err(BacktestRunError::Portfolio)?;
 
     let stages = [
         stage_info(root, "model", "model")?,

@@ -55,4 +55,8 @@ if [ "${QUANTRULE_POSTGRES_CHECK:-1}" = "1" ]; then
 fi
 
 "$verify" --api-url "$api_url" --timeout "$timeout"
-echo "composed: gateway healthy, product $product, queue isolation verified, run parity verified"
+"$verify" --api-url "$api_url" --timeout "$timeout" \
+  --config "$root/config/examples/verify-v5/run.json" \
+  --replica "$root/config/examples/verify-v5-replica/run.json" \
+  --data "$root/config/examples/verify-v5/candles.csv"
+echo "composed: gateway healthy, product $product, queue isolation verified, v4 and v5 run parity verified"

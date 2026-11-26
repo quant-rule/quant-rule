@@ -341,9 +341,8 @@ impl AppService {
         strategy_id: &str,
         model: &std::path::Path,
         out: Option<&std::path::Path>,
-        config_path: &std::path::Path,
     ) -> Result<BacktestOutcome, BacktestRunError> {
-        backtest_from_model::run_resolved(config, strategy, strategy_id, model, out, config_path)
+        backtest_from_model::run_resolved(config, strategy, strategy_id, model, out)
     }
 
     /// Evaluates a backtest bundle against human-owned qualification criteria.

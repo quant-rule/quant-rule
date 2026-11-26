@@ -7,4 +7,4 @@
 mod fills;
 mod run;
 
-pub use run::{PortfolioOutcome, PortfolioRequest, PortfolioRunError, replay};
+pub use run::{PortfolioOutcome, PortfolioRequest, PortfolioRunError, replay, replay_resolved};

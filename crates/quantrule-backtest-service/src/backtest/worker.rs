@@ -312,7 +312,6 @@ pub async fn process(
                 &strategy_id,
                 &model_path,
                 Some(&out),
-                &run_path,
             )
         })
         .await

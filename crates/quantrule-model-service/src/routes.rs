@@ -21,10 +21,11 @@ use quantrule_api::{
     ModelObject, PROFILE_HEADER, ProfileId, VersionInfo,
 };
 use quantrule_app::config::RunConfig;
+use quantrule_app::pack::{ContentReference, MemoryReferences, ReferenceKind};
 use quantrule_data::Timeframe;
 use quantrule_model::input::MarketStateConfig;
-use quantrule_runtime::client::ClientError;
-use quantrule_service_api::ModelBundleManifest;
+use quantrule_runtime::client::{ClientError, DataClient};
+use quantrule_service_api::{ConfigBundle, ModelBundleManifest};
 use serde::Deserialize;
 
 use crate::bundle::{self, BundleError};
@@ -55,6 +56,66 @@ fn data_failure(error: ClientError) -> ApiFailure {
         | ClientError::Interrupted { .. }
         | ClientError::Status { .. } => failure(ErrorCode::ServiceUnavailable, error.to_string()),
     }
+}
+
+/// Resolve a v5 bundle's pack and signal references once.
+///
+/// The model service only reads the data and model files, but the shared loader
+/// validates every content reference in the run document. Resolving here keeps
+/// the loader one implementation and still makes no per-bar call. A promoted
+/// model artifact never reaches this route: the backtest worker consumes that
+/// bundle directly.
+async fn resolve_references(
+    data: &dyn DataClient,
+    profile: &ProfileId,
+    bundle: &ConfigBundle,
+) -> Result<MemoryReferences, ApiFailure> {
+    let mut references = MemoryReferences::new();
+    for reference in &bundle.references {
+        let bytes = match reference.kind {
+            ReferenceKind::ModelArtifact => {
+                return Err(failure(
+                    ErrorCode::ConfigInvalid,
+                    "the model service cannot resolve a promoted model artifact",
+                ));
+            }
+            ReferenceKind::SignalArtifact => data
+                .signal_bytes(profile.clone(), reference.id.clone())
+                .await
+                .map_err(data_failure)?
+                .ok_or_else(|| {
+                    failure(
+                        ErrorCode::ConfigInvalid,
+                        format!("signal artifact {} is unknown", reference.id),
+                    )
+                })?,
+            _ => data
+                .pack_bytes(profile.clone(), reference.id.clone())
+                .await
+                .map_err(data_failure)?
+                .ok_or_else(|| {
+                    failure(
+                        ErrorCode::ConfigInvalid,
+                        format!("pack {} is unknown", reference.id),
+                    )
+                })?,
+        };
+        if Digest::sha256(&bytes) != reference.hash {
+            return Err(failure(
+                ErrorCode::ConfigInvalid,
+                format!("reference {} does not match its hash", reference.id),
+            ));
+        }
+        references.insert_at(
+            reference.kind,
+            ContentReference {
+                id: reference.id.clone(),
+                hash: reference.hash.clone(),
+            },
+            bytes,
+        );
+    }
+    Ok(references)
 }
 
 /// The routes before state is attached.
@@ -167,7 +228,7 @@ async fn load_inputs(
     }
 
     let config = data
-        .config_bundle(profile, config_id.clone())
+        .config_bundle(profile.clone(), config_id.clone())
         .await
         .map_err(data_failure)?
         .ok_or_else(|| {
@@ -188,11 +249,14 @@ async fn load_inputs(
         .config_hash
         .clone()
         .ok_or_else(|| failure(ErrorCode::ConfigInvalid, "a valid config carries no hash"))?;
+    let references = resolve_references(data.as_ref(), &profile, &config).await?;
     let files = config.files.clone();
-    let run = tokio::task::spawn_blocking(move || load_run_config(&files, &std::env::temp_dir()))
-        .await
-        .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?
-        .map_err(|error| failure(ErrorCode::ConfigInvalid, error.to_string()))?;
+    let run = tokio::task::spawn_blocking(move || {
+        load_run_config(&files, &references, &std::env::temp_dir())
+    })
+    .await
+    .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?
+    .map_err(|error| failure(ErrorCode::ConfigInvalid, error.to_string()))?;
     let model = ModelConfig::from_run(&run);
 
     Ok(ModelInputs {
@@ -507,5 +571,73 @@ fn bundle_failure(error: BundleError) -> ApiFailure {
         BundleError::Output(_) | BundleError::Store(_) => {
             failure(ErrorCode::Internal, error.to_string())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quantrule_api::RunArtifactReference;
+    use quantrule_runtime::client::MemoryDataClient;
+
+    fn bundle(id: Digest, hash: Digest) -> ConfigBundle {
+        ConfigBundle {
+            config_id: "cfg_v5".to_owned(),
+            references: vec![RunArtifactReference {
+                kind: ReferenceKind::StrategyPack,
+                id,
+                hash,
+                pack: None,
+            }],
+            files: std::collections::BTreeMap::new(),
+            valid: true,
+            message: None,
+            config_hash: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn a_pack_reference_is_resolved_from_the_data_service() {
+        let data = MemoryDataClient::default();
+        let profile = ProfileId::parse("default").expect("profile");
+        let bytes = b"canonical pack".to_vec();
+        let id = Digest::sha256(&bytes);
+        data.add_pack_bytes(&profile, &id, bytes.clone());
+        let resolved = resolve_references(&data, &profile, &bundle(id.clone(), id.clone()))
+            .await
+            .expect("the pack resolves");
+        assert_eq!(
+            resolved.get(
+                ReferenceKind::StrategyPack,
+                &ContentReference {
+                    id: id.clone(),
+                    hash: id
+                }
+            ),
+            Some(bytes.as_slice())
+        );
+    }
+
+    #[tokio::test]
+    async fn a_missing_pack_is_refused() {
+        let data = MemoryDataClient::default();
+        let profile = ProfileId::parse("default").expect("profile");
+        let id = Digest::sha256(b"missing");
+        let error = resolve_references(&data, &profile, &bundle(id.clone(), id))
+            .await
+            .expect_err("the pack is missing");
+        assert_eq!(error.0, StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn a_tampered_pack_is_refused() {
+        let data = MemoryDataClient::default();
+        let profile = ProfileId::parse("default").expect("profile");
+        let id = Digest::sha256(b"expected");
+        data.add_pack_bytes(&profile, &id, b"tampered".to_vec());
+        let error = resolve_references(&data, &profile, &bundle(id.clone(), id))
+            .await
+            .expect_err("the bytes do not match");
+        assert_eq!(error.0, StatusCode::BAD_REQUEST);
     }
 }
