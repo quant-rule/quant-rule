@@ -14,14 +14,14 @@ use tower::ServiceExt;
 /// fixture. It is the regression oracle for the move: the public model object
 /// must stay byte-identical.
 ///
-/// The oracle was regenerated for `1.6.0`. The object carries the compiled
-/// package version. The `1.5.2` object is 66,022 bytes and hashes to
-/// `sha256:ebb6522920d73d092ca796b3ddb74ea586db19957a108cb9c1cfe265b5e13769`;
-/// `1.6.0` has the same length and changes only that string. The object key's
+/// The oracle was regenerated for `1.6.1`. The object carries the compiled
+/// package version. The `1.6.0` object is 66,022 bytes and hashes to
+/// `sha256:684760a01fce09f3c458ff7dbdfb3090b5d2a5fb06de2e375e850c543d93aae2`;
+/// `1.6.1` has the same length and changes only that string. The object key's
 /// model-registry component (`2026-11-10.2`) is unchanged, and no reading,
 /// event, or report value changed.
 const BASELINE_SHA256: &str =
-    "sha256:684760a01fce09f3c458ff7dbdfb3090b5d2a5fb06de2e375e850c543d93aae2";
+    "sha256:ead976e866f9bd32ae85c5a5c71ca4fc81a54c4a0240a5d78544c24aa63c8061";
 const BASELINE_BYTES: u64 = 66_022;
 
 async fn compute(
