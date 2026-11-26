@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 description = "The QuantRule simulation service: the hindsight research plane"
-license = "MIT OR Apache-2.0"
+license = "MIT"
 publish = false
 
 [[bin]]

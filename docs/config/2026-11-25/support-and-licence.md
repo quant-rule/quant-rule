@@ -1,7 +1,7 @@
 # Support Matrix and Licence Boundary
 
 - Date: 2026-11-25 (UTC)
-- Status: Current for v1.6.0; the software licence is MIT OR Apache-2.0, support terms are separate
+- Status: Current for v1.6.0; the software licence is MIT, support terms are separate; releases up to v1.6.0 remain available under their published MIT OR Apache-2.0 dual grant
 - Issue: [#1130](https://github.com/quant-rule/quant-rule/issues/1130) (DOC-003)
 - Claim type: Behaviour Claim
 - Related: [reference topologies](../2026-11-24/reference-topologies.md), [registry and supply chain](../2026-11-24/registry.md), [deployment v3](../2026-11-22/deploy-v3.md), [manual 15](../../manual/15-ha-deployment.md)
@@ -69,10 +69,12 @@ refuses them.
 
 ## 5. Licence boundary
 
-- The QuantRule software is dual-licensed under **MIT OR Apache-2.0**. Every
-  crate manifest and both container image labels declare the same expression;
-  the full texts are [`LICENSE-MIT`](../../../LICENSE-MIT) and
-  [`LICENSE-APACHE`](../../../LICENSE-APACHE).
+- The QuantRule software is licensed under the **MIT License**. Every crate
+  manifest and both container image labels declare `MIT`; the full text is
+  [`LICENSE-MIT`](../../../LICENSE-MIT), and [`LICENSE`](../../../LICENSE) points
+  to it. Releases up to `v1.6.0` were published under their `MIT OR
+  Apache-2.0` dual grant; their tags and images retain that grant, and the
+  historical `LICENSE-APACHE` text remains in those release trees.
 - Commercial support, fees, uptime commitments, and any hosted-service offering
   are a separate human-approved document. The open-source licence grants the
   software rights, not a support contract or an SLA.
@@ -90,5 +92,5 @@ refuses them.
 | Platform matrix | Matches `deploy/v3/reference/sizing.json` and the reference host roles |
 | Image versions | Read from the running Compose containers and the descriptor pins on 2026-11-25 |
 | Unsupported list | Matches the reference-topologies unsupported list |
-| Licence boundary | MIT OR Apache-2.0; LICENSE-MIT and LICENSE-APACHE present |
+| Licence boundary | MIT; LICENSE-MIT present and the image/crate labels carry MIT; releases up to v1.6.0 retain their dual grant |
 | `qr-governance check --all` | Pass |

@@ -18,6 +18,10 @@ history is in Git and the pull requests.
 
 ## [Unreleased]
 
+### Changed
+
+- The QuantRule software licence is now MIT. Every crate manifest and both container image labels declare `MIT`; `LICENSE` points to `LICENSE-MIT`. Releases up to v1.6.0 retain their published MIT OR Apache-2.0 dual grant, and `LICENSE-APACHE` is no longer part of the current tree.
+
 ### Fixed
 
 - `qr-governance check --all` now skips the ignored local `pki/` directory, so `make up` no longer makes the private-keys checker fail on the operator's generated CA and server keys.

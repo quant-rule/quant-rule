@@ -67,7 +67,7 @@ FROM debian:trixie-slim@sha256:8aa5a7bf5a1955bddbe7d74fcdd0b91ab30e74362a8b73af6
 LABEL org.opencontainers.image.title="quantrule-server" \
       org.opencontainers.image.description="The QuantRule service runtime and browser client" \
       org.opencontainers.image.source="https://github.com/quant-rule/quant-rule" \
-      org.opencontainers.image.licenses="MIT OR Apache-2.0"
+      org.opencontainers.image.licenses="MIT"
 
 # The health probe is the gateway binary's `--healthcheck` mode and the private
 # CA is mounted at /run/pki, so the runtime needs neither curl nor a system CA

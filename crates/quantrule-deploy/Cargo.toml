@@ -3,6 +3,7 @@ name = "quantrule-deploy"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+license = "MIT"
 description = "Validate, render, and check a QuantRule multi-host deployment descriptor."
 publish = false
 

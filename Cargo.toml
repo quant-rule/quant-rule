@@ -26,6 +26,7 @@ resolver = "3"
 version = "1.6.0"
 edition = "2024"
 rust-version = "1.99"
+license = "MIT"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
