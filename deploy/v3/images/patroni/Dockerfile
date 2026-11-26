@@ -13,7 +13,7 @@ USER root
 LABEL org.opencontainers.image.title="quantrule-patroni-pgbackrest" \
       org.opencontainers.image.description="Patroni and PostgreSQL with the pgBackRest archive tools for QuantRule HA-013" \
       org.opencontainers.image.source="https://github.com/quant-rule/quant-rule" \
-      org.opencontainers.image.licenses="MIT OR Apache-2.0" \
+      org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.base.name="docker.io/batonogov/patroni-docker" \
       org.opencontainers.image.base.digest="sha256:0de7dc8bc5919c76721bee1475ed30155b1848c0a6bac7298605bf39eef1a7eb"
 
