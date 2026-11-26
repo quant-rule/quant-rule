@@ -144,16 +144,33 @@ pub(crate) async fn submit_validated_pipeline(
             "a valid config carries no hash",
         ));
     };
-    if let Some(model) = config
-        .references
-        .iter()
-        .find(|reference| reference.kind == ReferenceKind::ModelArtifact)
-        && request.model_artifact_id.as_ref() != Some(&model.id)
-    {
-        return Err(failure(
-            ErrorCode::RunModelArtifactInvalid,
-            "the v5 model artifact must match the submitted model artifact id",
-        ));
+    if !config.references.is_empty() {
+        let v5_model = config
+            .references
+            .iter()
+            .find(|reference| reference.kind == ReferenceKind::ModelArtifact)
+            .map(|reference| reference.id.clone());
+        match (&request.model_artifact_id, &v5_model) {
+            (Some(request_model), Some(v5_model)) if request_model != v5_model => {
+                return Err(failure(
+                    ErrorCode::RunModelArtifactInvalid,
+                    "the v5 model artifact must match the submitted model artifact id",
+                ));
+            }
+            (None, Some(_)) => {
+                return Err(failure(
+                    ErrorCode::RunModelArtifactInvalid,
+                    "the v5 config cites a model artifact the submission does not name",
+                ));
+            }
+            (Some(_), None) => {
+                return Err(failure(
+                    ErrorCode::RunModelArtifactInvalid,
+                    "the v5 config does not cite the submitted model artifact",
+                ));
+            }
+            _ => {}
+        }
     }
 
     let model_version = model_version(config.files.get("run.json").map_or("", String::as_str));

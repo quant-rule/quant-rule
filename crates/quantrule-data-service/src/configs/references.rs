@@ -75,9 +75,11 @@ pub(crate) async fn config_references(
         } else {
             None
         };
-        if kind == ReferenceKind::SignalArtifact
-            && let Some(catalog) = state.artifacts.as_ref()
-        {
+        if kind == ReferenceKind::SignalArtifact {
+            let catalog = state
+                .artifacts
+                .as_ref()
+                .ok_or_else(|| failure(ErrorCode::Internal, "no artifact catalog is configured"))?;
             let record = catalog
                 .get(
                     profile.clone(),

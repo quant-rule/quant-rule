@@ -106,6 +106,16 @@ fn pack_reference(kind: ReferenceKind, pack_kind: PackKind, seed: &[u8]) -> RunA
     }
 }
 
+fn v5_bundle_without_model() -> ConfigBundle {
+    let mut bundle = v5_bundle(digest(b"unused-model"));
+    bundle.config_id = "cfg_v5_no_model".to_owned();
+    bundle
+        .references
+        .retain(|reference| reference.kind != ReferenceKind::ModelArtifact);
+    bundle.config_hash = Some(digest(b"v5-no-model"));
+    bundle
+}
+
 fn v5_bundle(model: Digest) -> ConfigBundle {
     ConfigBundle {
         config_id: "cfg_v5".to_owned(),
@@ -153,6 +163,7 @@ async fn harness() -> Arc<EvidenceState> {
         data.add_config(profile, bundle("cfg_changed", b"changed", "M1.0"));
         data.add_config(profile, v3_bundle());
         data.add_config(profile, v5_bundle(v5_model.clone()));
+        data.add_config(profile, v5_bundle_without_model());
     }
     seed_stages(&stages).await;
     let config = Config {
@@ -414,6 +425,23 @@ async fn a_v5_bundle_without_the_model_artifact_id_is_refused() {
         )
         .await
         .expect("response");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let envelope: ErrorEnvelope = decode(response).await;
+    assert_eq!(envelope.error.code, ErrorCode::RunModelArtifactInvalid);
+}
+
+#[tokio::test]
+async fn a_v5_bundle_without_a_model_reference_refuses_a_promoted_model() {
+    let state = harness().await;
+    let artifact = model_artifact(b"model").artifact_id;
+    let response = submit_promoted(
+        Arc::clone(&state),
+        "default",
+        &digest(b"candles-a"),
+        "cfg_v5_no_model",
+        &artifact,
+    )
+    .await;
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     let envelope: ErrorEnvelope = decode(response).await;
     assert_eq!(envelope.error.code, ErrorCode::RunModelArtifactInvalid);
