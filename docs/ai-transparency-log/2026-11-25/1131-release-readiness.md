@@ -39,3 +39,26 @@ are release-workflow outputs after authorization.
 - The human must accept HA-22/HA-23, the 72-hour soak, the versioned upgrade, and
   the commercial licence text before the tag. The release workflow then produces
   the SBOM, CVE report, and signature.
+
+## Update 2026-11-26 — release record and snapshot
+
+The readiness record above was the pre-tag state. After the human continued
+through the CVE findings, the following work was performed:
+
+- The release scan and the image gate were fixed (CVSS vector parsing, the
+  unused AWS legacy TLS graph, the curl-free runtime health probe, the pinned
+  bases, and the ten-container stack check). Those changes are separate merged
+  pull requests, not part of this docs record.
+- Snapshot workflow `45726933695` passed at `64003970`: the composed canonical
+  digest is `sha256:a0372f02…`, the image digest is
+  `sha256:ba77ad9f…`, and `/version` reports `1.6.0`. The CVE gate reports
+  0 Critical and 72 allowlisted Highs.
+- The `v1.6.0` release note was written with the snapshot SBOM/CVE hashes, the
+  `Unreleased` section was promoted to `## [1.6.0] - 2026-11-26`, and the
+  current-tag map now resolves `v1.6.0`.
+- The release body still needs the annotated tag, and the image signature
+  remains a manual operator step with no key available.
+
+Residual risk: the 72 Debian trixie High findings are accepted until
+2027-02-28; `Real HA`, the 72-hour soak, and the versioned upgrade remain
+unclaimed. The tag is the remaining human gate.
