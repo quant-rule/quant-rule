@@ -611,7 +611,7 @@ jobs:
             echo "## Distribution boundary"
             echo
             echo "- The 16 \`images.*\` infrastructure pins are fixtures; a production descriptor needs real digests (PLAT-008)."
-            echo "- A live registry push, signature, SBOM, scan, and the three-VM lab are \`Unverified\`; \`Real HA\` is HA-014."
+            echo "- The manual image signature and the three-VM lab are \`Unverified\`; the image push, SBOM, and CVE scan above are the published tag artifacts. \`Real HA\` is HA-014."
           } > release-body.md
           cp release-body.md "$RUNNER_TEMP/release-body.md"
           cp "$evidence/$sbom" "$RUNNER_TEMP/$sbom"
