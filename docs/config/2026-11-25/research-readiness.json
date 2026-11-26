@@ -147,9 +147,9 @@
       ],
       "status": "Simulated HA",
       "tier": "Simulated HA",
-      "boundary": "The lab proves one-broker loss and a worker kill; it does not prove a 72-hour soak or production capacity.",
+      "boundary": "The lab proves one-broker loss and a worker kill; it does not prove a 48-hour soak or production capacity.",
       "recorded_on": "2026-11-25",
-      "notes": "A new quorum leader was elected in 7 s; queue depth and worker counts are metrics; the 72-hour soak is the separate V20 gate."
+      "notes": "A new quorum leader was elected in 7 s; queue depth and worker counts are metrics; the 48-hour soak is the separate V20 gate."
     }
   ],
   "accepted_risks": [

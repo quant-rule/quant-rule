@@ -22,10 +22,11 @@ history is in Git and the pull requests.
 
 - A `quantrule.run/v5` submission now carries an ordered reference set in the internal config bundle, resolves data-owned pack and signal objects by hash, and refuses a v5 model artifact that does not match the submitted model stage. The run row and its research-artifact lineage commit together, and `run lineage` reads the set back.
 - The backtest worker now resolves a v5 reference set once, verifies every pack, signal and model byte, loads the run with `RunConfig::load_with`, and runs the fold from the resolved config without a legacy strategy file.
-- `tools/soak.sh` runs the 72-hour soak gate over the live Compose stack: a capacity preflight, alternating one- and two-worker cycles, fixed-run digest checks, and health, queue, PostgreSQL connection, disk, and memory evidence. A shorter `--duration` is a sample, not the gate.
+- `tools/soak.sh` runs the soak gate over the live Compose stack: a capacity preflight, alternating one- and two-worker cycles, fixed-run digest checks, and health, queue, PostgreSQL connection, disk, and memory evidence. The v1.6.1 gate is 48 hours (96 cycles); a shorter `--duration` is a sample, not the gate.
 
 ### Changed
 
+- The v1.6.1 soak gate is 48 hours, human-approved on 2026-11-26, instead of the previously planned 72 hours. The release note must say 48 hours; the harness remains duration-configurable.
 - The QuantRule software licence is now MIT. Every crate manifest and both container image labels declare `MIT`; `LICENSE` points to `LICENSE-MIT`. Releases up to v1.6.0 retain their published MIT OR Apache-2.0 dual grant, and `LICENSE-APACHE` is no longer part of the current tree.
 
 ### Fixed

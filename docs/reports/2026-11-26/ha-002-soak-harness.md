@@ -1,12 +1,12 @@
-# HA-002 — Soak Harness and 30-Second Sample
+# HA-002 — Soak Harness and 48-Hour Gate
 
 - Date: 2026-11-26 (UTC)
-- Status: **Harness implemented and sampled; the 72-hour gate is not yet run.**
+- Status: **Harness implemented and sampled; the approved 48-hour gate is running and not yet complete.**
 - Work item: [#1212](https://github.com/quant-rule/quant-rule/issues/1212)
   (`REM-HA-002`, V-HA-02)
 - Plan: [`rem-000-v1.6.1-remediation.md`](../../execution-plans/2026-11-26/rem-000-v1.6.1-remediation.md)
 - Claim type: Behaviour Claim evidence record; no model, strategy, or edge claim.
-- Boundary: one host; the sample is not the 72-hour gate.
+- Boundary: one host; the sample is not the 48-hour gate.
 
 ## 1. Harness
 
@@ -22,9 +22,9 @@
 - It fails on a digest mismatch, unhealthy gateway, non-zero queue after the run,
   DB connections above baseline + 20, available memory below 256 MiB, or free
   disk below 1 GiB.
-- Evidence is `soak.ndjson`, per-cycle verification logs, and `summary.json`
-  under `--evidence` or `deploy/v3/evidence/soak-<UTC>`. The evidence is
-  value-free.
+- Evidence is a per-cycle JSON stream (`soak.ndjson`), per-cycle verification
+  logs, and `summary.json` under `--evidence` or
+  `deploy/v3/evidence/soak-<UTC>`. The evidence is value-free.
 
 ## 2. Verification
 
@@ -39,23 +39,34 @@
 The sample evidence is at `/home/zantgo/rel-001-evidence/soak-sample/` on the
 operator host; it is not committed.
 
-## 3. Gate boundary
+## 3. Gate and approved scope change
 
-The 72-hour run is **not** this sample. The harness is ready; the gate is
-`tools/soak.sh --duration 72h --cycles 1,2` for 72 continuous hours with no
-leak or drift. This record does not claim that run. V-HA-02 remains `Pending`
-until the 72-hour summary exists and passes.
+The human approved a **48-hour gate** on 2026-11-26, replacing the 72-hour
+target. The reason is coverage, not convenience: 48 hours at 30-minute cycles is
+96 cycles, two full daily cycles, and twice the trend span of a 24-hour run,
+while the only recurring timer in the stack is the hourly stage-retention sweep.
+
+| Run | Start (UTC) | Planned | Outcome |
+|---|---|---|---|
+| 72-hour run | 2026-11-26T19:28:43Z | 144 cycles | Stopped after 3 clean cycles when the 48-hour scope change was approved; evidence at `/home/zantgo/rel-001-evidence/soak-72h/`, superseded |
+| **48-hour run** | 2026-11-26T20:47:29Z | 96 cycles | Running on `a16aa960` with the v1.6.1 candidate; evidence at `/home/zantgo/rel-001-evidence/soak-48h/` |
+
+The 48-hour gate is `tools/soak.sh --duration 48h --cycles 1,2` for 48 continuous
+hours with no leak or drift. The harness remains duration-configurable; the
+release note must say 48 hours, not 72. V-HA-02 remains `Pending` until the
+48-hour summary exists and passes with 96 cycles and zero failures.
 
 ## 4. Limitations
 
-- The sample is 30 seconds and three cycles, not 72 hours.
+- The sample is 30 seconds and three cycles, not the 48-hour gate.
+- The 72-hour partial run is not the 48-hour gate and is not claimed.
 - It runs on the single-host Compose stack, not a multi-host or `Real HA` setup.
 - It uses the v4 verification run; the v5 path is covered by the composed tier,
   not by every soak cycle.
-- A 72-hour run is wall-clock-bound; a preempted run restarts from zero.
+- A 48-hour run is wall-clock-bound; a preempted run restarts from zero.
 
 ## 5. Verdict
 
-**Harness ready; gate pending.** The tool, tests, preflight, worker cycling,
-resource sampling, and digest check are in place. The 72-hour gate remains to be
-run and is not claimed.
+**Harness ready; 48-hour gate running.** The tool, tests, preflight, worker
+cycling, resource sampling, and digest check are in place. V-HA-02 stays
+`Pending` until the 48-hour summary passes; no 72-hour claim is made.

@@ -25,7 +25,7 @@ carries `system.kind = research-only` and `system.trading = false`; the
 | RR-05 | A point-in-time restore reproduces the same canonical digest or fails cleanly. | [DR evidence](../../reports/2026-11-25/ha-014/dr.json), [backup contract](../2026-11-24/backup-restore.md) | `Simulated HA` | In-place lab restore; no production PITR, second site, or real-host RTO claim. |
 | RR-06 | A referenced pack or signal is never collected; an unreferenced artifact is collected only after 30 days with a tombstone. | [research artifacts](../../architecture/research-artifacts.md), [pack contract](../2026-11-22/research-artifact-packs.md), [signal contract](../2026-11-22/signal-artifact.md) | `Current` | The 30-day window and tombstone are tested; a live MinIO sweep is not run here. |
 | RR-07 | The browser and CLI reach the gateway over HTTPS with the token and no certificate bypass; a lost client reconnects. | [lab evidence](../../reports/2026-11-25/ha-014/lab.md), [client access](../../manual/13-client-access.md), [security](../../architecture/security.md), [ingress](../2026-11-23/ingress.md) | `Simulated HA` | The lab path is not a separate physical machine or a public CA. |
-| RR-08 | A broker or worker loss does not lose an acknowledged run; the queue drains and a failed worker leaves one digest. | [queue evidence](../../reports/2026-11-25/ha-014/queue.json), [HA-18](../../reports/2026-11-25/ha-014/HA-18.json), [observability](../2026-11-23/observability.md), [operations](../../architecture/operations.md) | `Simulated HA` | One-broker loss and a worker kill; no 72-hour soak or production capacity claim. |
+| RR-08 | A broker or worker loss does not lose an acknowledged run; the queue drains and a failed worker leaves one digest. | [queue evidence](../../reports/2026-11-25/ha-014/queue.json), [HA-18](../../reports/2026-11-25/ha-014/HA-18.json), [observability](../2026-11-23/observability.md), [operations](../../architecture/operations.md) | `Simulated HA` | One-broker loss and a worker kill; no 48-hour soak or production capacity claim. |
 
 ## 3. Accepted risk
 
@@ -52,7 +52,7 @@ The human approved the simulated evidence boundary in the v1.6.0 plan on
 
 - Physical host, AZ, power, disk-controller, or true network-partition survival.
 - A production PITR, a second site, or a real-host RTO.
-- A 72-hour soak, production capacity, or a real public-CA remote client.
+- A 48-hour soak, production capacity, or a real public-CA remote client.
 - That any alpha has an edge. Research readiness is not an edge claim.
 
 ## 6. Verification
