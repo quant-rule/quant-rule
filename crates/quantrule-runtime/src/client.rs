@@ -463,13 +463,15 @@ impl DataClient for HttpServiceClient {
 
 type DatasetReferenceMap = BTreeMap<(String, String), std::collections::BTreeSet<String>>;
 
+type ContentBytes = std::sync::Arc<std::sync::Mutex<BTreeMap<(String, String), Vec<u8>>>>;
+
 /// An in-memory data client, for route and worker tests.
 #[derive(Debug, Clone, Default)]
 pub struct MemoryDataClient {
     configs: std::sync::Arc<std::sync::Mutex<BTreeMap<(String, String), ConfigBundle>>>,
     datasets: std::sync::Arc<std::sync::Mutex<BTreeMap<(String, String), DatasetObject>>>,
-    packs: std::sync::Arc<std::sync::Mutex<BTreeMap<(String, String), Vec<u8>>>>,
-    signals: std::sync::Arc<std::sync::Mutex<BTreeMap<(String, String), Vec<u8>>>>,
+    packs: ContentBytes,
+    signals: ContentBytes,
     references: std::sync::Arc<std::sync::Mutex<DatasetReferenceMap>>,
 }
 
