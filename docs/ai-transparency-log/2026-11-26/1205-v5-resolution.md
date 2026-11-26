@@ -24,7 +24,10 @@ or change worker consumption (RA-004).
   route resolves pack and signal objects by hash, carrying pack provenance.
 - Evidence normalizes the reference set at submission; a v5 model artifact must
   match the submitted model artifact id. A missing or mismatched model id is
-  refused before a run row.
+  refused before a run row. A v5 config with no model reference refuses a
+  promoted model id, so lineage cannot miss a cited model.
+- A signal reference requires the artifact catalog; a missing catalog is an
+  internal error, not a silent skip.
 - v3/v4 bundles keep an empty reference list and their existing loader path.
 
 ## 3. Verification
@@ -36,7 +39,7 @@ Commands actually run in the RA-002 worktree:
 - `cargo test -p quantrule-data-service configs::scan` → 5 passed.
 - `cargo test -p quantrule-data-service --test configs` → 9 passed.
 - `cargo test -p quantrule-evidence-service --test promoted_runs a_v5_bundle` →
-  2 passed.
+  3 passed, including the uncited-model regression.
 - `cargo test -p quantrule-data-service -p quantrule-evidence-service` → all
   non-ignored tests passed.
 - `cargo test -p quantrule-service-api -p quantrule-app -p quantrule-data-service
@@ -59,6 +62,9 @@ submission paths are covered, and the worker/lineage path remains RA-003/RA-004.
   evidence service validates the model-stage reference and the immutable set.
 - The v5 fixture changes the mounted-config count; every count assertion had to
   move together.
+- Self-review found two fail-open edges after the first push: a missing artifact
+  catalog skipped signal verification, and a v5 config without a model reference
+  accepted a promoted model id. Both are now closed and tested.
 
 ## 5. Next action
 
