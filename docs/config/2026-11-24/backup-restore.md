@@ -14,7 +14,8 @@
   [Patroni cluster](../2026-11-23/patroni-cluster.md),
   [four databases](../2026-11-22/four-databases.md),
   [observability](../2026-11-23/observability.md),
-  [HA architecture](../../architecture/ha.md)
+  [HA architecture](../../architecture/ha.md),
+  [ADR-STR-001](../../adr/2026-11-26/1227-minio-object-dr.md)
 
 ## 1. What is protected
 
@@ -292,7 +293,8 @@ node_exporter and is not a production signal.
 
 ## 12. Object archive, DR, and queue
 
-`tools/object-archive.sh` is a one-way archive, not replication. The source
+`tools/object-archive.sh` is a one-way archive, not replication
+([ADR-STR-001](../../adr/2026-11-26/1227-minio-object-dr.md)). The source
 `qr_archive_reader` may list and get and nothing else; `object-bootstrap`
 creates it when `object_archive_reader_secret_key` is declared. `--confirm` runs
 `mc mirror --overwrite --summary` from `quantrule` to the target, with no
