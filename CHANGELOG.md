@@ -179,6 +179,7 @@ history is in Git and the pull requests.
 
 ### Fixed
 
+- The release workflow's post-push stack check now expects the ten long-running containers of the v1.6.0 default stack (seven services plus Postgres, MinIO, and RabbitMQ), not the nine-container v1.5.x count.
 - The runtime image no longer carries `curl` or a system CA package. The gateway binary's `--healthcheck` mode now serves the Compose, Swarm, and `qr-deploy --runtime` probes, and `--print` returns the response body for the digest check; the image scan no longer reports the Critical curl CVEs. The private CA is mounted at `/run/pki` as before.
 - The release scan now parses a RustSec CVSS v3.1 vector string and computes its base score, so a Critical advisory is still classified as Critical and the CVE gate no longer aborts with `Cannot iterate over string` when an advisory carries a CVSS vector.
 - `quantrule-runtime` now enables only the AWS S3 client's modern `default-https-client` path, so the unused legacy rustls 0.21/hyper 0.14 graph is no longer resolved, and `url` is 2.5.9. The cargo audit gate has no remaining advisory and no allowlist entry is added.

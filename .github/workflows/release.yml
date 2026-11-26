@@ -456,8 +456,8 @@ jobs:
           echo "/health reports $DIGEST; /version reports $product"
           docker compose ps
           running="$(docker compose ps --status running --services | wc -l)"
-          if [ "$running" -ne 9 ]; then
-            echo "::error::the default stack started $running containers, expected 9" >&2
+          if [ "$running" -ne 10 ]; then
+            echo "::error::the default stack started $running containers, expected 10" >&2
             exit 1
           fi
 
