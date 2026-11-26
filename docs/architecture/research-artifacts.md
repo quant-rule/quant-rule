@@ -48,6 +48,9 @@ schema produce the same bytes. Signal mode uses a deterministic reference
 position: market entries fill at the next open, a two-sided bracket chooses its
 side at the first boundary, ATR stop/target and the time stop close the reference
 position, and giveback stays fold-mode unless candles become an explicit input.
+The pure computation lives in `quantrule-app::signal`; the original 65-ID
+extraction is dropped, and the strategy service is a stateless adapter over it
+([ADR-STR-003](../adr/2026-11-26/1229-strategy-boundary.md)).
 The contract is [`docs/config/2026-11-22/signal-artifact.md`](../config/2026-11-22/signal-artifact.md).
 
 ## 4. Portfolio and execution packs
