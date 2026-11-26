@@ -589,6 +589,22 @@ impl DataClient for FailingData {
         self.inner.dataset_object(profile, data_version)
     }
 
+    fn pack_bytes(
+        &self,
+        profile: ProfileId,
+        pack_id: quantrule_api::Digest,
+    ) -> BoxFuture<Result<Option<Vec<u8>>, ClientError>> {
+        self.inner.pack_bytes(profile, pack_id)
+    }
+
+    fn signal_bytes(
+        &self,
+        profile: ProfileId,
+        artifact_id: quantrule_api::Digest,
+    ) -> BoxFuture<Result<Option<Vec<u8>>, ClientError>> {
+        self.inner.signal_bytes(profile, artifact_id)
+    }
+
     fn dataset_count(&self, profile: ProfileId) -> BoxFuture<Result<u64, ClientError>> {
         self.inner.dataset_count(profile)
     }

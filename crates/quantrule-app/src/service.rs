@@ -18,7 +18,7 @@ use quantrule_model::run::ModelRun;
 use serde_json::Value;
 
 use crate::artifact::model_bundle::BundleOutput;
-use crate::config::RunConfig;
+use crate::config::{RunConfig, StrategyConfig};
 use crate::csv::{SourceError, TolerantWindow};
 use crate::dataset::{Dataset, DatasetSummary};
 use crate::error::AppError;
@@ -324,6 +324,26 @@ impl AppService {
         request: &BacktestFromModelRequest<'_>,
     ) -> Result<BacktestOutcome, BacktestRunError> {
         backtest_from_model::run(request)
+    }
+
+    /// Runs the staged backtest from an already-resolved v5 run.
+    ///
+    /// The worker resolves the pack and artifact references once; this seam
+    /// never re-reads a config file or a pack.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BacktestRunError`] when the model bundle, context, stage
+    /// bundle, manifest, or writer fails.
+    pub fn run_backtest_from_model_resolved(
+        config: &RunConfig,
+        strategy: &StrategyConfig,
+        strategy_id: &str,
+        model: &std::path::Path,
+        out: Option<&std::path::Path>,
+        config_path: &std::path::Path,
+    ) -> Result<BacktestOutcome, BacktestRunError> {
+        backtest_from_model::run_resolved(config, strategy, strategy_id, model, out, config_path)
     }
 
     /// Evaluates a backtest bundle against human-owned qualification criteria.

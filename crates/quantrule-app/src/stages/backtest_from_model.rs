@@ -9,7 +9,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::artifact::render_report;
-use crate::config::RunConfig;
+use crate::config::{RunConfig, StrategyConfig};
 use crate::stages::backtest::{BacktestOutcome, BacktestRunError, BundleFeed, run_stages};
 use crate::stages::strategy::{ModelBundle, validate_context};
 
@@ -39,16 +39,42 @@ pub fn run(request: &BacktestFromModelRequest<'_>) -> Result<BacktestOutcome, Ba
     let config = RunConfig::load(request.config).map_err(BacktestRunError::Config)?;
     let (strategy_config, strategy_config_id) =
         crate::config::load_strategy(request.strategy).map_err(BacktestRunError::StrategyConfig)?;
-    let out = request
-        .out
-        .map_or_else(|| config.output_root.clone(), Path::to_path_buf);
+    run_resolved(
+        &config,
+        &strategy_config,
+        &strategy_config_id,
+        request.model,
+        request.out,
+        request.config,
+    )
+}
+
+/// Runs the staged backtest from an already-resolved run and strategy.
+///
+/// The v5 worker resolves the pack and artifact references once, then calls
+/// this seam. The config path is the materialized workspace run file; it is
+/// recorded in provenance, not re-read.
+///
+/// # Errors
+///
+/// Returns [`BacktestRunError`] when the model bundle, context, stage bundle,
+/// manifest, or writer fails.
+pub fn run_resolved(
+    config: &RunConfig,
+    strategy_config: &StrategyConfig,
+    strategy_config_id: &str,
+    model: &Path,
+    out: Option<&Path>,
+    config_path: &Path,
+) -> Result<BacktestOutcome, BacktestRunError> {
+    let out = out.map_or_else(|| config.output_root.clone(), Path::to_path_buf);
     let root = out.join("backtest");
     render_report::ensure_available(&root).map_err(BacktestRunError::Bundle)?;
 
     let execution = u64::from(config.execution.fill_timeframe.seconds());
-    let bundle = ModelBundle::load(request.model)
-        .map_err(|error| BacktestRunError::Model(error.to_string()))?;
-    validate_context(&strategy_config, Some(execution), |timeframe| {
+    let bundle =
+        ModelBundle::load(model).map_err(|error| BacktestRunError::Model(error.to_string()))?;
+    validate_context(strategy_config, Some(execution), |timeframe| {
         bundle.contains_timeframe(timeframe)
     })
     .map_err(BacktestRunError::Context)?;
@@ -57,15 +83,15 @@ pub fn run(request: &BacktestFromModelRequest<'_>) -> Result<BacktestOutcome, Ba
             timeframe_secs: execution,
         });
     }
-    copy_bundle(request.model, &root.join("model"))?;
+    copy_bundle(model, &root.join("model"))?;
     let feed = BundleFeed::new(&bundle, execution);
     run_stages(
-        &config,
-        &strategy_config,
-        &strategy_config_id,
+        config,
+        strategy_config,
+        strategy_config_id,
         &feed,
         &root,
-        request.config,
+        config_path,
     )
 }
 
