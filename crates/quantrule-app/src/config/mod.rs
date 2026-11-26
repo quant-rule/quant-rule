@@ -37,6 +37,7 @@ pub use qualification::{
     Criteria, Criterion, EvidenceArtifact, Partition, load as load_qualification,
 };
 pub use run::{RUN_SCHEMA, RUN_SCHEMA_V3, RUN_SCHEMA_V5, RunConfig};
+pub use run_v5::parse_references as parse_v5_references;
 pub use run_v5::{RunAccount, RunV5};
 pub use strategy::parse as parse_strategy;
 pub use strategy::{StrategyConfig, load as load_strategy};
