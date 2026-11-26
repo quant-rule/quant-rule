@@ -18,7 +18,9 @@ history is in Git and the pull requests.
 
 ## [Unreleased]
 
-No unreleased changes.
+### Fixed
+
+- The release body's distribution boundary now says that the image push, SBOM, and CVE scan are published tag artifacts; only the manual image signature and the three-VM lab remain `Unverified`. The previous line called all five unverified, which was false for the tag run.
 
 ## [1.6.0] - 2026-11-26
 
