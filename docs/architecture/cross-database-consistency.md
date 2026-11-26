@@ -108,10 +108,10 @@ pass refuses to collect a referenced row. The row and its
 
 A run's research references live in `runs.run_lineage_references` in evidence.
 That is an evidence write, not a cross-database one: evidence does not read the
-catalog schema and does not join to it. The run-v5 integration that resolves a
-pack records the set; a repeated set is idempotent and a different set is
-refused. Registering the signal-artifact reference is the signal writer's call
-when that writer lands.
+catalog schema and does not join to it. Submission resolves every reference and
+writes the run row, its outbox intent and the lineage set in one transaction; a
+repeated set is idempotent and a different set is refused. The worker reads the
+set and resolves it once before the fold.
 
 ## 4. Erase boundaries
 

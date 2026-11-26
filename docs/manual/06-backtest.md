@@ -5,15 +5,16 @@
 
 ## Goal
 
-Submit a coupled run, distinguish run identity from the canonical digest, fetch
-and verify its artifacts, and know what the result proves.
+Submit a coupled v4 or v5 run, distinguish run identity from the canonical
+digest, read its recorded lineage, fetch and verify its artifacts, and know what
+the result proves.
 
 ## Before you start
 
 | Need | Value |
 |---|---|
 | Dataset | A `data_version` |
-| Config | A valid run config that carries the strategy |
+| Config | A valid v4 config that carries the strategy, or a v5 config that cites its packs by id and hash |
 | Model artifact | Optional: a succeeded model stage for a promoted run |
 | Profile | The profile that will own the run submission |
 
@@ -44,6 +45,25 @@ the shell or the browser does not stop the run.
 The promoted run validates the artifact kind, profile, dataset, config hash, and
 model version. Its model files and canonical digest must equal a full run with
 the same inputs. A mismatch is `run.model_artifact_invalid`, not a warning.
+
+## Run v5
+
+A `quantrule.run/v5` config names its strategy, portfolio and execution packs by
+content hash; a fold-mode run omits the signal artifact, and a signal-mode run
+requires both the signal and model artifacts. `run submit` resolves every
+reference before it writes the run row, so a missing or mismatched reference is
+refused with no run to cancel.
+
+| Submission | Model | Strategy | Execution | Portfolio |
+|---|---|---|---|---|
+| Full v5, no model artifact | Computed | Pack | Pack | Pack |
+| v5 `--model-artifact` | Reused byte-for-byte | Pack | Pack | Pack |
+
+`quantrule run lineage <run_id>` prints the set recorded with the run row: kind,
+id, hash and pack provenance, one reference per line. The set is immutable and
+is the run's input identity, not evidence. The loader checks a signal artifact's
+`strategy_pack_id` and `model_artifact_id`, and the worker resolves the set once
+before the fold.
 
 ## Run identity and canonical digest
 

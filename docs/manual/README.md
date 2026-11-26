@@ -23,7 +23,7 @@ authoritative.
 | 3 | Model | [03-model.md](03-model.md) | How to run the model stage, read events and coverage, and reuse a model artifact | Current |
 | 4 | Strategy | [04-strategy.md](04-strategy.md) | How to run a strategy stage and explain a published decision | Current |
 | 5 | Portfolio | [05-portfolio.md](05-portfolio.md) | How to run execution and portfolio accounting, and read fills, costs, and drawdown | Current |
-| 6 | Backtest | [06-backtest.md](06-backtest.md) | How to submit a coupled run, fetch artifacts, and verify the digest | Current |
+| 6 | Backtest | [06-backtest.md](06-backtest.md) | How to submit a coupled v4 or v5 run, read lineage, fetch artifacts, and verify the digest | Current |
 | 7 | Improvement | [07-improvement.md](07-improvement.md) | How to pre-register, run, compare, and decide an improvement run | Current |
 | 8 | Operations | [08-operations.md](08-operations.md) | Health, profiles, verification, retention, and remote access | Current |
 | 9 | Command reference | [09-command-reference.md](09-command-reference.md) | Every command, its arguments, output, errors, and browser control | Current |
