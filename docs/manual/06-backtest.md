@@ -85,14 +85,14 @@ even when both produce the same canonical digest.
 |---|---|---|
 | `run_id` | Data, config, model version, image | A different image or config is a different run |
 | `config_hash` | The run configuration bundle | Two equivalent configs can have different ids |
-| `canonical digest` | Sorted `(path, sha256)` for `results.json`, `*.csv`, `*.ndjson` | Excludes provenance, manifests, logs, and timestamps |
+| `canonical digest` | Sorted `(path, sha256)` for `results.json`, `*.csv`, every `metrics.json`, `*.ndjson` | Excludes provenance, manifests, logs, and timestamps |
 | Artifact hash | One file's bytes | A mismatch stops the download |
 
-The canonical set is `results.json` when present, plus every `*.csv` and
-`*.ndjson`: for example `strategy/decisions.ndjson`, `model/*.csv`,
-`execution/*.csv`, and `portfolio/*.csv`. `provenance.json`, `manifest.json`,
-`summary.txt`, and the JSON reports are not canonical because they record
-identity or context.
+The canonical set is `results.json` when present, plus every `*.csv`, every
+`metrics.json`, and every `*.ndjson`: for example `strategy/decisions.ndjson`,
+`model/*.csv`, `execution/*.csv`, `portfolio/metrics.json`, and
+`portfolio/*.csv`. `provenance.json`, `manifest.json`, `summary.txt`, and the
+other JSON reports are not canonical because they record identity or context.
 
 ## What you see
 
