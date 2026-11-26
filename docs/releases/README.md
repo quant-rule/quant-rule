@@ -90,14 +90,16 @@ names keep their original build versions. The `v1.0.0` desktop release was built
 as `1.1.0`, so its installers keep that name; its `v1.1.0` registry tag was
 reassigned to the 2026-11-16 release, and its digest is the stable reference.
 
-The current release tag is `v1.5.2` (2026-11-21), the Windows fixture recovery;
-its note is [`v1.5.2`](2026-11-21/v1.5.2.md). `v1.5.0` and `v1.5.1` are
+The current release tag is `v1.6.0` (2026-11-26), the RA + HA edge research
+platform; its note is [`v1.6.0`](2026-11-26/v1.6.0.md). The previous release is
+`v1.5.2` (2026-11-21), the Windows fixture recovery; its note is
+[`v1.5.2`](2026-11-21/v1.5.2.md). `v1.5.0` and `v1.5.1` are
 withdrawn because their Windows CLI gate failed, and their notes record the
-supersession. The previous published release is `v1.4.2`, the second release recovery, whose note
-is [`v1.4.2`](2026-11-20/v1.4.2.md); `v1.4.1` and `v1.4.0` are withdrawn and
-their notes record the supersession. `v1.3.0` is the stage execution surface,
-`v1.2.0` is the version-alignment release, `v1.1.0` is the 1.1.0 alignment
-release, and `v1.0.0` is the desktop release.
+supersession. The previous published release before that is `v1.4.2`, the second
+release recovery, whose note is [`v1.4.2`](2026-11-20/v1.4.2.md); `v1.4.1` and
+`v1.4.0` are withdrawn and their notes record the supersession. `v1.3.0` is the
+stage execution surface, `v1.2.0` is the version-alignment release, `v1.1.0` is
+the 1.1.0 alignment release, and `v1.0.0` is the desktop release.
 
 The map below is authoritative: a current tag resolves to exactly one note, and
 the release workflow and `qr-governance release note --tag` both read it. Paths are
@@ -125,7 +127,8 @@ above; the checker fails when the two drift.
   "v1.4.2": "2026-11-20/v1.4.2.md",
   "v1.5.0": "2026-11-21/v1.5.0.md",
   "v1.5.1": "2026-11-21/v1.5.1.md",
-  "v1.5.2": "2026-11-21/v1.5.2.md"
+  "v1.5.2": "2026-11-21/v1.5.2.md",
+  "v1.6.0": "2026-11-26/v1.6.0.md"
 }
 ```
 <!-- current-tags:end -->
