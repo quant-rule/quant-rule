@@ -62,3 +62,16 @@ through the CVE findings, the following work was performed:
 Residual risk: the 72 Debian trixie High findings are accepted until
 2027-02-28; `Real HA`, the 72-hour soak, and the versioned upgrade remain
 unclaimed. The tag is the remaining human gate.
+
+## Final 2026-11-26 — tag and release
+
+- Annotated tag `v1.6.0` was created at `8eaa44c1` (tag object
+  `8be23c38…`) and pushed. Tag workflow `45730024955` passed every job and
+  published the image `sha256:a000bce9…` and the GitHub release
+  `https://github.com/quant-rule/quant-rule/releases/tag/v1.6.0`.
+- The release note on `main` now records the tag object, commit, published image,
+  SBOM hash, and CVE hash; the status remains `Prepared` because the offline
+  cosign signature is still operator-owned.
+- The post-tag record updates V24/V25 in the plan; the remaining plan gaps
+  (`Real HA`, the 72-hour soak, the versioned upgrade, and the strategy replica
+  kill) are recorded as release risks rather than claimed as passed.
