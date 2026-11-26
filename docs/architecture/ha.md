@@ -77,10 +77,9 @@ MinIO:
 - Four nodes × one drive EC:2 (lab 3 × 2, EC:3); one node loss keeps the write quorum.
 - TLS-only 9000 through the HAProxy `minio` alias; nodes use `minio-<host>`.
 - Versioning, a least-privilege `qr_app` policy, and root files only on MinIO hosts.
-- One node/drive loss preserves commits and hashes; HA-013 phase 1a adds the
-  pgBackRest repository, phase 3 adds the one-way object archive and DR drill,
-  and `object_replication` stays false. The archive copies list/get only from
-  `qr_archive_reader`; it is not a version-history or second-site claim.
+- One node/drive loss preserves commits and hashes; HA-013 adds pgBackRest and
+  the one-way object archive/DR drill, and `object_replication` stays false
+  ([ADR-STR-001](../adr/2026-11-26/1227-minio-object-dr.md)); no second-site claim.
 
 ## 6. Evidence leader
 

@@ -193,9 +193,11 @@ probe.
 ## 7. HA-013 boundary
 
 PLAT-005 owns local erasure coding, versioning, the bucket policy, and the app
-account. HA-013 phase 3 implements the object archive, restore drills, and any
-second-site replication; phase 1a's PostgreSQL repository is separate and may be
-S3, and the lab may use this cluster only with the `not-off-host` label.
+account. HA-013 phase 3 implements the object archive and restore drills;
+second-site replication is deferred by
+[ADR-STR-001](../../adr/2026-11-26/1227-minio-object-dr.md). Phase 1a's
+PostgreSQL repository is separate and may be S3, and the lab may use this
+cluster only with the `not-off-host` label.
 `backup.object_replication` must be `false`; a true value is refused as a
 replication claim without a second site. `tools/object-archive.sh` is a one-way
 archive, not replication; `deploy/v3/dr.sh` restores a scratch bucket before rows. There is no object lock in v1.5.10. A node or drive loss inside the cluster preserves the write quorum and every committed object; a site loss is not protected by PLAT-005 and is not claimed
