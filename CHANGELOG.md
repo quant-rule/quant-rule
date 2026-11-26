@@ -22,6 +22,7 @@ history is in Git and the pull requests.
 
 - A `quantrule.run/v5` submission now carries an ordered reference set in the internal config bundle, resolves data-owned pack and signal objects by hash, and refuses a v5 model artifact that does not match the submitted model stage. The run row and its research-artifact lineage commit together, and `run lineage` reads the set back.
 - The backtest worker now resolves a v5 reference set once, verifies every pack, signal and model byte, loads the run with `RunConfig::load_with`, and runs the fold from the resolved config without a legacy strategy file.
+- `tools/soak.sh` runs the 72-hour soak gate over the live Compose stack: a capacity preflight, alternating one- and two-worker cycles, fixed-run digest checks, and health, queue, PostgreSQL connection, disk, and memory evidence. A shorter `--duration` is a sample, not the gate.
 
 ### Changed
 
