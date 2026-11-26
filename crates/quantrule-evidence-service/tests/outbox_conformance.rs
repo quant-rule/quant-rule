@@ -93,6 +93,22 @@ impl DataClient for RecordingData {
         Box::pin(async { Ok(None) })
     }
 
+    fn pack_bytes(
+        &self,
+        _profile: ProfileId,
+        _pack_id: Digest,
+    ) -> BoxFuture<Result<Option<Vec<u8>>, ClientError>> {
+        Box::pin(async { Ok(None) })
+    }
+
+    fn signal_bytes(
+        &self,
+        _profile: ProfileId,
+        _artifact_id: Digest,
+    ) -> BoxFuture<Result<Option<Vec<u8>>, ClientError>> {
+        Box::pin(async { Ok(None) })
+    }
+
     fn dataset_count(&self, _profile: ProfileId) -> BoxFuture<Result<u64, ClientError>> {
         Box::pin(async { Ok(0) })
     }

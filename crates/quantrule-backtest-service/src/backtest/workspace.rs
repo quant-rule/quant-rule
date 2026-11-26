@@ -44,10 +44,7 @@ impl Workspace {
             .get("data")
             .and_then(Value::as_str)
             .ok_or_else(|| WorkerError("run config names no data file".to_owned()))?;
-        let strategy_key = run_value
-            .get("strategy")
-            .and_then(Value::as_str)
-            .ok_or_else(|| WorkerError("run config names no strategy".to_owned()))?;
+        let strategy_key = run_value.get("strategy").and_then(Value::as_str);
 
         for key in config.files.keys() {
             safe_key(key)?;
@@ -57,9 +54,12 @@ impl Workspace {
             std::process::id(),
             NEXT.fetch_add(1, Ordering::Relaxed)
         ));
+        let strategy = strategy_key
+            .map(|path| root.join(path))
+            .unwrap_or_else(|| root.join("strategy.json"));
         let workspace = Self {
             run: root.join("run.json"),
-            strategy: root.join(strategy_key),
+            strategy,
             model: root.join("model"),
             out: root.join("out"),
             root,
@@ -102,7 +102,7 @@ impl Workspace {
         )
         .map_err(|error| WorkerError(format!("write {data_key}: {error}")))?;
 
-        if !workspace.strategy.is_file() {
+        if strategy_key.is_some() && !workspace.strategy.is_file() {
             return Err(WorkerError("the bundle has no strategy file".to_owned()));
         }
         if !workspace.run.is_file() {
@@ -300,6 +300,51 @@ mod tests {
             dataset,
             version,
         )
+    }
+
+    #[test]
+    fn a_v5_workspace_does_not_require_a_strategy_file() {
+        let root =
+            StdPath::new(env!("CARGO_MANIFEST_DIR")).join("../quantrule-app/tests/fixtures/run-v5");
+        let digest = Digest::sha256(b"pack").to_string();
+        let run = format!(
+            r#"{{"schema":"quantrule.run/v5","name":"v5","model_id":"M1.0","data":"data.json","model":"model.json","strategy_pack":{{"id":"{digest}","hash":"{digest}"}},"portfolio_policy":{{"id":"{digest}","hash":"{digest}"}},"execution_model":{{"id":"{digest}","hash":"{digest}"}},"account":{{"initial_cash":10000.0,"currency":"USD"}},"output_root":"out"}}"#
+        );
+        let files = BTreeMap::from([
+            ("run.json".to_owned(), run),
+            (
+                "data.json".to_owned(),
+                std::fs::read_to_string(root.join("data.json")).expect("data"),
+            ),
+            (
+                "model.json".to_owned(),
+                std::fs::read_to_string(root.join("model.json")).expect("model"),
+            ),
+        ]);
+        let config = ConfigBundle {
+            config_id: "cfg_v5".to_owned(),
+            references: Vec::new(),
+            files,
+            valid: true,
+            message: None,
+            config_hash: Some(Digest::sha256(b"v5")),
+        };
+        let mut csv = String::from("date,open,high,low,close,volume\n");
+        for offset in 0..250 {
+            let hour = offset / 60;
+            let minute = offset % 60;
+            let open = 100.0 + offset as f64 * 0.01;
+            csv.push_str(&format!(
+                "2024-01-01 {hour:02}:{minute:02}:00+00:00,{open},{},{},{},10\n",
+                open + 0.5,
+                open - 0.5,
+                open + 0.25
+            ));
+        }
+        let dataset = canonical_csv(&csv);
+        let workspace = Workspace::create(&config, &dataset).expect("v5 workspace");
+        assert!(workspace.run_config().is_file());
+        assert!(!workspace.strategy().is_file());
     }
 
     #[test]

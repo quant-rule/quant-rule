@@ -10,7 +10,7 @@
 //! They are applied by the concrete client, never by a caller.
 
 use quantrule_api::{
-    DatasetReferenceCount, DatasetReferenceKind, DatasetReferenceRequest, ProfileId,
+    DatasetReferenceCount, DatasetReferenceKind, DatasetReferenceRequest, Digest, ProfileId,
     ReleaseDatasetReferenceRequest,
 };
 use quantrule_service_api::{ConfigBundle, DatasetObject};
@@ -298,6 +298,20 @@ pub trait DataClient: Send + Sync {
         data_version: String,
     ) -> BoxFuture<Result<Option<DatasetObject>, ClientError>>;
 
+    /// Read one pack's canonical bytes, or `None` when the pack is unknown.
+    fn pack_bytes(
+        &self,
+        profile: ProfileId,
+        pack_id: Digest,
+    ) -> BoxFuture<Result<Option<Vec<u8>>, ClientError>>;
+
+    /// Read one signal artifact's canonical bytes, or `None` when it is unknown.
+    fn signal_bytes(
+        &self,
+        profile: ProfileId,
+        artifact_id: Digest,
+    ) -> BoxFuture<Result<Option<Vec<u8>>, ClientError>>;
+
     /// How many datasets a profile holds.
     fn dataset_count(&self, profile: ProfileId) -> BoxFuture<Result<u64, ClientError>>;
 
@@ -349,6 +363,40 @@ impl DataClient for HttpServiceClient {
                     Service::Data,
                     Some(&profile),
                     format!("/internal/v1/datasets/{data_version}"),
+                )
+                .await
+        })
+    }
+
+    fn pack_bytes(
+        &self,
+        profile: ProfileId,
+        pack_id: Digest,
+    ) -> BoxFuture<Result<Option<Vec<u8>>, ClientError>> {
+        let client = self.clone();
+        Box::pin(async move {
+            client
+                .get_bytes(
+                    Service::Data,
+                    Some(&profile),
+                    format!("/internal/v1/packs/{pack_id}/bytes"),
+                )
+                .await
+        })
+    }
+
+    fn signal_bytes(
+        &self,
+        profile: ProfileId,
+        artifact_id: Digest,
+    ) -> BoxFuture<Result<Option<Vec<u8>>, ClientError>> {
+        let client = self.clone();
+        Box::pin(async move {
+            client
+                .get_bytes(
+                    Service::Data,
+                    Some(&profile),
+                    format!("/internal/v1/artifacts/signal/{artifact_id}/bytes"),
                 )
                 .await
         })
@@ -415,11 +463,15 @@ impl DataClient for HttpServiceClient {
 
 type DatasetReferenceMap = BTreeMap<(String, String), std::collections::BTreeSet<String>>;
 
+type ContentBytes = std::sync::Arc<std::sync::Mutex<BTreeMap<(String, String), Vec<u8>>>>;
+
 /// An in-memory data client, for route and worker tests.
 #[derive(Debug, Clone, Default)]
 pub struct MemoryDataClient {
     configs: std::sync::Arc<std::sync::Mutex<BTreeMap<(String, String), ConfigBundle>>>,
     datasets: std::sync::Arc<std::sync::Mutex<BTreeMap<(String, String), DatasetObject>>>,
+    packs: ContentBytes,
+    signals: ContentBytes,
     references: std::sync::Arc<std::sync::Mutex<DatasetReferenceMap>>,
 }
 
@@ -437,6 +489,22 @@ impl MemoryDataClient {
         self.datasets.lock().expect("the dataset map").insert(
             (profile.as_str().to_owned(), object.data_version.to_string()),
             object,
+        );
+    }
+
+    /// Add one pack's canonical bytes for a profile.
+    pub fn add_pack_bytes(&self, profile: &ProfileId, pack_id: &Digest, bytes: Vec<u8>) {
+        self.packs
+            .lock()
+            .expect("the pack map")
+            .insert((profile.as_str().to_owned(), pack_id.to_string()), bytes);
+    }
+
+    /// Add one signal artifact's canonical bytes for a profile.
+    pub fn add_signal_bytes(&self, profile: &ProfileId, artifact_id: &Digest, bytes: Vec<u8>) {
+        self.signals.lock().expect("the signal map").insert(
+            (profile.as_str().to_owned(), artifact_id.to_string()),
+            bytes,
         );
     }
 
@@ -479,6 +547,36 @@ impl DataClient for MemoryDataClient {
                 .lock()
                 .expect("the dataset map")
                 .get(&(profile.as_str().to_owned(), data_version))
+                .cloned())
+        })
+    }
+
+    fn pack_bytes(
+        &self,
+        profile: ProfileId,
+        pack_id: Digest,
+    ) -> BoxFuture<Result<Option<Vec<u8>>, ClientError>> {
+        let packs = std::sync::Arc::clone(&self.packs);
+        Box::pin(async move {
+            Ok(packs
+                .lock()
+                .expect("the pack map")
+                .get(&(profile.as_str().to_owned(), pack_id.to_string()))
+                .cloned())
+        })
+    }
+
+    fn signal_bytes(
+        &self,
+        profile: ProfileId,
+        artifact_id: Digest,
+    ) -> BoxFuture<Result<Option<Vec<u8>>, ClientError>> {
+        let signals = std::sync::Arc::clone(&self.signals);
+        Box::pin(async move {
+            Ok(signals
+                .lock()
+                .expect("the signal map")
+                .get(&(profile.as_str().to_owned(), artifact_id.to_string()))
                 .cloned())
         })
     }

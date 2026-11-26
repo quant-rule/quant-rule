@@ -18,6 +18,7 @@ use quantrule_api::{
     ArtifactRef, Digest, ProfileId, RunState, StageKind, StageName, StageProgress, StageState,
     StageStatus,
 };
+use quantrule_app::config::RunConfig;
 use quantrule_app::service::AppService;
 use quantrule_app::stages::backtest_from_model::BacktestFromModelRequest;
 use quantrule_service_api::{
@@ -26,6 +27,7 @@ use quantrule_service_api::{
 };
 
 use crate::backtest::Workspace;
+use crate::backtest::resolve::{ReferenceRead, resolve_v5_references};
 use crate::backtest::retry::{self, RetryDecision};
 use quantrule_runtime::adapters::{ObjectStore, Queue};
 use quantrule_runtime::client::{
@@ -200,7 +202,7 @@ pub async fn process(
     }
     let model_files = if let Some(artifact_id) = record.model_artifact_id.as_ref() {
         match load_promoted_model(
-            profile,
+            profile.clone(),
             artifact_id.clone(),
             &record,
             services,
@@ -220,7 +222,7 @@ pub async fn process(
         let manifest = match services
             .model
             .bundle(
-                profile,
+                profile.clone(),
                 record.data_version.clone(),
                 record.config_id.clone(),
             )
@@ -248,6 +250,24 @@ pub async fn process(
         }
     };
 
+    let v5_references = match resolve_v5_references(
+        &profile,
+        &record,
+        &config,
+        &model_files,
+        services.data.as_ref(),
+    )
+    .await
+    {
+        Ok(references) => references,
+        Err(ReferenceRead::Store(message)) => {
+            return retry_or_exhaust(services, &run_id, term, &message, attempts).await;
+        }
+        Err(ReferenceRead::Mismatch(message)) => {
+            return fail(services, &run_id, term, &message).await;
+        }
+    };
+
     let workspace = match tokio::task::spawn_blocking(move || {
         let workspace = Workspace::create(&config, &bytes)?;
         for (name, bytes) in model_files {
@@ -270,18 +290,44 @@ pub async fn process(
         return Ok(ProcessOutcome::Skipped);
     }
     let run_path = workspace.run_config();
-    let strategy_path = workspace.strategy();
     let model_path = workspace.model();
     let out = workspace.out();
-    let outcome = tokio::task::spawn_blocking(move || {
-        AppService::run_backtest_from_model(&BacktestFromModelRequest {
-            config: &run_path,
-            strategy: &strategy_path,
-            model: &model_path,
-            out: Some(&out),
+    let outcome = if let Some(references) = v5_references {
+        let resolved = match RunConfig::load_with(&run_path, &references) {
+            Ok(config) => config,
+            Err(error) => return fail(services, &run_id, term, &error.to_string()).await,
+        };
+        let Some(strategy) = resolved.strategy.clone() else {
+            return fail(services, &run_id, term, "the v5 run has no strategy").await;
+        };
+        let strategy_id = resolved
+            .v5
+            .as_ref()
+            .map(|v5| v5.references.strategy_pack.hash.to_string())
+            .unwrap_or_else(|| "strategy".to_owned());
+        tokio::task::spawn_blocking(move || {
+            AppService::run_backtest_from_model_resolved(
+                &resolved,
+                &strategy,
+                &strategy_id,
+                &model_path,
+                Some(&out),
+                &run_path,
+            )
         })
-    })
-    .await;
+        .await
+    } else {
+        let strategy_path = workspace.strategy();
+        tokio::task::spawn_blocking(move || {
+            AppService::run_backtest_from_model(&BacktestFromModelRequest {
+                config: &run_path,
+                strategy: &strategy_path,
+                model: &model_path,
+                out: Some(&out),
+            })
+        })
+        .await
+    };
     let outcome = match outcome {
         Ok(Ok(outcome)) => outcome,
         Ok(Err(error)) => {
@@ -524,6 +570,7 @@ async fn load_promoted_model(
     Ok(files)
 }
 
+/// Why a v5 reference could not be materialized.
 /// Verify that a model bundle's provenance names the expected model input.
 fn verify_model_input(files: &[(String, Vec<u8>)], expected: &Digest) -> Result<(), String> {
     let (_, bytes) = files

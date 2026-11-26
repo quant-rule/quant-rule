@@ -7,6 +7,7 @@
 //! evidence finalizes the run. It never recomputes the model, renders a label,
 //! or accepts a path.
 
+mod resolve;
 pub mod retry;
 pub mod worker;
 pub mod workspace;
