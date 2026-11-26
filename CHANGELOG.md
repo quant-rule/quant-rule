@@ -20,7 +20,7 @@ history is in Git and the pull requests.
 
 ### Added
 
-- A `quantrule.run/v5` submission now carries an ordered reference set in the internal config bundle, resolves data-owned pack and signal objects by hash, and refuses a v5 model artifact that does not match the submitted model stage. Run lineage and worker consumption remain follow-up slices.
+- A `quantrule.run/v5` submission now carries an ordered reference set in the internal config bundle, resolves data-owned pack and signal objects by hash, and refuses a v5 model artifact that does not match the submitted model stage. The run row and its research-artifact lineage commit together, and `run lineage` reads the set back. Worker consumption remains a follow-up slice.
 
 ### Changed
 

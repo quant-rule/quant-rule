@@ -96,6 +96,12 @@ pub struct NewRun {
     /// The frozen model artifact reused, when this is a promoted run.
     #[serde(default)]
     pub model_artifact_id: Option<Digest>,
+    /// The research artifact lineage recorded with the run.
+    ///
+    /// Empty for a v3/v4 run. A v5 run carries the same ordered set as its
+    /// config bundle, so the run row and its lineage commit together.
+    #[serde(default)]
+    pub lineage: Vec<quantrule_api::RunArtifactReference>,
     /// The first submitter.
     pub owner: String,
     /// The submission time, RFC 3339 UTC.
@@ -329,6 +335,7 @@ mod tests {
     fn new_run() -> NewRun {
         NewRun {
             run_id: RunId(digest(b"run")),
+            lineage: Vec::new(),
             config_id: "cfg-1".to_owned(),
             data_version: digest(b"data"),
             config_hash: digest(b"config"),

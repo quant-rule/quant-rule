@@ -1,6 +1,10 @@
 use super::*;
 use crate::leader::LeaderLease;
-use quantrule_api::{RunId, StageName, StageStatus};
+use crate::lineage::RunLineageStore;
+use quantrule_api::{
+    PackKind, PackProvenance, PackState, ReferenceKind, RunArtifactReference, RunId, StageName,
+    StageStatus,
+};
 
 const HOLDER: &str = "test-worker";
 
@@ -31,6 +35,7 @@ async fn leader(store: &MemoryRuns) -> u64 {
 fn run(seed: &[u8]) -> NewRun {
     NewRun {
         run_id: RunId(Digest::sha256(seed)),
+        lineage: Vec::new(),
         config_id: "cfg_abc".to_owned(),
         data_version: Digest::sha256(b"data"),
         config_hash: Digest::sha256(b"config"),
@@ -40,6 +45,41 @@ fn run(seed: &[u8]) -> NewRun {
         owner: "default".to_owned(),
         submitted_at: "2026-11-13T00:00:00Z".to_owned(),
     }
+}
+
+fn lineage_reference(seed: &[u8]) -> RunArtifactReference {
+    let id = Digest::sha256(seed);
+    RunArtifactReference {
+        kind: ReferenceKind::StrategyPack,
+        id: id.clone(),
+        hash: id,
+        pack: Some(PackProvenance {
+            kind: PackKind::Strategy,
+            name: "compression-fade-5m".to_owned(),
+            version: "1.0.0".to_owned(),
+            owner: "operator".to_owned(),
+            state: PackState::Frozen,
+        }),
+    }
+}
+
+#[tokio::test]
+async fn a_submission_records_its_lineage() {
+    let store = MemoryRuns::default();
+    let mut submission = run(b"lineage");
+    let reference = lineage_reference(b"pack");
+    submission.lineage = vec![reference.clone()];
+    store
+        .submit(profile("default"), submission.clone())
+        .await
+        .expect("submit");
+    let lineage = store
+        .lineage()
+        .get(profile("default"), submission.run_id)
+        .await
+        .expect("read")
+        .expect("recorded");
+    assert_eq!(lineage.references, vec![reference]);
 }
 
 #[tokio::test]
@@ -157,6 +197,7 @@ async fn the_status_filter_and_limit_apply() {
 fn new_run() -> NewRun {
     NewRun {
         run_id: RunId(Digest::sha256(b"worker")),
+        lineage: Vec::new(),
         config_id: "cfg_abc".to_owned(),
         data_version: Digest::sha256(b"data"),
         config_hash: Digest::sha256(b"config"),

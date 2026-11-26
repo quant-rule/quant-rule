@@ -322,6 +322,7 @@ pub async fn fixture() -> Fixture {
     let run_id = derive(&data_version, &config_hash, "M1.0", &image);
     let new_run = NewRun {
         run_id,
+        lineage: Vec::new(),
         config_id: valid.config_id.clone(),
         data_version: data_version.clone(),
         config_hash: config_hash.clone(),
@@ -466,6 +467,7 @@ pub async fn submit_with(
         &profile,
         NewRun {
             run_id,
+            lineage: Vec::new(),
             config_id,
             data_version,
             config_hash,

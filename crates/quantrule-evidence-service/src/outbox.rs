@@ -378,6 +378,7 @@ mod tests {
     fn run(seed: &[u8]) -> NewRun {
         NewRun {
             run_id: RunId(Digest::sha256(seed)),
+            lineage: Vec::new(),
             config_id: "cfg_abc".to_owned(),
             data_version: Digest::sha256(b"data"),
             config_hash: Digest::sha256(b"config"),

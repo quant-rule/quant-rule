@@ -27,6 +27,7 @@ fn new_run(suffix: &str) -> NewRun {
     let image_digest = Digest::sha256(suffix.as_bytes());
     NewRun {
         run_id: derive(&data_version, &config_hash, "M1.0", &image_digest),
+        lineage: Vec::new(),
         config_id: "cfg_abc".to_owned(),
         data_version,
         config_hash,

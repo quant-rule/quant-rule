@@ -18,6 +18,7 @@ use quantrule_runtime::adapters::BoxFuture;
 use quantrule_service_api::RUN_LEASE_TTL_SECONDS;
 
 use crate::leader::MemoryLeaderLease;
+use crate::lineage::{MemoryLineage, RunLineageStore};
 use crate::outbox::{EnsureOutcome, OutboxError, OutboxNotification, ReconcileMode, RunOutbox};
 use crate::releases::{ReferenceReleaseLog, ReleaseLogError};
 
@@ -210,6 +211,7 @@ pub struct MemoryRuns {
     inner: Arc<Mutex<MemoryState>>,
     lease_ttl: Duration,
     leader: MemoryLeaderLease,
+    lineage: MemoryLineage,
 }
 
 impl Default for MemoryRuns {
@@ -229,7 +231,17 @@ impl MemoryRuns {
             inner: Arc::new(Mutex::new(MemoryState::default())),
             lease_ttl: Duration::from_secs(seconds),
             leader: MemoryLeaderLease::default(),
+            lineage: MemoryLineage::default(),
         }
+    }
+
+    /// The lineage store that shares this run store's submission.
+    ///
+    /// A route or test holds this handle so `run lineage` reads the set that
+    /// was written with the run row.
+    #[must_use]
+    pub fn lineage(&self) -> MemoryLineage {
+        self.lineage.clone()
     }
 
     /// The leader lease that fences this store's finalisation.
@@ -261,37 +273,51 @@ impl RunStore for MemoryRuns {
         run: NewRun,
     ) -> BoxFuture<Result<SubmitOutcome, RunStoreError>> {
         let inner = Arc::clone(&self.inner);
+        let lineage_store = self.lineage.clone();
         Box::pin(async move {
-            let mut state = inner
-                .lock()
-                .map_err(|_| RunStoreError("the run lock is poisoned".to_owned()))?;
-            let key = run.run_id.to_string();
-            let profile = profile.as_str().to_owned();
-            let existing = state.runs.get(&key).cloned();
-            state
-                .submissions
-                .entry((profile, key.clone()))
-                .or_insert(None);
-            let (record, created) = match existing {
-                Some(record) => (record, false),
-                None => {
-                    let record = RunRecord::queued(&run);
-                    state.runs.insert(key.clone(), record.clone());
-                    (record, true)
+            let profile_id = profile.clone();
+            let run_id = run.run_id.clone();
+            let submitted_at = run.submitted_at.clone();
+            let lineage = run.lineage.clone();
+            let outcome = {
+                let mut state = inner
+                    .lock()
+                    .map_err(|_| RunStoreError("the run lock is poisoned".to_owned()))?;
+                let key = run.run_id.to_string();
+                let profile_key = profile.as_str().to_owned();
+                let existing = state.runs.get(&key).cloned();
+                state
+                    .submissions
+                    .entry((profile_key, key.clone()))
+                    .or_insert(None);
+                let (record, created) = match existing {
+                    Some(record) => (record, false),
+                    None => {
+                        let record = RunRecord::queued(&run);
+                        state.runs.insert(key.clone(), record.clone());
+                        (record, true)
+                    }
+                };
+                if record.status == RunState::Queued {
+                    state.ensure_notification(&key, NotificationKind::Requested);
+                    // A repeat submission is the client's recovery signal: a queued
+                    // run whose publish was lost is republished. The worker treats
+                    // the repeat as a lookup, so the run still executes once.
+                    state.rearm_notification(&key, NotificationKind::Requested);
+                }
+                if created {
+                    SubmitOutcome::Created(record)
+                } else {
+                    SubmitOutcome::Existing(record)
                 }
             };
-            if record.status == RunState::Queued {
-                state.ensure_notification(&key, NotificationKind::Requested);
-                // A repeat submission is the client's recovery signal: a queued
-                // run whose publish was lost is republished. The worker treats
-                // the repeat as a lookup, so the run still executes once.
-                state.rearm_notification(&key, NotificationKind::Requested);
+            if !lineage.is_empty() {
+                lineage_store
+                    .record(profile_id, run_id, lineage, submitted_at)
+                    .await
+                    .map_err(|error| RunStoreError(error.to_string()))?;
             }
-            Ok(if created {
-                SubmitOutcome::Created(record)
-            } else {
-                SubmitOutcome::Existing(record)
-            })
+            Ok(outcome)
         })
     }
 
