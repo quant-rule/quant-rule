@@ -28,6 +28,7 @@ use quantrule_service_api::{ConfigBundle, DatasetObject};
 use serde::Deserialize;
 
 use crate::catalog::CatalogError;
+use crate::configs::references::config_references;
 use crate::configs::{ConfigRecord, build, scan};
 use crate::ingest::{Ingested, ingest_file};
 use crate::inspect::{Inspection, inspect, ladder};
@@ -370,7 +371,7 @@ async fn internal_config(
         .as_ref()
         .ok_or_else(|| failure(ErrorCode::Internal, "no config catalog is configured"))?;
     let record = store
-        .get(profile, config_id.clone())
+        .get(profile.clone(), config_id.clone())
         .await
         .map_err(|error| failure(ErrorCode::Internal, error.to_string()))?;
     let record = record.ok_or_else(|| {
@@ -380,8 +381,14 @@ async fn internal_config(
             format!("config {config_id} is unknown"),
         )
     })?;
+    let references = if record.valid {
+        config_references(&state, &profile, &record.body).await?
+    } else {
+        Vec::new()
+    };
     Ok(Json(ConfigBundle {
         config_id: record.config_id,
+        references,
         files: record.files,
         valid: record.valid,
         message: record.message,

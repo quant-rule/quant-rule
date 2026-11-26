@@ -19,7 +19,7 @@
 use std::io;
 use std::path::{Component, Path, PathBuf};
 
-use quantrule_api::Digest;
+use quantrule_api::{Digest, RunArtifactReference};
 use quantrule_backtest::portfolio::PortfolioConfig;
 use quantrule_data::Timeframe;
 use quantrule_model::input::MarketStateConfig;
@@ -112,6 +112,61 @@ impl RunConfig {
     /// cross-config check, or is a v5 run whose references were not supplied.
     pub fn load(path: &Path) -> Result<Self, ConfigError> {
         Self::load_with(path, &NoReferences)
+    }
+
+    /// Loads a v5 run's reference set and config hash without resolving packs.
+    ///
+    /// The data service uses this structural pass to carry the references in
+    /// the config bundle. It validates the run, data and model files and every
+    /// id/hash pair; it does not read a pack, signal or model body.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`ConfigError`] when the file is not v5, a referenced data or
+    /// model file is missing or invalid, or a v5 reference is malformed.
+    pub fn load_v5_references(
+        path: &Path,
+    ) -> Result<(String, Vec<RunArtifactReference>), ConfigError> {
+        let run_name = file_name(path);
+        let run = parse(&load_document(path, run_name)?, run_name)?;
+        let Some(v5) = &run.v5 else {
+            return Err(ConfigError::schema(
+                run_name,
+                "$.schema",
+                RUN_SCHEMA_V5,
+                &run.schema,
+            ));
+        };
+        let base = path.parent().unwrap_or_else(|| Path::new("."));
+        let paths = ConfigPaths {
+            run: path.to_path_buf(),
+            data: referenced_path(base, &run.data, run_name, "$.data")?,
+            model: referenced_path(base, &run.model, run_name, "$.model")?,
+            execution: None,
+            portfolio: None,
+            strategy: None,
+        };
+        let _data = data::parse(
+            &load_document(&paths.data, display(&run.data))?,
+            display(&run.data),
+            paths.data.parent().unwrap_or(base),
+        )?;
+        let _model = model::parse(
+            &load_document(&paths.model, display(&run.model))?,
+            display(&run.model),
+        )?;
+        let references = v5.references();
+        let config_hash = fingerprint_v5(&paths, &references)?;
+        let artifacts = references
+            .each()
+            .map(|(kind, reference)| RunArtifactReference {
+                kind,
+                id: reference.id.clone(),
+                hash: reference.hash.clone(),
+                pack: None,
+            })
+            .collect();
+        Ok((config_hash, artifacts))
     }
 
     /// Loads and validates a run, resolving v5 pack and artifact references.

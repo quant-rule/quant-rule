@@ -5,6 +5,7 @@
 //! read-only source; the catalog stores the body, the validity, and a content
 //! hash so a run can refer to the exact configuration.
 
+pub(crate) mod references;
 pub mod scan;
 pub mod store;
 pub mod upload;

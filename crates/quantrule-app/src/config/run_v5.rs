@@ -82,6 +82,20 @@ pub(super) struct V5Resolved {
 }
 
 impl V5RunFile {
+    /// The five references, without resolving the referenced bytes.
+    ///
+    /// This is the structural seam the data service uses to populate
+    /// `ConfigBundle.references` before evidence resolves the content.
+    pub(crate) fn references(&self) -> RunReferences {
+        RunReferences {
+            model_artifact: self.model_artifact.clone(),
+            strategy_pack: self.strategy_pack.clone(),
+            signal_artifact: self.signal_artifact.clone(),
+            portfolio_policy: self.portfolio_policy.clone(),
+            execution_model: self.execution_model.clone(),
+        }
+    }
+
     /// Parses the v5-only fields; the caller has already checked unknown fields.
     pub(super) fn parse(
         file: &str,
@@ -102,6 +116,16 @@ impl V5RunFile {
             account,
         })
     }
+}
+
+/// Parses a v5 `run.json` value into its reference set.
+///
+/// The caller has already established the `quantrule.run/v5` schema. This
+/// function checks every reference's id/hash pair but does not read a pack or
+/// artifact body; the data service resolves those from its own registry.
+pub fn parse_references(file: &str, value: &Value) -> Result<RunReferences, ConfigError> {
+    let object = read::object(file, "$", value)?;
+    Ok(V5RunFile::parse(file, object)?.references())
 }
 
 /// Resolves and verifies every reference, then builds the engine values.

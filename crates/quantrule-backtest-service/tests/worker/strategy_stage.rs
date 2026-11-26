@@ -250,6 +250,7 @@ fn nested_strategy_bundle() -> ConfigBundle {
     files.insert("rules/entry.json".to_owned(), strategy);
     ConfigBundle {
         config_id: "cfg_nested".to_owned(),
+        references: Vec::new(),
         files,
         valid: true,
         message: None,

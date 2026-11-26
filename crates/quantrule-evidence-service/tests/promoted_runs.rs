@@ -6,8 +6,9 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use common::body_bytes;
 use quantrule_api::{
-    ArtifactRef, Digest, ErrorCode, ErrorEnvelope, PROFILE_HEADER, RunDetail, StageArtifact,
-    StageKind, StageProvenance, StageState, SubmitRunResponse,
+    ArtifactRef, Digest, ErrorCode, ErrorEnvelope, PROFILE_HEADER, PackKind, PackProvenance,
+    PackState, ReferenceKind, RunArtifactReference, RunDetail, StageArtifact, StageKind,
+    StageProvenance, StageState, SubmitRunResponse,
 };
 use quantrule_evidence_service::runs::MemoryRuns;
 use quantrule_evidence_service::stage::{MemoryStages, NewStageRun, StageClaimOutcome, StageStore};
@@ -64,6 +65,7 @@ fn dataset(version: &Digest) -> DatasetObject {
 fn bundle(config_id: &str, hash_seed: &[u8], model: &str) -> ConfigBundle {
     ConfigBundle {
         config_id: config_id.to_owned(),
+        references: Vec::new(),
         files: BTreeMap::from([(
             "run.json".to_owned(),
             format!(r#"{{"schema":"quantrule.run/v4","model_id":"{model}"}}"#),
@@ -77,6 +79,7 @@ fn bundle(config_id: &str, hash_seed: &[u8], model: &str) -> ConfigBundle {
 fn v3_bundle() -> ConfigBundle {
     ConfigBundle {
         config_id: "cfg_v3".to_owned(),
+        references: Vec::new(),
         files: BTreeMap::from([(
             "run.json".to_owned(),
             r#"{"schema":"quantrule.run/v3","model_id":"M1.0"}"#.to_owned(),
@@ -87,12 +90,71 @@ fn v3_bundle() -> ConfigBundle {
     }
 }
 
+fn pack_reference(kind: ReferenceKind, pack_kind: PackKind, seed: &[u8]) -> RunArtifactReference {
+    let id = digest(seed);
+    RunArtifactReference {
+        kind,
+        id: id.clone(),
+        hash: id,
+        pack: Some(PackProvenance {
+            kind: pack_kind,
+            name: format!("{pack_kind}-pack"),
+            version: "1.0.0".to_owned(),
+            owner: "operator".to_owned(),
+            state: PackState::Frozen,
+        }),
+    }
+}
+
+fn v5_bundle_without_model() -> ConfigBundle {
+    let mut bundle = v5_bundle(digest(b"unused-model"));
+    bundle.config_id = "cfg_v5_no_model".to_owned();
+    bundle
+        .references
+        .retain(|reference| reference.kind != ReferenceKind::ModelArtifact);
+    bundle.config_hash = Some(digest(b"v5-no-model"));
+    bundle
+}
+
+fn v5_bundle(model: Digest) -> ConfigBundle {
+    ConfigBundle {
+        config_id: "cfg_v5".to_owned(),
+        references: vec![
+            pack_reference(ReferenceKind::StrategyPack, PackKind::Strategy, b"strategy"),
+            pack_reference(
+                ReferenceKind::PortfolioPolicy,
+                PackKind::Portfolio,
+                b"portfolio",
+            ),
+            pack_reference(
+                ReferenceKind::ExecutionModel,
+                PackKind::Execution,
+                b"execution",
+            ),
+            RunArtifactReference {
+                kind: ReferenceKind::ModelArtifact,
+                id: model.clone(),
+                hash: model,
+                pack: None,
+            },
+        ],
+        files: BTreeMap::from([(
+            "run.json".to_owned(),
+            r#"{"schema":"quantrule.run/v5","model_id":"M1.0"}"#.to_owned(),
+        )]),
+        valid: true,
+        message: None,
+        config_hash: Some(digest(b"v5")),
+    }
+}
+
 async fn harness() -> Arc<EvidenceState> {
     let queue = MemoryQueue::default();
     let data = MemoryDataClient::default();
     let stages = MemoryStages::default();
     let default = quantrule_api::ProfileId::parse("default").expect("default");
     let alpha = quantrule_api::ProfileId::parse("alpha").expect("alpha");
+    let v5_model = model_artifact(b"model").artifact_id;
     for profile in [&default, &alpha] {
         for version in [digest(b"candles-a"), digest(b"candles-b")] {
             data.add_dataset(profile, dataset(&version));
@@ -100,6 +162,8 @@ async fn harness() -> Arc<EvidenceState> {
         data.add_config(profile, bundle("cfg_valid", b"valid", "M1.0"));
         data.add_config(profile, bundle("cfg_changed", b"changed", "M1.0"));
         data.add_config(profile, v3_bundle());
+        data.add_config(profile, v5_bundle(v5_model.clone()));
+        data.add_config(profile, v5_bundle_without_model());
     }
     seed_stages(&stages).await;
     let config = Config {
@@ -323,6 +387,64 @@ async fn a_promoted_run_reuses_a_succeeded_model_stage() {
     let again: SubmitRunResponse = decode(response).await;
     assert_eq!(again.run_id, created.run_id);
     assert!(!again.created);
+}
+
+#[tokio::test]
+async fn a_v5_bundle_accepts_the_matching_model_artifact() {
+    let state = harness().await;
+    let artifact = model_artifact(b"model").artifact_id;
+    let response = submit_promoted(
+        Arc::clone(&state),
+        "default",
+        &digest(b"candles-a"),
+        "cfg_v5",
+        &artifact,
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::ACCEPTED);
+    let created: SubmitRunResponse = decode(response).await;
+    assert!(created.created);
+}
+
+#[tokio::test]
+async fn a_v5_bundle_without_the_model_artifact_id_is_refused() {
+    let state = harness().await;
+    let response = router(state)
+        .oneshot(
+            Request::post("/runs")
+                .header(PROFILE_HEADER, "default")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "data_version": digest(b"candles-a"),
+                        "config_id": "cfg_v5",
+                    })
+                    .to_string(),
+                ))
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let envelope: ErrorEnvelope = decode(response).await;
+    assert_eq!(envelope.error.code, ErrorCode::RunModelArtifactInvalid);
+}
+
+#[tokio::test]
+async fn a_v5_bundle_without_a_model_reference_refuses_a_promoted_model() {
+    let state = harness().await;
+    let artifact = model_artifact(b"model").artifact_id;
+    let response = submit_promoted(
+        Arc::clone(&state),
+        "default",
+        &digest(b"candles-a"),
+        "cfg_v5_no_model",
+        &artifact,
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let envelope: ErrorEnvelope = decode(response).await;
+    assert_eq!(envelope.error.code, ErrorCode::RunModelArtifactInvalid);
 }
 
 #[tokio::test]

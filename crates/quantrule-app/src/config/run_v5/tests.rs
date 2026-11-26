@@ -377,6 +377,21 @@ fn a_v5_run_needs_supplied_references() {
 }
 
 #[test]
+fn a_structural_load_returns_the_reference_set_and_hash() {
+    let fixture = Fixture::new("structural", PackSet::fold());
+    let (hash, references) =
+        RunConfig::load_v5_references(&fixture.dir.join("run.json")).expect("the structural load");
+    let full = fixture.load("run.json").expect("the full load");
+    assert_eq!(hash, full.config_hash);
+    assert_eq!(references.len(), 3);
+    assert_eq!(references[0].kind, ReferenceKind::StrategyPack);
+    assert_eq!(references[1].kind, ReferenceKind::PortfolioPolicy);
+    assert_eq!(references[2].kind, ReferenceKind::ExecutionModel);
+    assert!(references.iter().all(|reference| reference.is_consistent()));
+    assert!(references.iter().all(|reference| reference.pack.is_none()));
+}
+
+#[test]
 fn a_missing_reference_names_the_field() {
     let fixture = Fixture::new("missing", PackSet::fold());
     let empty = MemoryReferences::new();

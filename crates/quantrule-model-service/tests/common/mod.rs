@@ -66,6 +66,7 @@ pub async fn seed_from(dataset: &[u8], candles: u64) -> Seed {
         &profile,
         ConfigBundle {
             config_id: "cfg_valid".to_owned(),
+            references: Vec::new(),
             files: valid_files(),
             valid: true,
             message: None,
@@ -76,6 +77,7 @@ pub async fn seed_from(dataset: &[u8], candles: u64) -> Seed {
         &profile,
         ConfigBundle {
             config_id: "cfg_invalid".to_owned(),
+            references: Vec::new(),
             files: BTreeMap::from([("run.json".to_owned(), "{}".to_owned())]),
             valid: false,
             message: Some("the bundle has no data.json".to_owned()),

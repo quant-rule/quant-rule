@@ -4,7 +4,8 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use quantrule_api::{ConfigOrigin, Digest};
-use quantrule_app::config::RunConfig;
+use quantrule_app::config::{RUN_SCHEMA_V5, RunConfig};
+use serde_json::Value;
 
 use crate::configs::ConfigRecord;
 
@@ -87,19 +88,76 @@ pub(crate) fn record(
             })
         }
         Err(error) => {
-            let digest = Digest::sha256(body.as_bytes());
-            Ok(ConfigRecord {
-                config_id: id(&digest),
-                name,
-                origin,
-                valid: false,
-                message: Some(error.to_string()),
-                config_hash: None,
-                body: body.clone(),
-                files: BTreeMap::from([("run.json".to_owned(), body)]),
-                created_at: now.to_owned(),
-            })
+            if is_v5(&body) {
+                return match RunConfig::load_v5_references(path) {
+                    Ok((hash, _references)) => {
+                        let digest =
+                            Digest::parse(&hash).map_err(|error| ScanError(error.to_string()))?;
+                        Ok(ConfigRecord {
+                            config_id: id(&digest),
+                            name,
+                            origin,
+                            valid: true,
+                            message: None,
+                            config_hash: Some(digest),
+                            body: body.clone(),
+                            files: bundle_files_v5(&body, path),
+                            created_at: now.to_owned(),
+                        })
+                    }
+                    Err(v5_error) => Ok(invalid(name, origin, body, now, v5_error.to_string())),
+                };
+            }
+            Ok(invalid(name, origin, body, now, error.to_string()))
         }
+    }
+}
+
+fn is_v5(body: &str) -> bool {
+    serde_json::from_str::<Value>(body)
+        .ok()
+        .and_then(|value| {
+            value
+                .get("schema")
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+        })
+        .is_some_and(|schema| schema == RUN_SCHEMA_V5)
+}
+
+fn bundle_files_v5(body: &str, path: &Path) -> BTreeMap<String, String> {
+    let value: Value = serde_json::from_str(body).unwrap_or(Value::Null);
+    let base = path.parent().unwrap_or_else(|| Path::new("."));
+    let mut files = BTreeMap::from([("run.json".to_owned(), body.to_owned())]);
+    for key in ["data", "model"] {
+        let Some(relative) = value.get(key).and_then(Value::as_str) else {
+            continue;
+        };
+        if let Ok(content) = std::fs::read_to_string(base.join(relative)) {
+            files.insert(relative.to_owned(), content);
+        }
+    }
+    files
+}
+
+fn invalid(
+    name: String,
+    origin: ConfigOrigin,
+    body: String,
+    now: &str,
+    message: String,
+) -> ConfigRecord {
+    let digest = Digest::sha256(body.as_bytes());
+    ConfigRecord {
+        config_id: id(&digest),
+        name,
+        origin,
+        valid: false,
+        message: Some(message),
+        config_hash: None,
+        body: body.clone(),
+        files: BTreeMap::from([("run.json".to_owned(), body)]),
+        created_at: now.to_owned(),
     }
 }
 
@@ -156,7 +214,12 @@ mod tests {
         let names: Vec<&str> = records.iter().map(|record| record.name.as_str()).collect();
         assert_eq!(
             names,
-            vec!["invalid/run.json", "valid/run.json", "valid-v4/run.json"]
+            vec![
+                "invalid/run.json",
+                "valid/run.json",
+                "valid-v4/run.json",
+                "valid-v5/run.json"
+            ]
         );
     }
 
@@ -193,6 +256,18 @@ mod tests {
         assert!(v4.valid);
         assert_eq!(v4.files.len(), 6);
         assert!(v4.files.contains_key("strategy.json"));
+
+        let v5 = records
+            .iter()
+            .find(|record| record.name == "valid-v5/run.json")
+            .expect("v5");
+        assert!(v5.valid);
+        assert!(v5.config_hash.is_some());
+        assert_eq!(v5.files.len(), 3);
+        assert!(v5.files.contains_key("run.json"));
+        assert!(v5.files.contains_key("data.json"));
+        assert!(v5.files.contains_key("model.json"));
+        assert!(!v5.files.contains_key("strategy.json"));
     }
 
     fn copy_tree(source: &Path, target: &Path) {

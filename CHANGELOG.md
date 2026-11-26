@@ -18,6 +18,10 @@ history is in Git and the pull requests.
 
 ## [Unreleased]
 
+### Added
+
+- A `quantrule.run/v5` submission now carries an ordered reference set in the internal config bundle, resolves data-owned pack and signal objects by hash, and refuses a v5 model artifact that does not match the submitted model stage. Run lineage and worker consumption remain follow-up slices.
+
 ### Changed
 
 - The QuantRule software licence is now MIT. Every crate manifest and both container image labels declare `MIT`; `LICENSE` points to `LICENSE-MIT`. Releases up to v1.6.0 retain their published MIT OR Apache-2.0 dual grant, and `LICENSE-APACHE` is no longer part of the current tree.

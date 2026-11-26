@@ -187,6 +187,7 @@ fn config_bundle(
     }
     ConfigBundle {
         config_id: config_id.to_owned(),
+        references: Vec::new(),
         files,
         valid: true,
         message: None,

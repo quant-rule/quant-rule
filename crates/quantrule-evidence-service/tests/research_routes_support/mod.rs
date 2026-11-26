@@ -88,6 +88,7 @@ fn config(id: &str, seed: &[u8], coupled: bool) -> ConfigBundle {
     };
     ConfigBundle {
         config_id: id.to_owned(),
+        references: Vec::new(),
         files: BTreeMap::from([
             ("run.json".to_owned(), run_json),
             (
@@ -106,6 +107,7 @@ pub fn config_with_window(id: &str, seed: &[u8], from: &str, to: &str) -> Config
     let run_json = serde_json::json!({"model_id": "M1.0", "strategy": "strategy.json"}).to_string();
     ConfigBundle {
         config_id: id.to_owned(),
+        references: Vec::new(),
         files: BTreeMap::from([
             ("run.json".to_owned(), run_json),
             (

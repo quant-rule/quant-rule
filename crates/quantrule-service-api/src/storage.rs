@@ -6,7 +6,7 @@
 
 use std::collections::BTreeMap;
 
-use quantrule_api::{ArtifactRef, Digest};
+use quantrule_api::{ArtifactRef, Digest, RunArtifactReference};
 use serde::{Deserialize, Serialize};
 
 /// The model bundle schema version.
@@ -24,6 +24,12 @@ pub struct ConfigBundle {
     pub config_id: String,
     /// The bundle's files, keyed by relative path.
     pub files: BTreeMap<String, String>,
+    /// The v5 reference set, empty for a v3 or v4 run.
+    ///
+    /// The set names content, not payloads. Evidence records it as lineage;
+    /// the worker resolves the bytes once before the fold.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub references: Vec<RunArtifactReference>,
     /// Whether the run config and its references validate.
     pub valid: bool,
     /// The validator message when invalid.
@@ -184,6 +190,7 @@ mod tests {
     fn config_bundle() -> ConfigBundle {
         ConfigBundle {
             config_id: "cfg-1".to_owned(),
+            references: Vec::new(),
             files: BTreeMap::from([
                 ("run.json".to_owned(), "{\"model_id\":\"M1.3\"}".to_owned()),
                 ("strategy.json".to_owned(), "{}".to_owned()),
@@ -227,6 +234,7 @@ mod tests {
     fn a_model_input_hash_ignores_the_strategy() {
         let mut bundle = ConfigBundle {
             config_id: "cfg-model".to_owned(),
+            references: Vec::new(),
             files: BTreeMap::from([
                 (
                     "run.json".to_owned(),
@@ -266,6 +274,15 @@ mod tests {
             serde_json::from_str::<ConfigBundle>(&text).expect("decode"),
             bundle
         );
+    }
+
+    #[test]
+    fn a_bundle_without_references_keeps_the_legacy_shape() {
+        let bundle = config_bundle();
+        let text = serde_json::to_string(&bundle).expect("encode");
+        assert!(!text.contains("\"references\""), "{text}");
+        let decoded: ConfigBundle = serde_json::from_str(&text).expect("decode");
+        assert!(decoded.references.is_empty());
     }
 
     #[test]

@@ -111,6 +111,7 @@ pub fn bundle(root: &Path) -> ConfigBundle {
     }
     ConfigBundle {
         config_id: "cfg_valid_v4".to_owned(),
+        references: Vec::new(),
         files,
         valid: true,
         message: None,
@@ -296,6 +297,7 @@ pub async fn fixture() -> Fixture {
         bundle(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config/valid-v4"));
     let invalid = ConfigBundle {
         config_id: "cfg_invalid".to_owned(),
+        references: Vec::new(),
         files: BTreeMap::from([(
             "run.json".to_owned(),
             std::fs::read_to_string(
