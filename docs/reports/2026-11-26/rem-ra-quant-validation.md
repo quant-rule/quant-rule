@@ -2,6 +2,7 @@
 
 - Date: 2026-11-26 (UTC)
 - Status: Independent child agent session; same model family, fresh context; not a human reviewer and not an independent model judgment.
+- Re-validation: 2026-11-26 (UTC), base commit `8b54e62d`; the §7 verdict remains the historical result for `d19e6047`. The new verdict is in the Re-validation section.
 - Work item: [#1210](https://github.com/quant-rule/quant-rule/issues/1210) (`REM-RA-007`), parent `REM-RA` / `REM-000`
 - Claim type: Behaviour Claim validation record; no edge claim
 - Plan: [`rem-000-v1.6.1-remediation.md`](../../execution-plans/2026-11-26/rem-000-v1.6.1-remediation.md) (`RA-007`, `V-RA-07`)
@@ -408,3 +409,255 @@ the upload-time validation claim (D2) and the canonical-digest documentation
 (D3) also fail their stated contracts. The composed tier remains for `G1`, `G2`,
 and `G4` after the lifecycle fix. No code, test, config, contract, or script was
 modified; only this report was written.
+
+## Re-validation (2026-11-26)
+
+- Base commit: `8b54e62d` (merge of PR #1242; `main` at the same commit).
+- Worktree: `/home/zantgo/Proyectos/quant-rule--1243-revalidation`; branch `docs/1243-revalidation`.
+- Toolchain: `cargo 1.99.1 (5f94df478 2026-08-27)`, `rustc 1.99.1 (58cf8f9c3 2026-10-13)`.
+- Independence: a separate child-agent session with the same model family and a
+  fresh context. This is not a human reviewer and not an independent model
+  judgment; it is a second separate pass, not a self-approval.
+- Scope: D1, D2 and D3 from the original record, the core v5 evidence, and a
+  new Critical/Major scan of the #1239/#1240 fix.
+- Evidence boundary: no edge, profitability, holdout, composed-stack,
+  live-Postgres, HA, soak, upgrade, signature or release claim is made. Docker,
+  the composed tier, the full gate and a live database were not run.
+- Change boundary: no code, test, config, contract or script was modified; only
+  this report was written.
+
+### Verdict for `8b54e62d` plus this record
+
+**Pass — D1, D2 and D3 are `Verified`; no new Critical or Major finding was
+observed.** The §7 `Fail` remains the historical result for `d19e6047` and is
+not rewritten. The new verdict applies to `8b54e62d` plus this record. The Minor
+D4 wording was corrected after this pass in the same PR; the fast-test gaps
+(G6–G8) remain, and the prior gaps G1–G5 also remain open. The fix is a behaviour
+gate, not an edge, profit or release claim. This section supports `V-RA-07`
+`Pass`; the plan row is updated by the implementer after this record.
+
+### Findings
+
+| ID | Severity | Original finding | Re-validation status | Evidence |
+|---|---|---|---|---|
+| D1 | Major | A new run may cite a `draft`, `validated` or `retired` pack; the frozen-pack new-run gate is not enforced. | **Verified** | Upload resolves and refuses non-frozen packs; submission re-checks before the run row; the lineage read is not gated. Tests below. |
+| D2 | Moderate | The docs/ADR claimed upload-time resolution; the upload marked a v5 config valid without resolving packs or signal. | **Verified** for the named gap | `upload_config` calls `config_references` before the idempotent lookup and before storing; the docs/ADR describe resolution at upload. A Minor wording precision remains (D4). |
+| D3 | Moderate | The manual's canonical digest set omitted every `metrics.json`; the service includes them and the golden depends on one. | **Verified** | `AGENTS.md` §12, manual chapter 6, the glossary and the ADR addendum include every `metrics.json`; code and golden unchanged; the independently reconstructed digest matches. |
+
+### D1 — frozen pack lifecycle
+
+Upload path:
+
+- `crates/quantrule-data-service/src/routes.rs:309-328`: for a valid record,
+  `config_references` runs before `store.get` and `store.upsert`; a pack whose
+  state does not `allows_new_runs` returns `pack.invalid`, so no record is
+  written.
+- `crates/quantrule-data-service/src/configs/references.rs:19-122`: every pack
+  is read from the registry and object store; the object bytes are checked
+  against the registry hash and length; a signal artifact is resolved the same
+  way. A missing pack is `pack.not_found`, a missing object is `internal`, and a
+  non-frozen pack is `pack.invalid`.
+- `configs_v5` passed 4 tests: a draft pack refused with no upload; a frozen set
+  accepted; the same payload re-uploaded after retirement refused with
+  `pack.invalid`; a missing pack refused with 404; a missing pack object refused
+  with 500; the internal bundle returns the three references with frozen
+  provenance.
+- The retired re-upload is the duplicate-bypass regression: the check runs
+  before the idempotent lookup, so an existing valid record does not bypass it.
+
+Submission path:
+
+- `crates/quantrule-evidence-service/src/routes/runs.rs:45-68` defines
+  `require_frozen_packs`; `:176` calls it before `derive` and before
+  `:281-308` `runs.submit`. A missing provenance, draft, validated or retired
+  pack returns `pack.invalid`.
+- `promoted_runs::a_v5_run_refuses_a_non_frozen_pack` passed for `draft`,
+  `validated` and `retired`; each returned 400 `pack.invalid`, and `GET /runs`
+  was empty, so no run row was written.
+- `research create` uses the same `submit_validated_pipeline` helper, so the
+  same check covers the research route.
+- The signal path is not a bypass: the strategy service requires a frozen
+  signal-mode strategy pack before it computes
+  (`crates/quantrule-strategy-service/src/resolve.rs:144-153`).
+- The worker does not re-check the pack state; the lifecycle boundary is the
+  run row. A pack retired after the row exists belongs to an existing run, which
+  the lifecycle permits. The window in G8 is the only gap.
+
+Lineage read:
+
+- `crates/quantrule-evidence-service/src/routes/lineage.rs:95-114`: the read
+  checks the run is visible and the lineage store; it never reads the pack
+  registry or the pack state. An existing run's lineage is therefore not gated
+  by a later retirement.
+- Not directly tested: submit a run while frozen, retire the pack, then read the
+  same run's lineage. The code path is independent of pack state, but the
+  regression test named in the prior recommendation is absent (G6).
+
+Composed fixture:
+
+- `tools/verify.sh:312-348` validates and freezes each v5 pack before uploading
+  the rewritten config; `bash -n tools/verify.sh` reports no syntax error. The
+  composed tier was not run (G1/G2).
+
+Residual D1 risks:
+
+- The frozen check is a read in the data/evidence services followed by a write
+  in evidence. A pack retired between the read and the run-row write can still
+  be cited; no lock or lease spans the two services. This is a narrow
+  cross-service TOCTOU, not the original unconditional gap, and it is untested
+  (G8).
+- The data-service tests exercise `draft` and `retired` at upload. The
+  `validated`-at-upload case is covered by the same `allows_new_runs` predicate
+  and by the evidence submission test, but not by a direct upload test. A
+  missing signal artifact is handled by `config_references` but not covered by
+  `configs_v5`. The plan's `V-RA-08` observed text describes the data-service
+  upload cases as including `validated`, and the #1239 AI log says the upload
+  refuses a missing signal; the named data-service tests do not exercise either
+  case. The behaviour is not disproved, but the record is broader than the test
+  (G6).
+
+### D2 — upload-time resolution
+
+- Before #1239, `upload_config` built the record and stored it without calling
+  `config_references`; the v5 scan marked it valid from `load_v5_references`
+  alone. That old gap is gone: `routes.rs:309-328` resolves every data-owned
+  reference and returns an error before `store.upsert` when a pack, signal
+  artifact, object or frozen state is missing.
+- The docs now describe the same behaviour:
+  `docs/architecture/research-artifacts.md:82-87` and
+  `docs/config/2026-11-22/research-artifact-packs.md:240-244` say the data
+  service resolves every data-owned reference at upload and that upload and
+  submission refuse a draft, validated or retired pack;
+  `docs/manual/06-backtest.md:50-54` says the same for upload and `run submit`;
+  `docs/manual/09-command-reference.md:47-50` says `run submit` refuses a
+  missing, mismatched or non-frozen pack. ADR decision 3
+  (`docs/adr/2026-11-26/1204-run-v5-resolution.md:42-45`) says the data service
+  parses, resolves and verifies each id and hash before it marks the bundle
+  valid; that is the implemented behaviour.
+- The comment at `tools/verify.sh:309-311` now matches the resolved upload; the
+  script also freezes the packs before the upload.
+- D4 (Minor, fixed in this PR): `docs/config/2026-11-22/research-artifact-packs.md`
+  said the upload validates through `RunConfig::load_with`. The upload route uses
+  `parse_v5_references` plus `config_references`, not the full loader; it checks
+  existence, state, object hash and length, while pack-kind and signal
+  cross-fields remain at submission and the loader. The paragraph now names the
+  upload path and the full loader's location. This is a documentation precision
+  issue, not a reopened D2.
+- G7: a v5 config discovered by the read-only mount (`sync_configs`/`scan`) is
+  still marked `valid: true` without resolving its packs or signal
+  (`crates/quantrule-data-service/src/configs/scan.rs:91-107`;
+  `routes.rs:344-362`). Submission's `internal_config` resolves the set and
+  refuses a missing or non-frozen pack before a run row, so the run-safety
+  property holds. The `valid` flag for repository origin is not the same as
+  upload validity; the docs should say so or the scan should resolve. This is
+  pre-existing, not introduced by #1239.
+- The direct duplicate-bypass evidence is the `configs_v5` retired re-upload;
+  the check precedes `store.get`.
+
+### D3 — canonical digest documentation
+
+- `AGENTS.md` §12 line 1123, `docs/manual/06-backtest.md:88-94`,
+  `docs/manual/11-glossary.md:18`, and the dated addendum at
+  `docs/adr/2026-11-12/07-canonical-digest-and-claim-boundary.md:59-63` all list
+  `results.json`, `*.csv`, every `metrics.json`, and `*.ndjson`.
+- `crates/quantrule-service-api/src/manifest.rs:169-190` still includes a
+  basename `metrics.json`; `git diff d19e6047..8b54e62d` is empty for
+  `crates/quantrule-service-api` and
+  `crates/quantrule-app/tests/fixtures/run-v5/golden-digest.txt`. #1240 changed
+  docs only.
+- I captured the app `one/backtest` bundle from a fresh `run_v5_e2e` run (a
+  syscall-delay verification harness, not a repository change) and recomputed
+  the digest from the 13 canonical files with the documented
+  `path NUL sha256:<hex> newline` stream, sorted by path:
+  - with `portfolio/metrics.json`:
+    `sha256:4d5f6a8ad385989d8a6c335bb1bd66620bd7bb3fd5a3505438d7bd6cab256b79`,
+    matching the checked-in golden and the service;
+  - without it:
+    `sha256:8fa9d752d4e6faffaaa1d6f44656a7d5ed9a864576d71b49d6811f85dcf3f3a5`,
+    the same contrast the prior record reported.
+- This is one 250-bar fold fixture. It is not a proof for every run.
+
+### Commands and observed results
+
+All build and test commands below were run in this worktree with
+`CARGO_BUILD_JOBS=2`; `cargo fmt` and `bash -n` do not use it. The counts are the
+observed `cargo` output, not the implementer's claims. Counts are per command and
+are not additive.
+
+| Command | Observed result |
+|---|---|
+| `cargo test -p quantrule-data-service --test configs_v5` | exit 0; **4 passed**, 0 failed |
+| `cargo test -p quantrule-evidence-service --test promoted_runs` | exit 0; **8 passed**, 0 failed |
+| `cargo test -p quantrule-app --test run_v5_e2e` | exit 0; **2 passed**, 0 failed (0.23 s) |
+| `cargo test -p quantrule-backtest-service --test worker` | exit 0; **48 passed**, 0 failed (5.84 s) |
+| `cargo test -p quantrule-model-service` | exit 0; **32 passed**, 0 failed across 13 lib + 4 bundle + 5 events + 2 health + 1 isolation + 7 model; two empty targets (`qr_model` bin, doc-tests) |
+| `cargo test -p quantrule-app --test signal_artifact_public` | exit 0; **6 passed**, 0 failed |
+| `cargo test -p quantrule-evidence-service --lib` | exit 0; **82 passed**, 0 failed |
+| `cargo run --quiet -p quantrule-governance -- check --all` | exit 0; `governance check ok` |
+| `cargo test -p quantrule-app --lib pack::` | exit 0; **119 passed**, 0 failed (229 filtered) |
+| `cargo test -p quantrule-app --test strategy_pack_identity --test execution_pack_identity --test portfolio_pack_identity` | exit 0; **17 passed** (5 + 6 + 6), 0 failed |
+| `cargo test -p quantrule-app --test run_v5_public` | exit 0; **4 passed**, 0 failed |
+| `cargo test -p quantrule-backtest-service --test run_v5_identity` | exit 0; **2 passed**, 0 failed |
+| `cargo test -p quantrule-evidence-service --test lineage` | exit 0; **5 passed, 1 ignored** (Postgres; no `QR_TEST_DATABASE_URL`) |
+| `cargo test -p quantrule-data-service --test configs` | exit 0; **9 passed**, 0 failed |
+| `cargo test -p quantrule-app --lib` | exit 0; **348 passed**, 0 failed |
+| `cargo test -p quantrule-backtest-service --lib` | exit 0; **15 passed**, 0 failed |
+| `cargo test -p quantrule-data-service --lib` | exit 0; **72 passed**, 0 failed |
+| `cargo test -p quantrule-model-service v5` | exit 0; **2 passed**, 0 failed (11 filtered); a subset of the 32 above |
+| `cargo clippy -p quantrule-data-service -p quantrule-evidence-service --all-targets` | exit 0; no warnings |
+| `cargo fmt --all -- --check` | exit 0; no diff |
+| `bash -n tools/verify.sh` | exit 0; syntax ok |
+
+The pack filter is a subset of the 348 app-lib tests, and the model-service v5
+filter is a subset of its 32 tests; neither is added to the totals.
+
+### New Critical/Major scan
+
+| Check | Observed result |
+|---|---|
+| A valid v4 config still uploads | `configs` 9 passed, including upload, duplicate lookup, invalid bundle, path refusal and profile scoping; `config_references` returns an empty set for a non-v5 schema. No v4 failure was observed. |
+| An existing v5 config whose pack retired | The duplicate upload is refused with `pack.invalid`; submission with a retired pack is refused with `pack.invalid` and writes no run row. The existing run's lineage read does not consult the pack state. |
+| A duplicate upload bypasses the check | The check is before `store.get`; the third `configs_v5` upload after retirement is the direct test and returns 400. |
+| A new run row on a refused submission | The evidence test lists runs after each non-frozen attempt and finds none. |
+| Code scope of the fix | `git diff --stat d19e6047..8b54e62d -- crates` shows only `quantrule-data-service/src/routes.rs` (+21) and `quantrule-evidence-service/src/routes/runs.rs` (+29); the fold, model, service-api and golden files are unchanged. |
+| Formatting and lints | `cargo fmt --check` clean; the two changed crates' clippy clean. |
+
+No new Critical or Major finding was observed. D4 (Minor wording) is corrected
+in this record's PR. The residuals are G6 (fast-test coverage), G7
+(repository-scanned v5 `valid` flag) and G8 (cross-service TOCTOU). None writes
+a run row for a refused submission or changes the v4 path.
+
+### Gaps
+
+| ID | Status | Gap |
+|---|---|---|
+| G1 | Open | No fast test exercises the production data-service `config_references` missing/mismatch path at submission; no composed stack or live Postgres. |
+| G2 | Open | No signal-mode v5 end-to-end execution and no v5 promoted-model worker end-to-end test; the fast v5 folds are fold mode. |
+| G3 | Open | No five-reference lineage route round-trip; the route tests use two and four references. |
+| G4 | Open | No live Postgres. `the_postgres_lineage_store_conforms` is ignored without `QR_TEST_DATABASE_URL`; the Postgres path is not exercised in this pass. |
+| G5 | Open | No gateway HTTP submit/fetch round trip in this validation. |
+| G6 | Open | No direct upload test for a validated-only pack or a missing signal artifact; no retire-after-submit lineage read test. The code path is inspected, but those cases are not exercised. |
+| G7 | Open | Repository-scanned v5 configs still get `valid: true` without resolution; submission resolves and refuses, but the `valid` flag is origin-scoped and undocumented. Pre-existing. |
+| G8 | Open | The frozen-state check is not atomic with pack retirement across data and evidence; the narrow TOCTOU race is untested. |
+
+### Limitations
+
+- This is a second validator pass by a child agent; it is not a human review, not
+  an independent model judgment, and not a self-approval.
+- The bundle capture used a syscall delay on deletion and a copy loop. It is a
+  verification harness, not a product path or a change to the test.
+- The digest reconstruction is one 250-bar fold fixture. It does not prove every
+  future run, and it does not replace the composed tier.
+- I did not repeat the prior syscall-delay capture of the worker bundle. The
+  worker suite passed, its test asserts the staged digest equals the manifest
+  digest and every artifact hash, and the fold/canonical code is unchanged since
+  `d19e6047`; the prior record's app-versus-worker byte agreement remains the
+  evidence for that comparison.
+- No edge, profitability, holdout, strategy-baseline, composed-stack,
+  live-Postgres, HA, soak, upgrade, signature or release claim is made.
+- The full gate, Docker stack, multi-host and HA tiers were not run. The
+  `cargo` commands were fast-tier tests in this worktree.
+
+The re-validation does not reopen D1, D2 or D3. It records the Minor D4 wording
+and G6–G8 so the next change can correct them without treating the fix as
+unfinished.
